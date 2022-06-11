@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { Logger } from "../util/logger.js";
 import { Utility } from '../util/utility.js';
 import { Platform } from "../system/platform.js";
@@ -19,8 +19,19 @@ const API_KEY_FILE = '/tmp/config/lang-api-key.txt';
 
 let self: CloudConnector = null;
 
-function cloud(message: string) {
+function cloudLog(message: string) {
     log.info(message);
+}
+
+function ensureDir(filePath: string) {
+    const slash = filePath.lastIndexOf('/');
+    if (slash != -1) {
+        const parent = filePath.substring(0, slash);
+        if (!existsSync(parent)) {
+            mkdirSync(parent, { recursive: true });
+            log.info('Folder '+parent+' created');
+        }
+    }
 }
 
 export class Connector {
@@ -49,18 +60,20 @@ class CloudConnector {
         self.apiKey = process.env[apiKeyEnv];
         if (!self.apiKey) {
             if (!existsSync(API_KEY_FILE)) {
+                ensureDir(API_KEY_FILE);
                 writeFileSync(API_KEY_FILE, util.getUuid()+'\r\n');                
             }
             self.apiKey = readFileSync(API_KEY_FILE, {encoding:'utf-8', flag:'r'}).trim();
         }
-        platform.register('cloud.status', (evt: EventEnvelope) => {
+        po.subscribe('cloud.status', (evt: EventEnvelope) => {
             if ('disconnected' == evt.getHeader('type')) {
                 util.sleep(5000).then(() => self.connectToCloud(true));
             }
-        }, true);
-        po.send(new EventEnvelope().setTo(CONNECTOR_LIFECYCLE).setHeader('type', 'subscribe').setHeader('route', 'cloud.status').setHeader('permanent', 'true'));
+        });
+        po.send(new EventEnvelope().setTo(CONNECTOR_LIFECYCLE).setHeader('type', 'subscribe')
+            .setHeader('route', 'cloud.status').setHeader('permanent', 'true'));
 
-        platform.register('system.config', (evt: EventEnvelope) => {
+        po.subscribe('system.config', (evt: EventEnvelope) => {
             if ('ready' == evt.getHeader('type')) {
                 po.setStatus('ready');
                 po.send(new EventEnvelope().setTo(CONNECTOR_LIFECYCLE).setHeader('type', 'ready'));
@@ -69,19 +82,20 @@ class CloudConnector {
                 const m = evt.getBody();
                 const maxPayload = m['max.payload'];
                 if (maxPayload) {
-                    po.send(new EventEnvelope().setTo(WS_WORKER).setHeader('type', 'authorized').setHeader('block_size', String(maxPayload)));
+                    po.send(new EventEnvelope().setTo(WS_WORKER).setHeader('type', 'authorized')
+                        .setHeader('block_size', String(maxPayload)));
                 }
                 const traceSupported = m['trace.aggregation'];
                 if (traceSupported != null) {
                     platform.setTraceSupport(traceSupported);
                 }
             }
-        }, true);
-        platform.register('system.alerts', (evt: EventEnvelope) => {
+        });
+        po.subscribe('system.alerts', (evt: EventEnvelope) => {
             if (evt.getBody()) {
                 log.info(String(evt.getBody()));
             }
-        }, true);
+        });
     }
 
     /**
@@ -90,8 +104,9 @@ class CloudConnector {
      * @param reconnect is true or false
      */
     connectToCloud(reconnect = false): void {
-        cloud((reconnect? 'Reconnecting' : 'Connecting') + ' to cloud');
-        const req = new EventEnvelope().setTo(WS_WORKER).setHeader('type', 'connect').setHeader('target', self.target).setHeader('key', self.apiKey);
+        cloudLog((reconnect? 'Reconnecting' : 'Connecting') + ' to cloud');
+        const req = new EventEnvelope().setTo(WS_WORKER).setHeader('type', 'connect')
+                                       .setHeader('target', self.target).setHeader('key', self.apiKey);
         if (reconnect) {
             req.setHeader('reconnect', 'true');
         }

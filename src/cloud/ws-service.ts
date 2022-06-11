@@ -99,8 +99,8 @@ if (isMainThread) {
             }
         });
         // register a forwarder to broadcast to subscribers about life cycle events
-        platform.register(CONNECTOR_LIFECYCLE, forwarder, true);
-        platform.register(WS_WORKER, (evt: EventEnvelope) => {
+        po.subscribe(CONNECTOR_LIFECYCLE, forwarder);
+        po.subscribe(WS_WORKER, (evt: EventEnvelope) => {
             if ('connect' == evt.getHeader('type') && evt.getHeader('target') && evt.getHeader('key')) {
                 const target = evt.getHeader('target') + '/' + platform.getOriginId();
                 const reconnect = evt.getHeader('reconnect')? true : false;
@@ -164,7 +164,7 @@ if (isMainThread) {
             if ('stop' == evt.getHeader('type')) {
                 worker.terminate();
             }
-        }, true);
+        });
     }
 } else {
     // Worker thread where the websocket connection is made

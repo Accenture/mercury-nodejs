@@ -26,7 +26,7 @@ export class Platform {
         }
     }
   
-    getInstance() {
+    getInstance(): EventSystem {
         return self;
     }
 }

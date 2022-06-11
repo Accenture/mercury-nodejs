@@ -1,3 +1,4 @@
+import { isMainThread } from 'worker_threads';
 import { EventEmitter } from "events";
 import { performance } from "perf_hooks";
 import { Logger } from "../util/logger.js";
@@ -15,14 +16,139 @@ const SERVICE_QUERY = 'system.service.query';
 export class PO {
 
     constructor() {
-        if (self == null) {
+        // post office is not supported in worker threads because
+        // worker thread can only communicate with main thread using parent-worker channel
+        if (self == null && isMainThread) {
             self = new PostOffice();
         }
     }
   
-    getInstance() {
+    getInstance(): PostOffice {
         return self;
     }
+
+    getTraceAwareInstance(evt: EventEnvelope) {
+        return new PoWithTrace(evt);
+    }
+
+}
+
+class PoWithTrace {
+
+    private evt = null;
+
+    constructor(evt: EventEnvelope) {
+        this.evt = evt;
+    }
+
+    /**
+     * Application instance ID
+     * 
+     * @returns unique ID
+     */
+    getId(): string {
+        return self.getId();
+    }
+
+    /**
+     * Check if the application is running in standalone or cloud mode
+     * 
+     * @returns true or false
+     */
+     isCloudLoaded(): boolean {
+        return self.isCloudLoaded();
+    }
+
+    /**
+     * Check if the application is connected to the cloud via a language connector
+     * 
+     * @returns true or false
+     */
+    isCloudConnected(): boolean {
+        return self.isCloudConnected();
+    }
+
+    /**
+     * Check if the connection is ready for sending events to the cloud
+     * 
+     * @returns true or false
+     */
+    isReady(): boolean {
+        return self.isReady();
+    }
+
+    /**
+     * Check if a route has been registered
+     * 
+     * @param route name of the registered function
+     * @returns promise of true or false
+     */
+    exists(route: string): Promise<boolean> {
+        return self.exists(route);
+    }
+
+    /**
+     * Subscribe an event listener to a route name
+     * (this method register an unmanaged service)
+     * 
+     * For managed service, please use the 'platform.register' method.
+     * 
+     * In some rare case, you may register your listener as a unmanaged service.
+     * The listener will be running without the control of the platform service.
+     * i.e. distributed tracing and RPC features will be disabled.
+     *  
+     * The system enforces exclusive subscriber. If you need multiple functions to listen to the same route, 
+     * please implement your own multiple subscription logic. A typical approach is to implement a forwarder
+     * and send a subscription request to the forwarder function with your listener route name as a callback.
+     * 
+     * @param route name for your event listener
+     * @param listener function (synchronous or Promise function)
+     * @param logging is true by default
+     */
+    subscribe(route: string, listener: (evt: EventEnvelope) => void, logging = true): void {
+        self.subscribe(route, listener, logging);
+    }
+
+    /**
+     * Unsubscribe a registered function from a route name
+     * 
+     * @param route name
+     * @param logging is true by default
+     */
+     unsubscribe(route: string, logging = true): void {
+        self.unsubscribe(route, logging);
+    }
+
+    /**
+     * Send an event
+     * 
+     * @param event envelope
+     */
+     send(event: EventEnvelope): void {
+        self.send(new EventEnvelope(event).setTrace(this.evt));
+     }
+     
+    /**
+     * Send an event later
+     * 
+     * @param event envelope
+     * @param delay in milliseconds (default one second)
+     */
+     sendLater(event: EventEnvelope, delay = 1000): void {
+        self.sendLater(new EventEnvelope(event).setTrace(this.evt), delay);
+    }
+    
+    /**
+     * Make an asynchronous RPC call
+     * 
+     * @param event envelope
+     * @param timeout value in milliseconds
+     * @returns a future promise of result or error
+     */
+     request(event: EventEnvelope, timeout = 60000): Promise<EventEnvelope> {
+        return self.request(new EventEnvelope(event).setTrace(this.evt), timeout);
+     }    
+
 }
 
 class PostOffice {

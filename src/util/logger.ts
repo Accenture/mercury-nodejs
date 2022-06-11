@@ -49,7 +49,7 @@ export class Logger {
         }
     }
   
-    getInstance() {
+    getInstance(): LogSystem {
         return self;
     }
 }

@@ -49,36 +49,76 @@ export class AsyncHttpRequest {
 
     constructor(map?) {
         if (map && map.constructor == Object) {
-            this.fromMap(map as object);
+            this.fromMap(map);
         }
     }
 
+    /**
+     * Retrieve the request's HTTP method name
+     * (GET, POST, PUT, HEAD, PATCH, DELETE)
+     * 
+     * @returns HTTP method
+     */
     getMethod(): string {
         return this.method;
     }
 
+    /**
+     * Set the HTTP method if this is an outgoing HTTP request
+     * 
+     * @param method (GET, POST, PUT, HEAD, PATCH, DELETE)
+     * @returns this
+     */
     setMethod(method: string): AsyncHttpRequest {
         this.method = method;
         return this;
     }
 
+    /**
+     * Retrieve the URI
+     * 
+     * @returns HTTP URI
+     */
     getUrl(): string {
         return this.url;
     }
 
+    /**
+     * Retrieve the IP address of the caller
+     * 
+     * @returns ip address
+     */
     getRemoteIp(): string {
         return this.ip;
     }
 
+    /**
+     * Set the caller's IP address if this is an outgoing HTTP request
+     * 
+     * @param ip address
+     * @returns this
+     */
     setRemoteIp(ip: string): AsyncHttpRequest {
         this.ip = ip;
         return this;
     }
 
+    /**
+     * Retrieve all HTTP headers
+     * 
+     * @returns headers(key-values)
+     */
     getHeaders(): object {
         return this.headers;
     }
 
+    /**
+     * Set a key-value for a HTTP header
+     * 
+     * @param key of the header
+     * @param value of the header
+     * @returns 
+     */
     setHeader(key: string, value: string): AsyncHttpRequest {
         if (key) {
             this.headers[key.toLowerCase()] = value? value : "";
@@ -86,19 +126,48 @@ export class AsyncHttpRequest {
         return this;
     }
 
+    /**
+     * Retrieve the HTTP request body
+     * 
+     * Note that payload applies to PUT and POST only
+     * 
+     * @returns optional payload
+     */
     getBody() {
         return this.body;
     }
 
+    /**
+     * Set the HTTP request payload if this is an outgoing HTTP request
+     * 
+     * @param body (aka payload)
+     * @returns this
+     */
     setBody(body): AsyncHttpRequest {
         this.body = body? body : null;
         return this;
     }
 
+    /**
+     * The system will perform HTML/XML/JSON data format conversion.
+     * i.e. HTML would become string, XML and JSON becomes a JSON object.
+     * 
+     * For other binary format, the HTTP request payload will be rendered
+     * as a stream input object.
+     * 
+     * @returns optional route name of a streaming object
+     */
     getStreamRoute(): string {
         return this.streamRoute;
     }
 
+    /**
+     * If you are sending a HTTP request, you can create a stream to render
+     * the HTTP request payload.
+     * 
+     * @param streamRoute of the binary payload
+     * @returns 
+     */
     setStreamRoute(streamRoute: string): AsyncHttpRequest {
         if (streamRoute) {
             this.streamRoute = streamRoute;
@@ -106,14 +175,30 @@ export class AsyncHttpRequest {
         return this;
     }
 
+    /**
+     * Check if this HTTP request contains a streaming object
+     * 
+     * @returns true or false
+     */
     isStream(): boolean {
         return this.streamRoute != null;
     }
 
+    /**
+     * Retrieve the filename of the input stream
+     * 
+     * @returns filename of the input stream if this is a multi-part message
+     */
     getFileName(): string {
         return this.filename;
     }
 
+    /**
+     * Set the filename if this is an outgoing HTTP request object
+     * 
+     * @param filename of the streaming object
+     * @returns this
+     */
     setFileName(filename: string): AsyncHttpRequest {
         if (filename) {
             this.filename = filename;
@@ -121,14 +206,30 @@ export class AsyncHttpRequest {
         return this;
     }
 
+    /**
+     * Check if the input stream is a file object
+     * 
+     * @returns true or false
+     */
     isFile(): boolean {
         return this.filename != null;
     }
 
+    /**
+     * Retreive the request expiry timer in seconds
+     * 
+     * @returns timeout value
+     */
     getTimeoutSeconds(): number {
         return Math.max(0, this.timeoutSeconds? this.timeoutSeconds : -1);
     }
 
+    /**
+     * Set request timeout value
+     * 
+     * @param timeoutSeconds for the request expiry timer
+     * @returns this
+     */
     setTimeoutSeconds(timeoutSeconds: number): AsyncHttpRequest {
         if (timeoutSeconds) {
             this.timeoutSeconds = Math.max(0, timeoutSeconds);
@@ -136,10 +237,22 @@ export class AsyncHttpRequest {
         return this;
     }
 
+    /**
+     * Retrieve the content length of a request payload if any
+     * 
+     * @returns content length
+     */
     getContentLength(): number {
         return Math.max(0, this.contentLength? this.contentLength : -1);
     }
 
+    /**
+     * Since HTTP may use compression algorithm. 
+     * Normally you do not need to set content length unless you know exactly what you are doing.
+     * 
+     * @param contentLength of the request paylod
+     * @returns this
+     */
     setContentLength(contentLength: number): AsyncHttpRequest {
         if (contentLength) {
             this.contentLength = Math.max(0, contentLength);
@@ -147,10 +260,26 @@ export class AsyncHttpRequest {
         return this;
     }
 
+    /**
+     * Optional session information may be inserted by an externalized API authentication service.
+     * e.g. OAuth2.0 authenticator and RBAC validator.
+     * 
+     * Examples for session object are user-ID, user-name and roles.
+     * 
+     * @returns key-values
+     */
     getSessionInfo(): object {
         return this.session;
     }
 
+    /**
+     * When you implement a custom API authentication service. You can use this method
+     * to send session or user profile information to the BFF or user function.
+     * 
+     * @param key of the session parameter
+     * @param value of the session parameter
+     * @returns this
+     */
     setSessionInfo(key: string, value: string): AsyncHttpRequest {
         if (key) {
             this.session[key.toLowerCase()] = value? value : "";
@@ -158,6 +287,12 @@ export class AsyncHttpRequest {
         return this;
     }
 
+    /**
+     * Remove a session parameter
+     * 
+     * @param key of the session parameter
+     * @returns this
+     */
     removeSessionInfo(key: string): AsyncHttpRequest {   
         if (key) {
             delete this.session[key.toLowerCase()];
@@ -165,10 +300,22 @@ export class AsyncHttpRequest {
         return this;
     }
 
+    /**
+     * Retrieve all cookies if any
+     * 
+     * @returns cookies in key-values
+     */
     getCookies(): object {
         return this.cookies;
     }
 
+    /**
+     * This is used if your service wants to set a browser cookie
+     * 
+     * @param key of a cookie
+     * @param value of a cookie
+     * @returns this
+     */
     setCookie(key: string, value: string): AsyncHttpRequest {
         if (key) {
             this.cookies[key.toLowerCase()] = value? value : "";
@@ -176,6 +323,14 @@ export class AsyncHttpRequest {
         return this;
     }
 
+    /**
+     * Remove a cookie from this request dataset
+     * 
+     * This does not clear the cookie in the browser. To clear browser cookie, you use the SetCookie method.
+     * 
+     * @param key of the cookie
+     * @returns this
+     */
     removeCookie(key: string): AsyncHttpRequest {   
         if (key) {
             delete this.cookies[key.toLowerCase()];
@@ -183,14 +338,32 @@ export class AsyncHttpRequest {
         return this;
     }
 
+    /**
+     * Retrieve all path parameters
+     * 
+     * @returns key-values
+     */
     getPathParameters(): object {
         return this.pathParams;
     }
 
+    /**
+     * Retrieve a path parameter from the URI
+     * 
+     * @param key of a path parameter
+     * @returns value
+     */
     getPathParameter(key: string) {
         return key != null? this.pathParams[key.toLowerCase()] : null;
     }
 
+    /**
+     * Set a path parameter if this is an outgoing HTTP request
+     * 
+     * @param key of a path parameter
+     * @param value of a path parameter
+     * @returns this
+     */
     setPathParameter(key: string, value: string): AsyncHttpRequest {
         if (key) {
             this.pathParams[key.toLowerCase()] = value? value : "";
@@ -198,6 +371,12 @@ export class AsyncHttpRequest {
         return this;
     }
 
+    /**
+     * Remove a path parameter from the HTTP request dataset
+     * 
+     * @param key of a path parameter
+     * @returns this
+     */
     removePathParameter(key: string): AsyncHttpRequest {
         if (key) {
             delete this.pathParams[key.toLowerCase()];
@@ -205,23 +384,50 @@ export class AsyncHttpRequest {
         return this;
     }
 
+    /**
+     * Retrieve the query string from the URI
+     * 
+     * @returns the complete query string
+     */
     getQueryString(): string {
         return this.queryString;
     }
 
+    /**
+     * Check if the HTTP request uses HTTPS
+     * 
+     * @returns true or false
+     */
     isSecure(): boolean {
         return this.https? true : false;
     }
 
+    /**
+     * Use HTTPS if this is an outgoing HTTP request
+     * 
+     * @param https true or false
+     * @returns this
+     */
     setSecure(https: boolean): AsyncHttpRequest {
         this.https = https? true : false;
         return this;
     }
 
+    /**
+     * Retrieve the upload tag name in a multi-part file upload request
+     * 
+     * @returns upload tag name
+     */
     getUploadTag(): string {
         return this.upload;
     }
 
+    /**
+     * Set the upload tag name if this is an outgoing HTTP request with multi-part file upload
+     * 
+     * @param tag name
+     * @returns this
+     */
     setUploadTag(tag: string): AsyncHttpRequest {
         if (tag) {
             this.upload = tag;
@@ -229,10 +435,21 @@ export class AsyncHttpRequest {
         return this;
     }
 
+    /**
+     * Retrieve the target host name if this is an outgoing HTTP request
+     * 
+     * @returns target host name
+     */
     getTargetHost(): string {
         return this.targetHost;
     }
 
+    /**
+     * Set the target host name if this is an outgoing HTTP request
+     * 
+     * @param host name
+     * @returns this
+     */
     setTargetHost(host: string): AsyncHttpRequest {
         if (host != null && (host.startsWith(HTTP_PROTOCOL) || host.startsWith(HTTPS_PROTOCOL))) {
             this.targetHost = host;
@@ -242,15 +459,34 @@ export class AsyncHttpRequest {
         }
     }
 
+    /**
+     * Check if this HTTP request skips certificate verification
+     * 
+     * @returns true or false
+     */
     isTrustAllCert(): boolean {
         return this.trustAllCert? true : false;
     }
 
+    /**
+     * Decide if this outgoing HTTP request skips certification verification
+     * 
+     * (DO NOT disable certification verification unless this is a trusted zone with self-signed cert)
+     * 
+     * @param trustAllCert true or false
+     * @returns this
+     */
     setTrustAllCert(trustAllCert: boolean): AsyncHttpRequest {
         this.trustAllCert = trustAllCert? true : false;
         return this;
     }
 
+    /**
+     * Retrieve a query parameter
+     * 
+     * @param key of a query parameter
+     * @returns value
+     */
     getQueryParameter(key: string): string {
         if (key) {
             const value = this.queryParams[key.toLowerCase()];
@@ -265,6 +501,12 @@ export class AsyncHttpRequest {
         return null;
     }
 
+    /**
+     * Retrieve a multi-value query parameter
+     * 
+     * @param key of a multi-value parameter
+     * @returns a list of strings
+     */
     getQueryParameters(key?: string) {
         if (key) {
             const values = this.queryParams[key.toLowerCase()];
@@ -281,6 +523,13 @@ export class AsyncHttpRequest {
         return null;
     }
 
+    /**
+     * Set the value of a query parameter
+     * 
+     * @param key of a query parameter
+     * @param value of a query parameter
+     * @returns this
+     */
     setQueryParameter(key: string, value: string): AsyncHttpRequest {
         if (key) {
             if (value) {
@@ -301,6 +550,11 @@ export class AsyncHttpRequest {
         return this;
     }
 
+    /**
+     * Convert this HTTP request object to a JSON object
+     * 
+     * @returns a JSON object
+     */
     toMap(): object {
         const result = {};
         if (this.headers && Object.keys(this.headers).length > 0) {
@@ -365,9 +619,21 @@ export class AsyncHttpRequest {
             result[TARGET_HOST] = this.targetHost;
             result[TRUST_ALL_CERT] = this.trustAllCert;
         }
-        return {};
+        return result;
     }
 
+    /**
+     * Convert a JSON object into a HTTP request object
+     * 
+     * Normally you should use the constructor to do this conversion.
+     * 
+     * Assuming the function is a BFF service that listens to HTTP request event from the REST automation,
+     * you can do this:
+     * 
+     * const request = new AsyncHttpRequest(event.getBody());
+     * 
+     * @param map input JSON object
+     */
     fromMap(map: object) {
         if (map && map.constructor == Object) {
             if (HEADERS in map) {

@@ -1,14 +1,10 @@
-import { Logger } from "./util/logger.js";
-
-import { ObjectStreamIO, ObjectStreamReader, ObjectStreamWriter } from "./system/stream-io.js"
-// import { ObjectStreamIO } from "./system/stream-io.js"
-
-import { EventEnvelope } from './models/event-envelope.js';
-
-import { Platform } from "./system/platform.js";
-import { PO } from "./system/post-office.js";
+import { Logger } from "../util/logger.js";
+import { ObjectStreamIO, ObjectStreamReader, ObjectStreamWriter } from "../system/stream-io.js"
+import { EventEnvelope } from '../models/event-envelope.js';
+import { Platform } from "../system/platform.js";
+import { PO } from "../system/post-office.js";
 // import and start worker thread in the background
-import { Connector } from './cloud/connector.js';
+import { Connector } from '../cloud/connector.js';
 
 const CONNECTOR_LIFECYCLE = 'cloud.connector.lifecycle';
 
@@ -58,4 +54,3 @@ platform.register('ws.status', (evt: EventEnvelope) => {
     }
 }, true);
 po.send(new EventEnvelope().setTo(CONNECTOR_LIFECYCLE).setHeader('type', 'subscribe').setHeader('route', 'ws.status'));
-

@@ -4,8 +4,8 @@ import { Utility } from '../util/utility.js';
 import { EventEnvelope } from '../models/event-envelope.js';
 
 const log = new Logger().getInstance();
-const po = new PO().getInstance();
 const util = new Utility().getInstance();
+const po = new PO().getInstance();
 // global map of all subscriptions
 const subscription = new Map();
 

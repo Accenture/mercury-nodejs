@@ -53,6 +53,11 @@ export class EventEnvelope {
     private execTime: number;
     private roundTrip: number;
 
+    /**
+     * Create a new EventEnvelope
+     * 
+     * @param event - optional as a JSON object, Buffer or EventEnvelope
+     */
     constructor(event?: object | Buffer | EventEnvelope) {
         this.id = 'js'+util.getUuid();
         this.headers = {};
@@ -71,83 +76,214 @@ export class EventEnvelope {
         }
     }
 
+    /**
+     * Override the original event ID
+     * 
+     * @param id - unique UUID
+     * @returns this
+     */
     setId(id: string): EventEnvelope {
         this.id = id;
         return this;
     }
 
+    /**
+     * Retrieve event ID
+     * 
+     * @returns id
+     */
     getId(): string {
         return this.id;
     }
 
+    /**
+     * This method is reserved by the system. DO NOT set this directly.
+     * 
+     * @param evt - this must be the input EventEnvelope in your event listener
+     * @returns this
+     */
+    setTrace(evt: EventEnvelope): EventEnvelope {
+        if (evt.traceId && evt.tracePath) {
+            this.setTraceId(evt.traceId);
+            this.setTracePath(evt.tracePath);
+        }
+        if (evt.to) {
+            this.setFrom(evt.to);
+        }
+        return this;
+    }
+
+    /**
+     * Set a header (aka parameter)
+     * 
+     * @param k key
+     * @param v value
+     * @returns this
+     */
     setHeader(k: string, v: string): EventEnvelope {
         this.headers[k] = v;
         return this;
     }
 
+    /**
+     * Retrieve a header (aka parameter)
+     * 
+     * @param k key
+     * @returns value or null if not found
+     */
     getHeader(k: string): string {
         return k in this.headers? this.headers[k] : null;
     }
 
+    /**
+     * Retrieve all headers / parameters
+     * 
+     * @returns key-values
+     */
     getHeaders(): object {
         return this.headers;
     }
 
+    /**
+     * Override existing headers / parameters
+     * 
+     * @param headers to override
+     * @returns this
+     */
     setHeaders(headers: object): EventEnvelope {
         this.headers = headers;
         return this;
     }
 
+    /**
+     * Set an optional payload for an event.
+     * The payload can be string, number, JSON object, boolean or bytes
+     * 
+     * @param body
+     * @returns 
+     */
     setBody(body: string | number | object | boolean | Buffer | Uint8Array): EventEnvelope {
         this.body = body;
         return this;
     }
 
+    /**
+     * Retrieve the payload if any
+     * 
+     * @returns body (aka payload)
+     */
     getBody() {
         return this.body;
     }
 
+    /**
+     * Set processing status code if you want to manually define the value.
+     * 
+     * Note that status code should be compliant with the 3-digit numeric HTTP status code convention.
+     * i.e. HTTP-2xx for success, HTTP-4xx for application related issues and HTTP-5xx for infrastructure failures.
+     * 
+     * @param status code
+     * @returns this
+     */
     setStatus(status: number): EventEnvelope {
         this.status = status;
         return this;
     }
 
+    /**
+     * Retrieve the event processing status.
+     * 
+     * Note that status code should be compliant with the 3-digit numeric HTTP status code convention.
+     * i.e. HTTP-2xx for success, HTTP-4xx for application related issues and HTTP-5xx for infrastructure failures.
+     * 
+     * @returns status code
+     */
     getStatus(): number {
         return this.status;
     }
 
+    /**
+     * This is used for routing purpose.
+     * The "to" is a route name representing a target service / function.
+     * 
+     * @param to destination route
+     * @returns this
+     */
     setTo(to: string): EventEnvelope {
         this.to = to;
         return this;
     }
 
+    /**
+     * Retrieve the destination route
+     * 
+     * @returns route name
+     */
     getTo(): string {
         return this.to;
     }
 
+    /**
+     * Sender route name is where the event comes from
+     * 
+     * @param sender of the event
+     * @returns this
+     */
     setFrom(sender: string): EventEnvelope {
         this.sender = sender;
         return this;
     }
 
+    /**
+     * Retrieve sender route name of the event
+     * 
+     * @returns sender
+     */
     getFrom(): string {
         return this.sender;
     }
 
+    /**
+     * ReplyTo is used for routing purpose.
+     * 
+     * @param replyTo route name if this event is used for RPC or callback
+     * @returns this
+     */
     setReplyTo(replyTo: string): EventEnvelope {
         this.replyTo = replyTo;
         return this;
     }
 
+    /**
+     * Retrieve the route name for receiving the function return value
+     * 
+     * @returns route name
+     */
     getreplyTo(): string {
         return this.replyTo;
     }
 
+    /**
+     * This method is reserved by the system. DO NOT call this directly.
+     * 
+     * @param extra is used for tagging an event
+     * @returns this
+     */
     setExtra(extra: string): EventEnvelope {
         this.extra = extra;
         return this;
     }
 
+    /**
+     * Add a tag to an event. The language pack uses tags for routing purpose.
+     * 
+     * This tagging system is designed for a small number of tags (less than 10).
+     * DO NOT set more than 10 as this would reduce system performance.
+     * 
+     * @param key - tag name
+     * @param value - tag value
+     * @returns this
+     */
     addTag(key: string, value = ''): EventEnvelope {
         if (key && key.length > 0) {
             const map = extraToKeyValues(this.extra);
@@ -157,6 +293,12 @@ export class EventEnvelope {
         return this;
     }
 
+    /**
+     * Remove a tag from an evvent
+     * 
+     * @param key - tag name
+     * @returns this
+     */
     removeTag(key: string): EventEnvelope {
         if (key && key.length > 0) {
             const map = extraToKeyValues(this.extra);
@@ -166,50 +308,123 @@ export class EventEnvelope {
         return this;
     }
 
+    /**
+     * Retrieve a tag
+     * 
+     * @param key - tag name
+     * @returns this
+     */
     getTag(key: string): string {
         return key && key.length > 0? extraToKeyValues(this.extra)[key] : null;
     }
 
+    /**
+     * Retrieve the string representation of all tags.
+     * Each tag is separated by the vertical bar character '|'.
+     * 
+     * @returns all tags
+     */
     getExtra(): string {
         return this.extra;
     }
 
+    /**
+     * You may set a unique ID for tracking RPC or callback.
+     * 
+     * @param correlationId for tracking
+     * @returns this
+     */
     setCorrelationId(correlationId: string): EventEnvelope {
         this.correlationId = correlationId;
         return this;
     }
 
+    /**
+     * Retrieve the correlation ID of an event
+     * 
+     * @returns correlation ID
+     */
     getCorrelationId(): string {
         return this.correlationId;
     }
     
+    /**
+     * Set a trace ID to enable distributed trace.
+     * 
+     * When using REST automation, the system will set a unique ID automatically 
+     * when tracing is turned on in the rest.yaml configuration file.
+     * 
+     * Note that traceId and tracePath are used together.
+     * 
+     * @param traceId of the event
+     * @returns this
+     */
     setTraceId(traceId: string): EventEnvelope {
         this.traceId = traceId;
         return this;
     }
 
+    /**
+     * Retrieve trace ID of the event.
+     * 
+     * @returns trace ID
+     */
     getTraceId(): string {
         return this.traceId;
     }
 
+    /**
+     * Set a trace path to enable distributed trace.
+     * 
+     * When using REST automation, the system will set the HTTP method and URI as the trace path automatically 
+     * when tracing is turned on in the rest.yaml configuration file.
+     * 
+     * Note that traceId and tracePath are used together.
+     * 
+     * @param tracePath of the event
+     * @returns this
+     */
     setTracePath(tracePath: string): EventEnvelope {
         this.tracePath = tracePath;
         return this;
     }
 
+    /**
+     * Retrieve the trace path of an event
+     * 
+     * @returns trace path
+     */
     getTracePath(): string {
         return this.tracePath;
     }
 
+    /**
+     * When broadcast is turned on, the language connector will broadcast the event to all application container
+     * instances that serve the target route
+     * 
+     * @param broadcast indicator
+     * @returns this
+     */
     setBroadcast(broadcast: boolean): EventEnvelope {
         this.broadcast = broadcast;
         return this;
     }
 
+    /**
+     * Check if this event is designated as broadcast
+     * 
+     * @returns broadcast indicator
+     */
     getBroadcast(): boolean {
         return this.broadcast;
     }
 
+    /**
+     * You can indicate that an event contains an exception message in the body
+     * 
+     * @param exception indicator
+     * @returns this
+     */
     setException(exception = true): EventEnvelope {
         if (exception) {
             this.addTag('exception');
@@ -219,28 +434,60 @@ export class EventEnvelope {
         return this;
     }
 
+    /**
+     * Check if this event contains an exception message in the body
+     * 
+     * @returns true or false
+     */
     isException(): boolean {
         return this.getTag('exception') != null? true : false;
     }
 
+    /**
+     * This method is reserved by the system. DO NOT call this directly.
+     * 
+     * @param execTime of the function processing this event
+     * @returns this
+     */
     setExecTime(execTime: number): EventEnvelope {
         this.execTime = execTime;
         return this;
     }
 
+    /**
+     * Retrieve execution time for the function that process this event
+     * 
+     * @returns performance metrics
+     */
     getExecTime(): number {
         return this.execTime;
     }
 
+    /**
+     * This method is reserved by the system. DO NOT call this directly.
+     * 
+     * @param roundTrip end-to-end processing time
+     * @returns this
+     */
     setRoundTrip(roundTrip: number): EventEnvelope {
         this.roundTrip = roundTrip;
         return this;
     }
 
+    /**
+     * Retrieve the end-to-end processing time
+     * 
+     * @returns performance metrics
+     */
     getRoundTrip(): number {
         return this.roundTrip;
     }
 
+    /**
+     * Convert this event into a JSON object
+     * 
+     * @returns object
+     */
     toMap(): object {
         const result = {};
         result['id'] = this.id;
@@ -280,6 +527,14 @@ export class EventEnvelope {
         return result;
     }
 
+    /**
+     * Convert a JSON object into an event envelope.
+     * 
+     * Note that the object must be compliant with the EventEnvelope interface contract.
+     * 
+     * @param map input is a JSON object
+     * @returns this
+     */
     fromMap(map: object): EventEnvelope {
         if ('id' in map) {
             this.id = map['id'];
@@ -325,15 +580,36 @@ export class EventEnvelope {
         return this;
     }
 
+    /**
+     * Convert this event into a byte array
+     * 
+     * MsgPack (Binary JSON) is used as the transport protocol.
+     * 
+     * @returns bytes
+     */
     toBytes(): Buffer {
         return pack(this.toMap());
     }
 
+    /**
+     * Convert a byte array into this event
+     * 
+     * MsgPack (Binary JSON) is used as the transport protocol.
+     * 
+     * @param b input is a byte array
+     * @returns this
+     */
     fromBytes(b: Buffer): EventEnvelope {
         this.fromMap(unpack(b));
         return this;
     }
 
+    /**
+     * Clone from an event
+     * 
+     * @param event input
+     * @returns this
+     */
     clone(event: EventEnvelope): EventEnvelope {
         this.to = event.to;
         this.sender = event.sender;

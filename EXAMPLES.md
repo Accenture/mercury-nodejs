@@ -137,7 +137,7 @@ Reload the page at http://127.0.0.1:8300/api/hello/world and you will see the cu
 
 ## Event stream system
 
-Sending real-time events are great. We can now application with functions that are loosely coupled by events. The functions communicate with each other not only in the same application memory but also across application instances in the network. For latter, you can select an event stream system that fits your use cases.
+Sending real-time events are great. We can now write application with functions that are loosely coupled by events. The functions communicate with each other not only in the same application memory but also across application instances in the network. For the latter, you can select an event stream system that fits your use cases.
 
 Mercury supports Kafka, Hazelcast, ActiveMQ and TIBCO out of the box. This platform abstraction means that your application does not need any library dependencies. You do not need to code according to specific event stream system API.
 
@@ -147,13 +147,13 @@ For best performance, an event usually contains a small payload. As a rule of th
 
 What if you must send a larger payload?
 
-While this is not recommended, the system can handle medium size payload in mega-bytes. It will automatically segmentize a large payload into 64 KB segments for efficient transport across Kafka and other event system. Note that Kafka has a one MB payload limit. With automatic payload segmentation, you are no longer constrained.
+While this is not recommended, the system can handle medium size payload in mega-bytes. It will automatically segmentize a large payload into 64 KB segments for efficient transport across Kafka and other event systems. Note that Kafka has a one MB payload limit. With automatic payload segmentation, you are no longer constrained.
 
 ## Streaming I/O
 
-When we deal with large payload, the best practice is to use streaming I/O. Your application can create a stream for the transport of continuous events.
+When we deal with large payload, the best practice is to use streaming I/O. Your application can create a stream for the transport of a large sequence of events.
 
-Normally streaming I/O is also short lived. For example, we use streaming I/O for file upload and download in the REST automation system.
+Normally streaming I/O is short lived. For example, we use streaming I/O for file upload and download in the REST automation system.
 
 However, for some very advanced use cases, you can create a stream that never closes provided that there are data flowing continously.
 
@@ -171,4 +171,4 @@ As a service, this allows you to deploy the application in the background in you
 
 When you use the Mercury node.js toolkit, you can also write standalone application. In fact, you can combine your favorite application server such as Express.
 
-Mercury has built-in service mesh feature. This gives a lot of flexibility in designing the overall system architecture for your distributed applications. You can use Mercury language-connector as a sidecar helper application. It is up to you whether you want to use the Mercury built-in event stream connectors for strong platform abstraction or not. You can also pick your own service mesh and run each application container in a self-contained manner.
+Mercury has a built-in service mesh feature. This gives a lot of flexibility in designing the overall system architecture for your distributed applications. You can use Mercury language-connector as a sidecar helper application. It is up to you whether you want to use the Mercury built-in event stream connectors for strong platform abstraction or not. You can also pick your own service mesh and run each application container in a self-contained manner.

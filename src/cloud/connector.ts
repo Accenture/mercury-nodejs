@@ -19,7 +19,7 @@ const API_KEY_FILE = '/tmp/config/lang-api-key.txt';
 
 let self: CloudConnector = null;
 
-function cloudLog(message: string) {
+function cloud(message: string) {
     log.info(message);
 }
 
@@ -104,7 +104,7 @@ class CloudConnector {
      * @param reconnect is true or false
      */
     connectToCloud(reconnect = false): void {
-        cloudLog((reconnect? 'Reconnecting' : 'Connecting') + ' to cloud');
+        cloud((reconnect? 'Reconnecting' : 'Connecting') + ' to cloud');
         const req = new EventEnvelope().setTo(WS_WORKER).setHeader('type', 'connect')
                                        .setHeader('target', self.target).setHeader('key', self.apiKey);
         if (reconnect) {

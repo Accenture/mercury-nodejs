@@ -2,12 +2,14 @@ import { parse as parseYaml } from 'yaml';
 import { readFileSync } from 'fs';
 import { performance } from 'perf_hooks';
 import { Logger } from "../util/logger.js";
+import { Utility } from '../util/utility.js';
 import { PO } from "../system/post-office.js";
 import { EventEnvelope } from '../models/event-envelope.js';
 import { AppException } from '../models/app-exception.js';
 import { MultiLevelMap } from '../util/multi-level-map.js';
 
 const log = new Logger().getInstance();
+const util = new Utility().getInstance();
 const po = new PO().getInstance();
 const WS_WORKER = 'ws.worker';
 const SERVICE_LIFE_CYCLE = 'service.life.cycle';
@@ -58,6 +60,14 @@ function isTraceProcessorAvailable(): Promise<boolean> {
             resolve(traceProcessorFound);
         }
     });
+}
+
+// Graceful shutdown
+async function shutdown() {
+    if (await po.exists(WS_WORKER)) {
+        log.info("Stopping");
+        po.send(new EventEnvelope().setTo(WS_WORKER).setHeader('type', 'stop'));
+    }   
 }
 
 class ServiceManager {
@@ -182,7 +192,10 @@ class EventSystem {
 
     private config: MultiLevelMap;
     private services = new Map<string, boolean>();
+    private forever = false;
     private tracing = true;
+    private stopping = false;
+    private t1 = -1;
 
     constructor(configFile?: string) {
         self = this;
@@ -223,6 +236,21 @@ class EventSystem {
                     }
                 });
             }
+        });
+        // monitor shutdown signals
+        process.on('SIGTERM', () => {
+            if (!self.stopping) {
+                self.stopping = true;
+                log.info('Kill signal detected');
+            }
+            shutdown();
+        });
+        process.on('SIGINT', () => {
+            if (!self.stopping) {
+                self.stopping = true;
+                log.info('Control-C detected');
+            }
+            shutdown();
         });
     }
 
@@ -327,6 +355,47 @@ class EventSystem {
                 po.send(new EventEnvelope().setTo(WS_WORKER).setHeader('type', 'add').setHeader('route', route));
             }
         }
+    }
+
+    /**
+     * When your application uses the cloud connector, your app can run in the background.
+     * If you run your app in standalone mode, you can use this runForever method to keep it running in the background.
+     */
+    async runForever() {
+        if (!self.forever) {
+            // guarantee execute once
+            self.forever = true;
+            if (self.t1 < 0) {
+                self.t1 = Date.now();
+                log.info("To stop application, press Control-C");
+            }
+            while (!self.isStopping()) {
+                const now = Date.now();
+                if (now - self.t1 > 60000) {
+                    self.t1 = now;
+                    log.debug('Running...');
+                }
+                await util.sleep(250);
+            }
+            log.info("Stopped");
+        }
+    }
+
+    /**
+     * Stop the platform and cloud connector
+     */
+    stop(): void {
+        self.stopping = true;
+        shutdown();
+    }
+
+    /**
+     * Check if the platform is shutting down
+     * 
+     * @returns true or false
+     */
+    isStopping(): boolean {
+        return self.stopping;
     }
 
 }

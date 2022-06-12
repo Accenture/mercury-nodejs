@@ -155,9 +155,9 @@ When we deal with large payload, the best practice is to use streaming I/O. Your
 
 Normally streaming I/O is short lived. For example, we use streaming I/O for file upload and download in the REST automation system.
 
-However, for some very advanced use cases, you can create a stream that never closes provided that there are data flowing continously.
+However, for some very advanced use cases, you can create a stream that never closes provided that there are data flowing continuously.
 
-To show this feature, please try the "stream-demo" application.
+To see this feature, please try the "stream-demo" application.
 
 ```
 node stream-demo.js
@@ -171,4 +171,4 @@ As a service, this allows you to deploy the application in the background in you
 
 When you use the Mercury node.js toolkit, you can also write standalone application. In fact, you can combine your favorite application server such as Express.
 
-Mercury has a built-in service mesh feature. This gives a lot of flexibility in designing the overall system architecture for your distributed applications. You can use Mercury language-connector as a sidecar helper application. It is up to you whether you want to use the Mercury built-in event stream connectors for strong platform abstraction or not. You can also pick your own service mesh and run each application container in a self-contained manner.
+Mercury has a built-in service mesh feature. This gives a lot of flexibility in designing the overall system architecture for your distributed applications. You can use the Mercury built-in event stream connectors for strong platform abstraction. Alternatively, you can also pick your own service mesh and run each application container in a self-contained manner.

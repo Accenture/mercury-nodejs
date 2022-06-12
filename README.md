@@ -18,6 +18,10 @@ Follow the README to get the language-connector up and running.
 Build this node.js language pack with `npm clean build` and run the main.js and stream-demo.js to test the initial functionality.
 We will create an example folder to hold the various example code and templates.
 
+## Worked examples
+
+We encourage you trying our worked examples. Please refer to the [Worked Examples](EXAMPLES.md) for details.
+
 
 # TypeScript project structure
 

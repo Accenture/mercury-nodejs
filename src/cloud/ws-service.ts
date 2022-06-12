@@ -15,14 +15,15 @@ const KEEP_ALIVE_INTERVAL = 30 * 1000;
 let running = false;
 const log = new Logger().getInstance();
 const util = new Utility().getInstance();
-const MSG_ID = '_id_'
-const COUNT = '_blk_'
-const TOTAL = '_max_'
+const MSG_ID = '_id_';
+const COUNT = '_blk_';
+const TOTAL = '_max_';
 
 if (isMainThread) {
     if (!running) {
         // Main thread
         running = true;
+        log.info("Connector started");
         const platform = new Platform().getInstance();
         const po = new PO().getInstance();
         let loaded = false;
@@ -97,10 +98,15 @@ if (isMainThread) {
                 log.error(evt['message']);
                 po.send(new EventEnvelope().setTo(CONNECTOR_LIFECYCLE).setHeader('type', 'error').setHeader('message', evt['message']));
             }
+            if ('stop' == eventType) {
+                // worker has closed websocket connection and it is safe to stop
+                worker.terminate();
+                log.info("Connector stopped");
+            }
         });
         // register a forwarder to broadcast to subscribers about life cycle events
-        platform.register(CONNECTOR_LIFECYCLE, forwarder, true);
-        platform.register(WS_WORKER, (evt: EventEnvelope) => {
+        po.subscribe(CONNECTOR_LIFECYCLE, forwarder);
+        po.subscribe(WS_WORKER, (evt: EventEnvelope) => {
             if ('connect' == evt.getHeader('type') && evt.getHeader('target') && evt.getHeader('key')) {
                 const target = evt.getHeader('target') + '/' + platform.getOriginId();
                 const reconnect = evt.getHeader('reconnect')? true : false;
@@ -109,7 +115,8 @@ if (isMainThread) {
                 } else {
                     loaded = true;
                     if (!connected) {
-                        const event = new EventEnvelope().setHeader('type', 'connect').setHeader('target', target).setHeader('key', evt.getHeader('key'));
+                        const event = new EventEnvelope().setHeader('type', 'connect').setHeader('origin', platform.getOriginId())
+                                            .setHeader('target', target).setHeader('key', evt.getHeader('key'));
                         worker.postMessage(event.toBytes());
                     }
                 }
@@ -162,9 +169,9 @@ if (isMainThread) {
                 worker.postMessage(evt.toBytes());
             }
             if ('stop' == evt.getHeader('type')) {
-                worker.terminate();
+                worker.postMessage(new EventEnvelope().setHeader('type', 'stop').toBytes());
             }
-        }, true);
+        });
     }
 } else {
     // Worker thread where the websocket connection is made
@@ -172,13 +179,15 @@ if (isMainThread) {
     let session: string = null;
     let target: string = null;
     let ws: WebSocket = null;
+    let originId = null;
     let connected = false;
     let authenticated = false;
     let keepAlive = null;
 
     parentPort.on('message', (message) => {
         const evt = new EventEnvelope(message);
-        if ('connect' == evt.getHeader('type') && evt.getHeader('target') && evt.getHeader('key')) {
+        if ('connect' == evt.getHeader('type') && evt.getHeader('target') && evt.getHeader('key') && evt.getHeader('origin')) {
+            originId = evt.getHeader('origin');
             apiKey = evt.getHeader('key');
             session = util.getUuid().substring(0, 6);
             target = evt.getHeader('target');
@@ -233,6 +242,12 @@ if (isMainThread) {
         }
         if ('remove' == evt.getHeader('type') && evt.getHeader('route')) {
             ws.send(pack({'type': 'remove', 'route': evt.getHeader('route')}), {binary: true});
+        }
+        if ('stop' == evt.getHeader('type')) {
+            if (connected) {
+                ws.close(1000, 'Application '+originId+' is stopping');
+            }
+            parentPort.postMessage(pack({'type': 'stop'}));
         }
     });
 }

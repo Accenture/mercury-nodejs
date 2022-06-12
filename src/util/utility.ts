@@ -11,7 +11,7 @@ export class Utility {
         }
     }
   
-    getInstance() {
+    getInstance(): Util {
         return self;
     }
 }
@@ -50,6 +50,35 @@ class Util {
 
     cacheExists(key: string): boolean {
         return this.cache.has(key);
+    }
+
+    cacheStats(): object {
+        const stats = this.cache.getStats();
+        return {
+                'hits': stats.hits, 'misses': stats.misses, 
+                'count': stats.keys, 'key_size': stats.ksize, 
+                'value_size': stats.vsize
+            };
+    }
+
+    cacheCount(): number {
+        return this.cache.getStats().keys;
+    }
+
+    cacheHits(): number {
+        return this.cache.getStats().hits;
+    }
+
+    cacheMisses(): number {
+        return this.cache.getStats().misses;
+    }
+
+    cacheKeySize(): number {
+        return this.cache.getStats().ksize
+    }
+
+    cacheValueSize(): number {
+        return this.cache.getStats().vsize;
     }
 
 }

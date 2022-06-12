@@ -81,15 +81,8 @@ Now visit http://127.0.0.1:8300/api/hello/world and you will see your hello worl
 ```json
 {
   "headers": {
-    "sec-fetch-mode": "navigate",
-    "sec-ch-ua": "\" Not A;Brand\";v=\"99\", \"Chromium\";v=\"102\", \"Google Chrome\";v=\"102\"",
-    "sec-fetch-site": "none",
-    "sec-ch-ua-mobile": "?0",
     "accept-language": "en-US,en;q=0.9",
-    "sec-ch-ua-platform": "\"Windows\"",
-    "sec-fetch-user": "?1",
     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-    "sec-fetch-dest": "document",
     "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36"
   },
   "method": "GET",

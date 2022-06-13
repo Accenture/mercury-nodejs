@@ -11,7 +11,6 @@ describe('multi-level map use cases', () => {
         const one = mm.getElement('a.b.c[0]')
         expect(one).toBe(1);
         const xy = mm.getElement('x.y');
-        console.log(xy);
         expect(xy).toBeInstanceOf(Object);
         expect(xy['z']).toBe(100);
         expect(mm.getElement('hello')).toBe('world');

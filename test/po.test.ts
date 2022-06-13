@@ -62,14 +62,15 @@ describe('post office use cases', () => {
 
     it('can catch exception from a service', async () => {
         const req = new EventEnvelope().setTo(HELLO_WORLD_SERVICE).setHeader(TYPE, ERROR);
-        let ex = null;
-        po.request(req, 3000).catch(e => {
-          ex = e;
-        });
-        // Send a call to trigger an exception and save it first.
+        // Send a call to trigger an exception
         await expect(po.request(req, 3000)).rejects.toEqual(new Error(DEMO_EXCEPTION));
-        // at this point, the first exception is already saved in 'ex' above
-        expect(ex).toBeDefined();
+        // Check the exact exception status and message with the try-await-catch pattern
+        let ex = null;
+        try {
+          await po.request(req, 3000);
+        } catch(e) {
+          ex = e;
+        }
         expect(ex).toBeInstanceOf(AppException);
         expect(String(ex)).toBe('AppException: (400) demo exception');        
     });
@@ -180,6 +181,7 @@ describe('post office use cases', () => {
     it('can multicast events with a forwarder', async () => {
         po.subscribe(LIFE_CYCLE_DISPATCHER, forwarder);
         let message: string;
+        let carbonCopy = false;
         platform.register(MY_LISTENER, (evt: EventEnvelope) => {
           if (POLL == evt.getHeader(TYPE)) {
             return message;
@@ -191,11 +193,27 @@ describe('post office use cases', () => {
             return null;
           }
         });
+        const secondListener = MY_LISTENER + 1;
+        platform.register(secondListener, (evt: EventEnvelope) => {
+          if (POLL == evt.getHeader(TYPE)) {
+            return carbonCopy;
+          } else {
+            carbonCopy = true;
+            return null;
+          }
+        });
         po.send(new EventEnvelope().setTo(LIFE_CYCLE_DISPATCHER).setHeader(TYPE, 'subscribe')
-                                    .setHeader('route', MY_LISTENER).setHeader('permanent', 'false'));
+                                    .setHeader('route', MY_LISTENER));
+        po.send(new EventEnvelope().setTo(LIFE_CYCLE_DISPATCHER).setHeader(TYPE, 'subscribe')
+                                    .setHeader('route', secondListener));
+        // send a test message to the forwarder which will in turns relay it to my.listener service
         po.send(new EventEnvelope().setTo(LIFE_CYCLE_DISPATCHER).setHeader(TYPE, TEST_MESSAGE));
-        const result = await po.request(new EventEnvelope().setTo(MY_LISTENER).setHeader(TYPE, POLL), 3000);
-        expect(result.getBody()).toBe(TEST_MESSAGE);
+        // ask the first listener for the message
+        const result1 = await po.request(new EventEnvelope().setTo(MY_LISTENER).setHeader(TYPE, POLL), 3000);
+        expect(result1.getBody()).toBe(TEST_MESSAGE);
+        // ask the second listener that it has received a carbon copy
+        const result2 = await po.request(new EventEnvelope().setTo(secondListener).setHeader(TYPE, POLL), 3000);
+        expect(result2.getBody()).toBeTruthy();
         // clean up resources
         po.send(new EventEnvelope().setTo(LIFE_CYCLE_DISPATCHER).setHeader(TYPE, 'unsubscribe')
                                     .setHeader('route', MY_LISTENER));

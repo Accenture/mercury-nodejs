@@ -259,7 +259,7 @@ export class EventEnvelope {
      * 
      * @returns route name
      */
-    getreplyTo(): string {
+    getReplyTo(): string {
         return this.replyTo;
     }
 

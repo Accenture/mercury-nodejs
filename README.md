@@ -22,7 +22,10 @@ We will create an example folder to hold the various example code and templates.
 
 We encourage you trying our worked examples. Please refer to the [Worked Examples](EXAMPLES.md) for details.
 
-
 # TypeScript project structure
 
-This project borrowed the minimalist structure from https://github.com/jsynowiec/node-typescript-boilerplate and https://github.com/microsoft/TypeScript-Node-Starter
+This project borrowed boilerplate concepts from:
+
+1. https://github.com/microsoft/TypeScript-Node-Starter
+2. https://github.com/jsynowiec/node-typescript-boilerplate 
+3. https://github.com/vitorsalgado/create-nodejs-ts

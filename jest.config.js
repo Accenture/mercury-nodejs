@@ -1,18 +1,28 @@
+
 export default {
+  verbose: true,
+  collectCoverage: true,
+  resetModules: true,
+  restoreMocks: true,
   testEnvironment: 'node',
+  transform: {},
   preset: 'ts-jest/presets/default-esm',
-  globals: {
-    'ts-jest': {
-      useESM: true,
-    },
-  },
+  extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
   testRegex: '(/test/.*|(\\.|/)(test|spec))\\.ts$',
-  coverageDirectory: 'coverage',
+  globals: {
+    'ts-jest': {
+      tsconfig: './tsconfig.json',
+      useESM: true,
+    },
+  },
   collectCoverageFrom: [
     'src/**/*.ts',
+    '!src/examples/*.ts',    
     '!src/**/*.d.ts',
   ],
-};
+  coveragePathIgnorePatterns: ['./dist/', './target/', './node_modules/', './scripts', './tools'],
+  coverageProvider: 'v8'
+}

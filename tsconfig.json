@@ -1,9 +1,5 @@
 {
   "compilerOptions": {
-      // Ensure that .d.ts files are created by tsc, but not .js files
-    // "declaration": true,
-    // "emitDeclarationOnly": true,
-    // ES definitions
     "target": "ES2020",
     "module": "ES2020",
     "lib": ["ES2020"],
@@ -24,7 +20,9 @@
     "strictNullChecks": false
   },
   "include": [
-    "src/**/*",
-    "test/**/*"
-  ]
+    "src/**/*"
+  ],
+  "exclude": [
+    "test"
+  ]  
 }

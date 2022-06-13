@@ -84,6 +84,17 @@ export class AsyncHttpRequest {
     }
 
     /**
+     * Set the URI if this is an outgoing HTTP request
+     * 
+     * @param url - the URI portion of the url
+     * @returns this
+     */
+    setUrl(url: string): AsyncHttpRequest {
+        this.url = url;
+        return this;
+    }
+
+    /**
      * Retrieve the IP address of the caller
      * 
      * @returns ip address
@@ -110,6 +121,16 @@ export class AsyncHttpRequest {
      */
     getHeaders(): object {
         return this.headers;
+    }
+
+    /**
+     * Retrieve a header value
+     * 
+     * @param key of a header
+     * @returns value of the header
+     */
+    getHeader(key: string): string {
+        return this.headers[key];
     }
 
     /**
@@ -268,8 +289,18 @@ export class AsyncHttpRequest {
      * 
      * @returns key-values
      */
-    getSessionInfo(): object {
+    getSession(): object {
         return this.session;
+    }
+
+    /**
+     * Retrieve a session parameter
+     * 
+     * @param key of a session parameter
+     * @returns value of the session parameter
+     */
+    getSessionInfo(key: string): string {
+        return this.session[key.toLowerCase()];
     }
 
     /**
@@ -307,6 +338,16 @@ export class AsyncHttpRequest {
      */
     getCookies(): object {
         return this.cookies;
+    }
+
+    /**
+     * Retrieve a cookie
+     * 
+     * @param key of a cookie
+     * @returns this
+     */
+    getCookie(key: string): string {
+        return this.cookies[key.toLowerCase()];
     }
 
     /**

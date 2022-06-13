@@ -106,7 +106,7 @@ class ServiceManager {
 
     handleResult(utc: string, start: number, evt: EventEnvelope, response): void {
         const diff = (performance.now() - start).toFixed(3);
-        const replyTo = evt.getreplyTo();
+        const replyTo = evt.getReplyTo();
         if (replyTo) {
             const result = response instanceof EventEnvelope? new EventEnvelope(response) : new EventEnvelope().setBody(response);
             result.setTo(replyTo).setFrom(this.route);
@@ -139,7 +139,7 @@ class ServiceManager {
 
     handleError(utc: string, evt: EventEnvelope, e): void {
         let errorCode = 500;
-        const replyTo = evt.getreplyTo();
+        const replyTo = evt.getReplyTo();
         if (replyTo) {
             const result = new EventEnvelope().setTo(replyTo).setFrom(this.route);
             if (evt.getCorrelationId()) {

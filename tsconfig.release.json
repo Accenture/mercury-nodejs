@@ -6,5 +6,9 @@
   },
   "include": [
     "src/**/*"
-  ]
+  ],
+  "exclude": [
+    "test",
+    "src/examples/**/*"
+  ] 
 }

@@ -37,12 +37,16 @@ export function forwarder(event: EventEnvelope) {
             resolve(list);
         } else if ('subscribe' == event.getHeader('type') && event.getHeader('route')) {
             const subscriber = event.getHeader('route');
-            if (recipients.has(subscriber)) {
+            if (me == subscriber) {
                 resolve(false);
             } else {
-                recipients.set(subscriber, event.getHeader('permanent')? true : false);
-                log.info(subscriber+' subscribed to '+me);
-                resolve(true);
+                if (recipients.has(subscriber)) {
+                    resolve(false);
+                } else {
+                    recipients.set(subscriber, 'true' == event.getHeader('permanent'));
+                    log.info(subscriber+' subscribed to '+me);
+                    resolve(true);
+                }
             }
 
         } else if ('unsubscribe' == event.getHeader('type') && event.getHeader('route')) {

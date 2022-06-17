@@ -15,16 +15,15 @@ We are in alpha stage at this moment for code review, unit test, documentation a
 To setup the language-connector as a sidecar, clone the Mercury repository at https://github.com/Accenture/mercury and do a `mvn clean install` at the project root.
 Follow the README to get the language-connector up and running.
 
-Build this node.js language pack with `npm clean build` and run the main.js and stream-demo.js to test the initial functionality.
-We will create an example folder to hold the various example code and templates.
+Build this node.js language pack with `npm clean build` and try out some worked examples for some typical use cases.
 
 ## Worked examples
 
 We encourage you trying our worked examples. Please refer to the [Worked Examples](EXAMPLES.md) for details.
 
-# TypeScript project structure
+# Acknowledgements
 
-This project borrowed boilerplate concepts from:
+This repository structure is inspired by boilerplate concepts from:
 
 1. https://github.com/microsoft/TypeScript-Node-Starter
 2. https://github.com/jsynowiec/node-typescript-boilerplate 

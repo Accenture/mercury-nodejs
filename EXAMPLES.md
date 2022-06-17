@@ -128,6 +128,10 @@ You may turn on "inspector" panel in the browser and select the "network" tab.
 
 Reload the page at http://127.0.0.1:8300/api/hello/world and you will see the custom response header in the inspector panel.
 
+## Monitor cloud connection status
+
+The life-cycle-events.ts is an example to monitor cloud connection status.
+
 ## Event stream system
 
 Sending real-time events are great. We can now write application with functions that are loosely coupled by events. The functions communicate with each other not only in the same application memory but also across application instances in the network. For the latter, you can select an event stream system that fits your use cases.

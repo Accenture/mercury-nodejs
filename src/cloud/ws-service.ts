@@ -9,15 +9,17 @@ import { Logger } from "../util/logger.js";
 import { Utility } from '../util/utility.js';
 
 const CONNECTOR_LIFECYCLE = 'cloud.connector.lifecycle';
+const CLOUD_CONNECTION_RETRY = 'cloud.connection.retry';
 const WS_WORKER = 'ws.worker';
 const KEEP_ALIVE = 'KeepAlive ';
 const KEEP_ALIVE_INTERVAL = 30 * 1000;
-let running = false;
+
 const log = new Logger().getInstance();
 const util = new Utility().getInstance();
 const MSG_ID = '_id_';
 const COUNT = '_blk_';
 const TOTAL = '_max_';
+let running = false;
 
 if (isMainThread) {
     if (!running) {
@@ -28,6 +30,7 @@ if (isMainThread) {
         const po = new PO().getInstance();
         let loaded = false;
         let connected = false;
+        let disconnected = false;
         let blockSize = 32 * 1024;
         const filename = import.meta.url.substring(7);
         const parts = filename.split('/');
@@ -84,18 +87,27 @@ if (isMainThread) {
             }
             if ('connected' == eventType && 'message' in evt) {
                 connected = true;
+                disconnected = false;
                 po.setStatus('connected');
                 log.info(evt['message']);
                 po.send(new EventEnvelope().setTo(CONNECTOR_LIFECYCLE).setHeader('type', 'connected').setHeader('message', evt['message']));
             }
-            if ('disconnected' == eventType && 'message' in evt) {
+            if ('disconnected' == eventType && 'message' in evt && 'error' in evt) {
                 connected = false;
                 po.setStatus('disconnected');
-                log.info(evt['message']);
-                po.send(new EventEnvelope().setTo(CONNECTOR_LIFECYCLE).setHeader('type', 'disconnected').setHeader('message', evt['message']));
+                if (evt['error']) {
+                    log.warn(evt['message']);
+                } else {
+                    log.info(evt['message']);
+                }
+                po.send(new EventEnvelope().setTo(CLOUD_CONNECTION_RETRY).setHeader('type', 'retry'));
+                if (!disconnected) {
+                    disconnected = true;
+                    po.send(new EventEnvelope().setTo(CONNECTOR_LIFECYCLE).setHeader('type', 'disconnected').setHeader('message', evt['message']));
+                }
             }
             if ('error' == eventType && 'message' in evt) {
-                log.error(evt['message']);
+                log.warn(evt['message']);
                 po.send(new EventEnvelope().setTo(CONNECTOR_LIFECYCLE).setHeader('type', 'error').setHeader('message', evt['message']));
             }
             if ('stop' == eventType) {
@@ -174,6 +186,8 @@ if (isMainThread) {
         });
     }
 } else {
+    const UNREACHABLE = 'Unreachable';
+    const CONNECTION_REFUSED = 'ECONNREFUSED';
     // Worker thread where the websocket connection is made
     let apiKey: string = null;
     let session: string = null;
@@ -183,6 +197,7 @@ if (isMainThread) {
     let connected = false;
     let authenticated = false;
     let keepAlive = null;
+    let errorMessage = null;
 
     parentPort.on('message', (message) => {
         const evt = new EventEnvelope(message);
@@ -193,6 +208,7 @@ if (isMainThread) {
             target = evt.getHeader('target');
             ws = new WebSocket(target);
             ws.on('open', () => {
+                errorMessage = null;
                 connected = true;
                 ws.send(pack({'type': 'login', 'api_key': apiKey}), {binary: true});
                 parentPort.postMessage(pack({'type': 'connected', 'message': 'Session '+session+' connected to '+target}));
@@ -211,13 +227,26 @@ if (isMainThread) {
                     clearInterval(keepAlive);
                     keepAlive = null;
                 }
-                parentPort.postMessage(pack({'type': 'disconnected', 'message': 'Session closed - '+code + ': ' + String(reason)}));
+                let hasError = false;
+                let closeReason = String(reason);
+                if (errorMessage && closeReason.length == 0) {
+                    closeReason = errorMessage;
+                    hasError = true;
+                }
+                parentPort.postMessage(pack({ 'type': 'disconnected', 'error': hasError, 'message': 'Session ' + 
+                                            session + ' closed (' + code + ') ' + closeReason }));
+                errorMessage = null;
             });
-            ws.on('error', (e: Error) => {                
-                parentPort.postMessage(pack({'type': 'error', 'message': e.message}));
+            ws.on('error', (e: Error) => {
+                // when cloud connection is not reachable
+                if (e.message.includes(CONNECTION_REFUSED)) {                    
+                    errorMessage = UNREACHABLE + ' ' + e.message.substring(e.message.indexOf(CONNECTION_REFUSED) + CONNECTION_REFUSED.length).trim();
+                } else {                
+                    parentPort.postMessage(pack({'type': 'error', 'message': e.message}));
+                }
                 if (connected) {
                     ws.close(1001);
-                }    
+                }
             });
         }
         if ('ready' == evt.getHeader('type')) {

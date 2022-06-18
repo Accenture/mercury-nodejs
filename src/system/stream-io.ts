@@ -18,6 +18,11 @@ export class ObjectStreamIO {
     private status = 500;
     private start = Date.now();
 
+    /**
+     * Create an event I/O stream with an expiry timer
+     * 
+     * @param expirySeconds of a stream
+     */
     constructor(expirySeconds = 1800) {
         po.request(new EventEnvelope().setTo(STREAM_IO_MANAGER).setHeader('type', 'create_stream').setHeader('expiry', String(expirySeconds)), EXPIRY)
             .then((res: EventEnvelope) => {
@@ -38,11 +43,21 @@ export class ObjectStreamIO {
             });
     }
 
+    /**
+     * Retrieve the input stream route reference
+     * 
+     * @returns input stream handle
+     */
     async getInputStream() {
         await this.waitForStream();
         return this.inStream;
     }
 
+    /**
+     * Retrieve the output stream route reference
+     * 
+     * @returns output stream handle
+     */
     async getOutputStream() {
         await this.waitForStream();
         return this.outStream;
@@ -65,10 +80,20 @@ export class ObjectStreamReader {
     private closed = false;
     private eof = false;
 
+    /**
+     * Create a input stream wrapper
+     * 
+     * @param inputStream handle
+     */
     constructor(inputStream: string) {
         this.inputStream = inputStream;
     }
 
+    /**
+     * Obtain the generator function to fetch incoming blocks of data
+     * 
+     * @param timeout in milliseconds
+     */
     async * reader(timeout: number) {
         while (!this.eof) {
             const req = new EventEnvelope().setTo(this.inputStream).setHeader('type', 'read');
@@ -88,6 +113,9 @@ export class ObjectStreamReader {
         }
     }
 
+    /**
+     * Close the input stream, thus releasing the underlying I/O stream resource
+     */
     close(): void {
         if (!this.closed) {
             this.closed = true;
@@ -104,10 +132,20 @@ export class ObjectStreamWriter {
     private outputStream: string;
     private closed = false;
 
+    /**
+     * Create an output stream wrapper
+     * 
+     * @param outputStream handle
+     */
     constructor(outputStream: string) {
         this.outputStream = outputStream;
     }
     
+    /**
+     * Write a block of data to the output stream
+     * 
+     * @param payload for the outgoing block of data
+     */
     write(payload: string | number | object | boolean | Buffer | Uint8Array): void {
         if (!this.closed && payload) {
             const req = new EventEnvelope().setTo(this.outputStream).setHeader('type', 'data').setBody(payload);
@@ -115,6 +153,13 @@ export class ObjectStreamWriter {
         }
     }
 
+    /**
+     * Close the output stream, thus indicating EOF
+     * 
+     * Note:
+     *  1. If you do not close an output stream, it is active until the I/O stream expires.
+     *  2. The I/O stream is not released until the recipient closes the corresponding input stream.
+     */
     close(): void {
         if (!this.closed) {
             this.closed = true;

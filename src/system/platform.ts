@@ -15,6 +15,7 @@ const WS_WORKER = 'ws.worker';
 const SERVICE_LIFE_CYCLE = 'service.life.cycle';
 const DISTRIBUTED_TRACING = 'distributed.tracing';
 const DISTRIBUTED_TRACE_PROCESSOR = 'distributed.trace.processor';
+const CONNECTOR_LIFECYCLE = 'cloud.connector.lifecycle';
 
 let self: EventSystem = null;
 let lastTraceProcessorCheck = 0;
@@ -290,6 +291,24 @@ class EventSystem {
     setTraceSupport(enabled = true): void {
         self.tracing = enabled? true: false;
         log.info('Trace aggregation is '+ (self.tracing? 'ON' : 'OFF'));
+    }
+
+    /**
+     * Subscribe to connector life cycle events
+     * 
+     * @param route for the event listener
+     */
+    subscribeLifeCycle(route: string): void {
+        po.send(new EventEnvelope().setTo(CONNECTOR_LIFECYCLE).setHeader('type', 'subscribe').setHeader('route', route));
+    }
+
+    /**
+     * Unsubscribe from connector life cycle events
+     * 
+     * @param route for the event listener
+     */
+    unsubscribeLifeCycle(route: string): void {
+        po.send(new EventEnvelope().setTo(CONNECTOR_LIFECYCLE).setHeader('type', 'unsubscribe').setHeader('route', route));
     }
 
     /**

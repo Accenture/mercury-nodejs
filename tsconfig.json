@@ -9,6 +9,7 @@
     "allowSyntheticDefaultImports": true,
     "importHelpers": true,
     "alwaysStrict": true,
+    "declaration": true,
     "sourceMap": true,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
@@ -23,6 +24,9 @@
     "src/**/*"
   ],
   "exclude": [
-    "test"
+    "test",
+    "target",
+    "coverage",
+    "node_modules"
   ]  
 }

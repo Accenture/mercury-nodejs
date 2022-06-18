@@ -160,6 +160,27 @@ To see this feature, please try the "stream-demo" application.
 node stream-demo.js
 ```
 
+## Pub/Sub
+
+The pub/sub publisher and subscriber examples illustrate sending and receiving events from a network event stream
+system through the language connector.
+
+You must start an event stream system. Mercury supports Kafka, ActiveMQ, Hazelcast and TIBCO out of the box.
+Please follow the README in the main Mercury project at https://github.com/Accenture/mercury to start the
+corresponding 'presence-monitor' for the event stream system.
+
+You can then start the language connector with the kafka connector parameter like this:
+
+```
+java -Dcloud.connector=kafka -jar target/language-connector.jar
+```
+
+After this setup, you can test the subscriber and publisher example.
+
+The subscriber example will detect if the language connector is ready before subscribing to a topic of the network
+event stream system. It will also recover from connectivity failure. Please browse the source code of the subscriber
+example to see how the life cycle listener works.
+
 ## Service applications are usually running forever
 
 You notice that when you enable the cloud connector to connect to the language connector sidecar, your application is running forever in the foreground. You can press Control-C to shutdown the application gracefully.

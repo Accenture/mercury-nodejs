@@ -28,8 +28,12 @@ async function lifeCycleListener(evt: EventEnvelope) {
         await subscribeToTopic();
     }
     if ('disconnected' == headers['type']) {
-        log.info('Cloud is not ready');    
-        await ps.unsubscribe('hello.topic', MY_HELLO_WORLD).catch((e) => log.info(e.message)); 
+        log.info('Cloud is not ready');
+        try {
+            await ps.unsubscribe('hello.topic', MY_HELLO_WORLD);
+        } catch (e) {
+            log.error(e.message)
+        }
     }
     return true;
 }

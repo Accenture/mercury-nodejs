@@ -44,7 +44,7 @@ export function forwarder(event: EventEnvelope) {
                     resolve(false);
                 } else {
                     recipients.set(subscriber, 'true' == event.getHeader('permanent'));
-                    log.info(subscriber+' subscribed to '+me);
+                    log.info(`${subscriber} subscribed to ${me}`);
                     resolve(true);
                 }
             }
@@ -53,11 +53,11 @@ export function forwarder(event: EventEnvelope) {
             const subscriber = event.getHeader('route');
             if (recipients.has(subscriber)) {
                 if (recipients.get(subscriber)) {
-                    log.error('Cannot unsubscribe '+subscriber+' from '+me+' because it was set as a permanent subscriber');
+                    log.error(`Cannot unsubscribe ${subscriber} from ${me} because it was set as a permanent subscriber`);
                     resolve(false);
                 } else {
                     recipients.delete(subscriber);
-                    log.info(subscriber+' unsubscribed from '+me);
+                    log.info(`${subscriber} unsubscribed from ${me}`);
                     resolve(true);
                 }
 

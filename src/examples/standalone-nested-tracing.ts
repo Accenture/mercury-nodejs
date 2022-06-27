@@ -18,7 +18,7 @@ const TEST_MESSAGE = 'test message';
 // Set this function as 'async' so that we can use 'await' instead of using 'promise.then' method
 async function demo() {
     platform.register(MY_HELLO_WORLD, (evt: EventEnvelope) => {
-        log.info(MY_HELLO_WORLD+' got headers='+JSON.stringify(evt.getHeaders())+', body='+JSON.stringify(evt.getBody()));
+        log.info(`${MY_HELLO_WORLD} got headers=${JSON.stringify(evt.getHeaders())}, body=${JSON.stringify(evt.getBody())}`);
 
         // Obtain an instance of Post Office that is trace aware so that trace information will be propagated
         const myPo = new PO().getTraceAwareInstance(evt);
@@ -29,7 +29,7 @@ async function demo() {
 
     // a function can be set to private scope using the 'isPrivate' parameter in registration
     platform.register(ANOTHER_FUNCTION, (evt: EventEnvelope) => {
-        log.info(ANOTHER_FUNCTION+' got headers='+JSON.stringify(evt.getHeaders())+', body='+JSON.stringify(evt.getBody()));
+        log.info(`${ANOTHER_FUNCTION} got headers=${JSON.stringify(evt.getHeaders())}, body=${JSON.stringify(evt.getBody())}`);
         // if return value is not given, it is set to null.
     }, true);
 

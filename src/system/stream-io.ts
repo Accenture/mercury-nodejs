@@ -1,4 +1,4 @@
-import { PO } from "../system/post-office.js";
+import { PO } from '../system/post-office.js';
 import { Utility } from '../util/utility.js';
 import { EventEnvelope } from '../models/event-envelope.js';
 import { AppException } from '../models/app-exception.js';

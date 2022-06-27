@@ -20,17 +20,17 @@ async function demo() {
     const inRoute = await io.getInputStream();
     const outRoute = await io.getOutputStream();
 
-    console.log('Input stream handle - '+inRoute);
-    console.log('Output stream handle - '+outRoute);
+    log.info(`Input stream handle - ${inRoute}`);
+    log.info(`Output stream handle - ${outRoute}`);
 
-    console.log('Writing '+CYCLES+' items to output stream...');
+    log.info(`Writing ${CYCLES} items to output stream...`);
     const outStream = new ObjectStreamWriter(outRoute);
     for (let i=0; i < CYCLES; i++) {
-        outStream.write('hello world '+i);
+        outStream.write(`hello world ${i}`);
     }
     outStream.close();
 
-    console.log('Reading '+CYCLES+' items from input stream...');
+    log.info(`Reading ${CYCLES} items from input stream`);
     const inStream = new ObjectStreamReader(inRoute);
     let eof = false;
     const reader = inStream.reader(5000);

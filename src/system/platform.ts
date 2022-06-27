@@ -1,9 +1,9 @@
 import { parse as parseYaml } from 'yaml';
 import { readFileSync } from 'fs';
 import { performance } from 'perf_hooks';
-import { Logger } from "../util/logger.js";
+import { Logger } from '../util/logger.js';
 import { Utility } from '../util/utility.js';
-import { PO } from "../system/post-office.js";
+import { PO } from '../system/post-office.js';
 import { EventEnvelope } from '../models/event-envelope.js';
 import { AppException } from '../models/app-exception.js';
 import { MultiLevelMap } from '../util/multi-level-map.js';
@@ -38,7 +38,7 @@ function getResourceFolder() {
     const filename = import.meta.url.substring(7);
     const parts = filename.split('/');
     const scriptName = parts.length > 2 && parts[1].endsWith(':')? filename.substring(1) : filename;
-    return dropLast(dropLast(scriptName)) + "/resources";
+    return dropLast(dropLast(scriptName)) + '/resources';
 }
 
 function dropLast(pathname: string) {
@@ -66,7 +66,7 @@ function isTraceProcessorAvailable(): Promise<boolean> {
 // Graceful shutdown
 async function shutdown() {
     if (await po.exists(WS_WORKER)) {
-        log.info("Stopping");
+        log.info('Stopping');
         po.send(new EventEnvelope().setTo(WS_WORKER).setHeader('type', 'stop'));
     }   
 }
@@ -166,10 +166,10 @@ class ServiceManager {
         } else {
             if (e instanceof AppException) {
                 errorCode = e.getStatus();
-                log.warn('Unhandled exception ('+evt.getTo()+'), status='+errorCode, e);
+                log.warn(`Unhandled exception (${evt.getTo()}), status=${errorCode}`, e);
             } else {
                 errorCode = 500;
-                log.warn('Unhandled exception ('+evt.getTo()+')', e);
+                log.warn(`Unhandled exception (${evt.getTo()})`, e);
             }
         }
         // send tracing information if needed
@@ -290,7 +290,7 @@ class EventSystem {
      */
     setTraceSupport(enabled = true): void {
         self.tracing = enabled? true: false;
-        log.info('Trace aggregation is '+ (self.tracing? 'ON' : 'OFF'));
+        log.info(`Trace aggregation is ${self.tracing? 'ON' : 'OFF'}`);
     }
 
     /**
@@ -386,7 +386,7 @@ class EventSystem {
             self.forever = true;
             if (self.t1 < 0) {
                 self.t1 = Date.now();
-                log.info("To stop application, press Control-C");
+                log.info('To stop application, press Control-C');
             }
             while (!self.isStopping()) {
                 const now = Date.now();
@@ -396,7 +396,7 @@ class EventSystem {
                 }
                 await util.sleep(250);
             }
-            log.info("Stopped");
+            log.info('Stopped');
         }
     }
 

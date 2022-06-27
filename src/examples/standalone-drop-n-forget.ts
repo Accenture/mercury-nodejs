@@ -20,7 +20,7 @@ function demo() {
 }
 
 function myHelloWorld(evt: EventEnvelope): void {
-    log.info('hello.world receives headers='+JSON.stringify(evt.getHeaders())+', body='+JSON.stringify(evt.getBody()));
+    log.info(`${MY_HELLO_WORLD} got headers=${JSON.stringify(evt.getHeaders())}, body=${JSON.stringify(evt.getBody())}`);
 }
 platform.register(MY_HELLO_WORLD, myHelloWorld);
 

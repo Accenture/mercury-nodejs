@@ -16,13 +16,13 @@ const CLOUD_MONITOR = "connector.event.listener";
 
 // Register and announce that 'hello.world' service is available as this function with EventEnvelope as input
 platform.register(MY_HELLO_WORLD, (evt: EventEnvelope) => {
-    log.info('GOT headers='+JSON.stringify(evt.getHeaders())+', body='+JSON.stringify(evt.getBody()));
+    log.info(`${MY_HELLO_WORLD} got headers=${JSON.stringify(evt.getHeaders())}, body=${JSON.stringify(evt.getBody())}`);
     return evt.getBody();
 });
 
 async function lifeCycleListener(evt: EventEnvelope) {
     const headers = evt.getHeaders();
-    log.info('Connector life cycle event: '+JSON.stringify(headers));
+    log.info(`Connector life cycle event: ${JSON.stringify(headers)}`);
     if ('ready' == headers['type']) {
         log.info('Cloud is ready');
         await subscribeToTopic();

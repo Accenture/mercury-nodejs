@@ -15,7 +15,7 @@ const CLOUD_MONITOR = "connector.event.listener";
 
 async function lifeCycleListener(evt: EventEnvelope) {
     const headers = evt.getHeaders();
-    log.info('Connector life cycle event: '+JSON.stringify(headers));
+    log.info(`Connector life cycle event: ${JSON.stringify(headers)}`);
     if ('ready' == headers['type']) {
         log.info('Cloud is ready');
         await publishSomething();
@@ -48,7 +48,7 @@ async function publishSomething() {
 }
 
 async function publishOneItem(seq: number) {
-    console.log('sending ' + seq);
+    log.info(`sending ${seq}`);
     return ps.publish('hello.topic', {'some_parameter': 'some_value', 'n': seq}, 'hello node.js - ' + new Date().toISOString());
 }
 

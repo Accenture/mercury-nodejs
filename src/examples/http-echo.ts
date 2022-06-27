@@ -20,7 +20,7 @@ const MY_HELLO_WORLD = 'hello.world';
 platform.register(MY_HELLO_WORLD, (evt: EventEnvelope) => {
     const request = new AsyncHttpRequest(evt.getBody());
     if (request.getMethod()) {
-        log.info(request.getMethod()+' '+request.getUrl());
+        log.info(`${request.getMethod()} ${request.getUrl()}`);
         return new EventEnvelope().setStatus(200).setHeader('X-Custom-Header', 'Demo').setBody(request.toMap());
 
     } else {

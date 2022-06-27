@@ -3,14 +3,14 @@ class NotFound {}
 
 function getFlattenMap(prefix: string, src: object, target: object): void {
     for (const k of Object.keys(src)) {
-        const key = prefix == null? k : prefix+"."+k;
+        const key = prefix == null? k : prefix+'.'+k;
         const v = src[k];
         if (v.constructor == Object) {
             getFlattenMap(key, v, target);
         } else if (v.constructor == Array) {
             let n = 0;
             for (const o of v) {
-                const next = key +"["+n+"]";
+                const next = key +'['+n+']';
                 n++;
                 if (o.constructor == Object) {
                     getFlattenMap(next, o, target);
@@ -29,7 +29,7 @@ function getFlattenMap(prefix: string, src: object, target: object): void {
 function getFlattenList(prefix: string, src, target: object): void {
     let n = 0;
     for (const v of src) {
-        const key = prefix+"["+n+"]";
+        const key = prefix+'['+n+']';
         n++;
         if (v.constructor == Object) {
             getFlattenMap(key, v, target);
@@ -154,18 +154,18 @@ function validateCompositePathSyntax(pathname: string): void {
         throw new Error('composite path cannot be empty');
     }
     for (const s of list) {
-        if (s.includes("[") || s.includes("]")) {
-            if (!s.includes("[")) {
-                throw new Error("Invalid composite path - missing start bracket");
+        if (s.includes('[') || s.includes(']')) {
+            if (!s.includes('[')) {
+                throw new Error('Invalid composite path - missing start bracket');
             }
-            if (!s.endsWith("]")) {
-                throw new Error("Invalid composite path - missing end bracket");
+            if (!s.endsWith(']')) {
+                throw new Error('Invalid composite path - missing end bracket');
             }
             // check start-end pair
             const sep1 = s.indexOf('[');
             const sep2 = s.indexOf(']');
             if (sep2 < sep1) {
-                throw new Error("Invalid composite path - missing start bracket");
+                throw new Error('Invalid composite path - missing start bracket');
             }
             let start = false;
             const text = s.substring(sep1);
@@ -173,23 +173,23 @@ function validateCompositePathSyntax(pathname: string): void {
                 const c = text[i];
                 if (c == '[') {
                     if (start) {
-                        throw new Error("Invalid composite path - missing end bracket");
+                        throw new Error('Invalid composite path - missing end bracket');
                     } else {
                         start = true;
                     }
                 } else if (c == ']') {
                     if (!start) {
-                        throw new Error("Invalid composite path - duplicated end bracket");
+                        throw new Error('Invalid composite path - duplicated end bracket');
                     } else {
                         start = false;
                     }
                 } else {
                     if (start) {
                         if (c < '0' || c > '9') {
-                            throw new Error("Invalid composite path - indexes must be digits");
+                            throw new Error('Invalid composite path - indexes must be digits');
                         }
                     } else {
-                        throw new Error("Invalid composite path - invalid indexes");
+                        throw new Error('Invalid composite path - invalid indexes');
                     }
                 }
             }

@@ -14,7 +14,7 @@ const TEST_MESSAGE = 'Test message';
 
 function demo() {
     platform.register(MY_HELLO_WORLD, (evt: EventEnvelope) => {
-        log.info('hello.world receives headers='+JSON.stringify(evt.getHeaders())+', body='+JSON.stringify(evt.getBody()));
+        log.info(`${MY_HELLO_WORLD} got headers=${JSON.stringify(evt.getHeaders())}, body=${JSON.stringify(evt.getBody())}`);
         // just return a new event with the given headers/parameters and payload
         return new EventEnvelope().setHeaders(evt.getHeaders()).setBody(evt.getBody());
     });
@@ -26,7 +26,7 @@ function demo() {
 }
 
 function myCallback(evt: EventEnvelope): void {
-    log.info('my.callback.function receives headers='+JSON.stringify(evt.getHeaders())+', body='+JSON.stringify(evt.getBody()));
+    log.info(`${MY_CALLBACK} got headers=${JSON.stringify(evt.getHeaders())}, body=${JSON.stringify(evt.getBody())}`);
 }
 platform.register(MY_CALLBACK, myCallback);
 

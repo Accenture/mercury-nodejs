@@ -178,11 +178,11 @@ class PS {
             throw new AppException(400, 'pub/sub topic name must be different from the subscriber function route name');
         }
         if (!po.exists(route)) {
-            throw new AppException(400, 'Unable to subscribe topic ' + topic + ' because route ' + route + ' not registered');
+            throw new AppException(400, `Unable to subscribe topic  ${topic} because route ${route} not registered`);
         }
         const prevMap = self.subscription.has(topic)? self.subscription.get(topic) : {};
         if (route in prevMap) {
-            throw new AppException(400, 'Route ' + route + ' has already subscribed to topic ' + topic);
+            throw new AppException(400, `Route ${route} has already subscribed to topic ${topic}`);
         }
         let result: EventEnvelope = null;
         if (partition < 0) {
@@ -198,15 +198,15 @@ class PS {
         if (result.getBody()) {
             if (!self.subscription.has(topic)) {
                 self.subscription.set(topic, {});
-                log.info('Subscribed topic ' + topic);
+                log.info(`Subscribed topic ${topic}`);
             }
             const routeMap = self.subscription.get(topic);
             if (!(route in routeMap)) {
                 routeMap[route] = {'parameters': parameters, 'partition': partition}
                 if (partition < 0) {
-                    log.info('Attach ' + route + ' to topic ' + topic);
+                    log.info(`Attach ${route} to topic ${topic}`);
                 } else {
-                    log.info('Attach ' + route + ' to topic ' + topic + ' partition ' + partition);
+                    log.info(`Attach ${route} to topic ${topic} partition ${partition}`);
                 }
             }
             return true;
@@ -224,17 +224,17 @@ class PS {
      */
     async unsubscribe(topic: string, route: string) {
         if (!po.exists(route)) {
-            throw new AppException(400, 'Unable to unsubscribe topic ' + topic + ' because route ' + route + ' not registered');
+            throw new AppException(400, `Unable to unsubscribe topic ${topic} because route ${route} not registered`);
         }
         const routeMap = self.subscription.has(topic)? self.subscription.get(topic) : {};
         if (!(route in routeMap)) {
-            throw new AppException(400, 'Route ' + route + ' was not subscribed to topic ' + topic);
+            throw new AppException(400, `Route ${route} was not subscribed to topic ${topic}`);
         }
         delete routeMap[route];
-        log.info('Detach ' + route + ' from topic ' + topic);
+        log.info(`Detach ${route} from topic ${topic}`);
         if (Object.keys(routeMap).length == 0) {
             self.subscription.delete(topic);
-            log.info('Unsubscribed topic ' + topic);
+            log.info(`Unsubscribed topic ${topic}`);
         }
         if (po.isReady()) {
             try {
@@ -243,7 +243,7 @@ class PS {
                                         .setHeader(TYPE, 'unsubscribe').setHeader(DOMAIN, self.domain), 10000);
                 return result.getBody();
             } catch (e) {
-                log.error('Unable to unsubscribe '+route+' from topic '+topic+' - '+e.message);
+                log.error(`Unable to unsubscribe ${route} from topic ${topic} - ${e.message}`);
                 return false;
             }
         } else {

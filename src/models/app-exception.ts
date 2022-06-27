@@ -32,7 +32,7 @@ export class AppException extends Error {
      * @returns composite error message
      */
     toString(): string {
-        return 'AppException: ('+this.status+') '+this.message;
+        return `AppException: (${this.status}) ${this.message}`;
     }
 
 }

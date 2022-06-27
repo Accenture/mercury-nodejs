@@ -17,7 +17,7 @@ const TEST_MESSAGE = 'test message';
 // Set this function as 'async' so that we can use 'await' instead of using 'promise.then' method
 async function demo() {
     platform.register(MY_HELLO_WORLD, (evt: EventEnvelope) => {
-        log.info('GOT headers='+JSON.stringify(evt.getHeaders())+', body='+JSON.stringify(evt.getBody()));
+        log.info(`${MY_HELLO_WORLD} got headers=${JSON.stringify(evt.getHeaders())}, body=${JSON.stringify(evt.getBody())}`);
         return evt.getBody();
     });
 
@@ -33,7 +33,7 @@ async function demo() {
                                 .setTraceId(traceId).setTracePath(tracePath).setFrom('this.demo')
                                 .setHeader('n', String(i)).setBody(TEST_MESSAGE));
         assert.equal(TEST_MESSAGE, result.getBody());
-        log.info('Received item '+(i + 1));
+        log.info(`Received ${i + 1}`);
     }
     log.info('Demo (standalone mode with tracing) completed');
 }

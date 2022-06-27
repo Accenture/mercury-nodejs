@@ -42,7 +42,7 @@ function ensureDir(filePath: string) {
         const parent = filePath.substring(0, slash);
         if (!existsSync(parent)) {
             mkdirSync(parent, { recursive: true });
-            log.info('Folder '+parent+' created');
+            log.info(`Folder ${parent} created`);
         }
     }
 }

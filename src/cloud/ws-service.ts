@@ -1,11 +1,11 @@
 import { Worker, isMainThread, parentPort } from 'worker_threads';
 import { WebSocket } from 'ws';
 import { unpack, pack } from 'msgpackr';
-import { Platform } from "../system/platform.js";
-import { PO } from "../system/post-office.js";
-import { forwarder } from "../util/forwarder.js";
+import { Platform } from '../system/platform.js';
+import { PO } from '../system/post-office.js';
+import { forwarder } from '../util/forwarder.js';
 import { EventEnvelope } from '../models/event-envelope.js';
-import { Logger } from "../util/logger.js";
+import { Logger } from '../util/logger.js';
 import { Utility } from '../util/utility.js';
 
 const CONNECTOR_LIFECYCLE = 'cloud.connector.lifecycle';
@@ -25,7 +25,7 @@ if (isMainThread) {
     if (!running) {
         // Main thread
         running = true;
-        log.info("Connector started");
+        log.info('Connector started');
         const platform = new Platform().getInstance();
         const po = new PO().getInstance();
         let loaded = false;
@@ -45,7 +45,7 @@ if (isMainThread) {
                 try {
                     po.send(incoming);
                 } catch (e) {
-                    log.warn('Unable to relay incoming event - '+e.message);
+                    log.warn(`Unable to relay incoming event - ${e.message}`);
                 }   
             }
             if ('block' == eventType && 'block' in evt) {
@@ -58,12 +58,12 @@ if (isMainThread) {
                     let raw: Buffer = null;
                     if (data instanceof Buffer) {                        
                         raw = data;
-                        log.debug('Receiving '+msgId+', '+count+' of '+total+', size='+raw.length+' as Buffer');
+                        log.debug(`Receiving ${msgId} ${count} of ${total}, size=${raw.length} as Buffer`);
                     } else if (data instanceof Uint8Array) {
                         raw = Buffer.from(data);
-                        log.debug('Receiving '+msgId+', '+count+' of '+total+', size='+raw.length+' as Uint8Array');
+                        log.debug(`Receiving ${msgId} ${count} of ${total}, size=${raw.length} as Uint8Array`);
                     } else {
-                        log.error('Unable to process incoming event '+msgId+' block-'+count+'. Expect: Buffer, Actual:'+data.constructor.name);
+                        log.error(`Unable to process incoming event ${msgId} block-${count}. Expect: Buffer, Actual: ${data.constructor.name}`);
                         return;
                     }
                     const blocks = util.cacheExists(msgId)? util.getCached(msgId) as Array<Buffer> : [];
@@ -71,11 +71,11 @@ if (isMainThread) {
                     if (count == total) {
                         util.removeCache(msgId);
                         const restored = new EventEnvelope(Buffer.concat(blocks));
-                        log.debug('Restored '+restored.getId()+' for delivery to '+restored.getTo());
+                        log.debug(`Restored ${restored.getId()} for delivery to ${restored.getTo()}`);
                         try {
                             po.send(restored);
                         } catch (e) {
-                            log.warn('Unable to relay incoming event - '+e.message);
+                            log.warn(`Unable to relay incoming event - ${e.message}`);
                         }                    
                     } else {
                         util.saveCache(msgId, blocks, 30);
@@ -113,7 +113,7 @@ if (isMainThread) {
             if ('stop' == eventType) {
                 // worker has closed websocket connection and it is safe to stop
                 worker.terminate();
-                log.info("Connector stopped");
+                log.info('Connector stopped');
             }
         });
         // register a forwarder to broadcast to subscribers about life cycle events
@@ -123,7 +123,7 @@ if (isMainThread) {
                 const target = evt.getHeader('target') + '/' + platform.getOriginId();
                 const reconnect = evt.getHeader('reconnect')? true : false;
                 if (!reconnect && loaded) {
-                    log.warn('Websocket connection request ignored because '+target+' is already loaded');
+                    log.warn(`Websocket connection request ignored because ${target} is already loaded`);
                 } else {
                     loaded = true;
                     if (!connected) {
@@ -139,7 +139,7 @@ if (isMainThread) {
                 po.setStatus('authenticated');
                 platform.advertise();
                 log.info('Authenticated');
-                log.info('Automatic payload segmentation at '+blockSize+' bytes');
+                log.info(`Automatic payload segmentation at ${blockSize} bytes`);
                 po.send(new EventEnvelope().setTo(CONNECTOR_LIFECYCLE).setHeader('type', 'authenticated'));
                 // send 'ready' signal to cloud after connection authentication
                 worker.postMessage(new EventEnvelope().setHeader('type', 'ready'));
@@ -164,7 +164,7 @@ if (isMainThread) {
                         block.setBody(segment);
                         remaining -= segment.length;
                         start = end;
-                        log.debug('Sending '+msgId+', '+count+' of '+total+', size='+segment.length);
+                        log.debug(`Sending ${msgId} ${count} of ${total}, size=${segment.length}`);
                         const transport = new EventEnvelope().setHeader('type', 'block').setBody(block.toMap());
                         worker.postMessage(transport.toBytes());
                     }

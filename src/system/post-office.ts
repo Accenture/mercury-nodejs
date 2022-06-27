@@ -1,7 +1,7 @@
 import { isMainThread } from 'worker_threads';
-import { EventEmitter } from "events";
-import { performance } from "perf_hooks";
-import { Logger } from "../util/logger.js";
+import { EventEmitter } from 'events';
+import { performance } from 'perf_hooks';
+import { Logger } from '../util/logger.js';
 import { EventEnvelope } from '../models/event-envelope.js';
 import { AppException } from '../models/app-exception.js';
 import { Utility } from '../util/utility.js';
@@ -164,7 +164,7 @@ class PostOffice {
     constructor() {
         self = this;
         self.id = 'js-'+util.getUuid();
-        log.info('Event system started - '+self.id);
+        log.info(`Event system started - ${self.id}`);
     }
 
     /**
@@ -292,7 +292,7 @@ class PostOffice {
         self.handlers.set(route, listener);
         self.po.on(route, listener);
         if (logging) {
-            log.info(route+' registered');
+            log.info(`${route} registered`);
         }
     }
 
@@ -308,7 +308,7 @@ class PostOffice {
             self.po.removeListener(route, service);
             self.handlers.delete(route);
             if (logging) {
-                log.info(route+' unregistered');
+                log.info(`${route} unregistered`);
             }
             // inform platform service to check if this is a managed service and to do housekeeping
             self.send(new EventEnvelope().setTo(SERVICE_LIFE_CYCLE).setHeader('type', 'unsubscribe').setHeader('route', route));
@@ -339,14 +339,14 @@ class PostOffice {
                         self.send(new EventEnvelope().setTo(WS_WORKER).setHeader('type', 'event').setBody(event.toMap()));
     
                     } else {
-                        log.error('Event '+event.getId()+' dropped because '+route+' not found');
+                        log.error(`Event ${event.getId()} dropped because ${route} not found`);
                     }
                 }
             }
 
 
         } else {
-            log.warn('Event '+event.getId()+' dropped because there is no target service route');
+            log.warn(`Event ${event.getId()} dropped because there is no target service route`);
         }
     }
 
@@ -376,7 +376,7 @@ class PostOffice {
                 if (local || self.isCloudAuthenticated()) {
                     const callback = 'r.'+util.getUuid();
                     const timer = setTimeout(() => {
-                        reject(new AppException(408, 'Route '+route+' timeout for '+timeout+' ms'));
+                        reject(new AppException(408, `Route ${event.getId()} timeout for ${timeout} ms`));
                     }, Math.max(10, timeout));
                     
                     self.subscribe(callback, (response: EventEnvelope) => {
@@ -399,10 +399,10 @@ class PostOffice {
                     }
                     
                 } else {
-                    reject(new Error('Event '+event.getId()+' dropped because '+route+' not found'));
+                    reject(new Error(`Event ${event.getId()} dropped because ${route} not found`));
                 }
             } else {
-                reject(new Error('Event '+event.getId()+' dropped because there is no target service route'));
+                reject(new Error(`Event ${event.getId()} dropped because there is no target service route`));
             }
         });
     }

@@ -1,0 +1,18 @@
+{
+  "name": "examples",
+  "version": "1.0.0",
+  "description": "Example apps that use Mercury NodeJs",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc -p tsconfig.json"
+  },
+  "author": "Eric Law <eric.law@accenture.com>",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@types/node": "^17.0.23"
+  }, 
+  "dependencies": {
+    "mercury": "https://github.com/Accenture/mercury-nodejs"
+  }
+}

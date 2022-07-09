@@ -9,8 +9,6 @@
     "allowSyntheticDefaultImports": true,
     "importHelpers": true,
     "alwaysStrict": true,
-    "declaration": true,
-    "sourceMap": true,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
@@ -24,7 +22,6 @@
     "src/**/*"
   ],
   "exclude": [
-    "examples",
     "test",
     "dist",
     "coverage",

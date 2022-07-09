@@ -1,8 +1,4 @@
-import { Logger } from '../util/logger.js';
-import { Platform } from '../system/platform.js';
-import { PO } from '../system/post-office.js';
-import { EventEnvelope } from '../models/event-envelope.js';
-import assert from 'assert';
+import { Logger, Platform, PO, EventEnvelope } from 'mercury';
 
 // Load system components
 const log = new Logger().getInstance();
@@ -21,7 +17,7 @@ async function demo() {
 
     for (let i=0; i < 5; i++) {
         const result = await po.request(new EventEnvelope().setTo(MY_HELLO_WORLD).setHeader('n', String(i)).setBody(TEST_MESSAGE));
-        assert.equal(TEST_MESSAGE, result.getBody());
+        log.info(`Payload match? ${TEST_MESSAGE == result.getBody()}`);
         log.info(`Received ${i + 1}`);
     }
     log.info('Demo (standalone mode) completed');

@@ -1,10 +1,4 @@
-import { Logger } from '../util/logger.js';
-import { ObjectStreamIO, ObjectStreamReader, ObjectStreamWriter } from '../system/stream-io.js'
-import { EventEnvelope } from '../models/event-envelope.js';
-import { Platform } from '../system/platform.js';
-import { PO } from '../system/post-office.js';
-// Import and start worker thread in the background
-import { Connector } from '../cloud/connector.js';
+import { Logger, Platform, PO, Connector, EventEnvelope, ObjectStreamIO, ObjectStreamReader, ObjectStreamWriter } from 'mercury';
 
 const CONNECTOR_LIFECYCLE = 'cloud.connector.lifecycle';
 const CYCLES = 100;

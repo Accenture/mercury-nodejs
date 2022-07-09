@@ -11,8 +11,8 @@ coverage/
 
 # Transpiled files
 build/
-dist/
 target/
+examples/dist/
 
 # VS Code
 .vscode

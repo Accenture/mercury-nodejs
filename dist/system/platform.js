@@ -7,7 +7,6 @@ import { PO } from '../system/post-office.js';
 import { EventEnvelope } from '../models/event-envelope.js';
 import { AppException } from '../models/app-exception.js';
 import { MultiLevelMap } from '../util/multi-level-map.js';
-
 const log = new Logger().getInstance();
 const util = new Utility().getInstance();
 const po = new PO().getInstance();
@@ -16,67 +15,55 @@ const SERVICE_LIFE_CYCLE = 'service.life.cycle';
 const DISTRIBUTED_TRACING = 'distributed.tracing';
 const DISTRIBUTED_TRACE_PROCESSOR = 'distributed.trace.processor';
 const CONNECTOR_LIFECYCLE = 'cloud.connector.lifecycle';
-
-let self: EventSystem = null;
+let self = null;
 let lastTraceProcessorCheck = 0;
 let traceProcessorFound = false;
-
 export class Platform {
-
-    constructor(configFile?: string) {
+    constructor(configFile) {
         if (self == null) {
             self = new EventSystem(configFile);
         }
     }
-  
-    getInstance(): EventSystem {
+    getInstance() {
         return self;
     }
 }
-
 function getResourceFolder() {
     const filename = import.meta.url.substring(7);
     const parts = filename.split('/');
-    const scriptName = parts.length > 2 && parts[1].endsWith(':')? filename.substring(1) : filename;
+    const scriptName = parts.length > 2 && parts[1].endsWith(':') ? filename.substring(1) : filename;
     return dropLast(dropLast(scriptName)) + '/resources';
 }
-
-function dropLast(pathname: string) {
-    return pathname.includes('/')? pathname.substring(0, pathname.lastIndexOf('/')) : pathname;
+function dropLast(pathname) {
+    return pathname.includes('/') ? pathname.substring(0, pathname.lastIndexOf('/')) : pathname;
 }
-
-function isTraceProcessorAvailable(): Promise<boolean> {
+function isTraceProcessorAvailable() {
     return new Promise((resolve) => {
         const now = Date.now();
         if (now - lastTraceProcessorCheck > 5000) {
             lastTraceProcessorCheck = now;
-            po.exists(DISTRIBUTED_TRACE_PROCESSOR).then((found: boolean) => {
+            po.exists(DISTRIBUTED_TRACE_PROCESSOR).then((found) => {
                 traceProcessorFound = found;
                 resolve(found);
             }).catch((e) => {
-                log.error('Unable to check '+DISTRIBUTED_TRACE_PROCESSOR+' - '+e.message);
+                log.error('Unable to check ' + DISTRIBUTED_TRACE_PROCESSOR + ' - ' + e.message);
                 resolve(false);
             });
-        } else {
+        }
+        else {
             resolve(traceProcessorFound);
         }
     });
 }
-
 // Graceful shutdown
 async function shutdown() {
     if (await po.exists(WS_WORKER)) {
         log.info('Stopping');
         po.send(new EventEnvelope().setTo(WS_WORKER).setHeader('type', 'stop'));
-    }   
+    }
 }
-
 class ServiceManager {
-
-    private route: string;
-    private isPrivate: boolean;
-
-    constructor(route: string, listener, isPrivate = false) {
+    constructor(route, listener, isPrivate = false) {
         if (!route) {
             throw new Error('Missing route');
         }
@@ -88,28 +75,29 @@ class ServiceManager {
         }
         this.route = route;
         this.isPrivate = isPrivate;
-        po.subscribe(route, (evt: EventEnvelope) => {
+        po.subscribe(route, (evt) => {
             const utc = new Date().toISOString();
             const start = performance.now();
             try {
                 const result = listener(evt);
                 if (result && Object(result).constructor == Promise) {
                     result.then(v => this.handleResult(utc, start, evt, v)).catch(e => this.handleError(utc, evt, e));
-                } else {
+                }
+                else {
                     this.handleResult(utc, start, evt, result);
                 }
-            } catch (e) {
+            }
+            catch (e) {
                 this.handleError(utc, evt, e);
             }
         }, false);
-        log.info((this.isPrivate? 'PRIVATE ' : 'PUBLIC ') + this.route + ' registered');
+        log.info((this.isPrivate ? 'PRIVATE ' : 'PUBLIC ') + this.route + ' registered');
     }
-
-    handleResult(utc: string, start: number, evt: EventEnvelope, response): void {
+    handleResult(utc, start, evt, response) {
         const diff = (performance.now() - start).toFixed(3);
         const replyTo = evt.getReplyTo();
         if (replyTo) {
-            const result = response instanceof EventEnvelope? new EventEnvelope(response) : new EventEnvelope().setBody(response);
+            const result = response instanceof EventEnvelope ? new EventEnvelope(response) : new EventEnvelope().setBody(response);
             result.setTo(replyTo).setFrom(this.route);
             result.setExecTime(parseFloat(diff));
             if (evt.getCorrelationId()) {
@@ -137,8 +125,7 @@ class ServiceManager {
             po.send(trace);
         }
     }
-
-    handleError(utc: string, evt: EventEnvelope, e): void {
+    handleError(utc, evt, e) {
         let errorCode = 500;
         const replyTo = evt.getReplyTo();
         if (replyTo) {
@@ -155,19 +142,23 @@ class ServiceManager {
             if (e instanceof AppException) {
                 errorCode = e.getStatus();
                 result.setStatus(errorCode).setBody(e.message).setException(true);
-            } else if (e instanceof Error) {
+            }
+            else if (e instanceof Error) {
                 errorCode = 500;
                 result.setStatus(errorCode).setBody(e.message).setException(true);
-            } else {
+            }
+            else {
                 errorCode = 400;
                 result.setStatus(errorCode).setBody(String(e)).setException(true);
             }
             po.send(result);
-        } else {
+        }
+        else {
             if (e instanceof AppException) {
                 errorCode = e.getStatus();
                 log.warn(`Unhandled exception (${evt.getTo()}), status=${errorCode}`, e);
-            } else {
+            }
+            else {
                 errorCode = 500;
                 log.warn(`Unhandled exception (${evt.getTo()})`, e);
             }
@@ -188,20 +179,16 @@ class ServiceManager {
         }
     }
 }
-
 class EventSystem {
-
-    private config: MultiLevelMap;
-    private services = new Map<string, boolean>();
-    private forever = false;
-    private tracing = true;
-    private stopping = false;
-    private t1 = -1;
-
-    constructor(configFile?: string) {
+    constructor(configFile) {
+        this.services = new Map();
+        this.forever = false;
+        this.tracing = true;
+        this.stopping = false;
+        this.t1 = -1;
         self = this;
-        const filepath = configFile? configFile : getResourceFolder() + '/application.yml';
-        self.config = new MultiLevelMap(parseYaml(readFileSync(filepath, {encoding:'utf-8', flag:'r'}))).normalizeMap();
+        const filepath = configFile ? configFile : getResourceFolder() + '/application.yml';
+        self.config = new MultiLevelMap(parseYaml(readFileSync(filepath, { encoding: 'utf-8', flag: 'r' }))).normalizeMap();
         const level = process.env.LOG_LEVEL;
         if (!(level && log.validLevel(level))) {
             log.setLevel(self.config.getElement('log.level', 'info'));
@@ -210,17 +197,17 @@ class EventSystem {
         // Using 'po.subscribe' instead of 'platform.register' to make this an unmanaged event listener.
         // this effectively disables distributed tracing for these listeners.
         //
-        po.subscribe(SERVICE_LIFE_CYCLE, (evt: EventEnvelope) => {
+        po.subscribe(SERVICE_LIFE_CYCLE, (evt) => {
             if ('unsubscribe' == evt.getHeader('type')) {
                 const route = evt.getHeader('route');
                 if (route && self.services.has(route)) {
                     const isPrivate = self.services.get(route);
                     self.services.delete(route);
-                    log.info((isPrivate? 'PRIVATE ' : 'PUBLIC ') + route + ' released');
+                    log.info((isPrivate ? 'PRIVATE ' : 'PUBLIC ') + route + ' released');
                 }
             }
         });
-        po.subscribe(DISTRIBUTED_TRACING, (evt: EventEnvelope) => {
+        po.subscribe(DISTRIBUTED_TRACING, (evt) => {
             log.info('trace=' + JSON.stringify(evt.getHeaders()));
             if (self.isTraceSupported()) {
                 // handle the trace metrics delivery asynchronously
@@ -254,85 +241,78 @@ class EventSystem {
             shutdown();
         });
     }
-
     /**
      * Retrieve unique application instance ID (aka originId)
-     * 
+     *
      * @returns originId
      */
-    getOriginId(): string {
+    getOriginId() {
         return po.getId();
     }
-
     /**
      * Get application.yml
-     * 
+     *
      * @returns multi-level-map
      */
-    getConfig(): MultiLevelMap {
+    getConfig() {
         return self.config;
     }
-
     /**
      * Check if trace aggregation feature is turned on
-     * 
+     *
      * @returns true or false
      */
-    isTraceSupported(): boolean {
+    isTraceSupported() {
         return self.tracing;
     }
-
     /**
-     * Turn trace aggregation feature on or off. 
+     * Turn trace aggregation feature on or off.
      * (This method is reserved for system use. DO NOT use this method from your app)
-     * 
+     *
      * @param enabled is true or false
      */
-    setTraceSupport(enabled = true): void {
-        self.tracing = enabled? true: false;
-        log.info(`Trace aggregation is ${self.tracing? 'ON' : 'OFF'}`);
+    setTraceSupport(enabled = true) {
+        self.tracing = enabled ? true : false;
+        log.info(`Trace aggregation is ${self.tracing ? 'ON' : 'OFF'}`);
     }
-
     /**
      * Subscribe to connector life cycle events
-     * 
+     *
      * @param route for the event listener
      */
-    subscribeLifeCycle(route: string): void {
+    subscribeLifeCycle(route) {
         po.send(new EventEnvelope().setTo(CONNECTOR_LIFECYCLE).setHeader('type', 'subscribe').setHeader('route', route));
     }
-
     /**
      * Unsubscribe from connector life cycle events
-     * 
+     *
      * @param route for the event listener
      */
-    unsubscribeLifeCycle(route: string): void {
+    unsubscribeLifeCycle(route) {
         po.send(new EventEnvelope().setTo(CONNECTOR_LIFECYCLE).setHeader('type', 'unsubscribe').setHeader('route', route));
     }
-
     /**
      * Register a function with a route name.
      * (This is a managed version of the po.subscribe method. Please use this to register your service functions)
-     * 
+     *
      * Your function will be registered as PUBLIC unless you set isPrivate to true.
      * PUBLIC functions are advertised to the whole system so that other application instances can find them.
-     * PRIVATE function are invisible outside the current application instance. 
+     * PRIVATE function are invisible outside the current application instance.
      * Private scope is ideal for business logic encapsulation.
-     * 
+     *
      * Note that the listener can be either:
      * 1. synchronous function with optional return value, or
      * 2. asynchronous function that returns a promise
-     * 
+     *
      * The 'void' return type in the listener is used in typescipt compile time only. It is safe for the function to return value.
      * The return value can be a primitive value, JSON object, an EventEnvelope, an Error or an AppException.
      * With AppException, you can set status code and message.
-     * 
+     *
      * @param route name
      * @param listener function (synchronous or promise)
      * @param isPrivate true or false
      */
-    register(route: string, listener: (evt: EventEnvelope) => void, isPrivate = false): void {
+    register(route, listener, isPrivate = false) {
         if (route) {
             if (listener instanceof Function) {
                 new ServiceManager(route, listener, isPrivate);
@@ -340,20 +320,21 @@ class EventSystem {
                 if (!isPrivate && po.isCloudAuthenticated()) {
                     po.send(new EventEnvelope().setTo(WS_WORKER).setHeader('type', 'add').setHeader('route', route));
                 }
-            } else {
+            }
+            else {
                 throw new Error('Invalid listener function');
             }
-        } else {
+        }
+        else {
             throw new Error('Missing route');
         }
     }
-
     /**
      * Release a previously registered function
-     * 
+     *
      * @param route name
      */
-    release(route: string) {
+    release(route) {
         if (self.services.has(route)) {
             const isPrivate = self.services.get(route);
             po.unsubscribe(route, false);
@@ -362,12 +343,11 @@ class EventSystem {
             }
         }
     }
-
     /**
      * Advertise public routes to the cloud.
      * This method is reserved by the system. DO NOT call it directly from your app.
      */
-    advertise(): void {
+    advertise() {
         for (const route of self.services.keys()) {
             const isPrivate = self.services.get(route);
             if (!isPrivate && po.isCloudAuthenticated()) {
@@ -375,7 +355,6 @@ class EventSystem {
             }
         }
     }
-
     /**
      * When your application uses the cloud connector, your app can run in the background.
      * If you run your app in standalone mode, you can use this runForever method to keep it running in the background.
@@ -399,22 +378,20 @@ class EventSystem {
             log.info('Stopped');
         }
     }
-
     /**
      * Stop the platform and cloud connector
      */
-    stop(): void {
+    stop() {
         self.stopping = true;
         shutdown();
     }
-
     /**
      * Check if the platform is shutting down
-     * 
+     *
      * @returns true or false
      */
-    isStopping(): boolean {
+    isStopping() {
         return self.stopping;
     }
-
 }
+//# sourceMappingURL=platform.js.map

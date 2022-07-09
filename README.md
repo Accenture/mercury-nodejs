@@ -10,7 +10,7 @@ When used with the Mercury language-connector, it connects your node.js applicat
 
 ## Getting Started
 
-We are in alpha stage at this moment for code review, unit test, documentation and 'npm' library package preparation.
+We are in beta stage at this moment for code review, unit tests, documentation and 'npm' library package preparation.
 
 To setup the language-connector as a sidecar, clone the Mercury repository at https://github.com/Accenture/mercury and do a `mvn clean install` at the project root.
 Follow the README to get the language-connector up and running.

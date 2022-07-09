@@ -8,6 +8,6 @@ function getRootFolder() {
 }
 
 const src = getRootFolder() + '/src/resources';
-const target = getRootFolder() + '/target';
+const target = getRootFolder() + '/dist';
 
 shell.cp("-R", src, target);

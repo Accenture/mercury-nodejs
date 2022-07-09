@@ -1,18 +1,50 @@
 # Examples
 
-## Building the project
+## Building the mercury-nodejs library
 
-Please build the system as follows:
+The mercury-nodejs library is pre-build in the "dist" folder.
+
+If you want to rebuild it, you can 'cd' to the project root and perform the following:
 
 ```
 npm install
 npm run build
 ```
 
+## Building the examples
+
+```
+cd examples
+npm install
+npm run build
+```
+
+This will install the mercury-nodejs library from github and build the examples in the 'examples/dist' folder.
+
+## Trying mercury interactively in Node REPL
+
+```
+cd examples
+npm install
+$ node
+Welcome to Node.js v16.15.0.
+Type ".help" for more information.
+> const mercury = await import('mercury');
+> 2022-07-08 17:29:38.668 INFO  Event system started - js-74343aa9f6b7480daac0d45755a40634 [:post-office.js:143]
+2022-07-08 17:29:38.689 INFO  Connector started [:ws-service.js:25]
+2022-07-08 17:29:38.701 INFO  service.life.cycle registered [PostOffice.subscribe:post-office.js:264]
+2022-07-08 17:29:38.701 INFO  distributed.tracing registered [PostOffice.subscribe:post-office.js:264]
+2022-07-08 17:29:38.704 INFO  cloud.connector.lifecycle registered [PostOffice.subscribe:post-office.js:264]
+2022-07-08 17:29:38.704 INFO  ws.worker registered [PostOffice.subscribe:post-office.js:264]
+> const po = new mercury.PO().getInstance();
+> console.log(po.getId());
+js-74343aa9f6b7480daac0d45755a40634
+```
+
 ## Running application in standalone mode
 
 ```
-cd target/examples
+cd dist
 node standalone-rpc.js
 ```
 
@@ -39,7 +71,7 @@ in Windows, Mac and Ubuntu operating systems with maven v3.6.3 and Java 1.8 to 1
 Once the Mercury toolkit is built, go to the 'language pack' folder and run the language-connector like this:
 
 ```
-java -jar target/language-connector-2.3.5.jar
+java -jar target/language-connector-2.3.6.jar
 ```
 
 The language pack has a built-in REST automation engine listening to port 8300 and a language connector listening to port 8090.

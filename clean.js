@@ -8,7 +8,7 @@ function getRootFolder() {
 }
 
 const coverage = getRootFolder() + '/coverage';
-const dist = getRootFolder() + '/target';
+const dist = getRootFolder() + '/dist';
 const tmp = getRootFolder() + '/tmp';
 
 shell.rm("-rf", coverage);

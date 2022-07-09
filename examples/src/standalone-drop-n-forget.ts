@@ -1,7 +1,4 @@
-import { Logger } from '../util/logger.js';
-import { Platform } from '../system/platform.js';
-import { PO } from '../system/post-office.js';
-import { EventEnvelope } from '../models/event-envelope.js';
+import { Logger, Platform, PO, EventEnvelope } from 'mercury';
 
 // Load system components
 const log = new Logger().getInstance();

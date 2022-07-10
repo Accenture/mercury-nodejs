@@ -28,3 +28,7 @@ This repository structure is inspired by boilerplate concepts from:
 1. https://github.com/microsoft/TypeScript-Node-Starter
 2. https://github.com/jsynowiec/node-typescript-boilerplate 
 3. https://github.com/vitorsalgado/create-nodejs-ts
+
+Best regards, the Mercury team, Accenture
+
+July 2022

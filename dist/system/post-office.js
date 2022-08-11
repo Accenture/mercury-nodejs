@@ -335,7 +335,7 @@ class PostOffice {
      */
     request(event, timeout = 60000) {
         return new Promise((resolve, reject) => {
-            const start = performance.timeOrigin + performance.now();
+            const start = performance.now();
             const route = event.getTo();
             if (route) {
                 const local = self.handlers.has(route);
@@ -351,7 +351,7 @@ class PostOffice {
                             reject(new AppException(response.getStatus(), String(response.getBody())));
                         }
                         else {
-                            const diff = parseFloat((performance.timeOrigin + performance.now() - start).toFixed(3));
+                            const diff = parseFloat((performance.now() - start).toFixed(3));
                             resolve(response.setRoundTrip(diff));
                         }
                     }, false);

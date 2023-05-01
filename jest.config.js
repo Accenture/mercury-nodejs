@@ -1,4 +1,3 @@
-
 export default {
   verbose: true,
   collectCoverage: true,
@@ -12,12 +11,6 @@ export default {
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
   testRegex: '(/test/.*|(\\.|/)(test|spec))\\.ts$',
-  globals: {
-    'ts-jest': {
-      tsconfig: './tsconfig.json',
-      useESM: true,
-    },
-  },
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/examples/*.ts',    

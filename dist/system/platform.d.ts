@@ -8,7 +8,6 @@ declare class EventSystem {
     private config;
     private services;
     private forever;
-    private tracing;
     private stopping;
     private t1;
     constructor(configFile?: string);
@@ -24,31 +23,6 @@ declare class EventSystem {
      * @returns multi-level-map
      */
     getConfig(): MultiLevelMap;
-    /**
-     * Check if trace aggregation feature is turned on
-     *
-     * @returns true or false
-     */
-    isTraceSupported(): boolean;
-    /**
-     * Turn trace aggregation feature on or off.
-     * (This method is reserved for system use. DO NOT use this method from your app)
-     *
-     * @param enabled is true or false
-     */
-    setTraceSupport(enabled?: boolean): void;
-    /**
-     * Subscribe to connector life cycle events
-     *
-     * @param route for the event listener
-     */
-    subscribeLifeCycle(route: string): void;
-    /**
-     * Unsubscribe from connector life cycle events
-     *
-     * @param route for the event listener
-     */
-    unsubscribeLifeCycle(route: string): void;
     /**
      * Register a function with a route name.
      * (This is a managed version of the po.subscribe method. Please use this to register your service functions)
@@ -70,7 +44,7 @@ declare class EventSystem {
      * @param listener function (synchronous or promise)
      * @param isPrivate true or false
      */
-    register(route: string, listener: (evt: EventEnvelope) => void, isPrivate?: boolean): void;
+    register(route: string, listener: (evt: EventEnvelope) => void, isPrivate?: boolean, instances?: number): void;
     /**
      * Release a previously registered function
      *
@@ -78,13 +52,7 @@ declare class EventSystem {
      */
     release(route: string): void;
     /**
-     * Advertise public routes to the cloud.
-     * This method is reserved by the system. DO NOT call it directly from your app.
-     */
-    advertise(): void;
-    /**
-     * When your application uses the cloud connector, your app can run in the background.
-     * If you run your app in standalone mode, you can use this runForever method to keep it running in the background.
+     * You can use this method to keep the event system running in the background
      */
     runForever(): Promise<void>;
     /**

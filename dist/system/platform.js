@@ -9,15 +9,13 @@ import { AppException } from '../models/app-exception.js';
 import { MultiLevelMap } from '../util/multi-level-map.js';
 const log = new Logger().getInstance();
 const util = new Utility().getInstance();
-const po = new PO().getInstance();
-const WS_WORKER = 'ws.worker';
+const po = new PO().getInstance({});
 const SERVICE_LIFE_CYCLE = 'service.life.cycle';
 const DISTRIBUTED_TRACING = 'distributed.tracing';
-const DISTRIBUTED_TRACE_PROCESSOR = 'distributed.trace.processor';
-const CONNECTOR_LIFECYCLE = 'cloud.connector.lifecycle';
+const DISTRIBUTED_TRACE_FORWARDER = 'distributed.trace.forwarder';
+const SIGNATURE = "_";
+const RPC = "rpc";
 let self = null;
-let lastTraceProcessorCheck = 0;
-let traceProcessorFound = false;
 export class Platform {
     constructor(configFile) {
         if (self == null) {
@@ -37,33 +35,10 @@ function getResourceFolder() {
 function dropLast(pathname) {
     return pathname.includes('/') ? pathname.substring(0, pathname.lastIndexOf('/')) : pathname;
 }
-function isTraceProcessorAvailable() {
-    return new Promise((resolve) => {
-        const now = Date.now();
-        if (now - lastTraceProcessorCheck > 5000) {
-            lastTraceProcessorCheck = now;
-            po.exists(DISTRIBUTED_TRACE_PROCESSOR).then((found) => {
-                traceProcessorFound = found;
-                resolve(found);
-            }).catch((e) => {
-                log.error('Unable to check ' + DISTRIBUTED_TRACE_PROCESSOR + ' - ' + e.message);
-                resolve(false);
-            });
-        }
-        else {
-            resolve(traceProcessorFound);
-        }
-    });
-}
-// Graceful shutdown
-async function shutdown() {
-    if (await po.exists(WS_WORKER)) {
-        log.info('Stopping');
-        po.send(new EventEnvelope().setTo(WS_WORKER).setHeader('type', 'stop'));
-    }
-}
 class ServiceManager {
-    constructor(route, listener, isPrivate = false) {
+    constructor(route, listener, isPrivate = false, instances = 1) {
+        this.eventQueue = [];
+        this.workers = [];
         if (!route) {
             throw new Error('Missing route');
         }
@@ -73,85 +48,184 @@ class ServiceManager {
         if (!(listener instanceof Function)) {
             throw new Error('Invalid listener function');
         }
+        this.signature = util.getUuid();
         this.route = route;
         this.isPrivate = isPrivate;
-        po.subscribe(route, (evt) => {
-            const utc = new Date().toISOString();
-            const start = performance.now();
-            try {
-                const result = listener(evt);
-                if (result && Object(result).constructor == Promise) {
-                    result.then(v => this.handleResult(utc, start, evt, v)).catch(e => this.handleError(utc, evt, e));
+        const total = Math.max(1, instances);
+        for (let i = 1; i <= total; i++) {
+            const workerRoute = route + "#" + i;
+            const myInstance = String(i);
+            this.workers.push(workerRoute);
+            po.subscribe(workerRoute, (evt) => {
+                evt.setTo(route);
+                evt.setHeader('my_route', route);
+                evt.setHeader('my_instance', myInstance);
+                if (evt.getTraceId() != null) {
+                    evt.setHeader('my_trace_id', evt.getTraceId());
                 }
-                else {
-                    this.handleResult(utc, start, evt, result);
+                if (evt.getTracePath() != null) {
+                    evt.setHeader('my_trace_path', evt.getTracePath());
+                }
+                const utc = new Date().toISOString();
+                const start = performance.now();
+                try {
+                    const result = listener(evt);
+                    if (result && Object(result).constructor == Promise) {
+                        result.then(v => this.handleResult(workerRoute, utc, start, evt, v)).catch(e => this.handleError(workerRoute, utc, evt, e));
+                    }
+                    else {
+                        this.handleResult(workerRoute, utc, start, evt, result);
+                    }
+                }
+                catch (e) {
+                    this.handleError(workerRoute, utc, evt, e);
+                }
+            }, false);
+        }
+        po.subscribe(route, (evt) => {
+            if (this.signature == evt.getHeader(SIGNATURE)) {
+                const availableWorker = String(evt.getBody());
+                if (this.workerNotExists(availableWorker)) {
+                    this.workers.push(availableWorker);
+                }
+                const nextEvent = this.eventQueue.shift();
+                if (nextEvent) {
+                    const nextWorker = this.workers.shift();
+                    po.send(nextEvent.setTo(nextWorker));
                 }
             }
-            catch (e) {
-                this.handleError(utc, evt, e);
+            else {
+                const worker = this.workers.shift();
+                if (worker) {
+                    po.send(evt.setTo(worker));
+                }
+                else {
+                    this.eventQueue.push(evt);
+                }
             }
         }, false);
         log.info((this.isPrivate ? 'PRIVATE ' : 'PUBLIC ') + this.route + ' registered');
     }
-    handleResult(utc, start, evt, response) {
-        const diff = (performance.now() - start).toFixed(3);
-        const replyTo = evt.getReplyTo();
-        if (replyTo) {
-            const result = response instanceof EventEnvelope ? new EventEnvelope(response) : new EventEnvelope().setBody(response);
-            result.setTo(replyTo).setFrom(this.route);
-            result.setExecTime(parseFloat(diff));
-            if (evt.getCorrelationId()) {
-                result.setCorrelationId(evt.getCorrelationId());
+    workerNotExists(w) {
+        for (const k in this.workers) {
+            if (this.workers[k] == w) {
+                return false;
             }
-            if (evt.getTraceId() && evt.getTracePath()) {
-                result.setTraceId(evt.getTraceId()).setTracePath(evt.getTracePath());
-            }
-            if (evt.getExtra()) {
-                result.setExtra(evt.getExtra());
-            }
-            po.send(result);
         }
-        // send tracing information if needed
-        if (evt.getTraceId() && evt.getTracePath()) {
-            const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACING);
-            trace.setHeader('origin', self.getOriginId());
-            trace.setHeader('id', evt.getTraceId()).setHeader('path', evt.getTracePath());
-            trace.setHeader('service', this.route).setHeader('start', utc);
-            if (evt.getFrom()) {
-                trace.setHeader('from', evt.getFrom());
-            }
-            trace.setHeader('success', 'true');
-            trace.setHeader('exec_time', diff);
-            po.send(trace);
-        }
+        return true;
     }
-    handleError(utc, evt, e) {
-        let errorCode = 500;
+    handleResult(workerRoute, utc, start, evt, response) {
+        let traced = false;
+        const diff = parseFloat((performance.now() - start).toFixed(3));
         const replyTo = evt.getReplyTo();
         if (replyTo) {
-            const result = new EventEnvelope().setTo(replyTo).setFrom(this.route);
-            if (evt.getCorrelationId()) {
-                result.setCorrelationId(evt.getCorrelationId());
-            }
-            if (evt.getTraceId() && evt.getTracePath()) {
-                result.setTraceId(evt.getTraceId()).setTracePath(evt.getTracePath());
-            }
-            if (evt.getExtra()) {
-                result.setExtra(evt.getExtra());
-            }
-            if (e instanceof AppException) {
-                errorCode = e.getStatus();
-                result.setStatus(errorCode).setBody(e.message).setException(true);
-            }
-            else if (e instanceof Error) {
-                errorCode = 500;
-                result.setStatus(errorCode).setBody(e.message).setException(true);
+            if (this.route == replyTo) {
+                log.error(`Response event dropped to avoid looping to ${replyTo}`);
             }
             else {
-                errorCode = 400;
-                result.setStatus(errorCode).setBody(String(e)).setException(true);
+                if (po.exists(replyTo)) {
+                    const result = response instanceof EventEnvelope ? new EventEnvelope(response) : new EventEnvelope().setBody(response);
+                    result.setTo(replyTo).setFrom(this.route);
+                    result.setExecTime(diff);
+                    if (evt.getCorrelationId()) {
+                        result.setCorrelationId(evt.getCorrelationId());
+                    }
+                    if (evt.getTraceId() && evt.getTracePath()) {
+                        result.setTraceId(evt.getTraceId()).setTracePath(evt.getTracePath());
+                    }
+                    if (evt.getExtra()) {
+                        result.setExtra(evt.getExtra());
+                    }
+                    po.send(result);
+                }
+                else {
+                    // unable to deliver response
+                    if (evt.getTraceId() && evt.getTracePath()) {
+                        const metrics = { 'origin': self.getOriginId(), 'id': evt.getTraceId(), 'path': evt.getTracePath(),
+                            'service': this.route, 'start': utc, 'success': true, 'exec_time': diff,
+                            'remark': 'Response not delivered - Route ' + replyTo + ' not found' };
+                        if (evt.getFrom()) {
+                            metrics['from'] = evt.getFrom();
+                        }
+                        const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACING).setBody({ 'trace': metrics });
+                        po.send(trace);
+                        traced = true;
+                    }
+                    else {
+                        const from = evt.getFrom() ? evt.getFrom() : "unknown";
+                        log.error(`Delivery error - Reply route ${replyTo} not found, from=${from}, to=${this.route}, type=response, exec_time=${diff}`);
+                    }
+                }
             }
-            po.send(result);
+        }
+        // send tracing information if needed
+        const tag = evt.getTag(RPC);
+        if (!traced && tag == null && evt.getTraceId() && evt.getTracePath()) {
+            const metrics = { 'origin': self.getOriginId(), 'id': evt.getTraceId(), 'path': evt.getTracePath(),
+                'service': this.route, 'start': utc, 'success': true, 'exec_time': diff };
+            if (evt.getFrom()) {
+                metrics['from'] = evt.getFrom();
+            }
+            const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACING).setBody({ 'trace': metrics });
+            po.send(trace);
+        }
+        // send ready signal
+        po.send(new EventEnvelope().setTo(this.route).setBody(workerRoute).setHeader(SIGNATURE, this.signature));
+    }
+    handleError(workerRoute, utc, evt, e) {
+        let errorCode = 500;
+        let traced = false;
+        const replyTo = evt.getReplyTo();
+        if (replyTo) {
+            if (this.route == replyTo) {
+                log.error(`Exception event dropped to avoid looping to ${replyTo}`);
+            }
+            else {
+                if (po.exists(replyTo)) {
+                    const result = new EventEnvelope().setTo(replyTo).setFrom(this.route);
+                    if (evt.getCorrelationId()) {
+                        result.setCorrelationId(evt.getCorrelationId());
+                    }
+                    if (evt.getTraceId() && evt.getTracePath()) {
+                        result.setTraceId(evt.getTraceId()).setTracePath(evt.getTracePath());
+                    }
+                    if (evt.getExtra()) {
+                        result.setExtra(evt.getExtra());
+                    }
+                    if (e instanceof AppException) {
+                        errorCode = e.getStatus();
+                        result.setStatus(errorCode).setBody(e.message).setException(true);
+                    }
+                    else if (e instanceof Error) {
+                        errorCode = 500;
+                        result.setStatus(errorCode).setBody(e.message).setException(true);
+                    }
+                    else {
+                        errorCode = 400;
+                        result.setStatus(errorCode).setBody(String(e)).setException(true);
+                    }
+                    po.send(result);
+                }
+                else {
+                    // unable to deliver response
+                    if (evt.getTraceId() && evt.getTracePath()) {
+                        const metrics = { 'origin': self.getOriginId(), 'id': evt.getTraceId(), 'path': evt.getTracePath(),
+                            'status': errorCode, 'exception': e.message,
+                            'service': this.route, 'start': utc, 'success': false,
+                            'remark': 'Response not delivered - Route ' + replyTo + ' not found' };
+                        if (evt.getFrom()) {
+                            metrics['from'] = evt.getFrom();
+                        }
+                        const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACING).setBody({ 'trace': metrics });
+                        po.send(trace);
+                        traced = true;
+                    }
+                    else {
+                        const from = evt.getFrom() ? evt.getFrom() : "unknown";
+                        log.error(`Delivery error - Reply route ${replyTo} not found, from=${from}, to=${this.route}, type=exception_response, status=${errorCode}, exception=${e.message}`);
+                    }
+                }
+            }
         }
         else {
             if (e instanceof AppException) {
@@ -164,26 +238,24 @@ class ServiceManager {
             }
         }
         // send tracing information if needed
-        if (evt.getTraceId() && evt.getTracePath()) {
-            const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACING);
-            trace.setHeader('origin', self.getOriginId());
-            trace.setHeader('id', evt.getTraceId()).setHeader('path', evt.getTracePath());
-            trace.setHeader('service', this.route).setHeader('start', utc);
+        if (!traced && evt.getTraceId() && evt.getTracePath()) {
+            const metrics = { 'origin': self.getOriginId(), 'id': evt.getTraceId(), 'path': evt.getTracePath(),
+                'service': this.route, 'start': utc, 'success': false,
+                'status': errorCode, 'exception': e.message };
             if (evt.getFrom()) {
-                trace.setHeader('from', evt.getFrom());
+                metrics['from'] = evt.getFrom();
             }
-            trace.setHeader('success', 'false');
-            trace.setHeader('status', String(errorCode));
-            trace.setHeader('exception', e.messaage);
+            const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACING).setBody({ 'trace': metrics });
             po.send(trace);
         }
+        // send ready signal
+        po.send(new EventEnvelope().setTo(this.route).setBody(workerRoute).setHeader(SIGNATURE, this.signature));
     }
 }
 class EventSystem {
     constructor(configFile) {
         this.services = new Map();
         this.forever = false;
-        this.tracing = true;
         this.stopping = false;
         this.t1 = -1;
         self = this;
@@ -193,36 +265,37 @@ class EventSystem {
         if (!(level && log.validLevel(level))) {
             log.setLevel(self.config.getElement('log.level', 'info'));
         }
-        // 
-        // Using 'po.subscribe' instead of 'platform.register' to make this an unmanaged event listener.
-        // this effectively disables distributed tracing for these listeners.
-        //
         po.subscribe(SERVICE_LIFE_CYCLE, (evt) => {
             if ('unsubscribe' == evt.getHeader('type')) {
                 const route = evt.getHeader('route');
                 if (route && self.services.has(route)) {
-                    const isPrivate = self.services.get(route);
+                    const metadata = self.services.get(route);
+                    const isPrivate = metadata['private'];
+                    const instances = parseInt(metadata['instances']);
+                    for (let i = 1; i <= instances; i++) {
+                        // silently unsubscribe the workers for the service
+                        po.unsubscribe(route + "#" + i, false);
+                    }
                     self.services.delete(route);
                     log.info((isPrivate ? 'PRIVATE ' : 'PUBLIC ') + route + ' released');
                 }
             }
         });
         po.subscribe(DISTRIBUTED_TRACING, (evt) => {
-            log.info('trace=' + JSON.stringify(evt.getHeaders()));
-            if (self.isTraceSupported()) {
-                // handle the trace metrics delivery asynchronously
-                isTraceProcessorAvailable().then((found) => {
-                    if (found) {
-                        // body is an empty map because annotations and journaling features are not supported
-                        const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACE_PROCESSOR).setBody({});
-                        const metrics = evt.getHeaders();
-                        for (const k of Object.keys(metrics)) {
-                            const v = metrics[k];
-                            trace.setHeader(k, v);
+            if (evt.getBody() instanceof Object) {
+                const payload = evt.getBody();
+                if (payload && 'trace' in payload) {
+                    const metrics = payload['trace'];
+                    const routeName = metrics['service'];
+                    // ignore tracing for "distributed.tracing" and "distributed.trace.forwarder"
+                    if (DISTRIBUTED_TRACING != routeName && DISTRIBUTED_TRACE_FORWARDER != routeName) {
+                        log.info(evt.getBody());
+                        if (po.exists(DISTRIBUTED_TRACE_FORWARDER)) {
+                            const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACE_FORWARDER).setBody(payload);
+                            po.send(trace);
                         }
-                        po.send(trace);
                     }
-                });
+                }
             }
         });
         // monitor shutdown signals
@@ -231,14 +304,12 @@ class EventSystem {
                 self.stopping = true;
                 log.info('Kill signal detected');
             }
-            shutdown();
         });
         process.on('SIGINT', () => {
             if (!self.stopping) {
                 self.stopping = true;
                 log.info('Control-C detected');
             }
-            shutdown();
         });
     }
     /**
@@ -256,40 +327,6 @@ class EventSystem {
      */
     getConfig() {
         return self.config;
-    }
-    /**
-     * Check if trace aggregation feature is turned on
-     *
-     * @returns true or false
-     */
-    isTraceSupported() {
-        return self.tracing;
-    }
-    /**
-     * Turn trace aggregation feature on or off.
-     * (This method is reserved for system use. DO NOT use this method from your app)
-     *
-     * @param enabled is true or false
-     */
-    setTraceSupport(enabled = true) {
-        self.tracing = enabled ? true : false;
-        log.info(`Trace aggregation is ${self.tracing ? 'ON' : 'OFF'}`);
-    }
-    /**
-     * Subscribe to connector life cycle events
-     *
-     * @param route for the event listener
-     */
-    subscribeLifeCycle(route) {
-        po.send(new EventEnvelope().setTo(CONNECTOR_LIFECYCLE).setHeader('type', 'subscribe').setHeader('route', route));
-    }
-    /**
-     * Unsubscribe from connector life cycle events
-     *
-     * @param route for the event listener
-     */
-    unsubscribeLifeCycle(route) {
-        po.send(new EventEnvelope().setTo(CONNECTOR_LIFECYCLE).setHeader('type', 'unsubscribe').setHeader('route', route));
     }
     /**
      * Register a function with a route name.
@@ -312,14 +349,11 @@ class EventSystem {
      * @param listener function (synchronous or promise)
      * @param isPrivate true or false
      */
-    register(route, listener, isPrivate = false) {
+    register(route, listener, isPrivate = false, instances = 1) {
         if (route) {
             if (listener instanceof Function) {
-                new ServiceManager(route, listener, isPrivate);
-                self.services.set(route, isPrivate);
-                if (!isPrivate && po.isCloudAuthenticated()) {
-                    po.send(new EventEnvelope().setTo(WS_WORKER).setHeader('type', 'add').setHeader('route', route));
-                }
+                new ServiceManager(route, listener, isPrivate, instances);
+                self.services.set(route, { "private": isPrivate, "instances": instances });
             }
             else {
                 throw new Error('Invalid listener function');
@@ -336,28 +370,11 @@ class EventSystem {
      */
     release(route) {
         if (self.services.has(route)) {
-            const isPrivate = self.services.get(route);
             po.unsubscribe(route, false);
-            if (!isPrivate && po.isCloudAuthenticated()) {
-                po.send(new EventEnvelope().setTo(WS_WORKER).setHeader('type', 'remove').setHeader('route', route));
-            }
         }
     }
     /**
-     * Advertise public routes to the cloud.
-     * This method is reserved by the system. DO NOT call it directly from your app.
-     */
-    advertise() {
-        for (const route of self.services.keys()) {
-            const isPrivate = self.services.get(route);
-            if (!isPrivate && po.isCloudAuthenticated()) {
-                po.send(new EventEnvelope().setTo(WS_WORKER).setHeader('type', 'add').setHeader('route', route));
-            }
-        }
-    }
-    /**
-     * When your application uses the cloud connector, your app can run in the background.
-     * If you run your app in standalone mode, you can use this runForever method to keep it running in the background.
+     * You can use this method to keep the event system running in the background
      */
     async runForever() {
         if (!self.forever) {
@@ -383,7 +400,6 @@ class EventSystem {
      */
     stop() {
         self.stopping = true;
-        shutdown();
     }
     /**
      * Check if the platform is shutting down

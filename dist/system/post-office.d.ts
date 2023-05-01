@@ -1,12 +1,13 @@
 import { EventEnvelope } from '../models/event-envelope.js';
 export declare class PO {
     constructor();
-    getInstance(): PostOffice;
-    getTraceAwareInstance(evt: EventEnvelope): PoWithTrace;
+    getInstance(headers: object): PostOffice | TrackablePo;
 }
-declare class PoWithTrace {
-    private evt;
-    constructor(evt: EventEnvelope);
+declare class TrackablePo {
+    private from;
+    private traceId;
+    private tracePath;
+    constructor(headers: object);
     /**
      * Application instance ID
      *
@@ -14,30 +15,12 @@ declare class PoWithTrace {
      */
     getId(): string;
     /**
-     * Check if the application is running in standalone or cloud mode
-     *
-     * @returns true or false
-     */
-    isCloudLoaded(): boolean;
-    /**
-     * Check if the application is connected to the cloud via a language connector
-     *
-     * @returns true or false
-     */
-    isCloudConnected(): boolean;
-    /**
-     * Check if the connection is ready for sending events to the cloud
-     *
-     * @returns true or false
-     */
-    isReady(): boolean;
-    /**
      * Check if a route has been registered
      *
      * @param route name of the registered function
      * @returns promise of true or false
      */
-    exists(route: string): Promise<boolean>;
+    exists(route: string): boolean;
     /**
      * Subscribe an event listener to a route name
      * (this method register an unmanaged service)
@@ -90,10 +73,6 @@ declare class PostOffice {
     private po;
     private handlers;
     private id;
-    private cloudLoaded;
-    private cloudAuthenticated;
-    private cloudConnected;
-    private ready;
     constructor();
     /**
      * Application instance ID
@@ -102,42 +81,12 @@ declare class PostOffice {
      */
     getId(): string;
     /**
-     * This method is reserved by the system. DO NOT call it directly from your app.
-     *
-     * @param status of cloud connection
-     */
-    setStatus(status: 'loaded' | 'connected' | 'authenticated' | 'ready' | 'disconnected'): void;
-    /**
-     * Check if the application is running in standalone or cloud mode
-     *
-     * @returns true or false
-     */
-    isCloudLoaded(): boolean;
-    /**
-     * Check if the application is connected to the cloud via a language connector
-     *
-     * @returns true or false
-     */
-    isCloudConnected(): boolean;
-    /**
-     * Check if the application has been authenticated by the cloud
-     *
-     * @returns true or false
-     */
-    isCloudAuthenticated(): boolean;
-    /**
-     * Check if the connection is ready for sending events to the cloud
-     *
-     * @returns true or false
-     */
-    isReady(): boolean;
-    /**
      * Check if a route has been registered
      *
      * @param route name of the registered function
      * @returns promise of true or false
      */
-    exists(route: string): Promise<boolean>;
+    exists(route: string): boolean;
     /**
      * Subscribe an event listener to a route name
      * (this method register an unmanaged service)
@@ -156,7 +105,7 @@ declare class PostOffice {
      * @param listener function (synchronous or Promise function)
      * @param logging is true by default
      */
-    subscribe(route: string, listener: (evt: EventEnvelope) => void, logging?: boolean): void;
+    subscribe(route: string, listener: (headers: object, evt: EventEnvelope) => void, logging?: boolean): void;
     /**
      * Unsubscribe a registered function from a route name
      *

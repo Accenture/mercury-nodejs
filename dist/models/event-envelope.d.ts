@@ -11,7 +11,6 @@ export declare class EventEnvelope {
     private correlationId;
     private traceId;
     private tracePath;
-    private broadcast;
     private execTime;
     private roundTrip;
     /**
@@ -33,13 +32,6 @@ export declare class EventEnvelope {
      * @returns id
      */
     getId(): string;
-    /**
-     * This method is reserved by the system. DO NOT set this directly.
-     *
-     * @param evt - this must be the input EventEnvelope in your event listener
-     * @returns this
-     */
-    setTrace(evt: EventEnvelope): EventEnvelope;
     /**
      * Set a header (aka parameter)
      *
@@ -229,20 +221,6 @@ export declare class EventEnvelope {
      * @returns trace path
      */
     getTracePath(): string;
-    /**
-     * When broadcast is turned on, the language connector will broadcast the event to all application container
-     * instances that serve the target route
-     *
-     * @param broadcast indicator
-     * @returns this
-     */
-    setBroadcast(broadcast: boolean): EventEnvelope;
-    /**
-     * Check if this event is designated as broadcast
-     *
-     * @returns broadcast indicator
-     */
-    getBroadcast(): boolean;
     /**
      * You can indicate that an event contains an exception message in the body
      *

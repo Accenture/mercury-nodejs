@@ -40,7 +40,7 @@ export class EventEnvelope {
      * @param event - optional as a JSON object, Buffer or EventEnvelope
      */
     constructor(event) {
-        this.id = 'js' + util.getUuid();
+        this.id = util.getUuid();
         this.headers = {};
         this.body = null;
         this.status = 200;
@@ -72,23 +72,7 @@ export class EventEnvelope {
      * @returns id
      */
     getId() {
-        return this.id;
-    }
-    /**
-     * This method is reserved by the system. DO NOT set this directly.
-     *
-     * @param evt - this must be the input EventEnvelope in your event listener
-     * @returns this
-     */
-    setTrace(evt) {
-        if (evt.traceId && evt.tracePath) {
-            this.setTraceId(evt.traceId);
-            this.setTracePath(evt.tracePath);
-        }
-        if (evt.to) {
-            this.setFrom(evt.to);
-        }
-        return this;
+        return this.id ? this.id : null;
     }
     /**
      * Set a header (aka parameter)
@@ -188,7 +172,7 @@ export class EventEnvelope {
      * @returns route name
      */
     getTo() {
-        return this.to;
+        return this.to ? this.to : null;
     }
     /**
      * Sender route name is where the event comes from
@@ -206,7 +190,7 @@ export class EventEnvelope {
      * @returns sender
      */
     getFrom() {
-        return this.sender;
+        return this.sender ? this.sender : null;
     }
     /**
      * ReplyTo is used for routing purpose.
@@ -224,7 +208,7 @@ export class EventEnvelope {
      * @returns route name
      */
     getReplyTo() {
-        return this.replyTo;
+        return this.replyTo ? this.replyTo : null;
     }
     /**
      * This method is reserved by the system. DO NOT call this directly.
@@ -246,10 +230,10 @@ export class EventEnvelope {
      * @param value - tag value
      * @returns this
      */
-    addTag(key, value = '') {
+    addTag(key, value = '*') {
         if (key && key.length > 0) {
             const map = extraToKeyValues(this.extra);
-            map[key] = value;
+            map[key] = String(value);
             this.extra = mapToString(map);
         }
         return this;
@@ -275,7 +259,8 @@ export class EventEnvelope {
      * @returns this
      */
     getTag(key) {
-        return key && key.length > 0 ? extraToKeyValues(this.extra)[key] : null;
+        const result = key && key.length > 0 ? extraToKeyValues(this.extra)[key] : null;
+        return result ? result : null;
     }
     /**
      * Retrieve the string representation of all tags.
@@ -284,7 +269,7 @@ export class EventEnvelope {
      * @returns all tags
      */
     getExtra() {
-        return this.extra;
+        return this.extra ? this.extra : '';
     }
     /**
      * You may set a unique ID for tracking RPC or callback.
@@ -302,7 +287,7 @@ export class EventEnvelope {
      * @returns correlation ID
      */
     getCorrelationId() {
-        return this.correlationId;
+        return this.correlationId ? this.correlationId : null;
     }
     /**
      * Set a trace ID to enable distributed trace.
@@ -325,7 +310,7 @@ export class EventEnvelope {
      * @returns trace ID
      */
     getTraceId() {
-        return this.traceId;
+        return this.traceId ? this.traceId : null;
     }
     /**
      * Set a trace path to enable distributed trace.
@@ -348,26 +333,7 @@ export class EventEnvelope {
      * @returns trace path
      */
     getTracePath() {
-        return this.tracePath;
-    }
-    /**
-     * When broadcast is turned on, the language connector will broadcast the event to all application container
-     * instances that serve the target route
-     *
-     * @param broadcast indicator
-     * @returns this
-     */
-    setBroadcast(broadcast) {
-        this.broadcast = broadcast;
-        return this;
-    }
-    /**
-     * Check if this event is designated as broadcast
-     *
-     * @returns broadcast indicator
-     */
-    getBroadcast() {
-        return this.broadcast;
+        return this.tracePath ? this.tracePath : null;
     }
     /**
      * You can indicate that an event contains an exception message in the body
@@ -390,7 +356,7 @@ export class EventEnvelope {
      * @returns true or false
      */
     isException() {
-        return this.getTag('exception') != null ? true : false;
+        return this.getTag('exception') ? true : false;
     }
     /**
      * This method is reserved by the system. DO NOT call this directly.
@@ -436,31 +402,28 @@ export class EventEnvelope {
     toMap() {
         const result = {};
         result['id'] = this.id;
-        if (this.to != null) {
-            result['to'] = this.to;
+        if (this.to) {
+            result['to'] = String(this.to);
         }
-        if (this.sender != null) {
-            result['from'] = this.sender;
+        if (this.sender) {
+            result['from'] = String(this.sender);
         }
         result['headers'] = this.headers instanceof Object ? this.headers : {};
-        if (this.body != null) {
+        if (this.body) {
             result['body'] = this.body;
         }
-        if (this.replyTo != null) {
-            result['reply_to'] = this.replyTo;
+        if (this.replyTo) {
+            result['reply_to'] = String(this.replyTo);
         }
-        if (this.extra != null) {
-            result['extra'] = this.extra;
+        if (this.extra) {
+            result['extra'] = String(this.extra);
         }
-        if (this.correlationId != null) {
-            result['cid'] = this.correlationId;
+        if (this.correlationId) {
+            result['cid'] = String(this.correlationId);
         }
-        if (this.traceId != null && this.tracePath != null) {
-            result['trace_id'] = this.traceId;
-            result['trace_path'] = this.tracePath;
-        }
-        if (this.broadcast) {
-            result['broadcast'] = true;
+        if (this.traceId && this.tracePath) {
+            result['trace_id'] = String(this.traceId);
+            result['trace_path'] = String(this.tracePath);
         }
         result['status'] = this.getStatus();
         if (this.execTime) {
@@ -481,45 +444,44 @@ export class EventEnvelope {
      */
     fromMap(map) {
         if ('id' in map) {
-            this.id = map['id'];
+            this.id = String(map['id']);
         }
         if ('to' in map) {
-            this.to = map['to'];
+            this.to = String(map['to']);
         }
         if ('from' in map) {
-            this.sender = map['from'];
+            this.sender = String(map['from']);
         }
         if ('headers' in map) {
             const headers = map['headers'];
             this.headers = headers instanceof Object ? headers : {};
         }
         if ('body' in map) {
+            // "body" can be one of (string | number | object | boolean | Buffer | Uint8Array).
+            // Casting to object for compilation only. It is irrelevant at run-time.
             this.body = map['body'];
         }
         if ('reply_to' in map) {
-            this.replyTo = map['reply_to'];
+            this.replyTo = String(map['reply_to']);
         }
         if ('extra' in map) {
-            this.extra = map['extra'];
+            this.extra = String(map['extra']);
         }
         if ('cid' in map) {
-            this.correlationId = map['cid'];
+            this.correlationId = String(map['cid']);
         }
         if ('trace_id' in map && 'trace_path' in map) {
-            this.traceId = map['trace_id'];
-            this.tracePath = map['trace_path'];
+            this.traceId = String(map['trace_id']);
+            this.tracePath = String(map['trace_path']);
         }
         if ('status' in map) {
-            this.status = map['status'];
-        }
-        if ('broadcast' in map) {
-            this.broadcast = map['broadcast'] ? true : false;
+            this.status = parseInt(String(map['status']));
         }
         if ('exec_time' in map) {
-            this.execTime = util.getFloat(map['exec_time'], 3);
+            this.execTime = util.getFloat(parseFloat(String(map['exec_time'])), 3);
         }
         if ('round_trip' in map) {
-            this.roundTrip = util.getFloat(map['round_trip'], 3);
+            this.roundTrip = util.getFloat(parseFloat(String(map['round_trip'])), 3);
         }
         return this;
     }
@@ -562,7 +524,6 @@ export class EventEnvelope {
         this.traceId = event.traceId;
         this.tracePath = event.tracePath;
         this.status = event.status;
-        this.broadcast = event.broadcast;
         this.execTime = event.execTime;
         this.roundTrip = event.roundTrip;
         return this;

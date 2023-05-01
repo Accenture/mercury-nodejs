@@ -10,8 +10,8 @@ const log = new Logger().getInstance();
 const util = new Utility().getInstance();
 let self: PostOffice = null;
 const SERVICE_LIFE_CYCLE = 'service.life.cycle';
-const WS_WORKER = 'ws.worker';
-const SERVICE_QUERY = 'system.service.query';
+const DISTRIBUTED_TRACING = 'distributed.tracing';
+const RPC = "rpc";
 
 export class PO {
 
@@ -22,23 +22,23 @@ export class PO {
             self = new PostOffice();
         }
     }
-  
-    getInstance(): PostOffice {
-        return self;
-    }
 
-    getTraceAwareInstance(evt: EventEnvelope) {
-        return new PoWithTrace(evt);
+    getInstance(headers: object) {
+        return 'my_route' in headers? new TrackablePo(headers): self;
     }
 
 }
 
-class PoWithTrace {
+class TrackablePo {
 
-    private evt = null;
+    private from: string;
+    private traceId: string;
+    private tracePath: string;
 
-    constructor(evt: EventEnvelope) {
-        this.evt = evt;
+    constructor(headers: object) {
+        this.from = 'my_route' in headers? String(headers['my_route']) : null;
+        this.traceId = 'my_trace_id' in headers? String(headers['my_trace_id']) : null;
+        this.tracePath = 'my_trace_path' in headers? String(headers['my_trace_path']) : null;
     }
 
     /**
@@ -51,39 +51,12 @@ class PoWithTrace {
     }
 
     /**
-     * Check if the application is running in standalone or cloud mode
-     * 
-     * @returns true or false
-     */
-     isCloudLoaded(): boolean {
-        return self.isCloudLoaded();
-    }
-
-    /**
-     * Check if the application is connected to the cloud via a language connector
-     * 
-     * @returns true or false
-     */
-    isCloudConnected(): boolean {
-        return self.isCloudConnected();
-    }
-
-    /**
-     * Check if the connection is ready for sending events to the cloud
-     * 
-     * @returns true or false
-     */
-    isReady(): boolean {
-        return self.isReady();
-    }
-
-    /**
      * Check if a route has been registered
      * 
      * @param route name of the registered function
      * @returns promise of true or false
      */
-    exists(route: string): Promise<boolean> {
+    exists(route: string): boolean {
         return self.exists(route);
     }
 
@@ -125,7 +98,7 @@ class PoWithTrace {
      * @param event envelope
      */
      send(event: EventEnvelope): void {
-        self.send(new EventEnvelope(event).setTrace(this.evt));
+        self.send(new EventEnvelope(event).setFrom(this.from).setTraceId(this.traceId).setTracePath(this.tracePath));
      }
      
     /**
@@ -135,7 +108,7 @@ class PoWithTrace {
      * @param delay in milliseconds (default one second)
      */
      sendLater(event: EventEnvelope, delay = 1000): void {
-        self.sendLater(new EventEnvelope(event).setTrace(this.evt), delay);
+        self.sendLater(new EventEnvelope(event).setFrom(this.from).setTraceId(this.traceId).setTracePath(this.tracePath), delay);
     }
     
     /**
@@ -146,7 +119,7 @@ class PoWithTrace {
      * @returns a future promise of result or error
      */
      request(event: EventEnvelope, timeout = 60000): Promise<EventEnvelope> {
-        return self.request(new EventEnvelope(event).setTrace(this.evt), timeout);
+        return self.request(new EventEnvelope(event).setFrom(this.from).setTraceId(this.traceId).setTracePath(this.tracePath), timeout);
      }    
 
 }
@@ -156,14 +129,10 @@ class PostOffice {
     private po = new EventEmitter();
     private handlers = new Map();
     private id: string;
-    private cloudLoaded = false;
-    private cloudAuthenticated = false;
-    private cloudConnected = false;
-    private ready = false;
 
     constructor() {
         self = this;
-        self.id = 'js-'+util.getUuid();
+        self.id = util.getUuid();
         log.info(`Event system started - ${self.id}`);
     }
 
@@ -177,85 +146,13 @@ class PostOffice {
     }
 
     /**
-     * This method is reserved by the system. DO NOT call it directly from your app.
-     * 
-     * @param status of cloud connection
-     */
-    setStatus(status: 'loaded' | 'connected' | 'authenticated' | 'ready' | 'disconnected'): void {
-        if ('loaded' == status) {
-            self.cloudLoaded = true;
-        }
-        if ('connected' == status) {
-            self.cloudConnected = true;
-        }
-        if ('authenticated' == status) {
-            self.cloudAuthenticated = true;
-        }
-        if ('ready' == status) {
-            self.ready = true;
-        }
-        if ('disconnected' == status) {
-            self.cloudConnected = false;
-            self.cloudAuthenticated = false;
-            self.ready = false;
-        }
-    }
-
-    /**
-     * Check if the application is running in standalone or cloud mode
-     * 
-     * @returns true or false
-     */
-    isCloudLoaded(): boolean {
-        return self.cloudLoaded;
-    }
-
-    /**
-     * Check if the application is connected to the cloud via a language connector
-     * 
-     * @returns true or false
-     */
-    isCloudConnected(): boolean {
-        return self.cloudConnected;
-    }
-
-    /**
-     * Check if the application has been authenticated by the cloud
-     * 
-     * @returns true or false
-     */
-    isCloudAuthenticated(): boolean {
-        return self.cloudAuthenticated;
-    }
-
-    /**
-     * Check if the connection is ready for sending events to the cloud
-     * 
-     * @returns true or false
-     */
-    isReady(): boolean {
-        return self.ready;
-    }
-
-    /**
      * Check if a route has been registered
      * 
      * @param route name of the registered function
      * @returns promise of true or false
      */
-    exists(route: string): Promise<boolean> {
-        return new Promise((resolve) => {
-            if (self.handlers.has(route)) {
-                resolve(true);
-            } else if (self.isCloudAuthenticated()) {
-                self.request(new EventEnvelope().setTo(SERVICE_QUERY).setHeader('type', 'find').setHeader('route', route), 8000).then((response) => {
-                    resolve(response.getBody()? true : false)
-                });
-    
-            } else {
-                resolve(false);
-            }
-        });
+    exists(route: string): boolean {
+        return self.handlers.has(route);
     }
 
     /**
@@ -276,7 +173,7 @@ class PostOffice {
      * @param listener function (synchronous or Promise function)
      * @param logging is true by default
      */
-    subscribe(route: string, listener: (evt: EventEnvelope) => void, logging = true): void {
+    subscribe(route: string, listener: (headers: object, evt: EventEnvelope) => void, logging = true): void {
         if (!route) {
             throw new Error('Missing route');
         }
@@ -311,7 +208,9 @@ class PostOffice {
                 log.info(`${route} unregistered`);
             }
             // inform platform service to check if this is a managed service and to do housekeeping
-            self.send(new EventEnvelope().setTo(SERVICE_LIFE_CYCLE).setHeader('type', 'unsubscribe').setHeader('route', route));
+            if (!route.includes('#')) {
+                self.send(new EventEnvelope().setTo(SERVICE_LIFE_CYCLE).setHeader('type', 'unsubscribe').setHeader('route', route));
+            }            
         }
     }
 
@@ -321,30 +220,26 @@ class PostOffice {
      * @param event envelope
      */
     send(event: EventEnvelope): void {
+        const headers = event.getHeaders();
+        if ('my_route' in headers) {
+            delete headers['my_route'];
+        }
+        if ('my_instance' in headers) {
+            delete headers['my_instance'];
+        }
+        if ('my_trace_id' in headers) {
+            delete headers['my_trace_id'];
+        }
+        if ('my_trace_path' in headers) {
+            delete headers['my_trace_path'];
+        }
         const route = event.getTo();
         if (route) {
-            if (event.getBroadcast()) {
-                if (self.isCloudAuthenticated()) {
-                    self.send(new EventEnvelope().setTo(WS_WORKER).setHeader('type', 'event').setBody(event.toMap()));
-                } else if (self.handlers.has(route)) {
-                    self.po.emit(route, event);
-                }
-
+            if (self.handlers.has(route)) {
+                self.po.emit(route, event);
             } else {
-                if (self.handlers.has(route)) {
-                    self.po.emit(route, event);
-                } else {
-                    if (self.isCloudAuthenticated()) {
-                        // forward event to cloud
-                        self.send(new EventEnvelope().setTo(WS_WORKER).setHeader('type', 'event').setBody(event.toMap()));
-    
-                    } else {
-                        log.error(`Event ${event.getId()} dropped because ${route} not found`);
-                    }
-                }
+                log.error(`Event ${event.getId()} dropped because ${route} not found`);
             }
-
-
         } else {
             log.warn(`Event ${event.getId()} dropped because there is no target service route`);
         }
@@ -368,15 +263,29 @@ class PostOffice {
      * @returns a future promise of result or error
      */
     request(event: EventEnvelope, timeout = 60000): Promise<EventEnvelope> {
+        const headers = event.getHeaders();
+        if ('my_route' in headers) {
+            delete headers['my_route'];
+        }
+        if ('my_instance' in headers) {
+            delete headers['my_instance'];
+        }
+        if ('my_trace_id' in headers) {
+            delete headers['my_trace_id'];
+        }
+        if ('my_trace_path' in headers) {
+            delete headers['my_trace_path'];
+        }
         return new Promise((resolve, reject) => {
+            const utc = new Date().toISOString();
             const start = performance.now();
             const route = event.getTo();
             if (route) {
-                const local = self.handlers.has(route);
-                if (local || self.isCloudAuthenticated()) {
+                if (self.handlers.has(route)) {
                     const callback = 'r.'+util.getUuid();
                     const timer = setTimeout(() => {
-                        reject(new AppException(408, `Route ${event.getId()} timeout for ${timeout} ms`));
+                        self.unsubscribe(callback, false);
+                        reject(new AppException(408, `Route ${event.getTo()} timeout for ${timeout} ms`));
                     }, Math.max(10, timeout));
                     
                     self.subscribe(callback, (response: EventEnvelope) => {
@@ -386,17 +295,24 @@ class PostOffice {
                             reject(new AppException(response.getStatus(), String(response.getBody())));
                         } else {
                             const diff = parseFloat((performance.now() - start).toFixed(3));
-                            resolve(response.setRoundTrip(diff));
+                            response.setRoundTrip(diff);
+                            // send tracing information if needed
+                            if (event.getTraceId() && event.getTracePath()) {
+                                const metrics = {'origin': self.getId(), 'id': event.getTraceId(), 'path': event.getTracePath(), 
+                                                'service': event.getTo(), 'start': utc, 'success': true, 
+                                                'exec_time': response.getExecTime(), 'round_trip': diff};
+                                if (event.getFrom()) {
+                                    metrics['from'] = event.getFrom();
+                                }
+                                const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACING).setBody({'trace': metrics});
+                                self.send(trace);
+                            }
+                            resolve(response);
                         }
                     }, false);
-                    if (local) {
-                        event.setReplyTo(callback);
-                        self.po.emit(route, event);
-                    } else {
-                        // forward event to cloud
-                        event.setReplyTo('->'+callback);
-                        self.send(new EventEnvelope().setTo(WS_WORKER).setHeader('type', 'event').setBody(event.toMap()));
-                    }
+                    event.setReplyTo(callback);
+                    event.addTag(RPC, String(timeout));
+                    self.po.emit(route, event);
                     
                 } else {
                     reject(new Error(`Event ${event.getId()} dropped because ${route} not found`));

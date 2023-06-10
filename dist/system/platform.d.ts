@@ -1,50 +1,46 @@
 import { EventEnvelope } from '../models/event-envelope.js';
-import { MultiLevelMap } from '../util/multi-level-map.js';
+import { ConfigReader } from '../util/config-reader.js';
 export declare class Platform {
-    constructor(configFile?: string);
-    getInstance(): EventSystem;
-}
-declare class EventSystem {
-    private config;
-    private services;
-    private forever;
-    private stopping;
-    private t1;
-    constructor(configFile?: string);
+    constructor(configFile?: string | object);
+    static initialized(): boolean;
     /**
-     * Retrieve unique application instance ID (aka originId)
+     * Retrieve unique application instance ID (i.e. "originId")
      *
      * @returns originId
      */
     getOriginId(): string;
+    getName(): string;
+    getStartTime(): Date;
     /**
-     * Get application.yml
+     * Get application configuration
      *
-     * @returns multi-level-map
+     * @returns config reader
      */
-    getConfig(): MultiLevelMap;
+    getConfig(): ConfigReader;
     /**
      * Register a function with a route name.
-     * (This is a managed version of the po.subscribe method. Please use this to register your service functions)
      *
-     * Your function will be registered as PUBLIC unless you set isPrivate to true.
-     * PUBLIC functions are advertised to the whole system so that other application instances can find them.
-     * PRIVATE function are invisible outside the current application instance.
-     * Private scope is ideal for business logic encapsulation.
+     * Your function will be registered as PRIVATE unless you set isPrivate=false.
+     * PUBLIC functions are reachable by a peer from the Event API Endpoint "/api/event".
+     * PRIVATE functions are invisible outside the current application instance.
+     * INTERCEPTOR functions' return values are ignored because they are designed to forward events themselves.
      *
-     * Note that the listener can be either:
-     * 1. synchronous function with optional return value, or
-     * 2. asynchronous function that returns a promise
+     * Note that the listener should be ideally an asynchronous function or a function that returns a promise.
+     * However, the system would accept regular function too.
      *
-     * The 'void' return type in the listener is used in typescipt compile time only. It is safe for the function to return value.
-     * The return value can be a primitive value, JSON object, an EventEnvelope, an Error or an AppException.
+     * The 'void' return type in the listener is used in typescipt compile time only.
+     * It is safe for the function to return value as a primitive value, JSON object, an EventEnvelope.
+     *
+     * Your function can throw an Error or an AppException.
      * With AppException, you can set status code and message.
      *
      * @param route name
-     * @param listener function (synchronous or promise)
+     * @param listener function with EventEnvelope as input
      * @param isPrivate true or false
+     * @param isInterceptor true or false
+     * @param instances number of workers for this function
      */
-    register(route: string, listener: (evt: EventEnvelope) => void, isPrivate?: boolean, instances?: number): void;
+    register(route: string, listener: (evt: EventEnvelope) => void, isPrivate?: boolean, instances?: number, isInterceptor?: boolean): void;
     /**
      * Release a previously registered function
      *
@@ -52,18 +48,26 @@ declare class EventSystem {
      */
     release(route: string): void;
     /**
-     * You can use this method to keep the event system running in the background
+     * Check if a route is private
+     *
+     * @param route name of a function
+     * @returns true if private and false if public
+     * @throws Error(Route 'name' not found)
      */
-    runForever(): Promise<void>;
+    isPrivate(route: string): any;
     /**
-     * Stop the platform and cloud connector
+     * Stop the platform.
+     * (REST automation and outstanding streams, if any, will be automatically stopped.)
      */
-    stop(): void;
+    stop(): Promise<void>;
     /**
      * Check if the platform is shutting down
      *
      * @returns true or false
      */
     isStopping(): boolean;
+    /**
+     * You can use this method to keep the event system running in the background
+     */
+    runForever(): Promise<void>;
 }
-export {};

@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "ES2020",
-    "lib": ["ES2020"],
+    "target": "ESNext",
+    "module": "ESNext",
+    "lib": ["ESNext"],
     "moduleResolution": "node",
     "baseUrl": ".",
     "allowJs": true,
@@ -17,7 +17,8 @@
     "noUnusedParameters": true,
     "noImplicitAny": false,
     "noImplicitThis": false,
-    "strictNullChecks": false
+    "strictNullChecks": false,
+    "experimentalDecorators": true
   },
   "include": [
     "src/**/*"

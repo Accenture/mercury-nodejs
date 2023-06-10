@@ -17,7 +17,7 @@ export declare class AsyncHttpRequest {
     private https;
     private contentLength;
     private timeoutSeconds;
-    constructor(map?: any);
+    constructor(map?: object);
     /**
      * Retrieve the request's HTTP method name
      * (GET, POST, PUT, HEAD, PATCH, DELETE)
@@ -260,6 +260,7 @@ export declare class AsyncHttpRequest {
      * @returns the complete query string
      */
     getQueryString(): string;
+    setQueryString(query: string): AsyncHttpRequest;
     /**
      * Check if the HTTP request uses HTTPS
      *
@@ -322,7 +323,8 @@ export declare class AsyncHttpRequest {
      */
     getQueryParameter(key: string): string;
     /**
-     * Retrieve a multi-value query parameter
+     * Retrieve a multi-value query parameter.
+     * If key is not given, it will return all query key-values.
      *
      * @param key of a multi-value parameter
      * @returns a list of strings

@@ -26,18 +26,26 @@ function setLowerCase(source) {
     return result;
 }
 export class AsyncHttpRequest {
+    method;
+    queryString;
+    url;
+    ip;
+    upload;
+    headers = {};
+    queryParams = {};
+    pathParams = {};
+    cookies = {};
+    session = {};
+    body = null;
+    streamRoute;
+    filename;
+    targetHost;
+    trustAllCert = false;
+    https = false;
+    contentLength = -1;
+    timeoutSeconds = -1;
     constructor(map) {
-        this.headers = {};
-        this.queryParams = {};
-        this.pathParams = {};
-        this.cookies = {};
-        this.session = {};
-        this.body = null;
-        this.trustAllCert = false;
-        this.https = false;
-        this.contentLength = -1;
-        this.timeoutSeconds = -1;
-        if (map && map.constructor == Object) {
+        if (map && map instanceof Object && map.constructor == Object) {
             this.fromMap(map);
         }
     }
@@ -57,7 +65,9 @@ export class AsyncHttpRequest {
      * @returns this
      */
     setMethod(method) {
-        this.method = method;
+        if (method) {
+            this.method = method.toUpperCase();
+        }
         return this;
     }
     /**
@@ -66,7 +76,7 @@ export class AsyncHttpRequest {
      * @returns HTTP URI
      */
     getUrl() {
-        return this.url;
+        return this.url ? this.url : '/';
     }
     /**
      * Set the URI if this is an outgoing HTTP request
@@ -111,7 +121,7 @@ export class AsyncHttpRequest {
      * @returns value of the header
      */
     getHeader(key) {
-        return this.headers[key];
+        return key ? this.headers[key.toLowerCase()] : null;
     }
     /**
      * Set a key-value for a HTTP header
@@ -156,7 +166,7 @@ export class AsyncHttpRequest {
      * @returns optional route name of a streaming object
      */
     getStreamRoute() {
-        return this.streamRoute;
+        return this.streamRoute ? this.streamRoute : null;
     }
     /**
      * If you are sending a HTTP request, you can create a stream to render
@@ -213,7 +223,7 @@ export class AsyncHttpRequest {
      * @returns timeout value
      */
     getTimeoutSeconds() {
-        return Math.max(0, this.timeoutSeconds ? this.timeoutSeconds : -1);
+        return Math.max(0, this.timeoutSeconds);
     }
     /**
      * Set request timeout value
@@ -223,7 +233,8 @@ export class AsyncHttpRequest {
      */
     setTimeoutSeconds(timeoutSeconds) {
         if (timeoutSeconds) {
-            this.timeoutSeconds = Math.max(0, timeoutSeconds);
+            const integerValue = parseInt(String(timeoutSeconds));
+            this.timeoutSeconds = Math.max(0, integerValue);
         }
         return this;
     }
@@ -388,6 +399,10 @@ export class AsyncHttpRequest {
     getQueryString() {
         return this.queryString;
     }
+    setQueryString(query) {
+        this.queryString = query;
+        return this;
+    }
     /**
      * Check if the HTTP request uses HTTPS
      *
@@ -432,7 +447,7 @@ export class AsyncHttpRequest {
      * @returns target host name
      */
     getTargetHost() {
-        return this.targetHost;
+        return this.targetHost ? this.targetHost : null;
     }
     /**
      * Set the target host name if this is an outgoing HTTP request
@@ -441,7 +456,7 @@ export class AsyncHttpRequest {
      * @returns this
      */
     setTargetHost(host) {
-        if (host != null && (host.startsWith(HTTP_PROTOCOL) || host.startsWith(HTTPS_PROTOCOL))) {
+        if (host && (host.startsWith(HTTP_PROTOCOL) || host.startsWith(HTTPS_PROTOCOL))) {
             this.targetHost = host;
             return this;
         }
@@ -478,19 +493,18 @@ export class AsyncHttpRequest {
     getQueryParameter(key) {
         if (key) {
             const value = this.queryParams[key.toLowerCase()];
-            if (value) {
-                if (value.constructor == String) {
-                    return value;
-                }
-                else if (value.constructor == Array) {
-                    return String(value[0]);
-                }
+            if (typeof value == 'string') {
+                return value;
+            }
+            else if (Array.isArray(value)) {
+                return String(value[0]);
             }
         }
         return null;
     }
     /**
-     * Retrieve a multi-value query parameter
+     * Retrieve a multi-value query parameter.
+     * If key is not given, it will return all query key-values.
      *
      * @param key of a multi-value parameter
      * @returns a list of strings
@@ -498,12 +512,12 @@ export class AsyncHttpRequest {
     getQueryParameters(key) {
         if (key) {
             const values = this.queryParams[key.toLowerCase()];
-            if (values.constructor == String) {
+            if (typeof values == 'string') {
                 const result = [];
                 result.push(values);
                 return result;
             }
-            else if (values.constructor == Array) {
+            else if (Array.isArray(values)) {
                 return values;
             }
         }
@@ -522,10 +536,10 @@ export class AsyncHttpRequest {
     setQueryParameter(key, value) {
         if (key) {
             if (value) {
-                if (value.constructor == String) {
+                if (typeof value == 'string') {
                     this.queryParams[key.toLowerCase()] = value;
                 }
-                else if (value.constructor == Array) {
+                else if (Array.isArray(value)) {
                     const valueArray = value;
                     const params = [];
                     for (const v of valueArray) {
@@ -635,43 +649,43 @@ export class AsyncHttpRequest {
                 this.session = setLowerCase(map[SESSION]);
             }
             if (METHOD in map) {
-                this.method = map[METHOD];
+                this.method = String(map[METHOD]);
             }
             if (IP in map) {
-                this.ip = map[IP];
+                this.ip = String(map[IP]);
             }
             if (URL_LABEL in map) {
-                this.url = map[URL_LABEL];
+                this.url = String(map[URL_LABEL]);
             }
             if (TIMEOUT in map) {
-                this.timeoutSeconds = map[TIMEOUT];
+                this.timeoutSeconds = parseInt(String(map[TIMEOUT]));
             }
             if (FILE_NAME in map) {
-                this.filename = map[FILE_NAME];
+                this.filename = String(map[FILE_NAME]);
             }
             if (CONTENT_LENGTH in map) {
-                this.contentLength = map[CONTENT_LENGTH];
+                this.contentLength = parseInt(String(map[CONTENT_LENGTH]));
             }
             if (STREAM in map) {
-                this.streamRoute = map[STREAM];
+                this.streamRoute = String(map[STREAM]);
             }
             if (BODY in map) {
                 this.body = map[BODY];
             }
             if (QUERY in map) {
-                this.queryString = map[QUERY];
+                this.queryString = String(map[QUERY]);
             }
             if (HTTPS in map) {
-                this.https = map[HTTPS];
+                this.https = String(map[HTTPS]) == 'true';
             }
             if (TARGET_HOST in map) {
-                this.targetHost = map[TARGET_HOST];
+                this.targetHost = String(map[TARGET_HOST]);
             }
             if (TRUST_ALL_CERT in map) {
-                this.trustAllCert = map[TRUST_ALL_CERT];
+                this.trustAllCert = String(map[TRUST_ALL_CERT]) == 'true';
             }
             if (UPLOAD in map) {
-                this.upload = map[UPLOAD];
+                this.upload = String(map[UPLOAD]);
             }
             if (PARAMETERS in map) {
                 const parameters = map[PARAMETERS];

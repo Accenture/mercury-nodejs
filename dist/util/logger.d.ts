@@ -1,11 +1,6 @@
 export declare class Logger {
     constructor();
-    getInstance(): LogSystem;
-}
-declare class LogSystem {
-    private logLevel;
-    constructor();
-    validLevel(level: string): boolean;
+    setJsonFormat(jsonFormat: boolean): void;
     getLevel(): string;
     setLevel(level: string): void;
     info(message: string | object, e?: Error): void;
@@ -13,4 +8,3 @@ declare class LogSystem {
     debug(message: string | object, e?: Error): void;
     error(message: string | object, e?: Error): void;
 }
-export {};

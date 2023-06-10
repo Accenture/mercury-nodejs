@@ -9,7 +9,7 @@
  */
 export declare class MultiLevelMap {
     private multiLevels;
-    constructor(multiLevel?: object);
+    constructor(kv?: object);
     /**
      * Retrieve the underlying map
      *

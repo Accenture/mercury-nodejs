@@ -1,57 +1,151 @@
-import { parse as parseYaml } from 'yaml';
-import { readFileSync } from 'fs';
 import { performance } from 'perf_hooks';
 import { Logger } from '../util/logger.js';
 import { Utility } from '../util/utility.js';
-import { PO } from '../system/post-office.js';
+import { PostOffice } from '../system/post-office.js';
+import { DistributedTrace } from '../services/tracer.js';
+import { AsyncHttpClient } from '../services/async-http-client.js';
 import { EventEnvelope } from '../models/event-envelope.js';
 import { AppException } from '../models/app-exception.js';
-import { MultiLevelMap } from '../util/multi-level-map.js';
+import { AppConfig, ConfigReader } from '../util/config-reader.js';
 
-const log = new Logger().getInstance();
-const util = new Utility().getInstance();
-const po = new PO().getInstance({});
-const SERVICE_LIFE_CYCLE = 'service.life.cycle';
+const log = new Logger();
+const util = new Utility();
+const po = new PostOffice();
 const DISTRIBUTED_TRACING = 'distributed.tracing';
-const DISTRIBUTED_TRACE_FORWARDER = 'distributed.trace.forwarder';
 const SIGNATURE = "_";
 const RPC = "rpc";
+const OBJECT_STREAM_MANAGER = "object.stream.manager";
+const REST_AUTOMATION_MANAGER = "rest.automation.manager";
 
 let self: EventSystem = null;
+let startTime: Date;
+let appName: string;
 
 export class Platform {
 
-    constructor(configFile?: string) {
+    constructor(configFile?: string | object) {
         if (self == null) {
             self = new EventSystem(configFile);
+            startTime = new Date();
         }
     }
-  
-    getInstance(): EventSystem {
-        return self;
+
+    static initialized(): boolean {
+        return self != null;
     }
-}
 
-function getResourceFolder() {
-    const filename = import.meta.url.substring(7);
-    const parts = filename.split('/');
-    const scriptName = parts.length > 2 && parts[1].endsWith(':')? filename.substring(1) : filename;
-    return dropLast(dropLast(scriptName)) + '/resources';
-}
+    /**
+     * Retrieve unique application instance ID (i.e. "originId")
+     * 
+     * @returns originId
+     */
+    getOriginId(): string {
+        return self.getOriginId();
+    }
 
-function dropLast(pathname: string) {
-    return pathname.includes('/')? pathname.substring(0, pathname.lastIndexOf('/')) : pathname;
+    getName(): string {
+        if (!appName) {
+            const appConfig = self.getConfig();
+            appName = appConfig.getProperty('application.name', 'untitled');
+        }
+        return appName;
+    }
+
+    getStartTime(): Date {
+        return startTime;
+    }
+
+    /**
+     * Get application configuration
+     * 
+     * @returns config reader
+     */
+    getConfig(): ConfigReader {
+        return self.getConfig();
+    }
+
+    /**
+     * Register a function with a route name.
+     * 
+     * Your function will be registered as PRIVATE unless you set isPrivate=false.
+     * PUBLIC functions are reachable by a peer from the Event API Endpoint "/api/event".
+     * PRIVATE functions are invisible outside the current application instance. 
+     * INTERCEPTOR functions' return values are ignored because they are designed to forward events themselves.
+     * 
+     * Note that the listener should be ideally an asynchronous function or a function that returns a promise.
+     * However, the system would accept regular function too.
+     * 
+     * The 'void' return type in the listener is used in typescipt compile time only. 
+     * It is safe for the function to return value as a primitive value, JSON object, an EventEnvelope.
+     * 
+     * Your function can throw an Error or an AppException.
+     * With AppException, you can set status code and message.
+     * 
+     * @param route name
+     * @param listener function with EventEnvelope as input
+     * @param isPrivate true or false
+     * @param isInterceptor true or false
+     * @param instances number of workers for this function
+     */
+    register(route: string, listener: (evt: EventEnvelope) => void, isPrivate = true, instances=1, isInterceptor=false): void {
+        self.register(route, listener, isPrivate, instances, isInterceptor);
+    }
+
+    /**
+     * Release a previously registered function
+     * 
+     * @param route name
+     */
+    release(route: string) {
+        self.release(route);
+    }
+
+    /**
+     * Check if a route is private
+     * 
+     * @param route name of a function
+     * @returns true if private and false if public
+     * @throws Error(Route 'name' not found)
+     */
+    isPrivate(route: string) {
+        return self.isPrivate(route);
+    }
+    
+    /**
+     * Stop the platform.
+     * (REST automation and outstanding streams, if any, will be automatically stopped.)
+     */
+    async stop() {
+        await self.stop();
+    }
+
+    /**
+     * Check if the platform is shutting down
+     * 
+     * @returns true or false
+     */
+    isStopping(): boolean {
+        return self.isStopping();
+    }
+
+    /**
+     * You can use this method to keep the event system running in the background
+     */
+    async runForever() {
+        return self.runForever();
+    }    
+  
 }
 
 class ServiceManager {
-
     private route: string;
     private isPrivate: boolean;
+    private isInterceptor: boolean;
     private eventQueue = [];
     private workers = [];
     private signature: string;
 
-    constructor(route: string, listener, isPrivate = false, instances=1) {
+    constructor(route: string, listener, isPrivate=false, instances=1, interceptor=false) {
         if (!route) {
             throw new Error('Missing route');
         }
@@ -64,8 +158,13 @@ class ServiceManager {
         this.signature = util.getUuid();
         this.route = route;
         this.isPrivate = isPrivate;
+        this.isInterceptor = interceptor;
         const total = Math.max(1, instances);
+        //
+        // Worker event listeners
+        // 
         for (let i=1; i <= total; i++) {
+            // Worker route name has a suffix of '#' and a worker instance number
             const workerRoute = route + "#" + i;
             const myInstance = String(i);
             this.workers.push(workerRoute);
@@ -93,6 +192,14 @@ class ServiceManager {
                 }
             }, false);
         }
+        //
+        // Service manager event listener for each named route
+        //
+        // It uses "setImmediate" method to execute the event delivery in the next event loop cycle.
+        //
+        // To guarantee strict message ordering, 
+        // each worker sends a READY signal to the service manager before taking the next event.
+        //
         po.subscribe(route, (evt: EventEnvelope) => {
             if (this.signature == evt.getHeader(SIGNATURE)) {
                 const availableWorker = String(evt.getBody());
@@ -102,18 +209,27 @@ class ServiceManager {
                 const nextEvent = this.eventQueue.shift();
                 if (nextEvent) {
                     const nextWorker = this.workers.shift();
-                    po.send(nextEvent.setTo(nextWorker));
+                    setImmediate(() => {
+                        po.send(nextEvent.setTo(nextWorker));
+                    });                    
                 }
             } else {
                 const worker = this.workers.shift();
                 if (worker) {
-                    po.send(evt.setTo(worker));
+                    setImmediate(() => {
+                        po.send(evt.setTo(worker));
+                    });                    
                 } else {
                     this.eventQueue.push(evt);
                 }
             }
         }, false);
-        log.info((this.isPrivate? 'PRIVATE ' : 'PUBLIC ') + this.route + ' registered');
+        const category = this.isPrivate? 'PRIVATE' : 'PUBLIC';
+        if (total == 1) {
+            log.info(`${category} ${this.route} registered`);
+        } else {
+            log.info(`${category} ${this.route} registered with ${total} instances`);
+        }        
     } 
 
     workerNotExists(w: string): boolean {
@@ -129,13 +245,13 @@ class ServiceManager {
         let traced = false;
         const diff = parseFloat((performance.now() - start).toFixed(3));
         const replyTo = evt.getReplyTo();
-        if (replyTo) {
+        if (replyTo && !this.isInterceptor) {
             if (this.route == replyTo) {
                 log.error(`Response event dropped to avoid looping to ${replyTo}`);
             } else {
                 if (po.exists(replyTo)) {
-                    const result = response instanceof EventEnvelope? new EventEnvelope(response) : new EventEnvelope().setBody(response);
-                    result.setTo(replyTo).setFrom(this.route);
+                    const result = response instanceof EventEnvelope? new EventEnvelope(response) : new EventEnvelope().setBody(response);                    
+                    result.setTo(replyTo).setReplyTo(null).setFrom(this.route);
                     result.setExecTime(diff);
                     if (evt.getCorrelationId()) {
                         result.setCorrelationId(evt.getCorrelationId());
@@ -177,8 +293,10 @@ class ServiceManager {
             const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACING).setBody({'trace': metrics});
             po.send(trace);
         }
-        // send ready signal
-        po.send(new EventEnvelope().setTo(this.route).setBody(workerRoute).setHeader(SIGNATURE, this.signature));
+        // send ready signal if the service is still active
+        if (po.exists(this.route)) {
+            po.send(new EventEnvelope().setTo(this.route).setBody(workerRoute).setHeader(SIGNATURE, this.signature));
+        }
     }
 
     handleError(workerRoute: string, utc: string, evt: EventEnvelope, e): void {
@@ -256,113 +374,102 @@ class ServiceManager {
 }
 
 class EventSystem {
-
-    private config: MultiLevelMap;
+    private config: ConfigReader;
     private services = new Map<string, object>();
     private forever = false;
     private stopping = false;
-    private t1 = -1;
 
-    constructor(configFile?: string) {
+    constructor(configFileOrMap?: string | object) {
         self = this;
-        const filepath = configFile? configFile : getResourceFolder() + '/application.yml';
-        self.config = new MultiLevelMap(parseYaml(readFileSync(filepath, {encoding:'utf-8', flag:'r'}))).normalizeMap();
-        const level = process.env.LOG_LEVEL;
-        if (!(level && log.validLevel(level))) {
-            log.setLevel(self.config.getElement('log.level', 'info'));
+        self.config = new AppConfig(configFileOrMap).getReader();
+        let levelInEnv = false;
+        let reloaded = false;
+        let reloadFile: string = null;
+        let errorInReload: string = null;
+        if (process) {
+            if (process.env.LOG_LEVEL) {
+                levelInEnv = true;
+            }
+            // reload configuration from a file given in command line argument "-C{filename}"
+            const replaceConfig = process.argv.filter(k => k.startsWith('-C'));
+            if (replaceConfig.length > 0) {
+                reloadFile = replaceConfig[0].substring(2);
+                try {
+                    const map = util.loadYamlFile(reloadFile);
+                    if (map.isEmpty()) {
+                        errorInReload = `Configuration file ${reloadFile} is empty`;
+                    } else {
+                        self.config.reload(map);
+                        reloaded = true;
+                    }
+                } catch (e) {
+                    errorInReload = e.message;
+                }
+            }
+            // override application parameters from command line arguments
+            const parameters = process.argv.filter(k => k.startsWith('-D') && k.substring(2).includes('='));
+            for (let i=0; i < parameters.length; i++) {
+                const p = parameters[i].substring(2);
+                const sep = p.indexOf('=');
+                const k = p.substring(0, sep);
+                const v = p.substring(sep+1);
+                if (k && v) {
+                    self.config.set(k, v);
+                }
+            }
         }
-        po.subscribe(SERVICE_LIFE_CYCLE, (evt: EventEnvelope) => {
-            if ('unsubscribe' == evt.getHeader('type')) {
-                const route = evt.getHeader('route');
-                if (route && self.services.has(route)) {
-                    const metadata = self.services.get(route);
-                    const isPrivate = metadata['private']
-                    const instances = parseInt(metadata['instances'])
-                    for (let i=1; i <= instances; i++) {
-                        // silently unsubscribe the workers for the service
-                        po.unsubscribe(route+"#"+i, false);
-                    }
-                    self.services.delete(route);
-                    log.info((isPrivate? 'PRIVATE ' : 'PUBLIC ') + route + ' released');
+        if (!levelInEnv) {
+            log.setLevel(self.config.getProperty('log.level', 'info'));
+        }
+        log.setJsonFormat(self.config.getProperty('log.format', 'json') == 'json');
+        if (reloaded) {
+            log.info(`Configuration reloaded from ${reloadFile}`);
+        } else if (errorInReload) {
+            log.error(`Unable to load configuration from ${reloadFile} - ${errorInReload}`);
+        }
+        if (process) {
+            // monitor shutdown signals
+            process.on('SIGTERM', () => {
+                if (!self.isStopping()) {
+                    self.stop();
+                    log.info('Kill signal detected');
                 }
-            }
-        });
-        po.subscribe(DISTRIBUTED_TRACING, (evt: EventEnvelope) => {
-            if (evt.getBody() instanceof Object) {
-                const payload = evt.getBody() as object;
-                if (payload && 'trace' in payload) {
-                    const metrics = payload['trace'] as object;
-                    const routeName = metrics['service'];
-                    // ignore tracing for "distributed.tracing" and "distributed.trace.forwarder"
-                    if (DISTRIBUTED_TRACING != routeName && DISTRIBUTED_TRACE_FORWARDER != routeName) {
-                        log.info(evt.getBody() as object);
-                        if (po.exists(DISTRIBUTED_TRACE_FORWARDER)) {
-                            const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACE_FORWARDER).setBody(payload);
-                            po.send(trace);
-                        }
-                    }
+            });
+            process.on('SIGINT', () => {
+                if (!self.isStopping()) {
+                    self.stop();
+                    log.info('Control-C detected');
                 }
-            }        
-        });
-        // monitor shutdown signals
-        process.on('SIGTERM', () => {
-            if (!self.stopping) {
-                self.stopping = true;
-                log.info('Kill signal detected');
-            }
-        });
-        process.on('SIGINT', () => {
-            if (!self.stopping) {
-                self.stopping = true;
-                log.info('Control-C detected');
-            }
-        });
+            });
+        }
+        // Event system ready
+        log.info(`Event system started - ${po.getId()}`);
+        const tracer = new DistributedTrace();
+        self.register(tracer.getName(), tracer.handleEvent, true, 1, true);
+        const httpClient = new AsyncHttpClient();
+        self.register(httpClient.getName(), httpClient.handleEvent, true, 200, true);
     }
 
-    /**
-     * Retrieve unique application instance ID (aka originId)
-     * 
-     * @returns originId
-     */
     getOriginId(): string {
         return po.getId();
     }
 
-    /**
-     * Get application.yml
-     * 
-     * @returns multi-level-map
-     */
-    getConfig(): MultiLevelMap {
+    getConfig(): ConfigReader {
         return self.config;
     }
 
-    /**
-     * Register a function with a route name.
-     * (This is a managed version of the po.subscribe method. Please use this to register your service functions)
-     * 
-     * Your function will be registered as PUBLIC unless you set isPrivate to true.
-     * PUBLIC functions are advertised to the whole system so that other application instances can find them.
-     * PRIVATE function are invisible outside the current application instance. 
-     * Private scope is ideal for business logic encapsulation.
-     * 
-     * Note that the listener can be either:
-     * 1. synchronous function with optional return value, or
-     * 2. asynchronous function that returns a promise
-     * 
-     * The 'void' return type in the listener is used in typescipt compile time only. It is safe for the function to return value.
-     * The return value can be a primitive value, JSON object, an EventEnvelope, an Error or an AppException.
-     * With AppException, you can set status code and message.
-     * 
-     * @param route name
-     * @param listener function (synchronous or promise)
-     * @param isPrivate true or false
-     */
-    register(route: string, listener: (evt: EventEnvelope) => void, isPrivate = false, instances=1): void {
+    register(route: string, listener: (evt: EventEnvelope) => void, isPrivate=true, instances=1, interceptor=false): void {
         if (route) {
+            if (!util.validRouteName(route)) {
+                throw new Error('Invalid route name - use 0-9, a-z, period, hyphen or underscore characters');
+            }
             if (listener instanceof Function) {
-                new ServiceManager(route, listener, isPrivate, instances);
-                self.services.set(route, {"private": isPrivate, "instances": instances});
+                if (self.services.has(route)) {
+                    log.warn(`Reloading ${route} service`);
+                    self.release(route);
+                }
+                new ServiceManager(route, listener, isPrivate, instances, interceptor);
+                self.services.set(route, {"private": isPrivate, "instances": instances, "interceptor": interceptor});
             } else {
                 throw new Error('Invalid listener function');
             }
@@ -371,54 +478,71 @@ class EventSystem {
         }
     }
 
-    /**
-     * Release a previously registered function
-     * 
-     * @param route name
-     */
     release(route: string) {
-        if (self.services.has(route)) {
+        if (self.services.has(route)) {            
+            const metadata = self.services.get(route);
+            const isPrivate = metadata['private']
+            const instances = parseInt(metadata['instances'])
+            // silently unsubscribe the service manager and workers
             po.unsubscribe(route, false);
+            for (let i=1; i <= instances; i++) {
+                po.unsubscribe(route+"#"+i, false);
+            }
+            self.services.delete(route);
+            log.info((isPrivate? 'PRIVATE ' : 'PUBLIC ') + route + ' released');            
         }
     }
 
-    /**
-     * You can use this method to keep the event system running in the background
-     */
-    async runForever() {
-        if (!self.forever) {
-            // guarantee execute once
-            self.forever = true;
-            if (self.t1 < 0) {
-                self.t1 = Date.now();
-                log.info('To stop application, press Control-C');
+    isPrivate(route: string) {
+        if (self.services.has(route)) {
+            const metadata = self.services.get(route);
+            return metadata['private'];
+        } else {
+            throw new Error(`Route ${route} not found`);
+        }
+    }
+
+    async stop() {
+        if (!self.stopping) {
+            self.stopping = true;
+            if (po.exists(REST_AUTOMATION_MANAGER)) {
+                await po.request(new EventEnvelope().setTo(REST_AUTOMATION_MANAGER).setHeader('type', 'close'));
             }
-            while (!self.isStopping()) {
+            if (po.exists(OBJECT_STREAM_MANAGER)) {
+                await po.request(new EventEnvelope().setTo(OBJECT_STREAM_MANAGER).setHeader('type', 'close'));
+            }
+            let t1 = Date.now();
+            while (self.forever) {
                 const now = Date.now();
-                if (now - self.t1 > 60000) {
-                    self.t1 = now;
-                    log.debug('Running...');
-                }
-                await util.sleep(250);
+                if (now - t1 > 5000) {
+                    t1 = now;
+                    log.info('Stopping...');
+                }         
+                await util.sleep(500);
             }
-            log.info('Stopped');
         }
     }
 
-    /**
-     * Stop the platform and cloud connector
-     */
-    stop(): void {
-        self.stopping = true;
-    }
-
-    /**
-     * Check if the platform is shutting down
-     * 
-     * @returns true or false
-     */
     isStopping(): boolean {
         return self.stopping;
+    }
+
+    async runForever() {
+        if (!self.forever) {
+            self.forever = true;
+            log.info('To stop application, press Control-C');            
+            let t1 = Date.now();
+            while (!self.isStopping()) {
+                const now = Date.now();
+                if (now - t1 > 60000) {
+                    t1 = now;
+                    log.debug('Running...');
+                }
+                await util.sleep(500);
+            }
+            log.info('Stopped');
+            self.forever = false;
+        }
     }
 
 }

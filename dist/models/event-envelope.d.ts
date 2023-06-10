@@ -41,7 +41,7 @@ export declare class EventEnvelope {
      */
     setHeader(k: string, v: string): EventEnvelope;
     /**
-     * Retrieve a header (aka parameter)
+     * Retrieve a header value using case-insensitive key
      *
      * @param k key
      * @returns value or null if not found
@@ -299,4 +299,5 @@ export declare class EventEnvelope {
      * @returns this
      */
     clone(event: EventEnvelope): EventEnvelope;
+    toString(): string;
 }

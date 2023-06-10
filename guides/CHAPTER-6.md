@@ -175,7 +175,7 @@ if (po.exists("another.function")) {
 When an application instance starts, a unique ID is generated. We call this the "Origin ID".
 
 ```java
-String originId = po.getOrigin();
+const originId = po.getOrigin();
 ```
 
 ## PostOffice API
@@ -234,9 +234,9 @@ remoteRequest(event: EventEnvelope, endpoint: string,
 If you want to know the route name and optional trace ID and path, you can inspect the incoming event headers.
 
 ```java
-String myRoute = evt.getHeader('my_route');
-String traceId = evt.getHeader('my_trace_id');
-String tracePath = evt.getHeader('my_trace_path');
+const myRoute = evt.getHeader('my_route');
+const traceId = evt.getHeader('my_trace_id');
+const tracePath = evt.getHeader('my_trace_path');
 ```
 
 ## Configuration API

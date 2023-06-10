@@ -13,7 +13,6 @@ files using the `ConfigReader` API.
 | static.html.folder   | e.g. /tmp/html                   | Yes      |
 | log.format           | text or json                     | Optional |
 | log.level            | default 'info'                   | Optional |
-| static.html.folder   | e.g. /tmp/html                   | Yes      |
 | health.dependencies  | e.g. 'database.health'           | Optional |
 
 # Transient data store

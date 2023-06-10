@@ -1,0 +1,21 @@
+import:
+  - class: HelloWorldService
+    location: '../services/hello-world-service.js'
+  - class: DemoHealthCheck
+    location: '../services/health-check.js'
+  - class: DemoAuth
+    location: '../services/demo-auth.js'
+
+preload:
+  - name: 'hello.world'
+    private: false
+    instances: 10
+    interceptor: false
+  - name: 'demo.health'
+    private: true
+    instances: 5
+    interceptor: false
+  - name: 'v1.api.auth'
+    private: true
+    instances: 5
+    interceptor: false

@@ -4,24 +4,24 @@ function getFlattenMap(prefix, src, target) {
     for (const k of Object.keys(src)) {
         const key = prefix == null ? k : prefix + '.' + k;
         const v = src[k];
-        if (v.constructor == Object) {
-            getFlattenMap(key, v, target);
-        }
-        else if (v.constructor == Array) {
+        if (Array.isArray(v)) {
             let n = 0;
             for (const o of v) {
                 const next = key + '[' + n + ']';
                 n++;
-                if (o.constructor == Object) {
-                    getFlattenMap(next, o, target);
-                }
-                else if (o.constructor == Array) {
+                if (Array.isArray(o)) {
                     getFlattenList(next, o, target);
+                }
+                else if (o && o.constructor == Object) {
+                    getFlattenMap(next, o, target);
                 }
                 else if (o != null) {
                     target[next] = o;
                 }
             }
+        }
+        else if (v && v.constructor == Object) {
+            getFlattenMap(key, v, target);
         }
         else if (v != null) {
             target[key] = v;
@@ -33,11 +33,11 @@ function getFlattenList(prefix, src, target) {
     for (const v of src) {
         const key = prefix + '[' + n + ']';
         n++;
-        if (v.constructor == Object) {
-            getFlattenMap(key, v, target);
-        }
-        else if (v.constructor == Array) {
+        if (Array.isArray(v)) {
             getFlattenList(key, v, target);
+        }
+        else if (v && v.constructor == Object) {
+            getFlattenMap(key, v, target);
         }
         else {
             target[key] = v;
@@ -46,11 +46,24 @@ function getFlattenList(prefix, src, target) {
 }
 function setMapElement(pathname, value, map) {
     validateCompositePathSyntax(pathname);
-    if (pathname && value && map && map.constructor == Object) {
+    const nullValue = value == null || value == undefined;
+    // ignore null value
+    if (pathname && !nullValue && map.constructor == Object) {
         const list = pathname.split(/[./]+/).filter(v => v.length > 0);
         if (list.length == 0) {
             return;
         }
+        // if parent exists, do recursion to create/update key-value.
+        if (list.length > 1) {
+            const parentMap = getMapElement(list[0], map);
+            if (parentMap && parentMap.constructor == Object) {
+                const dot = pathname.indexOf('.');
+                const childPath = pathname.substring(dot + 1);
+                setMapElement(childPath, value, parentMap);
+                return;
+            }
+        }
+        // if parent does not exist, walk the composite path and create key-value.
         let current = map;
         const len = list.length;
         let n = 0;
@@ -63,7 +76,7 @@ function setMapElement(pathname, value, map) {
                 const element = p.substring(0, sep);
                 const parent = getMapElement(composite + element, map);
                 if (n == len) {
-                    if (parent && parent.constructor == Array) {
+                    if (Array.isArray(parent)) {
                         setListElement(indexes, parent, value);
                     }
                     else {
@@ -74,7 +87,7 @@ function setMapElement(pathname, value, map) {
                     break;
                 }
                 else {
-                    if (parent && parent.constructor == Array) {
+                    if (Array.isArray(parent)) {
                         const next = getMapElement(composite + p, map);
                         if (next && next.constuctor == Object) {
                             current = next;
@@ -116,16 +129,17 @@ function setMapElement(pathname, value, map) {
     }
 }
 function setListElement(indexes, dataset, value) {
+    const v = value == undefined ? null : value;
     let current = expandList(indexes, dataset);
     const len = indexes.length;
     for (let i = 0; i < len; i++) {
         const idx = indexes[i];
         if (i == len - 1) {
-            current[idx] = value;
+            current[idx] = v;
         }
         else {
             const o = current[idx];
-            if (o && o.constructor == Array) {
+            if (Array.isArray(o)) {
                 current = o;
             }
         }
@@ -146,7 +160,7 @@ function expandList(indexes, dataset) {
             break;
         }
         const o = current[idx];
-        if (o && o.constructor == Array) {
+        if (Array.isArray(o)) {
             current = o;
         }
         else {
@@ -235,7 +249,7 @@ function getMapElement(pathname, map) {
                     break;
                 if (key in current) {
                     const nextList = current[key];
-                    if (nextList && nextList.constructor == Array) {
+                    if (Array.isArray(nextList)) {
                         const indexes = getIndexes(p.substring(start));
                         const next = getListElement(indexes, nextList);
                         if (n == len) {
@@ -324,10 +338,10 @@ function getListElement(indexes, data) {
  * Therefore developers can programmatically construct a composite key.
  */
 export class MultiLevelMap {
-    constructor(multiLevel) {
-        this.multiLevels = {};
-        if (multiLevel && multiLevel.constructor == Object) {
-            this.multiLevels = multiLevel;
+    multiLevels = {};
+    constructor(kv) {
+        if (kv && kv.constructor == Object) {
+            this.multiLevels = kv;
         }
     }
     /**
@@ -354,7 +368,7 @@ export class MultiLevelMap {
      */
     exists(compositePath) {
         const value = getMapElement(compositePath, this.multiLevels);
-        return value != null && !(value && value.constructor == NotFound);
+        return value != null && !(value instanceof NotFound);
     }
     /**
      * Check if a key exists where the value can be null
@@ -364,7 +378,7 @@ export class MultiLevelMap {
      */
     keyExists(compositePath) {
         const value = getMapElement(compositePath, this.multiLevels);
-        return !(value && value.constructor == NotFound);
+        return !(value instanceof NotFound);
     }
     /**
      * Retrieve an element using a composite key
@@ -373,9 +387,9 @@ export class MultiLevelMap {
      * @param defaultValue is optional
      * @returns element value
      */
-    getElement(compositePath, defaultValue) {
+    getElement(compositePath, defaultValue = null) {
         const value = getMapElement(compositePath, this.multiLevels);
-        return value && value.constructor == NotFound ? (defaultValue ? defaultValue : null) : value;
+        return value instanceof NotFound ? defaultValue : value;
     }
     /**
      * Set value using a composite key
@@ -412,8 +426,8 @@ export class MultiLevelMap {
     normalizeMap() {
         const flatMap = this.getFlatMap();
         this.multiLevels = {};
-        Object.keys(flatMap).forEach(v => {
-            this.setElement(v, flatMap[v]);
+        Object.keys(flatMap).forEach(k => {
+            this.setElement(k, flatMap[k]);
         });
         return this;
     }

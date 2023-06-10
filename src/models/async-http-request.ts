@@ -47,8 +47,8 @@ export class AsyncHttpRequest {
     private contentLength = -1;
     private timeoutSeconds = -1;
 
-    constructor(map?) {
-        if (map && map.constructor == Object) {
+    constructor(map?: object) {
+        if (map && map instanceof Object && map.constructor == Object) {
             this.fromMap(map);
         }
     }
@@ -70,7 +70,9 @@ export class AsyncHttpRequest {
      * @returns this
      */
     setMethod(method: string): AsyncHttpRequest {
-        this.method = method;
+        if (method) {
+            this.method = method.toUpperCase();
+        }
         return this;
     }
 
@@ -80,7 +82,7 @@ export class AsyncHttpRequest {
      * @returns HTTP URI
      */
     getUrl(): string {
-        return this.url;
+        return this.url? this.url : '/';
     }
 
     /**
@@ -130,7 +132,7 @@ export class AsyncHttpRequest {
      * @returns value of the header
      */
     getHeader(key: string): string {
-        return this.headers[key];
+        return key? this.headers[key.toLowerCase()] : null;
     }
 
     /**
@@ -179,7 +181,7 @@ export class AsyncHttpRequest {
      * @returns optional route name of a streaming object
      */
     getStreamRoute(): string {
-        return this.streamRoute;
+        return this.streamRoute? this.streamRoute : null;
     }
 
     /**
@@ -242,7 +244,7 @@ export class AsyncHttpRequest {
      * @returns timeout value
      */
     getTimeoutSeconds(): number {
-        return Math.max(0, this.timeoutSeconds? this.timeoutSeconds : -1);
+        return Math.max(0, this.timeoutSeconds);
     }
 
     /**
@@ -253,7 +255,8 @@ export class AsyncHttpRequest {
      */
     setTimeoutSeconds(timeoutSeconds: number): AsyncHttpRequest {
         if (timeoutSeconds) {
-            this.timeoutSeconds = Math.max(0, timeoutSeconds);
+            const integerValue = parseInt(String(timeoutSeconds));
+            this.timeoutSeconds = Math.max(0, integerValue);
         }
         return this;
     }
@@ -434,6 +437,11 @@ export class AsyncHttpRequest {
         return this.queryString;
     }
 
+    setQueryString(query: string): AsyncHttpRequest {
+        this.queryString = query;
+        return this;
+    }
+
     /**
      * Check if the HTTP request uses HTTPS
      * 
@@ -482,7 +490,7 @@ export class AsyncHttpRequest {
      * @returns target host name
      */
     getTargetHost(): string {
-        return this.targetHost;
+        return this.targetHost? this.targetHost : null;
     }
 
     /**
@@ -492,7 +500,7 @@ export class AsyncHttpRequest {
      * @returns this
      */
     setTargetHost(host: string): AsyncHttpRequest {
-        if (host != null && (host.startsWith(HTTP_PROTOCOL) || host.startsWith(HTTPS_PROTOCOL))) {
+        if (host && (host.startsWith(HTTP_PROTOCOL) || host.startsWith(HTTPS_PROTOCOL))) {
             this.targetHost = host;
             return this;
         } else {
@@ -531,19 +539,18 @@ export class AsyncHttpRequest {
     getQueryParameter(key: string): string {
         if (key) {
             const value = this.queryParams[key.toLowerCase()];
-            if (value) {
-                if (value.constructor == String) {
-                    return value as string;
-                } else if (value.constructor == Array) {
-                    return String(value[0]);
-                }
+            if (typeof value == 'string') {
+                return value as string;
+            } else if (Array.isArray(value)) {
+                return String(value[0]);
             }
         }
         return null;
     }
 
     /**
-     * Retrieve a multi-value query parameter
+     * Retrieve a multi-value query parameter.
+     * If key is not given, it will return all query key-values.
      * 
      * @param key of a multi-value parameter
      * @returns a list of strings
@@ -551,11 +558,11 @@ export class AsyncHttpRequest {
     getQueryParameters(key?: string) {
         if (key) {
             const values = this.queryParams[key.toLowerCase()];
-            if (values.constructor == String) {
+            if (typeof values == 'string') {
                 const result = [];
                 result.push(values);
                 return result;
-            } else if (values.constructor == Array) {
+            } else if (Array.isArray(values)) {
                 return values;
             }
         } else {
@@ -574,9 +581,9 @@ export class AsyncHttpRequest {
     setQueryParameter(key: string, value: string): AsyncHttpRequest {
         if (key) {
             if (value) {
-                if (value.constructor == String) {
+                if (typeof value == 'string') {
                     this.queryParams[key.toLowerCase()] = value;
-                } else if (value.constructor == Array) {
+                } else if (Array.isArray(value)) {
                     const valueArray = value as Array<string>;
                     const params = [];
                     for (const v of valueArray) {
@@ -678,60 +685,60 @@ export class AsyncHttpRequest {
     fromMap(map: object) {
         if (map && map.constructor == Object) {
             if (HEADERS in map) {
-                this.headers = setLowerCase(map[HEADERS]);
+                this.headers = setLowerCase(map[HEADERS] as object);
             }
             if (COOKIES in map) {
-                this.cookies = setLowerCase(map[COOKIES]);
+                this.cookies = setLowerCase(map[COOKIES] as object);
             }
             if (SESSION in map) {
-                this.session = setLowerCase(map[SESSION]);
+                this.session = setLowerCase(map[SESSION] as object);
             }
             if (METHOD in map) {
-                this.method = map[METHOD];
+                this.method = String(map[METHOD]);
             }
             if (IP in map) {
-                this.ip = map[IP];
+                this.ip = String(map[IP]);
             }
             if (URL_LABEL in map) {
-                this.url = map[URL_LABEL];
+                this.url = String(map[URL_LABEL]);
             }
             if (TIMEOUT in map) {
-                this.timeoutSeconds = map[TIMEOUT];
+                this.timeoutSeconds = parseInt(String(map[TIMEOUT]));
             }
             if (FILE_NAME in map) {
-                this.filename = map[FILE_NAME];
+                this.filename = String(map[FILE_NAME]);
             }
             if (CONTENT_LENGTH in map) {
-                this.contentLength = map[CONTENT_LENGTH];
+                this.contentLength = parseInt(String(map[CONTENT_LENGTH]));
             }
             if (STREAM in map) {
-                this.streamRoute = map[STREAM];
+                this.streamRoute = String(map[STREAM]);
             }
             if (BODY in map) {
                 this.body = map[BODY];
             }
             if (QUERY in map) {
-                this.queryString = map[QUERY];
+                this.queryString = String(map[QUERY]);
             }
             if (HTTPS in map) {
-                this.https = map[HTTPS];
+                this.https = String(map[HTTPS]) == 'true';
             }
             if (TARGET_HOST in map) {
-                this.targetHost = map[TARGET_HOST];
+                this.targetHost = String(map[TARGET_HOST]);
             }
             if (TRUST_ALL_CERT in map) {
-                this.trustAllCert = map[TRUST_ALL_CERT];
+                this.trustAllCert = String(map[TRUST_ALL_CERT]) == 'true';
             }
             if (UPLOAD in map) {
-                this.upload = map[UPLOAD];
+                this.upload = String(map[UPLOAD]);
             }
             if (PARAMETERS in map) {
-                const parameters = map[PARAMETERS];
+                const parameters = map[PARAMETERS] as object;
                 if (PATH in parameters) {
-                    this.pathParams = setLowerCase(parameters[PATH]);
+                    this.pathParams = setLowerCase(parameters[PATH] as object);
                 }
                 if (QUERY in parameters) {
-                    this.queryParams = setLowerCase(parameters[QUERY]);
+                    this.queryParams = setLowerCase(parameters[QUERY] as object);
                 }
             }
         }

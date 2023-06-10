@@ -1,16 +1,17 @@
 import shell from 'shelljs';
+import { fileURLToPath } from "url";
 
-function getRootFolder() {
-    const filename = import.meta.url.substring(7);
-    const parts = filename.split('/');
-    const pathname = parts.length > 2 && parts[1].endsWith(':')? filename.substring(1) : filename;
-    return pathname.includes('/')? pathname.substring(0, pathname.lastIndexOf('/')) : pathname;
+function getCurrentFolder() {
+    const folder = fileURLToPath(new URL(".", import.meta.url));
+    return folder.includes('\\')? folder.replaceAll('\\', '/') : folder;
 }
 
-const coverage = getRootFolder() + '/coverage';
-const dist = getRootFolder() + '/dist';
-const tmp = getRootFolder() + '/tmp';
+function getFolder(target) {
+    return getCurrentFolder() + target;
+}
+
+const coverage = getFolder('coverage');
+const dist = getFolder('dist');
 
 shell.rm("-rf", coverage);
 shell.rm("-rf", dist);
-shell.rm("-rf", tmp);

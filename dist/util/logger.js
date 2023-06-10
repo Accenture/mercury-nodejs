@@ -1,7 +1,7 @@
-import logger from 'simple-node-logger';
-const OPTS = { timestampFormat: 'YYYY-MM-DD HH:mm:ss.SSS' };
-const LOG = logger.createSimpleLogger(OPTS);
-let isDebug = true;
+import { Utility } from '../util/utility.js';
+const util = new Utility();
+let self = null;
+let isDebug = false;
 let isInfo = true;
 let isWarn = true;
 let isError = true;
@@ -16,7 +16,7 @@ function getLineNumber() {
         const composite = parts[parts.length - 1].split(':');
         const filename = composite[0];
         const lineNumber = composite[1];
-        return ' [' + method + ':' + filename + ':' + lineNumber + ']';
+        return (method ? method + ':' : '') + filename + ':' + lineNumber;
     }
     else {
         // Incomplete stack trace -
@@ -37,28 +37,80 @@ function getText(message) {
         return '';
     }
 }
-let self = null;
+function printLog(jsonFormat, lineNumber, label, message, e) {
+    const timestamp = util.getLocalTimestamp();
+    if (jsonFormat) {
+        const json = { 'time': timestamp, 'level': label, 'message': message };
+        if (lineNumber) {
+            json['module'] = lineNumber;
+        }
+        if (e) {
+            const stack = e.stack ? e.stack : String(e);
+            json['exception'] = stack.split('\n').map(v => v.trim());
+        }
+        console.log(JSON.stringify(json, null, 2));
+    }
+    else {
+        const text = getText(message);
+        const location = lineNumber ? ' (' + lineNumber + ')' : '';
+        if (e) {
+            const stack = e.stack ? e.stack : String(e);
+            console.info(timestamp + ' ' + label + ' ' + text + location + '\n' + stack);
+        }
+        else {
+            console.info(timestamp + ' ' + label + ' ' + text + location);
+        }
+    }
+}
 export class Logger {
     constructor() {
         if (self == null) {
-            self = new LogSystem();
+            self = new SimpleLogger();
         }
     }
-    getInstance() {
-        return self;
+    setJsonFormat(jsonFormat) {
+        self.setJsonFormat(jsonFormat);
+    }
+    getLevel() {
+        return self.getLevel();
+    }
+    setLevel(level) {
+        self.setLevel(level);
+    }
+    info(message, e) {
+        if (isInfo) {
+            self.info(getLineNumber(), message, e);
+        }
+    }
+    warn(message, e) {
+        if (isWarn) {
+            self.warn(getLineNumber(), message, e);
+        }
+    }
+    debug(message, e) {
+        if (isDebug) {
+            self.debug(getLineNumber(), message, e);
+        }
+    }
+    error(message, e) {
+        if (isError) {
+            self.error(getLineNumber(), message, e);
+        }
     }
 }
-class LogSystem {
+class SimpleLogger {
+    logLevel = 'info';
+    logAsJson = false;
     constructor() {
-        this.logLevel = 'info';
-        const level = process.env.LOG_LEVEL;
-        if (level && this.validLevel(level)) {
-            this.setLevel(level);
+        if (process) {
+            const level = process.env.LOG_LEVEL;
+            if (level && this.validLevel(level)) {
+                this.setLevel(level);
+            }
         }
     }
-    validLevel(level) {
-        const value = level.toString().toLowerCase();
-        return value && ('all' == value || 'debug' == value || 'info' == value || 'warn' == value || 'error' == value);
+    setJsonFormat(jsonFormat) {
+        this.logAsJson = jsonFormat;
     }
     getLevel() {
         return this.logLevel;
@@ -95,49 +147,21 @@ class LogSystem {
             }
         }
     }
-    info(message, e) {
-        if (isInfo) {
-            const text = getText(message);
-            if (e && e instanceof Error) {
-                LOG.info(text + getLineNumber() + '\n' + e.stack);
-            }
-            else {
-                LOG.info(text + getLineNumber());
-            }
-        }
+    validLevel(level) {
+        const value = level.toString().toLowerCase();
+        return value && ('all' == value || 'debug' == value || 'info' == value || 'warn' == value || 'error' == value);
     }
-    warn(message, e) {
-        if (isWarn) {
-            const text = getText(message);
-            if (e && e instanceof Error) {
-                LOG.warn(text + getLineNumber() + '\n' + e.stack);
-            }
-            else {
-                LOG.warn(text + getLineNumber());
-            }
-        }
+    info(lineNumber, message, e) {
+        printLog(this.logAsJson, lineNumber, 'INFO', message, e);
     }
-    debug(message, e) {
-        if (isDebug) {
-            const text = getText(message);
-            if (e && e instanceof Error) {
-                LOG.debug(text + getLineNumber() + '\n' + e.stack);
-            }
-            else {
-                LOG.debug(text + getLineNumber());
-            }
-        }
+    warn(lineNumber, message, e) {
+        printLog(this.logAsJson, lineNumber, 'WARN', message, e);
     }
-    error(message, e) {
-        if (isError) {
-            const text = getText(message);
-            if (e && e instanceof Error) {
-                LOG.error(text + getLineNumber() + '\n' + e.stack);
-            }
-            else {
-                LOG.error(text + getLineNumber());
-            }
-        }
+    debug(lineNumber, message, e) {
+        printLog(this.logAsJson, lineNumber, 'DEBUG', message, e);
+    }
+    error(lineNumber, message, e) {
+        printLog(this.logAsJson, lineNumber, 'ERROR', message, e);
     }
 }
 //# sourceMappingURL=logger.js.map

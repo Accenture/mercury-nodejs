@@ -1,18 +1,21 @@
 {
   "name": "examples",
-  "version": "1.0.0",
-  "description": "Example apps that use Mercury NodeJs",
+  "version": "3.0.0",
+  "description": "Sample applications",
   "type": "module",
   "scripts": {
+    "clean": "node clean.js",
+    "preload": "node generate-preloader.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json && node copy-static-files.js"
   },
   "author": "Eric Law <eric.law@accenture.com>",
   "license": "Apache-2.0",
   "devDependencies": {
-    "@types/node": "^17.0.23"
-  }, 
+    "@types/node": "^17.0.23",
+    "typescript": "^5.0.4"
+  },
   "dependencies": {
-    "mercury": "https://github.com/Accenture/mercury-nodejs"
+    "mercury": "github:accenture/mercury-nodejs"
   }
 }

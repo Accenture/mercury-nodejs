@@ -1,0 +1,19 @@
+# application configuration
+
+application.name: 'example-app'
+info.app:
+  version: '3.0.0'
+  description: 'Sample app'
+
+# server port for Event API REST endpoint
+server.port: 8300
+# turn on default tracing if remote caller does not enable trace
+
+# log.format can be 'text' or 'json'
+log:
+  format: 'text'
+  level: INFO
+
+# You can add optional health checks that point to your custom health check functions
+# (the dependency list is a comma separated list) 
+# health.dependencies: 'demo.health'

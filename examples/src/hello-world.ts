@@ -1,17 +1,40 @@
-import { Logger, Platform, Connector, EventEnvelope } from 'mercury';
+import { Logger, Platform, RestAutomation } from 'mercury';
+import { ComposableLoader } from './preload/preload.js'; 
+import { fileURLToPath } from "url";
 
-// Load system components
-const log = new Logger().getInstance();
-const platform = new Platform().getInstance();
-const connector = new Connector().getInstance();
+const log = new Logger();
+const REST_AUTOMATION_YAML = "rest.automation.yaml";
+const STATIC_HTML_FOLDER = "static.html.folder";
 
-const MY_HELLO_WORLD = 'hello.world';
+function getResourceFoler() {
+    const folder = fileURLToPath(new URL("./resources/", import.meta.url));
+    return folder.includes('\\')? folder.replaceAll('\\', '/') : folder;
+}
 
-// Register and announce that 'hello.world' service is available as this function with EventEnvelope as input
-platform.register(MY_HELLO_WORLD, (evt: EventEnvelope) => {
-    log.info(`GOT headers=${JSON.stringify(evt.getHeaders())}, body=${JSON.stringify(evt.getBody())}`);
-    return evt.getBody();
-});
+async function main() {
+    const resources = getResourceFoler();
+    // Start platform with user provided config file
+    // IMPORTANT - this must be the first instantiation of the Platform object in your application
+    const configFile = resources + 'application.yml';
+    const platform = new Platform(configFile);
+    // Locate the REST automation config file
+    const restYaml = resources + 'rest.yaml';
+    const appConfig = platform.getConfig();
+    // Set configuration parameter before starting REST automation
+    if (!appConfig.exists(REST_AUTOMATION_YAML)) {
+        appConfig.set(REST_AUTOMATION_YAML, restYaml);
+    }
+    if (!appConfig.exists(STATIC_HTML_FOLDER)) {
+        appConfig.set(STATIC_HTML_FOLDER, resources + 'public');
+    }
+    // Load composable functions into memory
+    ComposableLoader.initialize();
+    // start REST automation engine
+    const server = new RestAutomation();
+    server.start();
+    platform.runForever();
+    log.info('Hello world application started');
+}
 
-// Connect to the cloud via language connector
-connector.connectToCloud();
+// run this application
+main();

@@ -1,0 +1,19 @@
+site_name: Mercury
+site_url: https://github.com/accenture/mercury
+nav:
+    - Home: README.md
+    - Contents: guides/TABLE-OF-CONTENTS.md
+    - Chapter-1: guides/CHAPTER-1.md
+    - Chapter-2: guides/CHAPTER-2.md
+    - Chapter-3: guides/CHAPTER-3.md
+    - Chapter-4: guides/CHAPTER-4.md
+    - Chapter-5: guides/CHAPTER-5.md
+    - Chapter-6: guides/CHAPTER-6.md
+    - Appendix-I: guides/APPENDIX-I.md
+    - Appendix-II: guides/APPENDIX-II.md
+    - Release notes: CHANGELOG.md
+    - Design notes: arch-decisions/DESIGN-NOTES.md
+    - Inclusivity: INCLUSIVITY.md
+    - Code of Conduct: CODE_OF_CONDUCT.md
+    - Contribution: CONTRIBUTING.md
+theme: readthedocs

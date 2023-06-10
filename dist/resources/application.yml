@@ -1,14 +1,22 @@
 # application configuration
 
-# the websocket endpoint for a language connector sidecar
-network.connector: 'ws://127.0.0.1:8090/ws/lang'
+application.name: 'platform-core'
+info.app:
+  version: '3.0.0'
+  description: 'Composable application core library'
 
-#
-# language.pack.key should point to an environment variable containing a secret key for connection to
-# a language connector. If the environment variable does not exist, the system will get the secret key
-# from the temporary local file system at /tmp/config/lang-api-key.txt
-#
-language.pack.key: 'LANGUAGE_PACK_KEY'
+# server port for Event API REST endpoint
+server.port: 8300
 
+# log.format can be 'text' or 'json'
 log:
+  format: 'text'
   level: INFO
+
+# You can add optional health checks that point to your custom health check functions
+# (the dependency list is a comma separated list) 
+# health.dependencies: 'demo.health'
+
+#
+# Static HTML folder location - default to "resources/public" of the mercury library if not given.
+# static.html.folder: '/opt/html'

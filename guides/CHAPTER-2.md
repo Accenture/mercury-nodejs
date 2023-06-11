@@ -33,10 +33,15 @@ The Mercury library dependency is shown in the package.json file.
 
 When you enter `npm install`, it will fetch the Mercury 3.0 library from github.
 
-> To load a newer version from github, you have to do `npm uninstall mercury`.
-  Put back the dependency in package.json and do `npm install` again. 
+To obtain the latest update, you can do this:
 
-A better approach is to build Mercury library from source and publish it to your corporate artifactory.
+```shell
+cd examples
+npm uninstall mercury
+npm install https://github.com/Accenture/mercury-nodejs
+```
+
+Alternatively, you may build the Mercury 3.0 for Node.js library and publish it to your corporate artifactory.
 
 ## Building the hello world application
 

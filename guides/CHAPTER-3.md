@@ -121,7 +121,7 @@ The console will print:
             "id":"4dd5db2e64b54eef8746ab5fbb4489a3","path":"GET /api/hello/world",
             "service":"v1.api.auth","start":"2023-06-10T00:01:07.492Z","success":true,
             "exec_time":0.525,"round_trip":0.8,"from":"http.request"}} (handleEvent:tracer.js:27)
-  2023-06-09 17:01:07.497 INFO HTTP-200 GET /api/hello/world (RestEngine.relayRequest:rest-automation.js:604)
+2023-06-09 17:01:07.497 INFO HTTP-200 GET /api/hello/world (RestEngine.relayRequest:rest-automation.js:604)
 2023-06-09 17:01:07.498 INFO {"trace":{"origin":"11efb0d8fcff4924b90aaf738deabed0",
             "id":"4dd5db2e64b54eef8746ab5fbb4489a3","path":"GET /api/hello/world",
             "service":"hello.world","start":"2023-06-10T00:01:07.495Z","success":true,

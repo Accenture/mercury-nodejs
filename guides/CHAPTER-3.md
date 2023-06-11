@@ -208,7 +208,7 @@ headers:
         - "Expires: Thu, 01 Jan 1970 00:00:00 GMT"
 ```
 
-## Feature variation from the Mercury 3.0 for Java implementation
+## Feature variation from the Java version
 
 The "threshold" parameter in the REST endpoint definition is not supported in the Node.js version.
 
@@ -218,6 +218,7 @@ is less than the threshold value. Otherwise, it will render it as a stream for a
 
 In the Node.js version, the underlying HTTP server is Express. We have configured the bodyParser to render
 HTTP request body in this order:
+
 1. URL encoded parameters
 2. JSON text
 3. "application/xml" or content type starts with "text/"

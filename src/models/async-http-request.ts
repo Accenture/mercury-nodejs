@@ -156,7 +156,7 @@ export class AsyncHttpRequest {
      * 
      * @returns optional payload
      */
-    getBody() {
+    getBody(): string | number | object | boolean | Buffer | Uint8Array {
         return this.body;
     }
 
@@ -166,7 +166,7 @@ export class AsyncHttpRequest {
      * @param body (aka payload)
      * @returns this
      */
-    setBody(body): AsyncHttpRequest {
+    setBody(body: string | number | object | boolean | Buffer | Uint8Array): AsyncHttpRequest {
         this.body = body? body : null;
         return this;
     }

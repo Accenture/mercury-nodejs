@@ -179,7 +179,7 @@ export class EventEnvelope {
      * 
      * @returns body (aka payload)
      */
-    getBody() {
+    getBody(): string | number | object | boolean | Buffer | Uint8Array {
         return this.body;
     }
 

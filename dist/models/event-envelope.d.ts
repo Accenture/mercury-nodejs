@@ -73,7 +73,7 @@ export declare class EventEnvelope {
      *
      * @returns body (aka payload)
      */
-    getBody(): string | number | boolean | object | Uint8Array | Buffer;
+    getBody(): string | number | object | boolean | Buffer | Uint8Array;
     /**
      * Set processing status code if you want to manually define the value.
      *

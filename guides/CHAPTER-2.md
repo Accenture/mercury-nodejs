@@ -239,10 +239,10 @@ When you browse the endpoint "http://127.0.0.1:8085/api/hello/world", you will s
 
 ```text
 2023-06-09 16:13:23.266 INFO {"trace":{"origin":"2f2d6abd7b9c4d9d9694b3b900254f7a",
-                              "id":"5bf3cc1aab7647878d7ba91565d4ef9b","path":"GET /api/hello/world",
-                              "service":"hello.world","start":"2023-06-09T23:13:23.263Z","success":true,
-                              "exec_time":0.538,"round_trip":1.016,"from":"http.request"}}
-                               (handleEvent:tracer.js:27)
+                        "id":"5bf3cc1aab7647878d7ba91565d4ef9b","path":"GET /api/hello/world",
+                        "service":"hello.world","start":"2023-06-09T23:13:23.263Z","success":true,
+                        "exec_time":0.538,"round_trip":1.016,"from":"http.request"}}
+                          (handleEvent:tracer.js:27)
 ```
 
 Mercury 3.0 has built-in distributed tracing ability. Composable application is by definition event driven.

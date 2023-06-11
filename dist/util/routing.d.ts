@@ -24,7 +24,6 @@ export declare class RouteInfo {
     responseTransformId: string;
     primary: string;
     services: string[];
-    threshold: number;
     tracing: boolean;
     methods: string[];
     timeoutSeconds: number;

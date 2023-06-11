@@ -118,14 +118,14 @@ You can test this by visiting http://127.0.0.1:8085/api/hello/world to invoke th
 The console will print:
 ```text
 2023-06-09 17:01:07.495 INFO {"trace":{"origin":"11efb0d8fcff4924b90aaf738deabed0",
-                              "id":"4dd5db2e64b54eef8746ab5fbb4489a3","path":"GET /api/hello/world",
-                              "service":"v1.api.auth","start":"2023-06-10T00:01:07.492Z","success":true,
-                              "exec_time":0.525,"round_trip":0.8,"from":"http.request"}} (handleEvent:tracer.js:27)
-2023-06-09 17:01:07.497 INFO HTTP-200 GET /api/hello/world (RestEngine.relayRequest:rest-automation.js:604)
+            "id":"4dd5db2e64b54eef8746ab5fbb4489a3","path":"GET /api/hello/world",
+            "service":"v1.api.auth","start":"2023-06-10T00:01:07.492Z","success":true,
+            "exec_time":0.525,"round_trip":0.8,"from":"http.request"}} (handleEvent:tracer.js:27)
+  2023-06-09 17:01:07.497 INFO HTTP-200 GET /api/hello/world (RestEngine.relayRequest:rest-automation.js:604)
 2023-06-09 17:01:07.498 INFO {"trace":{"origin":"11efb0d8fcff4924b90aaf738deabed0",
-                              "id":"4dd5db2e64b54eef8746ab5fbb4489a3","path":"GET /api/hello/world",
-                              "service":"hello.world","start":"2023-06-10T00:01:07.495Z","success":true,
-                              "exec_time":0.478,"round_trip":1.238,"from":"http.request"}} (handleEvent:tracer.js:27)                              
+            "id":"4dd5db2e64b54eef8746ab5fbb4489a3","path":"GET /api/hello/world",
+            "service":"hello.world","start":"2023-06-10T00:01:07.495Z","success":true,
+            "exec_time":0.478,"round_trip":1.238,"from":"http.request"}} (handleEvent:tracer.js:27)                              
 ```
 
 This illustrates that the HTTP request has been processed by the "v1.api.auth" function.
@@ -207,6 +207,23 @@ headers:
         - "Pragma: no-cache"
         - "Expires: Thu, 01 Jan 1970 00:00:00 GMT"
 ```
+
+## Feature variation from the Mercury 3.0 for Java implementation
+
+The "threshold" parameter in the REST endpoint definition is not supported in the Node.js version.
+
+In the Java version, the underlying HTTP server is Vertx HTTP server. HTTP request body is handled as a stream.
+When content length is given, the REST automation engine will render the input as a byte array if the length
+is less than the threshold value. Otherwise, it will render it as a stream for a user function to read.
+
+In the Node.js version, the underlying HTTP server is Express. We have configured the bodyParser to render
+HTTP request body in this order:
+1. URL encoded parameters
+2. JSON text
+3. "application/xml" or content type starts with "text/"
+4. "multipart/form-data" for file upload
+5. all other types of content will be rendered as byte array (Buffer) with a payload limit of 2 MB
+
 <br/>
 
 |          Chapter-2          |                   Home                    |              Chapter-4              |

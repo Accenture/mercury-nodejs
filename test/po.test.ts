@@ -59,6 +59,20 @@ async function helloWorld(evt: EventEnvelope) {
     if ('my_instance' in evt.getHeaders()) {
       evt.setHeader(HELLO_INSTANCE, evt.getHeader('my_instance'));
     }
+    const body = evt.getBody();
+    if (typeof body == 'object') {
+      const request = new AsyncHttpRequest(evt.getBody() as object);
+      if ('PUT' == request.getMethod()) {
+        const reqBody = request.getBody();
+        if (reqBody instanceof Buffer) {
+          // convert byte array into base64 before returning to user
+          request.setBody(reqBody.toString('base64'));
+          const result = new EventEnvelope(evt);
+          result.setBody(request.toMap());
+          return result;
+        }
+      }
+    }
     return new EventEnvelope(evt);
   }  
 }
@@ -611,7 +625,7 @@ describe('post office use cases', () => {
       expect(map.getElement('body')).toBe(text);
     });   
     
-    it('can do HTTP-PUT to /api/hello/world service', async () => {
+    it('can do HTTP-PUT to send text to /api/hello/world service', async () => {
       const text = 'hello world';
       const po = new PostOffice();
       const req = new AsyncHttpRequest().setMethod('PUT').setTargetHost(baseUrl).setUrl('/api/hello/world?a=b&c=d');
@@ -641,6 +655,58 @@ describe('post office use cases', () => {
       expect(result.getHeader('access-control-allow-methods')).toBe('GET, DELETE, PUT, POST, PATCH, OPTIONS');
       expect(result.getHeader(HELLO_INSTANCE)).toBeDefined();
     }); 
+
+    it('can do HTTP-PUT to send binary data to /api/hello/world service', async () => {
+      const text = 'hello world';
+      const po = new PostOffice();
+      const req = new AsyncHttpRequest().setMethod('PUT').setTargetHost(baseUrl).setUrl('/api/hello/world?a=b&c=d');
+      req.setHeader('authorization', 'demo');
+      // input will be rendered as byte array
+      req.setBody(text).setHeader('Content-Type', 'application/octet-stream').setHeader('Accept', 'application/json');
+      const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
+      const result = await po.request(reqEvent);
+      expect(typeof result.getBody()).toBe('object');      
+      const map = new MultiLevelMap(result.getBody() as object);
+      expect(map.getElement('url')).toBe('/api/hello/world');
+      expect(map.getElement('ip')).toBe('127.0.0.1');
+      expect(map.getElement('method')).toBe('PUT');
+      expect(map.getElement('timeout')).toBe(10);
+      expect(map.getElement('query')).toBe('a=b&c=d');
+      expect(map.getElement('parameters.query.a')).toBe('b');
+      expect(map.getElement('parameters.query.c')).toBe('d');
+      expect(map.getElement('headers.x-flow-id')).toBe('hello-world');
+      // byte array will be converted to base64 by the "hello.world" service for easy comparison
+      expect(map.getElement('body')).toBe(Buffer.from(text).toString('base64'));
+      expect(result.getHeader('content-type')).toBe('application/json');
+      expect(result.getHeader('access-control-allow-origin')).toBe('*');
+      expect(result.getHeader('access-control-allow-methods')).toBe('GET, DELETE, PUT, POST, PATCH, OPTIONS');
+      expect(result.getHeader(HELLO_INSTANCE)).toBeDefined();
+    });  
+    
+    it('can do HTTP-PUT to send JSON object to /api/hello/world service', async () => {
+      const json = {'hello': 'world'};
+      const po = new PostOffice();
+      const req = new AsyncHttpRequest().setMethod('PUT').setTargetHost(baseUrl).setUrl('/api/hello/world?a=b&c=d');
+      req.setHeader('authorization', 'demo');
+      req.setBody(json).setHeader('Content-Type', 'application/json').setHeader('Accept', 'application/json');
+      const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
+      const result = await po.request(reqEvent);
+      expect(typeof result.getBody()).toBe('object');      
+      const map = new MultiLevelMap(result.getBody() as object);
+      expect(map.getElement('url')).toBe('/api/hello/world');
+      expect(map.getElement('ip')).toBe('127.0.0.1');
+      expect(map.getElement('method')).toBe('PUT');
+      expect(map.getElement('timeout')).toBe(10);
+      expect(map.getElement('query')).toBe('a=b&c=d');
+      expect(map.getElement('parameters.query.a')).toBe('b');
+      expect(map.getElement('parameters.query.c')).toBe('d');
+      expect(map.getElement('headers.x-flow-id')).toBe('hello-world');
+      expect(map.getElement('body')).toStrictEqual(json);
+      expect(result.getHeader('content-type')).toBe('application/json');
+      expect(result.getHeader('access-control-allow-origin')).toBe('*');
+      expect(result.getHeader('access-control-allow-methods')).toBe('GET, DELETE, PUT, POST, PATCH, OPTIONS');
+      expect(result.getHeader(HELLO_INSTANCE)).toBeDefined();
+    });     
 
     it('can do HTTP-OPTIONS to /api/hello/world service', async () => {
       const po = new PostOffice();

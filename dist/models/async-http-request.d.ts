@@ -1,3 +1,4 @@
+/// <reference types="node" />
 export declare class AsyncHttpRequest {
     private method;
     private queryString;
@@ -86,14 +87,14 @@ export declare class AsyncHttpRequest {
      *
      * @returns optional payload
      */
-    getBody(): any;
+    getBody(): string | number | object | boolean | Buffer | Uint8Array;
     /**
      * Set the HTTP request payload if this is an outgoing HTTP request
      *
      * @param body (aka payload)
      * @returns this
      */
-    setBody(body: any): AsyncHttpRequest;
+    setBody(body: string | number | object | boolean | Buffer | Uint8Array): AsyncHttpRequest;
     /**
      * The system will perform HTML/XML/JSON data format conversion.
      * i.e. HTML would become string, XML and JSON becomes a JSON object.

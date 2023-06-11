@@ -22,9 +22,6 @@ const HTTP = "http://";
 const HTTPS = "https://";
 const UPLOAD = "upload";
 const AUTHENTICATION = "authentication";
-const THRESHOLD = "threshold";
-const MIN_THRESHOLD = 5000;
-const MAX_THRESHOLD = 500000;
 const TRACING = "tracing";
 const TIMEOUT = "timeout";
 const URL_REWRITE = "url_rewrite";
@@ -79,7 +76,6 @@ export class RouteInfo {
     responseTransformId = null;
     primary = null;
     services = new Array();
-    threshold = 50000;
     tracing = false;
     methods = new Array();
     timeoutSeconds = 30;
@@ -409,10 +405,6 @@ class RestEntry {
                 log.error(`Skipping entry because it is missing default authentication service ${config.get(REST + "[" + idx + "]")}`);
                 return;
             }
-        }
-        const threshold = config.get(REST + "[" + idx + "]." + THRESHOLD);
-        if (threshold != null) {
-            info.threshold = Math.min(MAX_THRESHOLD, Math.max(MIN_THRESHOLD, util.str2int(threshold.toString())));
         }
         const tracing = config.getProperty(REST + "[" + idx + "]." + TRACING);
         if (tracing == 'true') {

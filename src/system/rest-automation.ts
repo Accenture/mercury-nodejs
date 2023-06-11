@@ -33,6 +33,7 @@ const CONTENT_LENGTH = "Content-Length";
 const LOWERCASE_CONTENT_TYPE = "content-type";
 const APPLICATION_URL_ENCODED = "application/x-www-form-urlencoded";
 const APPLICATION_OCTET_STREAM = "application/octet-stream";
+const MULTIPART_FORM_DATA = "multipart/form-data";
 const APPLICATION_JSON = "application/json";
 const APPLICATION_XML = "application/xml";
 const TEXT_PREFIX = 'text/';
@@ -150,24 +151,38 @@ class RestEngine {
                 port = DEFAULT_SERVER_PORT;
             }
             const app: Express = express();
-            const binaryParser = bodyParser.raw({ type: APPLICATION_OCTET_STREAM, limit: '1mb' });
             const urlEncodedParser = bodyParser.urlencoded({ extended: false });
             const jsonParser = bodyParser.json();
             const textParser = bodyParser.text({
                 type(req) {
                     const contentType = req.headers['content-type'];                    
                     if (contentType) {
+                        // accept XML or "text/*" as text content
                         return contentType.startsWith(APPLICATION_XML) || contentType.startsWith(TEXT_PREFIX);
                     } else {
-                        return true;
+                        return false;
                     }      
                 }
             });
+            // all content types except multipart upload will be rendered as a byte array
+            const binaryParser = bodyParser.raw({
+                type(req) {
+                    const contentType = req.headers['content-type'];
+                    if (contentType && contentType.startsWith(MULTIPART_FORM_DATA)) {
+                        // skip "multipart/form-data" because it will be handled by another module
+                        return false;
+                    } else {
+                        return true;
+                    }
+                },
+                limit: '2mb'
+            });         
             app.use(cookieParser());
-            app.use(binaryParser);
             app.use(urlEncodedParser);
             app.use(jsonParser);
             app.use(textParser);
+            // binaryParser must be the last parser to catch all other content types
+            app.use(binaryParser);
 
             app.get('/info', async (_req: Request, res: Response) => {
                 const request = new EventEnvelope().setTo(this.actuatorRouteName).setHeader(TYPE, INFO);
@@ -400,7 +415,7 @@ class RestEngine {
             if (!contentType) {
                 contentType = TEXT_PLAIN;
             }
-            if (contentType.startsWith('multipart/form-data') && 'POST' == method && route.info.upload) {
+            if (contentType.startsWith(MULTIPART_FORM_DATA) && 'POST' == method && route.info.upload) {
                 const bb = busboy({ headers: req.headers });
                 let len = 0;
                 bb.on('file', (name, file, info) => {
@@ -438,9 +453,7 @@ class RestEngine {
                     for (const k in req.body) {
                         httpReq.setQueryParameter(k, req.body[k]);
                     }
-                } else if (req.body instanceof Buffer) {
-                    httpReq.setBody(req.body);
-                } else if (typeof(req.body) == 'string') {
+                } else if (req.body) {
                     httpReq.setBody(req.body);
                 } 
             }            

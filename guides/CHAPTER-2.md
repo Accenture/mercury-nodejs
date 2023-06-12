@@ -17,8 +17,7 @@ Mercury 3.0 for Node.js is written in TypeScript. You may need to install the fo
 
 ```shell
 npm install -g eslint-cli
-npm install eslint --save-dev
-npm install typescript --save-dev
+npm install
 ```
 
 ## Installing the Mercury 3.0 library

@@ -164,17 +164,13 @@ class PO {
     private handlers = new Map();
     private id: string = util.getUuid();
 
-    constructor() {
-        self = this;
-    }
-
     getId(): string {
-        return self.id;
+        return this.id;
     }
 
     exists(route: string): boolean {
         if (route && route.length > 0) {
-            return self.handlers.has(route);
+            return this.handlers.has(route);
         } else {
             return false;
         }        
@@ -199,21 +195,21 @@ class PO {
         if (!(listener instanceof Function)) {
             throw new Error('Invalid listener function');
         }
-        if (self.handlers.has(route)) {
-            self.unsubscribe(route);
+        if (this.handlers.has(route)) {
+            this.unsubscribe(route);
         }
-        self.handlers.set(route, listener);
-        self.po.on(route, listener);
+        this.handlers.set(route, listener);
+        this.po.on(route, listener);
         if (logging) {
             log.info(`${route} registered`);
         }
     }
 
     unsubscribe(route: string, logging = true): void {
-        if (self.handlers.has(route)) {
-            const service = self.handlers.get(route);
-            self.po.removeListener(route, service);
-            self.handlers.delete(route);
+        if (this.handlers.has(route)) {
+            const service = this.handlers.get(route);
+            this.po.removeListener(route, service);
+            this.handlers.delete(route);
             if (logging) {
                 log.info(`${route} unregistered`);
             }          
@@ -223,8 +219,8 @@ class PO {
     send(event: EventEnvelope): void {
         const route = event.getTo();
         if (route) {
-            if (self.handlers.has(route)) {
-                self.po.emit(route, event);
+            if (this.handlers.has(route)) {
+                this.po.emit(route, event);
             } else {
                 const traceRef = event.getTraceId()? `Trace (${event.getTraceId()}), ` : '';
                 log.error(`${traceRef}Event ${event.getId()} dropped because ${route} not found`);                
@@ -235,7 +231,7 @@ class PO {
     }
 
     sendLater(event: EventEnvelope, delay = 1000): void {
-        util.sleep(Math.max(10, delay)).then(() => self.send(event));
+        util.sleep(Math.max(10, delay)).then(() => this.send(event));
     }
 
     request(event: EventEnvelope, timeout = 60000): Promise<EventEnvelope> {
@@ -244,15 +240,15 @@ class PO {
             const start = performance.now();
             const route = event.getTo();
             if (route) {
-                if (self.handlers.has(route)) {
+                if (this.handlers.has(route)) {
                     const callback = 'r.'+util.getUuid();
                     const timer = setTimeout(() => {
-                        self.unsubscribe(callback, false);
+                        this.unsubscribe(callback, false);
                         reject(new AppException(408, `Route ${event.getTo()} timeout for ${timeout} ms`));
                     }, Math.max(10, timeout));                    
-                    self.subscribe(callback, (response: EventEnvelope) => {                        
+                    this.subscribe(callback, (response: EventEnvelope) => {                        
                         clearTimeout(timer);
-                        self.unsubscribe(callback, false);
+                        this.unsubscribe(callback, false);
                         if (response.isException()) {
                             reject(new AppException(response.getStatus(), String(response.getBody())));
                         } else {
@@ -262,21 +258,21 @@ class PO {
                             response.setRoundTrip(diff);
                             // send tracing information if needed
                             if (event.getTraceId() && event.getTracePath()) {
-                                const metrics = {'origin': self.getId(), 'id': event.getTraceId(), 'path': event.getTracePath(), 
+                                const metrics = {'origin': this.getId(), 'id': event.getTraceId(), 'path': event.getTracePath(), 
                                                 'service': event.getTo(), 'start': utc, 'success': true, 
                                                 'exec_time': response.getExecTime(), 'round_trip': diff};
                                 if (event.getFrom()) {
                                     metrics['from'] = event.getFrom();
                                 }
                                 const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACING).setBody({'trace': metrics});
-                                self.send(trace);
+                                this.send(trace);
                             }
                             resolve(response);
                         }
                     }, false);
                     event.setReplyTo(callback);
                     event.addTag(RPC, String(timeout));
-                    self.po.emit(route, event);
+                    this.po.emit(route, event);
                     
                 } else {
                     reject(new AppException(404, `Event ${event.getId()} dropped because ${route} not found`));

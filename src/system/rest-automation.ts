@@ -106,7 +106,6 @@ class RestEngine {
     private htmlFolder: string;
 
     constructor(configFile?: string | object) {
-        self = this;
         platform = new Platform(configFile);
         const appConfig = platform.getConfig();
         this.traceIdLabels = appConfig.getProperty('trace.http.header', 'x-trace-id')

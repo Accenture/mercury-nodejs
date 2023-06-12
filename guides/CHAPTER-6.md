@@ -251,7 +251,9 @@ const value = config.get('my.parameter');
 const text = config.getProperty('my.parameter');
 ```
 
-The system uses the standard dot-bracket format for a parameter name. e.g. `hello.world`, `some.key[2]`
+The system uses the standard dot-bracket format for a parameter name.
+
+> e.g. `hello.world`, `some.key[2]`
 
 You can also override the main application configuration using the `set` method.
 
@@ -262,9 +264,10 @@ const myConfig = new ConfigReader(filePath);
 ```
 
 The configuration system supports environment variable or reference to the main application configuration
-using the dollar-bracket syntax. e.g. `some.key=${MY_ENV_VARIABLE}` or `some.key=${my.main.config}`
+using the dollar-bracket syntax.
 
-Syntax: `${reference:default_value}`
+> e.g. `some.key=${MY_ENV_VARIABLE}` `some.key=${my.main.config}`
+  Syntax: `${reference:default_value}`
 
 ## Override configuration parameters at run-time
 
@@ -346,6 +349,6 @@ For enterprise clients, optional technical support is available. Please contact 
 for details.
 <br/>
 
-|            Chapter-5            |                   Home                    |             Appendix-I              |
-|:-------------------------------:|:-----------------------------------------:|:-----------------------------------:|
-| [Event over HTTP](CHAPTER-5.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Application config](APPENDIX-I.md) |
+|            Chapter-5            |                   Home                    |                Chapter-7                |
+|:-------------------------------:|:-----------------------------------------:|:---------------------------------------:|
+| [Event over HTTP](CHAPTER-5.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Test Driven Development](CHAPTER-7.md) |

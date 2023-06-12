@@ -95,7 +95,6 @@ class RestEngine {
     actuatorRouteName;
     htmlFolder;
     constructor(configFile) {
-        self = this;
         platform = new Platform(configFile);
         const appConfig = platform.getConfig();
         this.traceIdLabels = appConfig.getProperty('trace.http.header', 'x-trace-id')

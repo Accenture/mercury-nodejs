@@ -4,9 +4,8 @@ import { preload, Composable, EventEnvelope, Logger,
 
 const log = new Logger();
 
-export class HelloWorldService implements Composable {   
-    
-    name: string = "hello.world";
+export class HelloWorldService implements Composable {       
+    name = "hello.world";
 
     @preload()
     initialize(): void {
@@ -28,8 +27,14 @@ export class HelloWorldService implements Composable {
             if (request) {
                 // illustrate multipart upload from a user
                 if ('POST' == request.getMethod() && request.getFileName() && request.getStreamRoute()) {
-                    const len = await HelloWorldService.downloadFile(request.getStreamRoute(), request.getFileName());
-                    log.info(`Received ${request.getFileName()} - ${len} bytes`);
+                    const contentType = request.getHeader('content-type');
+                    if (contentType && contentType.startsWith('multipart/form-data')) {
+                        const len = await HelloWorldService.downloadFile(request.getStreamRoute(), request.getFileName());
+                        log.info(`Received ${request.getFileName()} - ${len} bytes`);    
+                        return {'filename': request.getFileName(), 'stream': request.getStreamRoute(), 'type': contentType, 'size': len};
+                    } else {
+                        throw new AppException(400, 'Not a multipart file upload');
+                    }
                 }
                 // demonstrate streaming file download to a user
                 if ('GET' == request.getMethod() && request.getQueryParameter('download')) {
@@ -58,8 +63,9 @@ export class HelloWorldService implements Composable {
     static async downloadFile(streamId: string, filename: string) {
         let n = 0;
         let len = 0;
+        let eof = false;
         const stream = new ObjectStreamReader(streamId, 5000);
-        while (true) {
+        while (!eof) {
             try {
                 const block = await stream.read();
                 if (block) {
@@ -70,16 +76,14 @@ export class HelloWorldService implements Composable {
                     }
                 } else {
                     log.info("EOF reached");
-                    break;
+                    eof = true;
                 }
             } catch (e) {
                 const status = e instanceof AppException? e.getStatus() : 500;
                 log.error(`Exception - rc=${status}, message=${e.message}`);
                 break;
             }
-
         }
         return len;
-    } 
-    
+    }    
 }

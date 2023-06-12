@@ -8,9 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## Version 3.0.0, 6/10/2023
 
+Ported composable core features from Mercury 3.0 Java version
+
 ### Added
 
-Ported composable core features from Mercury 3.0 Java version.
+Unit and end-to-end tests for Mercury 3.0 Node.js and for the example app project.
 
 ### Removed
 

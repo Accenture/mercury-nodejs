@@ -24,7 +24,6 @@ export class ConfigReader {
     constructor(configFileOrMap, isBaseConfig = false) {
         if (isBaseConfig) {
             if (self == null) {
-                self = this;
                 this.instance = 0;
             }
             else {
@@ -131,6 +130,7 @@ export class ConfigReader {
                         else {
                             refs.push(middle);
                             this.loopDetection.set(loopId, refs);
+                            // "self" points to the base configuration
                             middle = self.get(middle, defaultValue, loopId);
                         }
                     }

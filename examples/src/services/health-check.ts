@@ -5,7 +5,7 @@ const INFO = 'info';
 const HEALTH = 'health';
 
 export class DemoHealthCheck implements Composable {
-    name: string = "demo.health";
+    name = "demo.health";
 
     @preload()
     initialize(): void {

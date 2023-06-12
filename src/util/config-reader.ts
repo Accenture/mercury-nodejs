@@ -31,7 +31,6 @@ export class ConfigReader {
     constructor(configFileOrMap?: string | object, isBaseConfig = false) {
         if (isBaseConfig) {
             if (self == null) {
-                self = this;
                 this.instance = 0;
             } else {
                 throw new Error('Base configuration is already loaded');
@@ -133,6 +132,7 @@ export class ConfigReader {
                         } else {
                             refs.push(middle);
                             this.loopDetection.set(loopId, refs);
+                            // "self" points to the base configuration
                             middle = self.get(middle, defaultValue, loopId);
                         }
                     }

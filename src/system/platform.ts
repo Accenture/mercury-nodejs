@@ -380,8 +380,7 @@ class EventSystem {
     private stopping = false;
 
     constructor(configFileOrMap?: string | object) {
-        self = this;
-        self.config = new AppConfig(configFileOrMap).getReader();
+        this.config = new AppConfig(configFileOrMap).getReader();
         let levelInEnv = false;
         let reloaded = false;
         let reloadFile: string = null;
@@ -399,7 +398,7 @@ class EventSystem {
                     if (map.isEmpty()) {
                         errorInReload = `Configuration file ${reloadFile} is empty`;
                     } else {
-                        self.config.reload(map);
+                        this.config.reload(map);
                         reloaded = true;
                     }
                 } catch (e) {
@@ -414,14 +413,14 @@ class EventSystem {
                 const k = p.substring(0, sep);
                 const v = p.substring(sep+1);
                 if (k && v) {
-                    self.config.set(k, v);
+                    this.config.set(k, v);
                 }
             }
         }
         if (!levelInEnv) {
-            log.setLevel(self.config.getProperty('log.level', 'info'));
+            log.setLevel(this.config.getProperty('log.level', 'info'));
         }
-        log.setJsonFormat(self.config.getProperty('log.format', 'json') == 'json');
+        log.setJsonFormat(this.config.getProperty('log.format', 'json') == 'json');
         if (reloaded) {
             log.info(`Configuration reloaded from ${reloadFile}`);
         } else if (errorInReload) {
@@ -430,13 +429,13 @@ class EventSystem {
         if (process) {
             // monitor shutdown signals
             process.on('SIGTERM', () => {
-                if (!self.isStopping()) {
+                if (self && !self.isStopping()) {
                     self.stop();
                     log.info('Kill signal detected');
                 }
             });
             process.on('SIGINT', () => {
-                if (!self.isStopping()) {
+                if (self && !self.isStopping()) {
                     self.stop();
                     log.info('Control-C detected');
                 }
@@ -445,9 +444,9 @@ class EventSystem {
         // Event system ready
         log.info(`Event system started - ${po.getId()}`);
         const tracer = new DistributedTrace();
-        self.register(tracer.getName(), tracer.handleEvent, true, 1, true);
+        this.register(tracer.getName(), tracer.handleEvent, true, 1, true);
         const httpClient = new AsyncHttpClient();
-        self.register(httpClient.getName(), httpClient.handleEvent, true, 200, true);
+        this.register(httpClient.getName(), httpClient.handleEvent, true, 200, true);
     }
 
     getOriginId(): string {
@@ -455,7 +454,7 @@ class EventSystem {
     }
 
     getConfig(): ConfigReader {
-        return self.config;
+        return this.config;
     }
 
     register(route: string, listener: (evt: EventEnvelope) => void, isPrivate=true, instances=1, interceptor=false): void {
@@ -464,12 +463,12 @@ class EventSystem {
                 throw new Error('Invalid route name - use 0-9, a-z, period, hyphen or underscore characters');
             }
             if (listener instanceof Function) {
-                if (self.services.has(route)) {
+                if (this.services.has(route)) {
                     log.warn(`Reloading ${route} service`);
-                    self.release(route);
+                    this.release(route);
                 }
                 new ServiceManager(route, listener, isPrivate, instances, interceptor);
-                self.services.set(route, {"private": isPrivate, "instances": instances, "interceptor": interceptor});
+                this.services.set(route, {"private": isPrivate, "instances": instances, "interceptor": interceptor});
             } else {
                 throw new Error('Invalid listener function');
             }
@@ -479,8 +478,8 @@ class EventSystem {
     }
 
     release(route: string) {
-        if (self.services.has(route)) {            
-            const metadata = self.services.get(route);
+        if (this.services.has(route)) {            
+            const metadata = this.services.get(route);
             const isPrivate = metadata['private']
             const instances = parseInt(metadata['instances'])
             // silently unsubscribe the service manager and workers
@@ -488,14 +487,14 @@ class EventSystem {
             for (let i=1; i <= instances; i++) {
                 po.unsubscribe(route+"#"+i, false);
             }
-            self.services.delete(route);
+            this.services.delete(route);
             log.info((isPrivate? 'PRIVATE ' : 'PUBLIC ') + route + ' released');            
         }
     }
 
     isPrivate(route: string) {
-        if (self.services.has(route)) {
-            const metadata = self.services.get(route);
+        if (this.services.has(route)) {
+            const metadata = this.services.get(route);
             return metadata['private'];
         } else {
             throw new Error(`Route ${route} not found`);
@@ -503,8 +502,8 @@ class EventSystem {
     }
 
     async stop() {
-        if (!self.stopping) {
-            self.stopping = true;
+        if (!this.stopping) {
+            this.stopping = true;
             if (po.exists(REST_AUTOMATION_MANAGER)) {
                 await po.request(new EventEnvelope().setTo(REST_AUTOMATION_MANAGER).setHeader('type', 'close'));
             }
@@ -512,7 +511,7 @@ class EventSystem {
                 await po.request(new EventEnvelope().setTo(OBJECT_STREAM_MANAGER).setHeader('type', 'close'));
             }
             let t1 = Date.now();
-            while (self.forever) {
+            while (this.forever) {
                 const now = Date.now();
                 if (now - t1 > 5000) {
                     t1 = now;
@@ -524,15 +523,15 @@ class EventSystem {
     }
 
     isStopping(): boolean {
-        return self.stopping;
+        return this.stopping;
     }
 
     async runForever() {
-        if (!self.forever) {
-            self.forever = true;
+        if (!this.forever) {
+            this.forever = true;
             log.info('To stop application, press Control-C');            
             let t1 = Date.now();
-            while (!self.isStopping()) {
+            while (!this.isStopping()) {
                 const now = Date.now();
                 if (now - t1 > 60000) {
                     t1 = now;
@@ -541,7 +540,7 @@ class EventSystem {
                 await util.sleep(500);
             }
             log.info('Stopped');
-            self.forever = false;
+            this.forever = false;
         }
     }
 

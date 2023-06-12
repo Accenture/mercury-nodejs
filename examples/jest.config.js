@@ -16,9 +16,8 @@ export default {
   ],
   collectCoverageFrom: [
     'src/**/*.ts',
-    '!src/examples/*.ts',    
     '!src/**/*.d.ts',
   ],
-  coveragePathIgnorePatterns: ['./dist/', './target/', './node_modules/', './examples/', './scripts', './tools'],
+  coveragePathIgnorePatterns: ['./dist/', './target/', './node_modules/', './scripts', './tools', './src/extra'],
   coverageProvider: 'v8'
 }

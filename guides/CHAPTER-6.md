@@ -253,7 +253,7 @@ const text = config.getProperty('my.parameter');
 
 The system uses the standard dot-bracket format for a parameter name.
 
-> e.g. `hello.world`, `some.key[2]`
+> e.g. "hello.world", "some.key[2]"
 
 You can also override the main application configuration using the `set` method.
 
@@ -264,10 +264,9 @@ const myConfig = new ConfigReader(filePath);
 ```
 
 The configuration system supports environment variable or reference to the main application configuration
-using the dollar-bracket syntax.
+using the dollar-bracket syntax `${reference:default_value}`.
 
-> e.g. `some.key=${MY_ENV_VARIABLE}` `some.key=${my.main.config}`
-  Syntax: `${reference:default_value}`
+> e.g. "some.key=${MY_ENV_VARIABLE}", "some.key=${my.key}"
 
 ## Override configuration parameters at run-time
 

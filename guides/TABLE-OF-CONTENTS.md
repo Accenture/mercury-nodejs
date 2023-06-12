@@ -14,6 +14,8 @@ Mercury version 3 is a toolkit for writing composable applications.
 
 [Chapter 6 - API overview](CHAPTER-6.md)
 
+[Chapter 7 - Functional tests](CHAPTER-7.md)
+
 [Appendix I - Application config](APPENDIX-I.md)
 
 [Appendix II - Async HTTP Client](APPENDIX-II.md)

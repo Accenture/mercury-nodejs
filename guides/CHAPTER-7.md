@@ -1,8 +1,8 @@
-# Test Driven Development (TDD)
+# Functional tests
 
-The example project is pre-configured with esLint for TypeScript syntax validation and Jest testing framework.
+The example project is pre-configured with "esLint" for TypeScript syntax validation and Jest testing framework.
 
-Composable application is designed to be test friendly.
+Composable application is designed to be Test Driven Development (TDD) friendly.
 
 There are two test suites under the "examples/test" folder. One for unit tests and one for end-to-end tests.
 

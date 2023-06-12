@@ -11,7 +11,7 @@
     "prebuild": "npm run lint",
     "build": "tsc -p tsconfig.json && node copy-static-files.js",
     "build:watch": "tsc -w -p tsconfig.json",
-    "lint": "eslint . --ext .ts",
+    "lint": "eslint -c eslint.json . --ext .ts",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "jest --watch"
   },

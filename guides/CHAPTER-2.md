@@ -50,7 +50,7 @@ npm run build
 ```
 
 The "preload" command will generate the "preload.ts" script and the "build" command will generate the "dist" folder
-containing the executable "javacript" files.
+containing the executable "javascript" files.
 
 ## Running the hello world application
 

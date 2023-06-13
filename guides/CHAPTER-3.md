@@ -78,7 +78,7 @@ Your custom authentication function may look like this:
 
 ```javascript
 export class DemoAuth implements Composable {
-    name: string = "v1.api.auth";
+    name = "v1.api.auth";
 
     @preload()
     initialize(): void {

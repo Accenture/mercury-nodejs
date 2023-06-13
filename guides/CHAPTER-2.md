@@ -211,7 +211,7 @@ A function can be defined in a class with this template:
 ```javascript
 export class HelloWorldService implements Composable {
 
-    name: string = "hello.world";
+    name = "hello.world";
 
     @preload()
     initialize(): void {

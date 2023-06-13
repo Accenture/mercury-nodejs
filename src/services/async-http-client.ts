@@ -42,7 +42,7 @@ const ECONNREFUSED = 'ECONNREFUSED';
 
 export class AsyncHttpClient implements Composable {
     
-    name: string = HTTP_CLIENT_SERVICE;
+    name = HTTP_CLIENT_SERVICE;
 
     initialize(): void {
         // no-op

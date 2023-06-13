@@ -64,7 +64,7 @@ Your user function module may look like this:
 ```typescript
 export class HelloWorldService implements Composable {
 
-    name: string = "hello.world";
+    name = "hello.world";
 
     @preload()
     initialize(): void {

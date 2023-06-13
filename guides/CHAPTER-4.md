@@ -36,7 +36,7 @@ In declarative approach, you use the `preLoad` annotation to register a class wi
 ```javascript
 export class HelloWorldService implements Composable {
 
-    name: string = "hello.world";
+    name = "hello.world";
 
     @preload()
     initialize(): void {

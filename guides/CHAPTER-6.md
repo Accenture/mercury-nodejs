@@ -93,7 +93,7 @@ import { preload, Composable, EventEnvelope, AsyncHttpRequest, Logger } from 'me
 const log = new Logger();
 
 export class DemoAuth implements Composable {
-    name: string = "v1.api.auth";
+    name = "v1.api.auth";
 
     @preload()
     initialize(): void {

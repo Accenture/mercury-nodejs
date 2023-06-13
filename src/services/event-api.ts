@@ -18,7 +18,7 @@ let platform: Platform;
 
 export class EventApiService implements Composable { 
 
-    name: string = EVENT_API_SERVICE;
+    name = EVENT_API_SERVICE;
     
     constructor() {
         platform = new Platform();

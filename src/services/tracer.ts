@@ -12,7 +12,7 @@ const SERVICE = 'service';
 
 export class DistributedTrace implements Composable {
     
-    name: string = DISTRIBUTED_TRACING;
+    name = DISTRIBUTED_TRACING;
 
     initialize(): void {
         // no-op

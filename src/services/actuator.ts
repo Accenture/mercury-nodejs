@@ -29,7 +29,7 @@ const numberFormatter = new Intl.NumberFormat('en-us');
 
 export class ActuatorServices implements Composable {
     
-    name: string = ACTUATOR_SERVICES;
+    name = ACTUATOR_SERVICES;
 
     constructor() {
         if (!loaded) {

@@ -33,7 +33,7 @@ export class RpcEvent implements Composable {
             const result = await po.remoteRequest(req, REMOTE_EVENT_ENDPOINT);
             if (result.getStatus() == 200) {
                 if (result.getBody()) {
-                    returnObj.received.push(result.getBody());
+                    returnObj.received.push({returnBody: result.getBody(), iteration: i} );
                 }
             } else {
                 const errStr = `Unable to connect to ${REMOTE_EVENT_ENDPOINT} - HTTP-${result.getStatus()} - ${result.getBody()}`;

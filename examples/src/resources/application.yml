@@ -6,7 +6,7 @@ info.app:
   description: 'Composable application example'
 
 # server port for Event API REST endpoint
-server.port: 8085
+server.port: 8086
 
 # log.format can be 'text' or 'json'
 log:

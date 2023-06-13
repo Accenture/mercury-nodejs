@@ -6,6 +6,17 @@ Composable application is designed to be Test Driven Development (TDD) friendly.
 
 There are two test suites under the "examples/test" folder. One for unit tests and one for end-to-end tests.
 
+## Running tests
+
+Before running the tests be sure you have run preload and build. The E2E tests run against the build from the dist folder.
+Also make sure no apps are running on the configured port already. You may have a stray mercury app running on that port and your test results won't be what you expect.
+Then just npm run test as usual.
+
+```sh
+npm run preload && npm run build # if you have not run yet
+npm test
+```
+
 ## Unit tests
 
 Since each user function is written in the first principle "input-process-output", you can write unit tests

@@ -57,8 +57,7 @@ services.
 The "ComposableLoader.initialize()" statement will load your user functions into the event loop. There is
 no need to directly import each module in your application. The "ComposableLoader" automates the loading.
 
-Configure the functions you want loaded in the resources/preload.yaml, see the examples/resources/preload.yaml for an example.
-In the future annotations may be available in node as they are like below and preload.yaml will not be necessary.
+Please configure the functions to be loaded in `src/resources/preload.yaml`.
 
 ### Business logic modules
 
@@ -92,7 +91,7 @@ composable application. Each function is addressable by a unique "route name" an
 In the above example, the unique "route name" of the function is "hello.world".
 
 > Writing code in the first principle of "input-process-output" promotes Test Driven Development (TDD) because
-interface contact is clearly defined. Self-containment means code is more readable too.
+  interface contact is clearly defined. Self-containment means code is more readable too.
 
 ### Event orchestration
 

@@ -201,6 +201,11 @@ parentPort.postMessage(someResponse);
 Mercury reduces this complexity because you can write a function as a gateway to interface with the worker
 thread.
 
+> IMPORTANT - Please be careful about the use of worker threads. Since each worker thread runs in a 
+  separate "v8" instance, it may overload the target machine and degrade application performance when
+  you have many worker threads in your application. Therefore, please keep the number of worker threads
+  to a bare minimal.
+
 # Event Orchestration
 
 We can construct a composable application with self-contained functions that execute when events arrive.

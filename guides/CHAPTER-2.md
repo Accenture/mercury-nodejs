@@ -48,8 +48,7 @@ Alternatively, you may build the Mercury 3.0 for Node.js library and publish it 
 npm run build
 ```
 
-The "build" command will generate the "dist" folder
-containing the executable "javascript" files.
+The "build" command will generate the "dist" folder containing the executable "javascript" files.
 
 ## Running the hello world application
 

@@ -102,6 +102,14 @@ rest:
     cors: cors_1
     headers: header_1
 
+  - service: "rpc.event"
+    methods: ['GET', 'POST']
+    url: "/api/rpc/event"
+    # to support multipart file upload, set upload to true
+    timeout: 15s
+    cors: cors_1
+    headers: header_1
+
 #
 # CORS HEADERS for pre-flight (HTTP OPTIONS) and normal responses
 #

@@ -5,6 +5,8 @@ import:
     location: '../services/health-check.js'
   - class: DemoAuth
     location: '../services/demo-auth.js'
+  - class: RpcEvent
+    location: '../services/rpc-event-service.js'
 
 preload:
   - name: 'hello.world'
@@ -19,3 +21,8 @@ preload:
     private: true
     instances: 5
     interceptor: false
+  - name: 'rpc.event'
+    private: false
+    instances: 5
+    interceptor: false
+

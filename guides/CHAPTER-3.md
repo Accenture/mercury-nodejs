@@ -113,7 +113,7 @@ organization's OAuth 2.0 Identity Provider for authentication.
 To return session information to the next function, the authentication function can return an EventEnvelope.
 It can set the session information as key-values in the response event headers.
 
-You can test this by visiting http://127.0.0.1:8085/api/hello/world to invoke the "hello.world" function.
+You can test this by visiting http://127.0.0.1:8086/api/hello/world to invoke the "hello.world" function.
 
 The console will print:
 ```text

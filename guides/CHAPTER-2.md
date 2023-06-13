@@ -6,7 +6,7 @@ You can clone the project like this:
 
 ```shell
 cd sandbox
-git clone https://github.com/acn-ericlaw/mercury-nodejs.git
+git clone https://github.com/Accenture/mercury-nodejs.git
 cd mercury-nodejs
 cd examples
 ```
@@ -45,11 +45,10 @@ Alternatively, you may build the Mercury 3.0 for Node.js library and publish it 
 ## Building the hello world application
 
 ```shell
-npm run preload
 npm run build
 ```
 
-The "preload" command will generate the "preload.ts" script and the "build" command will generate the "dist" folder
+The "build" command will generate the "dist" folder
 containing the executable "javascript" files.
 
 ## Running the hello world application
@@ -89,11 +88,11 @@ $ node dist/hello-world.js
 2023-06-09 15:49:35.160 INFO PUT /api/simple/{task}/* -> hello.world, timeout=12s, tracing=false (routing.js:521)
 2023-06-09 15:49:35.161 INFO POST /api/simple/{task}/* -> hello.world, timeout=12s, tracing=false (routing.js:521)
 2023-06-09 15:49:35.161 INFO OPTIONS /api/simple/{task}/* -> hello.world, timeout=12s (routing.js:515)
-2023-06-09 15:49:35.162 WARN trust_all_cert=true for http://127.0.0.1:8085 is not relevant - Do you meant https? (RestEntry.loadRestEntry:routing.js:484)
-2023-06-09 15:49:35.162 INFO GET /api/v1/* -> http://127.0.0.1:8085, timeout=20s, tracing=true (routing.js:521)
-2023-06-09 15:49:35.162 INFO PUT /api/v1/* -> http://127.0.0.1:8085, timeout=20s, tracing=true (routing.js:521)
-2023-06-09 15:49:35.162 INFO POST /api/v1/* -> http://127.0.0.1:8085, timeout=20s, tracing=true (routing.js:521)
-2023-06-09 15:49:35.163 INFO OPTIONS /api/v1/* -> http://127.0.0.1:8085, timeout=20s (routing.js:515)
+2023-06-09 15:49:35.162 WARN trust_all_cert=true for http://127.0.0.1:8086 is not relevant - Do you meant https? (RestEntry.loadRestEntry:routing.js:484)
+2023-06-09 15:49:35.162 INFO GET /api/v1/* -> http://127.0.0.1:8086, timeout=20s, tracing=true (routing.js:521)
+2023-06-09 15:49:35.162 INFO PUT /api/v1/* -> http://127.0.0.1:8086, timeout=20s, tracing=true (routing.js:521)
+2023-06-09 15:49:35.162 INFO POST /api/v1/* -> http://127.0.0.1:8086, timeout=20s, tracing=true (routing.js:521)
+2023-06-09 15:49:35.163 INFO OPTIONS /api/v1/* -> http://127.0.0.1:8086, timeout=20s (routing.js:515)
 2023-06-09 15:49:35.163 INFO GET /api/hello/download -> hello.download, timeout=20s, tracing=false (routing.js:521)
 2023-06-09 15:49:35.164 INFO OPTIONS /api/hello/download -> hello.download, timeout=20s (routing.js:515)
 2023-06-09 15:49:35.164 INFO Exact API path [/api/event, /api/hello/download, /api/hello/list, /api/hello/upload, /api/hello/world] (RestEntry.load:routing.js:175)
@@ -101,10 +100,10 @@ $ node dist/hello-world.js
 2023-06-09 15:49:35.165 INFO Static HTML folder: /sandbox/mercury-nodejs/examples/dist/resources/public (RestEngine.startHttpServer:rest-automation.js:135)
 2023-06-09 15:49:35.241 INFO To stop application, press Control-C (EventSystem.runForever:platform.js:523)
 2023-06-09 15:49:35.242 INFO Hello world application started (main:hello-world.js:33)
-2023-06-09 15:49:35.246 INFO REST automation service started on port 8085 (rest-automation.js:226)
+2023-06-09 15:49:35.246 INFO REST automation service started on port 8086 (rest-automation.js:226)
 ```
 
-Now please open your browser to "http://127.0.0.1:8085". You will see the application home page:
+Now please open your browser to "http://127.0.0.1:8086". You will see the application home page:
 
 ```text
 Hello World
@@ -167,7 +166,7 @@ The health endpoint may look like this:
 
 ## Hello World demo endpoint
 
-When you enter "http://127.0.0.1:8085/api/hello/world" in the browser, you will see this page:
+When you enter "http://127.0.0.1:8086/api/hello/world" in the browser, you will see this page:
 
 ```json
 {
@@ -180,7 +179,7 @@ When you enter "http://127.0.0.1:8085/api/hello/world" in the browser, you will 
     "sec-fetch-mode": "navigate",
     "sec-fetch-user": "?1",
     "sec-fetch-dest": "document",
-    "referer": "http://127.0.0.1:8085/",
+    "referer": "http://127.0.0.1:8086/",
     "accept-language": "en-US,en;q=0.9",
     "x-flow-id": "hello-world"
   },
@@ -239,7 +238,7 @@ If your function has a constructor, please do not use any input arguments.
 
 ## Distributed trace
 
-When you browse the endpoint "http://127.0.0.1:8085/api/hello/world", you will see a log message like this:
+When you browse the endpoint "http://127.0.0.1:8086/api/hello/world", you will see a log message like this:
 
 ```text
 2023-06-09 16:13:23.266 INFO {"trace":{"origin":"2f2d6abd7b9c4d9d9694b3b900254f7a",
@@ -281,7 +280,7 @@ info.app:
   description: 'Composable application example'
   
 # server port for Event API REST endpoint
-server.port: 8085
+server.port: 8086
 
 # log.format can be 'text' or 'json'
 log:

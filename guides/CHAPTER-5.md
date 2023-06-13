@@ -13,7 +13,7 @@ To enable "Event over HTTP", you must first turn on the REST automation engine w
 in the application.properties file:
 
 ```properties
-server.port=8085
+server.port=8086
 ```
 
 and then check if the following entry is configured in the "rest.yaml" endpoint definition file.
@@ -27,7 +27,7 @@ If not, update "rest.yaml" accordingly. The "timeout" value is set to 60 seconds
     tracing: true
 ```
 
-This will expose the Event API endpoint at port 8085 and URL "/api/event".
+This will expose the Event API endpoint at port 8086 and URL "/api/event".
 
 In kubernetes, The Event API endpoint of each application is reachable through internal DNS and there is no need
 to create "ingress" for this purpose.
@@ -36,7 +36,7 @@ to create "ingress" for this purpose.
 
 You may now test drive the Event API service.
 
-First, build and run the lambda-example application in port 8085.
+First, build and run the lambda-example application in port 8086.
 
 ```shell
 cd examples/dist
@@ -46,7 +46,7 @@ node hello-world.js
 Second, build and run the rpc-to-service application.
 
 ```shell
-cd examples/dist
+cd examples/dist/extra
 node rpc-to-service.js
 ```
 
@@ -74,7 +74,7 @@ Since the rpc-to-service is not a service itself, it runs as a standalone comman
 It provides the "tracing" metadata in the PostOffice like this:
 
 ```shell
-const REMOTE_EVENT_ENDPOINT = 'http://127.0.0.1:8085/api/event';
+const REMOTE_EVENT_ENDPOINT = 'http://127.0.0.1:8086/api/event';
 const po = new PostOffice({ 'my_route': 'rpc.demo', 'my_trace_id': '200', 'my_trace_path': '/api/remote/rpc' });
 ...
 const result = await po.remoteRequest(req, REMOTE_EVENT_ENDPOINT);

@@ -57,6 +57,9 @@ services.
 The "ComposableLoader.initialize()" statement will load your user functions into the event loop. There is
 no need to directly import each module in your application. The "ComposableLoader" automates the loading.
 
+Configure the functions you want loaded in the resources/preload.yaml, see the examples/resources/preload.yaml for an example.
+In the future annotations may be available in node as they are like below and preload.yaml will not be necessary.
+
 ### Business logic modules
 
 Your user function module may look like this:

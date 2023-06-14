@@ -9,9 +9,10 @@ import { parse as parseYaml } from 'yaml';
 import { fileURLToPath } from "url";
 import { Logger, Platform, ConfigReader, FunctionRegistry } from 'mercury';
 // import the user services
-import { HelloWorldService } from '../services/hello-world-service.js';
-import { DemoHealthCheck } from '../services/health-check.js';
-import { DemoAuth } from '../services/demo-auth.js';
+// Generated: 2023-06-13 20:54:13.122
+import { DemoAuth } from '../services/demo-auth.js'
+import { DemoHealthCheck } from '../services/health-check.js'
+import { HelloWorldService } from '../services/hello-world-service.js'
 
 const log = new Logger();
 const PRELOAD_SECTION = 'preload';
@@ -59,9 +60,9 @@ export class ComposableLoader {
             const platform = new Platform();
             const registry = new FunctionRegistry();    
             // list of services
-            new HelloWorldService().initialize();
-            new DemoHealthCheck().initialize();
             new DemoAuth().initialize();
+            new DemoHealthCheck().initialize();
+            new HelloWorldService().initialize();
             // register the services
             const serviceMap = config && config.constructor == Object? config : getPreloadConfig();
             for (const name in serviceMap) {

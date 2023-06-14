@@ -57,14 +57,6 @@ export class HelloWorldService implements Composable {
 To tell the system where to find the functions, you can configure the "preload.yaml" file like this:
 
 ```yaml
-import:
-  - class: HelloWorldService
-    location: '../services/hello-world-service.js'
-  - class: DemoHealthCheck
-    location: '../services/health-check.js'
-  - class: DemoAuth
-    location: '../services/demo-auth.js'
-
 preload:
   - name: 'hello.world'
     private: false
@@ -80,8 +72,7 @@ preload:
     interceptor: false
 ```
 
-In the above configuration example, the "import" section states the class names and locations that is relative to
-the "resources" folder in your source code project. The "preload" section tells the system to load the functions
+In the above configuration example, the "preload" section tells the system to load the functions
 into the event loop.
 
 Once a function is created using the declarative method, you can override it with a mock function by using the

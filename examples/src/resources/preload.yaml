@@ -1,11 +1,24 @@
-import:
-  - class: HelloWorldService
-    location: '../services/hello-world-service.js'
-  - class: DemoHealthCheck
-    location: '../services/health-check.js'
-  - class: DemoAuth
-    location: '../services/demo-auth.js'
-
+#
+# This configuration file instructs the system to register Composable services
+# ------------------------------------------------------------------------------
+#
+# Each entry contains 4 key-values
+# name: unique service route name for your Composable function
+# private: true or false (for public function, private=false)
+# instances: number of concurrent workers for the function
+# interceptor: true to indicate that the function is an interceptor
+#
+# ------------------------------------------------------------------------------
+# You can create a singleton function by setting the number of instances to one.
+# ------------------------------------------------------------------------------
+# The system will ignore return value from an interceptor function.
+# The function must use the PostOffice to relay the incoming event to
+# another function(s).
+# ------------------------------------------------------------------------------
+# Interceptor is also useful if you want to conditionally return
+# value using the PostOffice's send() API.
+# ------------------------------------------------------------------------------
+#
 preload:
   - name: 'hello.world'
     private: false

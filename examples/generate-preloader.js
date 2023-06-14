@@ -1,96 +1,126 @@
-import { TemplateLoader, Utility, Logger } from 'mercury';
-import { fileURLToPath } from "url";
+import { TemplateLoader, Logger, Utility } from 'mercury';
+import { fileURLToPath } from 'url';
 import fs from 'fs';
 
 const log = new Logger();
 const util = new Utility();
+const clsMap = new Map();
 
 const IMPORT_TAG = '${import-statements}';
 const SERVICE_TAG = '${service-list}';
 
-function main() {
-    const folder = fileURLToPath(new URL("./src/", import.meta.url));
-    const src = folder.includes('\\')? folder.replaceAll('\\', '/') : folder;
+const EXPORT_TAG = 'export';
+const PRELOAD_TAG = '@preload()';
+const INITIALIZE_TAG = 'initialize()';
 
-    const loader = new TemplateLoader();
-    const template = loader.getTemplate('preload.template');
-    if (template && template.includes(IMPORT_TAG) && template.includes(SERVICE_TAG)) {
-        const lines = template.split('\n');
-
-        const preloadYaml = src + 'resources/preload.yaml';
-        
-        const map = util.loadYamlFile(preloadYaml);
-    
-        const importList = map.getElement('import');
-        if (!Array.isArray(importList)) {
-            throw new Error("Import section should be a list of map");
-        }
-        const clsList = [];
-        let statementBlock = '';
-        for (const entry of importList) {
-            if (!Array.isArray(entry) && entry.constructor == Object) {
-                const cls = entry['class'];
-                const location = entry['location'];
-                if (typeof(cls) == 'string' && typeof(location) == 'string') {
-                    clsList.push(cls);
-                    statementBlock += 'import { ';
-                    statementBlock += cls;
-                    statementBlock += " } from '";
-                    statementBlock += location;
-                    statementBlock += "';\n";
-                } else {
-                    throw new Error(`Invalid import entry - ${JSON.stringify(entry)}`);
+async function scanDir(path) {
+    const folder = path.endsWith('/')? path : path + '/';
+    const files = await fs.promises.readdir(folder);
+    for (const f of files) {
+        const stat = await fs.promises.stat(folder + f);
+        if (stat.isDirectory()) {
+            await scanDir(folder + f +'/');
+        } else {
+            if (f.endsWith('.ts') && !f.endsWith('.d.ts')) {
+                const path = folder + f;
+                const clsName = await getComposable(path);
+                if (clsName) {
+                    clsMap.set(clsName, path);
+                    log.info(`Class ${clsName}`);
                 }
-            }
+            }            
         }
-    
-        let section = 'import';
-        let sb = '';
-        for (const line of lines) {
-            if (section == 'import') {
-                if (line.includes(IMPORT_TAG)) {
-                    sb += statementBlock;
-                    section = 'service';
-                    continue;
-                } else {
-                    sb += `${line}\n`;
-                }
-            }
-            if (section == 'service') {
-                if (line.includes(SERVICE_TAG)) {
-                    const idx = line.indexOf(SERVICE_TAG);
-                    const spaces = line.substring(0, idx);
-                    for (let i=0; i < clsList.length; i++) {
-                        const cls = clsList[i];
-                        const text = `${spaces}new ${cls}().initialize();\n`;
-                        sb += text;
-                    }
-                    section = 'remaining';
-                    continue;
-                } else {
-                    sb += `${line}\n`;
-                }
-            }
-            if (section == 'remaining') {
-                sb += `${line}\n`;
-            }
-        }
-        const targetDir = src + 'preload';
-        if (!fs.existsSync(targetDir)) {
-            fs.mkdirSync(targetDir);
-        }
-        const targetFile = src + 'preload/preload.ts';
-        fs.writeFileSync(targetFile, sb);
-        log.info(`${targetFile} successfully updated`);
-
-    } else {
-        throw new Error(`Invalid preload.template - missing ${IMPORT_TAG} and ${SERVICE_TAG} tags`);
     }
 }
 
-try {
-    main();
-} catch (e) {
-    log.error(`Unable to generate preloader - ${e.message}`);
+async function getComposable(path) {
+    const content = await fs.promises.readFile(path, 'utf-8');
+    const lines = content.split('\n').map(v => v.trim()).filter(v => v);
+    let clsName = null;
+    let found = false;
+    let signature = EXPORT_TAG;
+    for (const line of lines) {
+        if (EXPORT_TAG == signature) {
+            if (line.startsWith(signature + ' ')) {
+                const parts = line.split(' ').filter(v => v);
+                if (parts.length >= 5 && 'class' == parts[1] && 
+                    'implements' == parts[3] && 'Composable' == parts[4]) {
+                    clsName = parts[2];
+                    signature = '@preload()';
+                }
+            }
+        } else if (PRELOAD_TAG == signature && PRELOAD_TAG == line) {
+            signature = INITIALIZE_TAG;
+        } else if (INITIALIZE_TAG == signature && line.startsWith(INITIALIZE_TAG)) {
+            found = true;
+            break;
+        }
+    }
+    return found && clsName? clsName : null;
 }
 
+async function generateCode(src, lines) {
+    const names = Array.from(clsMap.keys());
+    let section = 'import';
+    let sb = '';
+    for (const line of lines) {
+        if (section == 'import') {
+            if (line.includes(IMPORT_TAG)) {
+                sb += `// Generated: ${util.getLocalTimestamp()}\n`;             
+                for (const cls of names) {
+                    const filePath = clsMap.get(cls);
+                    const path = '../' + filePath.substring(src.length, filePath.length-3) + '.js';
+                    sb += `import { ${cls} } from '${path}'\n`;
+                }
+                section = 'service';
+                continue;
+            } else {
+                sb += `${line}\n`;
+            }
+        }
+        if (section == 'service') {
+            if (line.includes(SERVICE_TAG)) {
+                const idx = line.indexOf(SERVICE_TAG);
+                const spaces = line.substring(0, idx);
+                for (const cls of names) {
+                    sb += `${spaces}new ${cls}().initialize();\n`;
+                }
+                section = 'remaining';
+                continue;
+            } else {
+                sb += `${line}\n`;
+            }
+        }
+        if (section == 'remaining') {
+            sb += `${line}\n`;
+        }
+    }
+    const targetDir = src + 'preload';
+    if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir);
+    }
+    const targetFile = src + 'preload/preload.ts';
+    fs.writeFileSync(targetFile, sb);
+    const relativePath = './' + targetFile.substring(src.length);
+    log.info(`Service loader (${relativePath}) generated`);
+}
+
+async function main() {
+    const folder = fileURLToPath(new URL("./src/", import.meta.url));
+    const src = folder.includes('\\')? folder.replaceAll('\\', '/') : folder;
+    await scanDir(src);
+    if (clsMap.size > 0) {
+        const loader = new TemplateLoader();
+        const template = loader.getTemplate('preload.template');
+        if (template && template.includes(IMPORT_TAG) && template.includes(SERVICE_TAG)) {
+            const lines = template.split('\n');
+            await generateCode(src, lines);
+        } else {
+            throw new Error(`Invalid preload.template - missing ${IMPORT_TAG} and ${SERVICE_TAG} tags`);
+        }
+    } else {
+        log.info('There are no composable functions in the source folder');
+    }
+}
+
+main();

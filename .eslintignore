@@ -3,3 +3,4 @@
 /**/*.test.ts
 /**/*.spec.ts
 /examples/**/*.ts
+/test/services/**/*.ts

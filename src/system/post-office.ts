@@ -5,9 +5,11 @@ import { EventEnvelope } from '../models/event-envelope.js';
 import { AppException } from '../models/app-exception.js';
 import { Utility } from '../util/utility.js';
 import { AsyncHttpRequest } from '../models/async-http-request.js';
+import { FunctionRegistry } from '../util/function-registry.js';
 
 const log = new Logger();
 const util = new Utility();
+const registry = new FunctionRegistry();
 let self: PO = null;
 const DISTRIBUTED_TRACING = 'distributed.tracing';
 const ASYNC_HTTP_CLIENT = 'async.http.request';
@@ -68,6 +70,15 @@ export class PostOffice {
      */
     getId(): string {
         return self.getId();
+    }
+
+    /**
+     * Obtain the "this" reference (i.e. class instance) of my function
+     * 
+     * @returns the Composable class holding the function that instantiates this PostOffice
+     */
+    getMyClass(): object {
+        return this.trackable? registry.getClass(this.from) : null;
     }
 
     /**

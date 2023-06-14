@@ -13,6 +13,12 @@ export declare class PostOffice {
      */
     getId(): string;
     /**
+     * Obtain the "this" reference (i.e. class instance) of my function
+     *
+     * @returns the Composable class holding the function that instantiates this PostOffice
+     */
+    getMyClass(): object;
+    /**
      * Check if a route has been registered
      *
      * @param route name of the registered function

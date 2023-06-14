@@ -11,17 +11,12 @@ export class FunctionRegistry {
     }
 
     /**
-     * Save a function to the registry by name.
+     * Save a Composable class to the registry by name.
      * 
-     * This is used when you publish a library with reusable functions and
-     * you want to expose the functions by names for subsequent registration
-     * by the user application.
-     * 
-     * @param name of the function
-     * @param listener is the function reference
+     * @param that is the class instance of the Composable function
      */
-    saveFunction(name: string, listener: (evt: EventEnvelope) => void) {
-        self.saveFunction(name, listener);
+    saveFunction(that: object): void {
+        self.saveFunction(that);
     }
 
     /**
@@ -34,6 +29,17 @@ export class FunctionRegistry {
      */
     getFunction(name: string): (evt: EventEnvelope) => void  {
         return self.getFunction(name);
+    }
+
+    /**
+     * Retrieve the class instance of a function
+     * (this would be used to invoke other methods in the same class)
+     * 
+     * @param name of the function
+     * @returns the Composable class holding the function
+     */
+    getClass(name: string): object {
+        return self.getClass(name);
     }
 
     /**
@@ -59,19 +65,37 @@ export class FunctionRegistry {
 
 class SimpleRegistry {
     
-    private functionRegistry = new Map<string, (evt: EventEnvelope) => void>();
+    private functionRegistry = new Map<string, object>();
 
-    saveFunction(name: string, listener: (evt: EventEnvelope) => void) {
-        if (listener instanceof Function) {
-            this.functionRegistry.set(name, listener);
-        } else {
-            throw new Error('Invalid listener function');
+    saveFunction(that: object): void {
+        let valid = false;
+        if ('name' in that && 'initialize' in that && 'getName' in that && 'handleEvent' in that) {
+            const name = that['name'];
+            const f1 = that['initialize'];
+            const f2 = that['getName'];
+            const f3 = that['handleEvent'];
+            if (typeof name == 'string' && f1 instanceof Function && f2 instanceof Function && f3 instanceof Function) {
+                valid = true;                
+                this.functionRegistry.set(name, that);
+            }
+        }
+        if (!valid) {
+            throw new Error('Invalid Composable class');
         }
     }
 
     getFunction(name: string): (evt: EventEnvelope) => void {
-        const result = this.functionRegistry.get(name);
-        return result? result : null;
+        const cls = this.functionRegistry.get(name);
+        if (cls && 'handleEvent' in cls) {
+            return cls['handleEvent'] as (evt: EventEnvelope) => void;
+        } else {
+            return null;
+        }
+    }
+
+    getClass(name: string): object {
+        const cls = this.functionRegistry.get(name);
+        return cls? cls : null;
     }
 
     exists(name: string): boolean {

@@ -11,6 +11,7 @@ import { EventEnvelope } from '../src/models/event-envelope.js';
 import { AsyncHttpRequest } from '../src/models/async-http-request.js';
 import { AppException } from '../src/models/app-exception.js';
 import { ObjectStreamIO, ObjectStreamReader, ObjectStreamWriter } from '../src/system/object-stream.js';
+import { HelloWorld } from './services/helloworld.js';
 import { fileURLToPath } from "url";
 import fs from 'fs';
 
@@ -46,36 +47,6 @@ let server: RestAutomation;
 let endApiUrl: string;
 let baseUrl: string;
 let resourceFolder: string;
-
-async function helloWorld(evt: EventEnvelope) {
-  if (TIMEOUT == evt.getHeader(TYPE)) {
-    // simulate artificial delay to keep the worker instance busy,
-    // thus leaving remaining workers to serve additional requests.
-    await util.sleep(500);
-    return TIMEOUT;
-  } else if (ERROR == evt.getHeader(TYPE)) {
-    throw new AppException(400, DEMO_EXCEPTION);
-  } else {
-    if ('my_instance' in evt.getHeaders()) {
-      evt.setHeader(HELLO_INSTANCE, evt.getHeader('my_instance'));
-    }
-    const body = evt.getBody();
-    if (typeof body == 'object') {
-      const request = new AsyncHttpRequest(evt.getBody() as object);
-      if ('PUT' == request.getMethod()) {
-        const reqBody = request.getBody();
-        if (reqBody instanceof Buffer) {
-          // convert byte array into base64 before returning to user
-          request.setBody(reqBody.toString('base64'));
-          const result = new EventEnvelope(evt);
-          result.setBody(request.toMap());
-          return result;
-        }
-      }
-    }
-    return new EventEnvelope(evt);
-  }  
-}
 
 async function helloDownload(evt: EventEnvelope) {
   const request = new AsyncHttpRequest(evt.getBody() as object);
@@ -147,11 +118,12 @@ describe('post office use cases', () => {
       resourceFolder = fileURLToPath(new URL('./resources', import.meta.url));
       const filePath = util.normalizeFilePath(resourceFolder + '/rest.yaml');
       // save the helloWorld as DEMO_LIBRARY_FUNCTION so that it can be retrieved by name
-      registry.saveFunction(DEMO_LIBRARY_FUNCTION, helloWorld);
+      const helloWorld = new HelloWorld();
+      registry.saveFunction(helloWorld);
       // register a hello.world function to echo the incoming payload
-      platform.register(HELLO_WORLD_SERVICE, helloWorld, false, HELLO_WORLD_INSTANCES);
+      platform.register(HELLO_WORLD_SERVICE, helloWorld.handleEvent, false, HELLO_WORLD_INSTANCES);
       // register the same function as another route name and declare it as private
-      platform.register(HELLO_PRIVATE_SERVICE, helloWorld, true, 1);
+      platform.register(HELLO_PRIVATE_SERVICE, helloWorld.handleEvent, true, 1);
       // you can create a service as a Promise too
       platform.register(HELLO_BFF_SERVICE, (evt: EventEnvelope) => {
         return new Promise((resolve, reject) => {
@@ -451,9 +423,29 @@ describe('post office use cases', () => {
       expect(result).toBeTruthy();
       expect(result.getStatus()).toBe(400);
       expect(result.getBody()).toBe("Route no.such.service not found"); 
-    });     
+    });
+
+    it('can validate the class instance in a registry', async () => {
+      const exists = registry.exists(DEMO_LIBRARY_FUNCTION);
+      expect(exists).toBe(true);
+      const f = registry.getFunction(DEMO_LIBRARY_FUNCTION);
+      expect(f).toBeInstanceOf(Function);
+      const cls = registry.getClass(DEMO_LIBRARY_FUNCTION);
+      expect(cls).toBeTruthy();
+      expect('handleEvent' in cls).toBe(true);
+      expect(cls['handleEvent']).toBe(f);
+      expect('getName' in cls).toBe(true);
+      expect(cls['getName']).toBeInstanceOf(Function);
+      expect(cls['getName']()).toBe(DEMO_LIBRARY_FUNCTION);
+      expect('name' in cls).toBe(true);
+      expect(typeof cls['name']).toBe('string');
+      expect(cls['name']).toBe(DEMO_LIBRARY_FUNCTION);
+    });
 
     it('will reject platform registration of invalid route name', async () => {
+      const exists = registry.exists(DEMO_LIBRARY_FUNCTION);
+      expect(exists).toBe(true);
+      const helloWorld = registry.getFunction(DEMO_LIBRARY_FUNCTION);
       const route = 'Invalid route';
       let normal = false;
       try {
@@ -466,6 +458,9 @@ describe('post office use cases', () => {
     });  
 
     it('will reject post office subscribe of invalid route name', async () => {
+      const exists = registry.exists(DEMO_LIBRARY_FUNCTION);
+      expect(exists).toBe(true);
+      const helloWorld = registry.getFunction(DEMO_LIBRARY_FUNCTION);
       const po = new PostOffice();
       const route = 'Invalid route';
       let normal = false;
@@ -479,6 +474,9 @@ describe('post office use cases', () => {
     }); 
     
     it('will reject post office subscribe of invalid worker name', async () => {
+      const exists = registry.exists(DEMO_LIBRARY_FUNCTION);
+      expect(exists).toBe(true);
+      const helloWorld = registry.getFunction(DEMO_LIBRARY_FUNCTION);
       const po = new PostOffice();
       const route = 'hello.world#abc';
       let normal = false;
@@ -492,6 +490,9 @@ describe('post office use cases', () => {
     }); 
 
     it('will reject post office subscribe of empty worker suffix', async () => {
+      const exists = registry.exists(DEMO_LIBRARY_FUNCTION);
+      expect(exists).toBe(true);
+      const helloWorld = registry.getFunction(DEMO_LIBRARY_FUNCTION);
       const po = new PostOffice();
       const route = 'hello.world#';
       let normal = false;
@@ -734,6 +735,9 @@ describe('post office use cases', () => {
     });  
     
     it('can re-register a service', async () => {
+      const exists = registry.exists(DEMO_LIBRARY_FUNCTION);
+      expect(exists).toBe(true);
+      const helloWorld = registry.getFunction(DEMO_LIBRARY_FUNCTION);
       const count1 = 10;
       const count2 = 5;
       const po = new PostOffice();

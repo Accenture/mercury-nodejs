@@ -9,7 +9,7 @@ export function preload() {
             descriptor.value = function (...args) {
                 if (this.name && this.handleEvent instanceof Function) {
                     log.info(`Loading ${this.constructor.name} as ${this.name}`);
-                    registry.saveFunction(this.name, this.handleEvent);
+                    registry.saveFunction(this);
                 }
                 else {
                     log.error(`Unable to load ${this.constructor.name} because it does not implement Composable`);

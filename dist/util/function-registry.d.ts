@@ -2,16 +2,11 @@ import { EventEnvelope } from '../models/event-envelope.js';
 export declare class FunctionRegistry {
     constructor();
     /**
-     * Save a function to the registry by name.
+     * Save a Composable class to the registry by name.
      *
-     * This is used when you publish a library with reusable functions and
-     * you want to expose the functions by names for subsequent registration
-     * by the user application.
-     *
-     * @param name of the function
-     * @param listener is the function reference
+     * @param that is the class instance of the Composable function
      */
-    saveFunction(name: string, listener: (evt: EventEnvelope) => void): void;
+    saveFunction(that: object): void;
     /**
      * Retrieve a function by name so that you can register it programmatically.
      * The "PreLoader" will also use this to find functions to register them
@@ -21,6 +16,14 @@ export declare class FunctionRegistry {
      * @returns the function that was previously saved by a library
      */
     getFunction(name: string): (evt: EventEnvelope) => void;
+    /**
+     * Retrieve the class instance of a function
+     * (this would be used to invoke other methods in the same class)
+     *
+     * @param name of the function
+     * @returns the Composable class holding the function
+     */
+    getClass(name: string): object;
     /**
      * Check if a function exists in registry
      *

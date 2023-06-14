@@ -160,16 +160,6 @@ platform.release("another.function");
 
 The above API will unload the function from memory and release it from the "event loop".
 
-### Check if a function is available
-
-You can check if a function with the named route has been deployed.
-
-```java
-if (po.exists("another.function")) {
-    // do something
-}
-```
-
 ### Obtain the unique application instance ID
 
 When an application instance starts, a unique ID is generated. We call this the "Origin ID".
@@ -190,11 +180,56 @@ const po = new PostOffice(evt.getHeaders());
 The PostOffice is the event manager that you can use to send asynchronous events or to make RPC requests.
 The constructor uses the READ only metadata in the "headers" argument in the "handleEvent" method of your function.
 
+### Check if a function is available
+
+You can check if a function with the named route has been deployed.
+
+```javascript
+if (po.exists("another.function")) {
+    // do something
+}
+```
+
+### Obtain the class instance of my function
+
+Since a composable function is executed as an anonymous function, the "this" reference is protected inside the
+functional scope and no longer relevant to the class scope.
+
+To invoke other methods in the same class holding the composable function, the "getMyClass()" API can be used.
+
+```javascript
+async handleEvent(evt: EventEnvelope) {
+    const po = new PostOffice(evt.getHeaders());
+    const self = po.getMyClass() as HelloWorldService;
+    // business logic here
+    // ...
+    const len = await self.downloadFile(request.getStreamRoute(), request.getFileName());
+}
+```
+
+In the above example, `HelloWorldService` is the Composable class and the `downloadFile` is a non-static method
+in the same class. Note that you must use the event headers to instantiate the PostOffice object.
+
+### Retrieve routing metadata of my function
+
+The following code segment demonstrates that you can retrieve the function's route name, worker number,
+optional traceId and tracePath.
+
+```javascript
+async handleEvent(evt: EventEnvelope) {
+    const po = new PostOffice(evt.getHeaders());
+    const route = po.getMyRoute();
+    const workerNumber = po.getMyInstance();
+    const traceId = po.getMyTraceId();
+    const tracePath = po.getMyTracePath();
+}
+```
+
 ### Send an asynchronous event to a function
 
 You can send an asynchronous event like this.
 
-```java
+```javascript
 // example-1
 const event = new EventEnvelope().setTo('hello.world').setBody('test message');
 po.send(event);

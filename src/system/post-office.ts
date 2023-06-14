@@ -19,6 +19,7 @@ const RPC = "rpc";
 export class PostOffice {
 
     private from: string = null;
+    private instance: string = null;
     private traceId: string = null;
     private tracePath: string = null;
     private trackable = false;    
@@ -30,6 +31,10 @@ export class PostOffice {
         if (headers && headers.constructor == Object) {
             if ('my_route' in headers) {
                 this.from = String(headers['my_route']);
+                this.trackable = true;
+            }
+            if ('my_instance' in headers) {
+                this.instance = String(headers['my_instance']);
                 this.trackable = true;
             }
             if ('my_trace_id' in headers) {
@@ -79,6 +84,42 @@ export class PostOffice {
      */
     getMyClass(): object {
         return this.trackable? registry.getClass(this.from) : null;
+    }
+
+    /**
+     * Get my own route name
+     * 
+     * @returns route name
+     */
+    getMyRoute(): string {
+        return this.from;
+    }
+
+    /**
+     * Retrieve the instance number of this worker for the function
+     * 
+     * @returns worker instance number
+     */
+    getMyInstance(): string {
+        return this.instance;
+    }
+
+    /**
+     * Retrieve the optional trace ID for the incoming event
+     * 
+     * @returns trace ID or null
+     */
+    getMyTraceId(): string {
+        return this.traceId;
+    }
+
+    /**
+     * Retrieve the optional trace path for the incoming event
+     * 
+     * @returns trace path or null
+     */
+    getMyTracePath(): string {
+        return this.tracePath;
     }
 
     /**

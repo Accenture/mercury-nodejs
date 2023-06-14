@@ -181,6 +181,20 @@ describe('post office use cases', () => {
         expect(result.getBody()).toBe(TEST_MESSAGE);       
     });
 
+    it('can retrieve metadata from Composable function', async () => {
+      const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': '101', 'my_trace_path': 'TEST /demo/metadata'});
+      const req = new EventEnvelope().setTo(HELLO_WORLD_SERVICE).setHeader('type', 'metadata');
+      const result = await po.request(req, 3000);
+      expect(result.getBody()).toBeInstanceOf(Object);
+      const body = result.getBody() as object;
+      expect('route' in body).toBe(true); 
+      expect('trace_id' in body).toBe(true); 
+      expect('trace_path' in body).toBe(true); 
+      expect(body['route']).toBe(HELLO_WORLD_SERVICE);
+      expect(body['trace_id']).toBe('101');
+      expect(body['trace_path']).toBe(`TEST /demo/metadata`);   
+    });
+
     it('can send to an interceptor and expect a result', async () => {
       const cid = 'abc001';
       const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': '120', 'my_trace_path': 'TEST /demo/interceptor'});

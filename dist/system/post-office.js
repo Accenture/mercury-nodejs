@@ -16,6 +16,7 @@ const APPLICATION_OCTET_STREAM = "application/octet-stream";
 const RPC = "rpc";
 export class PostOffice {
     from = null;
+    instance = null;
     traceId = null;
     tracePath = null;
     trackable = false;
@@ -26,6 +27,10 @@ export class PostOffice {
         if (headers && headers.constructor == Object) {
             if ('my_route' in headers) {
                 this.from = String(headers['my_route']);
+                this.trackable = true;
+            }
+            if ('my_instance' in headers) {
+                this.instance = String(headers['my_instance']);
                 this.trackable = true;
             }
             if ('my_trace_id' in headers) {
@@ -72,6 +77,38 @@ export class PostOffice {
      */
     getMyClass() {
         return this.trackable ? registry.getClass(this.from) : null;
+    }
+    /**
+     * Get my own route name
+     *
+     * @returns route name
+     */
+    getMyRoute() {
+        return this.from;
+    }
+    /**
+     * Retrieve the instance number of this worker for the function
+     *
+     * @returns worker instance number
+     */
+    getMyInstance() {
+        return this.instance;
+    }
+    /**
+     * Retrieve the optional trace ID for the incoming event
+     *
+     * @returns trace ID or null
+     */
+    getMyTraceId() {
+        return this.traceId;
+    }
+    /**
+     * Retrieve the optional trace path for the incoming event
+     *
+     * @returns trace path or null
+     */
+    getMyTracePath() {
+        return this.tracePath;
     }
     /**
      * Check if a route has been registered

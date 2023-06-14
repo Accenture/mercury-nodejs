@@ -143,6 +143,7 @@ describe('End-to-end tests', () => {
         expect(body['stream'] != stream.getInputStreamId()).toBe(true);
         expect(body['filename']).toBe(filename);
         expect(typeof body['type']).toBe('string');
+        expect(body['service']).toBe('hello.world');
         const originalContentType = body['type'] as string;
         // The AsyncHttpClient will perform the actual multipart file upload.
         // Therefore, the content type will have the boundary ID.

@@ -1,6 +1,7 @@
 import { EventEnvelope } from '../models/event-envelope.js';
 export declare class PostOffice {
     private from;
+    private instance;
     private traceId;
     private tracePath;
     private trackable;
@@ -18,6 +19,30 @@ export declare class PostOffice {
      * @returns the Composable class holding the function that instantiates this PostOffice
      */
     getMyClass(): object;
+    /**
+     * Get my own route name
+     *
+     * @returns route name
+     */
+    getMyRoute(): string;
+    /**
+     * Retrieve the instance number of this worker for the function
+     *
+     * @returns worker instance number
+     */
+    getMyInstance(): string;
+    /**
+     * Retrieve the optional trace ID for the incoming event
+     *
+     * @returns trace ID or null
+     */
+    getMyTraceId(): string;
+    /**
+     * Retrieve the optional trace path for the incoming event
+     *
+     * @returns trace path or null
+     */
+    getMyTracePath(): string;
     /**
      * Check if a route has been registered
      *

@@ -1,6 +1,6 @@
 import { preload, Composable, EventEnvelope, Logger, 
         AsyncHttpRequest, ObjectStreamReader, AppException, 
-        ObjectStreamIO, ObjectStreamWriter } from 'mercury';
+        ObjectStreamIO, ObjectStreamWriter, PostOffice } from 'mercury';
 
 const log = new Logger();
 
@@ -18,6 +18,10 @@ export class HelloWorldService implements Composable {
 
     // Your service should be declared as an async function with input as EventEnvelope
     async handleEvent(evt: EventEnvelope) {
+        // Composable function is executed as an anonymous function
+        // You can use the PostOffice's getMyClass() method to get its class instance
+        const po = new PostOffice(evt.getHeaders());
+        const self = po.getMyClass() as HelloWorldService;
         // headers contain tracing metadata and body is the incoming HTTP request
         log.info({'headers': evt.getHeaders(), 'body': evt.getBody()});
         const payload = evt.getBody();
@@ -29,9 +33,11 @@ export class HelloWorldService implements Composable {
                 if ('POST' == request.getMethod() && request.getFileName() && request.getStreamRoute()) {
                     const contentType = request.getHeader('content-type');
                     if (contentType && contentType.startsWith('multipart/form-data')) {
-                        const len = await HelloWorldService.downloadFile(request.getStreamRoute(), request.getFileName());
+                        const len = await self.downloadFile(request.getStreamRoute(), request.getFileName());
                         log.info(`Received ${request.getFileName()} - ${len} bytes`);    
-                        return {'filename': request.getFileName(), 'stream': request.getStreamRoute(), 'type': contentType, 'size': len};
+                        return {'filename': request.getFileName(), 'stream': request.getStreamRoute(), 
+                                'service': self.getName(),
+                                'type': contentType, 'size': len};
                     } else {
                         throw new AppException(400, 'Not a multipart file upload');
                     }
@@ -60,7 +66,7 @@ export class HelloWorldService implements Composable {
         return new EventEnvelope(evt);
     } 
 
-    static async downloadFile(streamId: string, filename: string) {
+    async downloadFile(streamId: string, filename: string) {
         let n = 0;
         let len = 0;
         let eof = false;

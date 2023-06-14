@@ -3,11 +3,13 @@ import { AsyncHttpRequest } from "../../src/models/async-http-request";
 import { Composable } from "../../src/models/composable";
 import { EventEnvelope } from "../../src/models/event-envelope";
 import { Utility } from '../../src/util/utility';
+import { PostOffice } from '../../src/system/post-office';
 
 const util = new Utility();
 
 const TYPE = 'type';
 const ERROR = 'error';
+const METADATA = 'metadata';
 const TIMEOUT = 'timeout';
 const HELLO_INSTANCE = 'x-hello-instance';
 const DEMO_EXCEPTION = 'demo exception';
@@ -23,7 +25,10 @@ export class HelloWorld implements Composable {
         return this.name;
     }
     async handleEvent(evt: EventEnvelope) {
-        if (TIMEOUT == evt.getHeader(TYPE)) {
+        const po = new PostOffice(evt.getHeaders());
+        if (METADATA == evt.getHeader(TYPE)) {
+            return {'route': po.getMyRoute(), 'trace_id': po.getMyTraceId(), 'trace_path': po.getMyTracePath()};
+        } else if (TIMEOUT == evt.getHeader(TYPE)) {
             // simulate artificial delay to keep the worker instance busy,
             // thus leaving remaining workers to serve additional requests.
             await util.sleep(500);
@@ -51,7 +56,6 @@ export class HelloWorld implements Composable {
             return new EventEnvelope(evt);
         } 
     }
-
 }
 
 // Since this is a service inside the "test" folder, it requires at least one test. It is a placeholder.

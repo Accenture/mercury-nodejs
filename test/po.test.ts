@@ -445,15 +445,11 @@ describe('post office use cases', () => {
       const f = registry.getFunction(DEMO_LIBRARY_FUNCTION);
       expect(f).toBeInstanceOf(Function);
       const cls = registry.getClass(DEMO_LIBRARY_FUNCTION);
-      expect(cls).toBeTruthy();
-      expect('handleEvent' in cls).toBe(true);
-      expect(cls['handleEvent']).toBe(f);
-      expect('getName' in cls).toBe(true);
-      expect(cls['getName']).toBeInstanceOf(Function);
-      expect(cls['getName']()).toBe(DEMO_LIBRARY_FUNCTION);
-      expect('name' in cls).toBe(true);
-      expect(typeof cls['name']).toBe('string');
-      expect(cls['name']).toBe(DEMO_LIBRARY_FUNCTION);
+      expect(cls).toBeInstanceOf(HelloWorld);
+      const hello = cls as HelloWorld;
+      expect(hello.getName()).toBe(DEMO_LIBRARY_FUNCTION);
+      expect(hello.handleEvent).toBe(f);
+      expect(hello.name).toBe(DEMO_LIBRARY_FUNCTION);
     });
 
     it('will reject platform registration of invalid route name', async () => {

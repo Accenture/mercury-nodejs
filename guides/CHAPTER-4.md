@@ -54,7 +54,7 @@ export class HelloWorldService implements Composable {
 }
 ```
 
-To tell the system where to find the functions, you can configure the "preload.yaml" file like this:
+To instruct the system to load some selected functions, you can configure the "preload.yaml" file like this:
 
 ```yaml
 preload:
@@ -72,8 +72,7 @@ preload:
     interceptor: false
 ```
 
-In the above configuration example, the "preload" section tells the system to load the functions
-into the event loop.
+In the above example, the system will load 3 named functions into the event loop.
 
 Once a function is created using the declarative method, you can override it with a mock function by using the
 programmatic registration method in a unit test.
@@ -84,6 +83,20 @@ A private function is visible by other functions in the same application memory 
 
 A public function is accessible by other function from another application instance using the
 "Event over HTTP" method. We will discuss inter-container communication in [Chapter-5](CHAPTER-5.md).
+
+## Singleton function
+
+The number of concurrent workers for a function is defined in the "instances" parameter.
+
+When you set "instances" to one, the function will be declared as a singleton.
+
+## Interceptor
+
+When you declare a function as an interceptor, the system will ignore return value from the function.
+
+Usually, the interceptor function can use the PostOffice's send API to forward the incoming event to 
+the downstream function(s). In some use cases, you may use the interceptor to conditionally return value
+by sending the result set to the "reply to" address.
 
 ## Post Office API
 

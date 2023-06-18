@@ -768,8 +768,10 @@ class RestEngine {
                     socket.destroy();
                     n++;
                 }
-                const s = n == 1 ? '' : 's';
-                log.info(`Total ${n} active HTTP session${s} closed`);
+                if (n > 0) {
+                    const s = n == 1 ? '' : 's';
+                    log.info(`Total ${n} active HTTP session${s} closed`);
+                }
                 server.close(() => {
                     log.info('REST automation service stopped');
                     running = false;

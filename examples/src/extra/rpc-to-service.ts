@@ -4,7 +4,7 @@ const log = new Logger();
 
 const HELLO_WORLD = 'hello.world'
 const TEST_MESSAGE = 'test message';
-const REMOTE_EVENT_ENDPOINT = 'http://127.0.0.1:8085/api/event';
+const REMOTE_EVENT_ENDPOINT = 'http://127.0.0.1:8086/api/event';
 
 // Set this function as "async" so we can use the "await" method to write code in "sequential non-blocking" manner
 async function main() {

@@ -18,6 +18,7 @@ import cookieParser from 'cookie-parser';
 import busboy from 'busboy';
 import crypto from 'crypto';
 import fs from 'fs';
+import { Socket } from 'net';
 
 const log = new Logger();
 const util = new Utility();
@@ -104,6 +105,7 @@ class RestEngine {
     private traceIdLabels: Array<string>;
     private actuatorRouteName: string;
     private htmlFolder: string;
+    private connections = new Map<number, Socket>();
 
     constructor(configFile?: string | object) {
         platform = new Platform(configFile);
@@ -260,6 +262,16 @@ class RestEngine {
                 } else {
                     log.error(`Network exception - ${e.message}`);
                 }
+            });
+            let seq = 0;
+            server.on('connection', socket => {
+                const session = ++seq;
+                log.debug(`Session ${session} connected`);
+                this.connections.set(session, socket);
+                socket.on('close', () => {
+                    this.connections.delete(session);
+                    log.debug(`Session ${session} closed`);
+                });
             });
         }
     }
@@ -747,6 +759,15 @@ class RestEngine {
     close(): Promise<boolean> {
         return new Promise((resolve) => {
             if (running && server) {
+                let n = 0;
+                const sessions = Array.from(this.connections.keys());
+                for (const c of sessions) {
+                    const socket = this.connections.get(c);
+                    socket.destroy();
+                    n++;
+                }
+                const s = n == 1? '' : 's';
+                log.info(`Total ${n} active HTTP session${s} closed`);
                 server.close( () => {
                     log.info('REST automation service stopped');
                     running = false;

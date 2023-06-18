@@ -338,6 +338,31 @@ This will tell the Logger system to use JSON format instead of plain text output
 }
 ```
 
+## Logger
+
+The system includes a built-in logger that can log in either text or json format.
+
+The default log format is "text". You can override the value in the "src/resources/application.yml" config file.
+The following example sets the log format to "json".
+
+```yaml
+log.format: json
+```
+
+Alternatively you can also override it at run-time using the run-time parameter like this:
+
+```shell
+node my-app.js -Dlog.format=json
+```
+
+The logger supports line-numbering. When you run your executable javascript main program, the line number for each
+log message is derived from the ".js" file.
+
+If you want to show the line number in the source ".ts" file for easy debug, you can run your application using
+"nodemon". This is illustrated in the "npm start" command in the package.json file.
+
+For simplicity, the logger is implemented without any additional library dependencies.
+
 ## Minimalist API design for event orchestration
 
 As a best practice, we advocate a minimalist approach in API integration.

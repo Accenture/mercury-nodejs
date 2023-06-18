@@ -10,7 +10,9 @@ export default {
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
-  testRegex: '(/test/.*|(\\.|/)(test|spec))\\.ts$',
+  testMatch: [
+    '**/test/*.test.ts'
+  ],
   roots: [
     "./test/"
   ],

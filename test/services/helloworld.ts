@@ -57,15 +57,3 @@ export class HelloWorld implements Composable {
         } 
     }
 }
-
-// Since this is a service inside the "test" folder, it requires at least one test. It is a placeholder.
-describe('initiation tests', () => {   
-      
-    it('can instantiate a new Composable', async () => {
-        const hello = new HelloWorld();
-        expect(hello).toBeTruthy();
-        expect(hello.getName()).toBe("demo.library.function");
-    });     
-
-}); 
-

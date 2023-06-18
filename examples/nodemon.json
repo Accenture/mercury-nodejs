@@ -1,6 +1,6 @@
 {
   "watch": ["src"],
   "ext": "ts,json",
-  "ignore": ["src/**/*.spec.ts", ".git"],
+  "ignore": ["src/**/*.test.ts", ".git"],
   "verbose": true
 }

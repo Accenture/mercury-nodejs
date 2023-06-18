@@ -43,6 +43,6 @@
     "typescript": "~5.0"
   },
   "dependencies": {
-    "mercury": "github:accenture/mercury-nodejs"
+    "mercury": "github:Accenture/mercury-nodejs"
   }
 }

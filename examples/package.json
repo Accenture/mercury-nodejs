@@ -3,6 +3,9 @@
   "version": "3.0.0",
   "description": "Sample applications",
   "type": "module",
+  "engines": {
+    "node": ">= 18.12"
+  },
   "author": "Eric Law <eric.law@accenture.com>",
   "license": "Apache-2.0",
   "scripts": {

@@ -349,7 +349,7 @@ The following example sets the log format to "json".
 log.format: json
 ```
 
-Alternatively you can also override it at run-time using the run-time parameter like this:
+Alternatively you can also override it at run-time using the "-D" parameter like this:
 
 ```shell
 node my-app.js -Dlog.format=json

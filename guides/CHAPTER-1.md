@@ -86,7 +86,8 @@ export class HelloWorldService implements Composable {
 
 Each function in a composable application should be implemented in the first principle of "input-process-output".
 It should be stateless and self-contained. i.e. it has no direct dependencies with any other functions in the
-composable application. Each function is addressable by a unique "route name" and you can use PoJo for input and output.
+composable application. Each function is addressable by a unique "route name". Input and output can be
+primitive value or JSON objects to be transported using standard event envelopes.
 
 In the above example, the unique "route name" of the function is "hello.world".
 

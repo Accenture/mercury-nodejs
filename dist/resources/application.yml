@@ -36,5 +36,7 @@ log:
 # To support additional file extensions, please add the mapping in the mime.types section.
 #
 mime.types:
+  ico: 'image/vnd.microsoft.icon'
   xml: 'application/xml'
+  svg: 'image/svg+xml'
   woff2: 'font/woff2'

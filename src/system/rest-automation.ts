@@ -152,7 +152,7 @@ class RestEngine {
             if (mime instanceof Object && !Array.isArray(mime)) {
                 for (const k in mime) {
                     const v = mime[k];
-                    this.mimeTypes.set(k, String(v));
+                    this.mimeTypes.set(k.toLowerCase(), String(v).toLowerCase());
                     mimeCount++;
                 }
             }
@@ -767,7 +767,7 @@ class RestEngine {
             return TEXT_JAVASCRIPT;
         } else {
             if (path.includes('.') && !path.endsWith('.')) {
-                const ext = path.substring(path.lastIndexOf('.')+1);
+                const ext = path.substring(path.lastIndexOf('.')+1).toLowerCase();
                 const contentType = this.mimeTypes.get(ext);
                 if (contentType) {
                     return contentType;

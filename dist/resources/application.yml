@@ -38,6 +38,7 @@ log:
 #
 mime.types:
   ico: 'image/vnd.microsoft.icon'
+  json: 'application/json'
   xml: 'application/xml'
   svg: 'image/svg+xml'
   svgz: 'image/svg+xml'

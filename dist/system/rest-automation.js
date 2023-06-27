@@ -136,6 +136,15 @@ class RestEngine {
             }
             log.info(`Static HTML folder: ${this.htmlFolder}`);
             let mimeCount = 0;
+            const mimeFilePath = util.normalizeFilePath(fileURLToPath(new URL("../resources/mime-types.yml", import.meta.url)));
+            const mimeConfig = util.loadYamlFile(mimeFilePath);
+            const mimeDefault = mimeConfig.getElement('mime.types');
+            for (const k in mimeDefault) {
+                const v = mimeDefault[k];
+                this.mimeTypes.set(k, v);
+                mimeCount++;
+            }
+            // check for additional MIME in application config
             const mime = config.get('mime.types');
             if (mime instanceof Object && !Array.isArray(mime)) {
                 for (const k in mime) {

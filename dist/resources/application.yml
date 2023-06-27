@@ -20,38 +20,3 @@ log:
 #
 # Static HTML folder location - default to "resources/public" of the mercury library if not given.
 # static.html.folder: '/opt/html'
-
-#
-# Extension to MIME type mapping for static content
-#
-# By default, the system supports the following:
-# js: application/json
-# html: text/html
-# htm: text/html
-# txt: text/plain
-# css: text/css
-#
-# Any other extensions are served as application/octet-stream
-#
-# To support additional file extensions, please update the mapping in the mime.types section here.
-# You may want to limit the mime mapping to a bare minimal to fit your use case.
-#
-mime.types:
-  ico: 'image/vnd.microsoft.icon'
-  json: 'application/json'
-  xml: 'application/xml'
-  svg: 'image/svg+xml'
-  svgz: 'image/svg+xml'
-  sgi: image/sgi
-  tiff: image/tiff
-  tif: image/tiff
-  jpeg: image/jpeg
-  jpg: image/jpeg
-  jpe: image/jpeg
-  png: image/png
-  ttc: font/collection
-  otf: font/otf
-  woff: 'font/woff'
-  woff2: 'font/woff2'
-  pdf: application/pdf
-  doc: application/msword

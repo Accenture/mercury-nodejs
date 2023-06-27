@@ -32,5 +32,7 @@ health.dependencies: 'demo.health'
 # To support additional file extensions, please add the mapping in the mime.types section.
 #
 mime.types:
+  ico: 'image/vnd.microsoft.icon'
+  svg: 'image/svg+xml'
   xml: 'application/xml'
   woff2: 'font/woff2'

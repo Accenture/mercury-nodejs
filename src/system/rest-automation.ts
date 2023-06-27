@@ -105,6 +105,7 @@ class RestEngine {
     private traceIdLabels: Array<string>;
     private actuatorRouteName: string;
     private htmlFolder: string;
+    private mimeTypes = new Map<string, string>();
     private connections = new Map<number, Socket>();
 
     constructor(configFile?: string | object) {
@@ -146,6 +147,19 @@ class RestEngine {
                 this.htmlFolder = util.normalizeFilePath(fileURLToPath(new URL("../resources/public", import.meta.url)));  
             }
             log.info(`Static HTML folder: ${this.htmlFolder}`);
+            let mimeCount = 0;
+            const mime = config.get('mime.types');
+            if (mime instanceof Object && !Array.isArray(mime)) {
+                for (const k in mime) {
+                    const v = mime[k];
+                    this.mimeTypes.set(k, String(v));
+                    mimeCount++;
+                }
+            }
+            if (mimeCount > 0) {
+                const s = mimeCount == 1? '' : 's';
+                log.info(`Loaded ${mimeCount} mimeType${s}`);
+            }
             let port = util.str2int(config.getProperty('server.port', String(DEFAULT_SERVER_PORT)));
             if (port < 80) {
                 log.error(`Port ${port} is invalid. Reset to default port ${DEFAULT_SERVER_PORT}`);
@@ -752,7 +766,14 @@ class RestEngine {
         } else if (path.endsWith(".js")) {
             return TEXT_JAVASCRIPT;
         } else {
-            return APPLICATION_OCTET_STREAM;
+            if (path.includes('.') && !path.endsWith('.')) {
+                const ext = path.substring(path.lastIndexOf('.')+1);
+                const contentType = this.mimeTypes.get(ext);
+                if (contentType) {
+                    return contentType;
+                }
+            }
+            return APPLICATION_OCTET_STREAM;                  
         }
     }
     

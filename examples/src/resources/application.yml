@@ -16,3 +16,21 @@ log:
 # You can add optional health checks that point to your custom health check functions
 # (the dependency list is a comma separated list) 
 health.dependencies: 'demo.health'
+
+#
+# Extension to MIME type mapping for static content
+#
+# By default, the system supports the following:
+# js: application/json
+# html: text/html
+# htm: text/html
+# txt: text/plain
+# css: text/css
+#
+# any other extensions are served as application/octet-stream
+#
+# To support additional file extensions, please add the mapping in the mime.types section.
+#
+mime.types:
+  xml: 'application/xml'
+  woff2: 'font/woff2'

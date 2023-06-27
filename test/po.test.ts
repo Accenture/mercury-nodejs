@@ -830,6 +830,18 @@ describe('post office use cases', () => {
       expect(Buffer.from(result.getBody() as string)).toStrictEqual(content);
       expect(result.getHeader('content-type')).toBe('text/plain');
     });   
+
+    it('can load XML page', async () => {
+      const po = new PostOffice();
+      const req = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/sample.xml');
+      const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
+      const result = await po.request(reqEvent);
+      expect(typeof result.getBody()).toBe('string');
+      const filePath = util.normalizeFilePath(resourceFolder + "/public/sample.xml");
+      const content = await fs.promises.readFile(filePath);
+      expect(Buffer.from(result.getBody() as string)).toStrictEqual(content);
+      expect(result.getHeader('content-type')).toBe('application/xml');
+    });  
     
     it('can convert backslash to forward slash in static file download', async () => {
       const po = new PostOffice();

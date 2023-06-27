@@ -20,3 +20,21 @@ log:
 #
 # Static HTML folder location - default to "resources/public" of the mercury library if not given.
 # static.html.folder: '/opt/html'
+
+#
+# Extension to MIME type mapping for static content
+#
+# By default, the system supports the following:
+# js: application/json
+# html: text/html
+# htm: text/html
+# txt: text/plain
+# css: text/css
+#
+# any other extensions are served as application/octet-stream
+#
+# To support additional file extensions, please add the mapping in the mime.types section.
+#
+mime.types:
+  xml: 'application/xml'
+  woff2: 'font/woff2'

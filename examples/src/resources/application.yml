@@ -35,5 +35,5 @@ health.dependencies: 'demo.health'
 # optional mime.types section here. See example below.
 #
 # mime.types:
-#   pdf: application/pdf
-#   doc: application/msword
+#   pdf: 'application/pdf'
+#   doc: 'application/msword'

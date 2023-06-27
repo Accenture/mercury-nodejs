@@ -147,14 +147,12 @@ class RestEngine {
                 this.htmlFolder = util.normalizeFilePath(fileURLToPath(new URL("../resources/public", import.meta.url)));  
             }
             log.info(`Static HTML folder: ${this.htmlFolder}`);
-            let mimeCount = 0;
             const mimeFilePath = util.normalizeFilePath(fileURLToPath(new URL("../resources/mime-types.yml", import.meta.url)));
             const mimeConfig = util.loadYamlFile(mimeFilePath);
             const mimeDefault = mimeConfig.getElement('mime.types') as object;
             for (const k in mimeDefault) {
                 const v = mimeDefault[k];
                 this.mimeTypes.set(k, v);
-                mimeCount++;
             }
             // check for additional MIME in application config
             const mime = config.get('mime.types');
@@ -162,13 +160,9 @@ class RestEngine {
                 for (const k in mime) {
                     const v = mime[k];
                     this.mimeTypes.set(k.toLowerCase(), String(v).toLowerCase());
-                    mimeCount++;
                 }
             }
-            if (mimeCount > 0) {
-                const s = mimeCount == 1? '' : 's';
-                log.info(`Loaded ${mimeCount} mimeType${s}`);
-            }
+            log.info(`Loaded ${this.mimeTypes.size} mime types`);
             let port = util.str2int(config.getProperty('server.port', String(DEFAULT_SERVER_PORT)));
             if (port < 80) {
                 log.error(`Port ${port} is invalid. Reset to default port ${DEFAULT_SERVER_PORT}`);

@@ -268,10 +268,12 @@ remoteRequest(event: EventEnvelope, endpoint: string,
 
 If you want to know the route name and optional trace ID and path, you can inspect the incoming event headers.
 
-```java
-const myRoute = evt.getHeader('my_route');
-const traceId = evt.getHeader('my_trace_id');
-const tracePath = evt.getHeader('my_trace_path');
+```javascript
+const po = new PostOffice(evt.getHeaders());
+const myRoute = po.getMyRoute();
+const traceId = po.getMyTraceId();
+const tracePath = po.getMyTracePath();
+const myInstance = po.getMyInstance();
 ```
 
 ## Configuration API

@@ -9,10 +9,10 @@ import { parse as parseYaml } from 'yaml';
 import { fileURLToPath } from "url";
 import { Logger, Platform, ConfigReader, FunctionRegistry } from 'mercury';
 // import the user services
-// Generated: 2023-06-18 09:30:10.438
-import { DemoAuth } from '../services/demo-auth.js'
-import { DemoHealthCheck } from '../services/health-check.js'
-import { HelloWorldService } from '../services/hello-world-service.js'
+// Generated: 2023-07-02 15:55:20.413
+import { DemoAuth } from '../services/demo-auth.js';
+import { DemoHealthCheck } from '../services/health-check.js';
+import { HelloWorldService } from '../services/hello-world-service.js';
 
 const log = new Logger();
 const PRELOAD_SECTION = 'preload';

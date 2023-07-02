@@ -70,7 +70,7 @@ async function generateCode(src, lines) {
                 for (const cls of names) {
                     const filePath = clsMap.get(cls);
                     const path = '../' + filePath.substring(src.length, filePath.length-3) + '.js';
-                    sb += `import { ${cls} } from '${path}'\n`;
+                    sb += `import { ${cls} } from '${path}';\n`;
                 }
                 section = 'service';
                 continue;

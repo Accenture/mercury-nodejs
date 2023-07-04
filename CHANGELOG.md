@@ -12,7 +12,8 @@ Ported composable core features from Mercury 3.0 Java version
 
 ### Added
 
-Unit and end-to-end tests for Mercury 3.0 Node.js and for the example app project.
+1. Unit and end-to-end tests for Mercury 3.0 Node.js and for the example app project.
+2. For backward compatibility, added optional "setupMiddleware" method in the rest-automation module.
 
 ### Removed
 

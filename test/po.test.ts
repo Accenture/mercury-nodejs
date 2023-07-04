@@ -12,6 +12,7 @@ import { AsyncHttpRequest } from '../src/models/async-http-request.js';
 import { AppException } from '../src/models/app-exception.js';
 import { ObjectStreamIO, ObjectStreamReader, ObjectStreamWriter } from '../src/system/object-stream.js';
 import { HelloWorld } from './services/helloworld.js';
+import { NextFunction, Request, Response } from 'express';
 import { fileURLToPath } from "url";
 import fs from 'fs';
 
@@ -47,6 +48,7 @@ let server: RestAutomation;
 let endApiUrl: string;
 let baseUrl: string;
 let resourceFolder: string;
+let apiCount = 0;
 
 async function helloDownload(evt: EventEnvelope) {
   const request = new AsyncHttpRequest(evt.getBody() as object);
@@ -159,6 +161,11 @@ describe('post office use cases', () => {
       streamOut.write('hello world');
       // start the Event API HTTP server
       server = new RestAutomation();
+      // demonstrate that we can install user defined express middleware
+      server.setupMiddleWare(async function(_req: Request, _res: Response, next: NextFunction) {
+          apiCount++;
+          next();
+      });
       server.start();
       platform.runForever();
     });
@@ -170,6 +177,7 @@ describe('post office use cases', () => {
       } 
       // This will release all outstanding streams, stop REST automation and then stop the platform
       await platform.stop();
+      log.info(`Total ${apiCount} REST API processed`);
       // Give console.log a moment to finish
       await util.sleep(1000);
     });

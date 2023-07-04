@@ -81,6 +81,29 @@ export class RestAutomation {
     async stop() {
         return await self.close();
     }
+    /**
+     * Optional: Setup additional Express middleware
+     *
+     * IMPORTANT: This API is provided for backward compatibility with existing code
+     * that uses Express plugins. In a composable application, you can achieve the same
+     * functionality by declaring your user function as an "interceptor" in "preload.yaml".
+     *
+     * User defined middleware has input arguments (req: Request, res: Response, next: NextFunction).
+     * It must call the "next()" method at the end of processing to pass the request and response
+     * objects to the rest-automation engine for further processing.
+     *
+     * It should not touch the request body for multipart file upload because the rest-automation
+     * engine will take care of it.
+     *
+     * If you must add middleware, call this method before you execute the "start" method in
+     * rest-automation. Please refer to the BeforeAll section in po.test.ts file as a worked
+     * example.
+     *
+     * @param handler implements RequestHandler
+     */
+    setupMiddleWare(handler) {
+        self.setupMiddleWare(handler);
+    }
 }
 async function housekeeper(evt) {
     if ('close' == evt.getHeader('type')) {
@@ -91,6 +114,8 @@ async function housekeeper(evt) {
 }
 class RestEngine {
     loaded = false;
+    appServer = express();
+    plugins = new Array;
     traceIdLabels;
     actuatorRouteName;
     htmlFolder;
@@ -156,7 +181,6 @@ class RestEngine {
                 log.error(`Port ${port} is invalid. Reset to default port ${DEFAULT_SERVER_PORT}`);
                 port = DEFAULT_SERVER_PORT;
             }
-            const app = express();
             const urlEncodedParser = bodyParser.urlencoded({ extended: false });
             const jsonParser = bodyParser.json();
             const textParser = bodyParser.text({
@@ -185,6 +209,7 @@ class RestEngine {
                 },
                 limit: '2mb'
             });
+            const app = this.appServer;
             app.use(cookieParser());
             app.use(urlEncodedParser);
             app.use(jsonParser);
@@ -203,6 +228,17 @@ class RestEngine {
                 const request = new EventEnvelope().setTo(this.actuatorRouteName).setHeader(TYPE, LIVENESS_PROBE);
                 await this.sendActuatorResponse(await po.request(request), res);
             });
+            // User provided middleware must call the "next()" as the last statement
+            // to release control to the rest-automation engine
+            let pluginCount = 0;
+            for (const handler of this.plugins) {
+                app.use(handler);
+                pluginCount++;
+            }
+            if (pluginCount > 0) {
+                log.info(`Loaded ${pluginCount} additional middleware`);
+            }
+            // the last middleware is the rest-automation request handler            
             app.use(async (req, res) => {
                 const method = req.method;
                 const path = decodeURI(req.path);
@@ -280,6 +316,9 @@ class RestEngine {
                 });
             });
         }
+    }
+    setupMiddleWare(handler) {
+        this.plugins.push(handler);
     }
     async sendActuatorResponse(result, res) {
         try {

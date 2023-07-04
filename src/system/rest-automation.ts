@@ -12,7 +12,7 @@ import { EventApiService } from '../services/event-api.js';
 import { ActuatorServices } from '../services/actuator.js';
 import { fileURLToPath } from "url";
 import { Server } from 'http';
-import express, { Express, Request, Response } from 'express';
+import express, { RequestHandler, Request, Response } from 'express';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import busboy from 'busboy';
@@ -90,6 +90,30 @@ export class RestAutomation {
     async stop() {
         return await self.close();
     }
+
+    /**
+     * Optional: Setup additional Express middleware
+     * 
+     * IMPORTANT: This API is provided for backward compatibility with existing code
+     * that uses Express plugins. In a composable application, you can achieve the same
+     * functionality by declaring your user function as an "interceptor" in "preload.yaml".
+     * 
+     * User defined middleware has input arguments (req: Request, res: Response, next: NextFunction).
+     * It must call the "next()" method at the end of processing to pass the request and response
+     * objects to the rest-automation engine for further processing.
+     * 
+     * It should not touch the request body for multipart file upload because the rest-automation
+     * engine will take care of it.
+     * 
+     * If you must add middleware, call this method before you execute the "start" method in
+     * rest-automation. Please refer to the BeforeAll section in po.test.ts file as a worked
+     * example.
+     * 
+     * @param handler implements RequestHandler
+     */
+    setupMiddleWare(handler: RequestHandler) {
+        self.setupMiddleWare(handler);
+    }
 }
 
 async function housekeeper(evt: EventEnvelope) {
@@ -102,6 +126,7 @@ async function housekeeper(evt: EventEnvelope) {
 
 class RestEngine {
     private loaded = false;
+    private plugins = new Array<RequestHandler>;
     private traceIdLabels: Array<string>;
     private actuatorRouteName: string;
     private htmlFolder: string;
@@ -168,7 +193,6 @@ class RestEngine {
                 log.error(`Port ${port} is invalid. Reset to default port ${DEFAULT_SERVER_PORT}`);
                 port = DEFAULT_SERVER_PORT;
             }
-            const app: Express = express();
             const urlEncodedParser = bodyParser.urlencoded({ extended: false });
             const jsonParser = bodyParser.json();
             const textParser = bodyParser.text({
@@ -194,7 +218,8 @@ class RestEngine {
                     }
                 },
                 limit: '2mb'
-            });         
+            });
+            const app = express();
             app.use(cookieParser());
             app.use(urlEncodedParser);
             app.use(jsonParser);
@@ -215,8 +240,18 @@ class RestEngine {
             app.get('/livenessprobe', async (_req: Request, res: Response) => {
                 const request = new EventEnvelope().setTo(this.actuatorRouteName).setHeader(TYPE, LIVENESS_PROBE);
                 await this.sendActuatorResponse(await po.request(request), res);
-            });                
-            
+            });
+            // User provided middleware must call the "next()" as the last statement
+            // to release control to the rest-automation engine
+            let pluginCount = 0;
+            for (const handler of this.plugins) {
+                app.use(handler);
+                pluginCount++;
+            }
+            if (pluginCount > 0) {
+                log.info(`Loaded ${pluginCount} additional middleware`);
+            }
+            // the last middleware is the rest-automation request handler            
             app.use(async (req: Request, res: Response) => {
                 const method = req.method;
                 const path = decodeURI(req.path);
@@ -291,6 +326,10 @@ class RestEngine {
                 });
             });
         }
+    }
+
+    setupMiddleWare(handler: RequestHandler) {
+        this.plugins.push(handler);
     }
 
     async sendActuatorResponse(result: EventEnvelope, res: Response) {

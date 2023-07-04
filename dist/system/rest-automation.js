@@ -114,7 +114,6 @@ async function housekeeper(evt) {
 }
 class RestEngine {
     loaded = false;
-    appServer = express();
     plugins = new Array;
     traceIdLabels;
     actuatorRouteName;
@@ -209,7 +208,7 @@ class RestEngine {
                 },
                 limit: '2mb'
             });
-            const app = this.appServer;
+            const app = express();
             app.use(cookieParser());
             app.use(urlEncodedParser);
             app.use(jsonParser);

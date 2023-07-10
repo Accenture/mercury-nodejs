@@ -775,15 +775,15 @@ class RestEngine {
                 return null;
             }
         }
-        let filename = parts.length == 0 ? 'index.html' : parts[parts.length - 1];
         // assume ".html" if filename does not have a file extension
-        if (!filename.includes('.')) {
-            filePath += ".html";
-            filename += ".html";
-        }
+        let filename = parts.length == 0 ? 'index.html' : parts[parts.length - 1];
         if (filePath.endsWith('/')) {
             filePath += 'index.html';
             filename = 'index.html';
+        }
+        else if (!filename.includes('.')) {
+            filePath += ".html";
+            filename += ".html";
         }
         filePath = this.htmlFolder + filePath;
         if (fs.existsSync(filePath)) {

@@ -280,7 +280,7 @@ class RestEngine {
                         // handle static file download request
                         const file = await this.getStaticFile(path);
                         if (file) {
-                            res.setHeader(CONTENT_TYPE, this.getFileContentType(path));
+                            res.setHeader(CONTENT_TYPE, this.getFileContentType(file.name));
                             const ifNoneMatch = req.header(IF_NONE_MATCH);
                             if (file.sameTag(ifNoneMatch)) {
                                 res.statusCode = 304;
@@ -776,8 +776,15 @@ class RestEngine {
                 return null;
             }
         }
+        let filename = parts.length == 0? 'index.html' : parts[parts.length - 1];
+        // assume ".html" if filename does not have a file extension
+        if (!filename.includes('.')) {
+            filePath += ".html";
+            filename += ".html";
+        }
         if (filePath.endsWith('/')) {
             filePath += 'index.html';
+            filename = 'index.html';
         }
         filePath = this.htmlFolder + filePath;
         if (fs.existsSync(filePath)) {
@@ -786,7 +793,9 @@ class RestEngine {
                 const sha1 = crypto.createHash('sha1');
                 sha1.update(content);
                 const hash = sha1.digest('hex');
-                return new EtagFile(hash, content);
+                const result = new EtagFile(hash, content);
+                result.name = filename;
+                return result;
             }
         }
         return null;
@@ -798,18 +807,18 @@ class RestEngine {
      * 
      * It is not intended to be a comprehensive MIME type resolver.
      */
-    getFileContentType(path: string) {
-        if (path.endsWith("/") || path.endsWith(".html") || path.endsWith(".htm")) {
+    getFileContentType(filename: string) {
+        if (filename.endsWith("/") || filename.endsWith(".html") || filename.endsWith(".htm")) {
             return TEXT_HTML;
-        } else if (path.endsWith(".txt")) {
+        } else if (filename.endsWith(".txt")) {
             return TEXT_PLAIN;
-        } else if (path.endsWith(".css")) {
+        } else if (filename.endsWith(".css")) {
             return TEXT_CSS;
-        } else if (path.endsWith(".js")) {
+        } else if (filename.endsWith(".js")) {
             return TEXT_JAVASCRIPT;
         } else {
-            if (path.includes('.') && !path.endsWith('.')) {
-                const ext = path.substring(path.lastIndexOf('.')+1).toLowerCase();
+            if (filename.includes('.') && !filename.endsWith('.')) {
+                const ext = filename.substring(filename.lastIndexOf('.')+1).toLowerCase();
                 const contentType = this.mimeTypes.get(ext);
                 if (contentType) {
                     return contentType;
@@ -848,8 +857,9 @@ class RestEngine {
 
 class EtagFile {
 
-    eTag: string;
-    content: Buffer;
+    public eTag: string;
+    public name: string;
+    public content: Buffer;
 
     constructor(eTag: string, content: Buffer) {
         this.eTag = `"${eTag}"`;

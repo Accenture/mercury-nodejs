@@ -803,6 +803,30 @@ describe('post office use cases', () => {
       expect(result.getHeader('content-type')).toBe('text/html');
     }); 
 
+    it('can load index.html', async () => {
+      const po = new PostOffice();
+      const req = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/index.html');
+      const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
+      const result = await po.request(reqEvent);
+      expect(typeof result.getBody()).toBe('string');
+      const filePath = util.normalizeFilePath(resourceFolder + "/public/index.html");
+      const content = await fs.promises.readFile(filePath);
+      expect(Buffer.from(result.getBody() as string)).toStrictEqual(content);
+      expect(result.getHeader('content-type')).toBe('text/html');
+    }); 
+
+    it('can load index page without extension', async () => {
+      const po = new PostOffice();
+      const req = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/index');
+      const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
+      const result = await po.request(reqEvent);
+      expect(typeof result.getBody()).toBe('string');
+      const filePath = util.normalizeFilePath(resourceFolder + "/public/index.html");
+      const content = await fs.promises.readFile(filePath);
+      expect(Buffer.from(result.getBody() as string)).toStrictEqual(content);
+      expect(result.getHeader('content-type')).toBe('text/html');
+    });
+
     it('can load CSS page', async () => {
       const po = new PostOffice();
       const req = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/css/sample.css');

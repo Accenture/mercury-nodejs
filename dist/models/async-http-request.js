@@ -18,13 +18,6 @@ const FILE_NAME = "filename";
 const CONTENT_LENGTH = "size";
 const TRUST_ALL_CERT = "trust_all_cert";
 const TARGET_HOST = "host";
-function setLowerCase(source) {
-    const result = {};
-    for (const key of Object.keys(source)) {
-        result[key.toLowerCase()] = source[key];
-    }
-    return result;
-}
 export class AsyncHttpRequest {
     method;
     queryString;
@@ -121,18 +114,45 @@ export class AsyncHttpRequest {
      * @returns value of the header
      */
     getHeader(key) {
-        return key ? this.headers[key.toLowerCase()] : null;
+        const lk = key.toLowerCase();
+        for (const k of Object.keys(this.headers)) {
+            if (lk == k.toLowerCase()) {
+                return this.headers[k];
+            }
+        }
+        return null;
     }
     /**
      * Set a key-value for a HTTP header
      *
      * @param key of the header
      * @param value of the header
-     * @returns
+     * @returns this
      */
     setHeader(key, value) {
         if (key) {
-            this.headers[key.toLowerCase()] = value ? value : "";
+            this.removeHeader(key);
+            this.headers[key] = value ? value : "";
+        }
+        return this;
+    }
+    /**
+     * Remove a header key-value
+     *
+     * @param key for the header
+     * @returns this
+     */
+    removeHeader(key) {
+        const lk = key.toLowerCase();
+        let actualKey = null;
+        for (const k of Object.keys(this.headers)) {
+            if (lk == k.toLowerCase()) {
+                actualKey = k;
+                break;
+            }
+        }
+        if (actualKey) {
+            delete this.headers[actualKey];
         }
         return this;
     }
@@ -277,7 +297,13 @@ export class AsyncHttpRequest {
      * @returns value of the session parameter
      */
     getSessionInfo(key) {
-        return this.session[key.toLowerCase()];
+        const lk = key.toLowerCase();
+        for (const k of Object.keys(this.session)) {
+            if (lk == k.toLowerCase()) {
+                return this.session[k];
+            }
+        }
+        return null;
     }
     /**
      * When you implement a custom API authentication service. You can use this method
@@ -289,7 +315,8 @@ export class AsyncHttpRequest {
      */
     setSessionInfo(key, value) {
         if (key) {
-            this.session[key.toLowerCase()] = value ? value : "";
+            this.removeSessionInfo(key);
+            this.session[key] = value ? value : "";
         }
         return this;
     }
@@ -301,7 +328,17 @@ export class AsyncHttpRequest {
      */
     removeSessionInfo(key) {
         if (key) {
-            delete this.session[key.toLowerCase()];
+            const lk = key.toLowerCase();
+            let actualKey = null;
+            for (const k of Object.keys(this.session)) {
+                if (lk == k.toLowerCase()) {
+                    actualKey = k;
+                    break;
+                }
+            }
+            if (actualKey) {
+                delete this.session[actualKey];
+            }
         }
         return this;
     }
@@ -320,7 +357,13 @@ export class AsyncHttpRequest {
      * @returns this
      */
     getCookie(key) {
-        return this.cookies[key.toLowerCase()];
+        const lk = key.toLowerCase();
+        for (const k of Object.keys(this.cookies)) {
+            if (lk == k.toLowerCase()) {
+                return this.cookies[k];
+            }
+        }
+        return null;
     }
     /**
      * This is used if your service wants to set a browser cookie
@@ -331,7 +374,8 @@ export class AsyncHttpRequest {
      */
     setCookie(key, value) {
         if (key) {
-            this.cookies[key.toLowerCase()] = value ? value : "";
+            this.removeCookie(key);
+            this.cookies[key] = value ? value : "";
         }
         return this;
     }
@@ -345,7 +389,17 @@ export class AsyncHttpRequest {
      */
     removeCookie(key) {
         if (key) {
-            delete this.cookies[key.toLowerCase()];
+            const lk = key.toLowerCase();
+            let actualKey = null;
+            for (const k of Object.keys(this.cookies)) {
+                if (lk == k.toLowerCase()) {
+                    actualKey = k;
+                    break;
+                }
+            }
+            if (actualKey) {
+                delete this.cookies[actualKey];
+            }
         }
         return this;
     }
@@ -364,7 +418,13 @@ export class AsyncHttpRequest {
      * @returns value
      */
     getPathParameter(key) {
-        return key != null ? this.pathParams[key.toLowerCase()] : null;
+        const lk = key.toLowerCase();
+        for (const k of Object.keys(this.pathParams)) {
+            if (lk == k.toLowerCase()) {
+                return this.pathParams[k];
+            }
+        }
+        return null;
     }
     /**
      * Set a path parameter if this is an outgoing HTTP request
@@ -375,7 +435,8 @@ export class AsyncHttpRequest {
      */
     setPathParameter(key, value) {
         if (key) {
-            this.pathParams[key.toLowerCase()] = value ? value : "";
+            this.removePathParameter(key);
+            this.pathParams[key] = value ? value : "";
         }
         return this;
     }
@@ -387,7 +448,17 @@ export class AsyncHttpRequest {
      */
     removePathParameter(key) {
         if (key) {
-            delete this.pathParams[key.toLowerCase()];
+            const lk = key.toLowerCase();
+            let actualKey = null;
+            for (const k of Object.keys(this.pathParams)) {
+                if (lk == k.toLowerCase()) {
+                    actualKey = k;
+                    break;
+                }
+            }
+            if (actualKey) {
+                delete this.pathParams[actualKey];
+            }
         }
         return this;
     }
@@ -492,7 +563,14 @@ export class AsyncHttpRequest {
      */
     getQueryParameter(key) {
         if (key) {
-            const value = this.queryParams[key.toLowerCase()];
+            const lk = key.toLowerCase();
+            let value = null;
+            for (const k of Object.keys(this.queryParams)) {
+                if (lk == k.toLowerCase()) {
+                    value = this.queryParams[k];
+                    break;
+                }
+            }
             if (typeof value == 'string') {
                 return value;
             }
@@ -511,7 +589,14 @@ export class AsyncHttpRequest {
      */
     getQueryParameters(key) {
         if (key) {
-            const values = this.queryParams[key.toLowerCase()];
+            const lk = key.toLowerCase();
+            let values = null;
+            for (const k of Object.keys(this.queryParams)) {
+                if (lk == k.toLowerCase()) {
+                    values = this.queryParams[k];
+                    break;
+                }
+            }
             if (typeof values == 'string') {
                 const result = [];
                 result.push(values);
@@ -535,9 +620,10 @@ export class AsyncHttpRequest {
      */
     setQueryParameter(key, value) {
         if (key) {
+            this.removeQueryParameter(key);
             if (value) {
                 if (typeof value == 'string') {
-                    this.queryParams[key.toLowerCase()] = value;
+                    this.queryParams[key] = value;
                 }
                 else if (Array.isArray(value)) {
                     const valueArray = value;
@@ -545,11 +631,33 @@ export class AsyncHttpRequest {
                     for (const v of valueArray) {
                         params.push(String(v));
                     }
-                    this.queryParams[key.toLowerCase()] = params;
+                    this.queryParams[key] = params;
                 }
             }
             else {
-                this.queryParams[key.toLowerCase()] = '';
+                this.queryParams[key] = '';
+            }
+        }
+        return this;
+    }
+    /**
+     * Remove a query parameter
+     *
+     * @param key of the query parameter
+     * @returns this
+     */
+    removeQueryParameter(key) {
+        if (key) {
+            const lk = key.toLowerCase();
+            let actualKey = null;
+            for (const k of Object.keys(this.queryParams)) {
+                if (lk == k.toLowerCase()) {
+                    actualKey = k;
+                    break;
+                }
+            }
+            if (actualKey) {
+                delete this.queryParams[actualKey];
             }
         }
         return this;
@@ -562,13 +670,13 @@ export class AsyncHttpRequest {
     toMap() {
         const result = {};
         if (this.headers && Object.keys(this.headers).length > 0) {
-            result[HEADERS] = setLowerCase(this.headers);
+            result[HEADERS] = this.headers;
         }
         if (this.cookies && Object.keys(this.cookies).length > 0) {
-            result[COOKIES] = setLowerCase(this.cookies);
+            result[COOKIES] = this.cookies;
         }
         if (this.session && Object.keys(this.session).length > 0) {
-            result[SESSION] = setLowerCase(this.session);
+            result[SESSION] = this.session;
         }
         if (this.method) {
             result[METHOD] = this.method;
@@ -606,10 +714,10 @@ export class AsyncHttpRequest {
             const parameters = {};
             result[PARAMETERS] = parameters;
             if (hasPathParams) {
-                parameters[PATH] = setLowerCase(this.pathParams);
+                parameters[PATH] = this.pathParams;
             }
             if (hasQueryParams) {
-                parameters[QUERY] = setLowerCase(this.queryParams);
+                parameters[QUERY] = this.queryParams;
             }
         }
         result[HTTPS] = this.https;
@@ -640,13 +748,13 @@ export class AsyncHttpRequest {
     fromMap(map) {
         if (map && map.constructor == Object) {
             if (HEADERS in map) {
-                this.headers = setLowerCase(map[HEADERS]);
+                this.headers = map[HEADERS];
             }
             if (COOKIES in map) {
-                this.cookies = setLowerCase(map[COOKIES]);
+                this.cookies = map[COOKIES];
             }
             if (SESSION in map) {
-                this.session = setLowerCase(map[SESSION]);
+                this.session = map[SESSION];
             }
             if (METHOD in map) {
                 this.method = String(map[METHOD]);
@@ -690,10 +798,10 @@ export class AsyncHttpRequest {
             if (PARAMETERS in map) {
                 const parameters = map[PARAMETERS];
                 if (PATH in parameters) {
-                    this.pathParams = setLowerCase(parameters[PATH]);
+                    this.pathParams = parameters[PATH];
                 }
                 if (QUERY in parameters) {
-                    this.queryParams = setLowerCase(parameters[QUERY]);
+                    this.queryParams = parameters[QUERY];
                 }
             }
         }

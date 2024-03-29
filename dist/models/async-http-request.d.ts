@@ -77,9 +77,16 @@ export declare class AsyncHttpRequest {
      *
      * @param key of the header
      * @param value of the header
-     * @returns
+     * @returns this
      */
     setHeader(key: string, value: string): AsyncHttpRequest;
+    /**
+     * Remove a header key-value
+     *
+     * @param key for the header
+     * @returns this
+     */
+    removeHeader(key: string): AsyncHttpRequest;
     /**
      * Retrieve the HTTP request body
      *
@@ -339,6 +346,13 @@ export declare class AsyncHttpRequest {
      * @returns this
      */
     setQueryParameter(key: string, value: string): AsyncHttpRequest;
+    /**
+     * Remove a query parameter
+     *
+     * @param key of the query parameter
+     * @returns this
+     */
+    removeQueryParameter(key: string): AsyncHttpRequest;
     /**
      * Convert this HTTP request object to a JSON object
      *

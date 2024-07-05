@@ -128,14 +128,16 @@ class RestEngine {
         if (!this.traceIdLabels.includes('x-trace-id')) {
             this.traceIdLabels.push('x-trace-id');
         }
-        const actuator = new ActuatorServices();
-        this.actuatorRouteName = actuator.getName();
-        platform.register(actuator.getName(), actuator.handleEvent, true, 10);
     }
     startHttpServer() {
         if (!this.loaded) {
             this.loaded = true;
             let restEnabled = false;
+            // preload actuator services
+            const actuator = new ActuatorServices();
+            this.actuatorRouteName = actuator.getName();
+            platform.register(actuator.getName(), actuator.handleEvent, true, 10);
+            // preload Event-over-HTTP service
             const eventApiService = new EventApiService();
             platform.register(eventApiService.getName(), eventApiService.handleEvent, true, 200);
             platform.register(REST_AUTOMATION_MANAGER, housekeeper);

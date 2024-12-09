@@ -36,7 +36,7 @@ export class EventApiService implements Composable {
         const payload = evt.getBody();
         if (payload && payload.constructor == Object) {
             const req = new AsyncHttpRequest(evt.getBody() as object);
-            const timeout = Math.max(100, util.str2int(req.getHeader('X-Timeout')));
+            const timeout = Math.max(100, util.str2int(req.getHeader('X-TTL')));
             const async = 'true' == req.getHeader('X-Async');
             const data = req.getBody();
             if (data.constructor == Buffer || data.constructor == Uint8Array) {

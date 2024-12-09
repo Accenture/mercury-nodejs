@@ -1,7 +1,8 @@
+import { Utility } from '../util/utility.js';
+const util = new Utility();
 const HEADERS = "headers";
 const METHOD = "method";
 const IP = "ip";
-const TIMEOUT = "timeout";
 const SESSION = "session";
 const PARAMETERS = "parameters";
 const HTTP_PROTOCOL = "http://";
@@ -13,7 +14,6 @@ const COOKIES = "cookies";
 const URL_LABEL = "url";
 const BODY = "body";
 const UPLOAD = "upload";
-const STREAM = "stream";
 const FILE_NAME = "filename";
 const CONTENT_LENGTH = "size";
 const TRUST_ALL_CERT = "trust_all_cert";
@@ -30,13 +30,11 @@ export class AsyncHttpRequest {
     cookies = {};
     session = {};
     body = null;
-    streamRoute;
     filename;
     targetHost;
     trustAllCert = false;
     https = false;
     contentLength = -1;
-    timeoutSeconds = -1;
     constructor(map) {
         if (map && map instanceof Object && map.constructor == Object) {
             this.fromMap(map);
@@ -186,7 +184,7 @@ export class AsyncHttpRequest {
      * @returns optional route name of a streaming object
      */
     getStreamRoute() {
-        return this.streamRoute ? this.streamRoute : null;
+        return this.getHeader("x-stream-id");
     }
     /**
      * If you are sending a HTTP request, you can create a stream to render
@@ -197,7 +195,7 @@ export class AsyncHttpRequest {
      */
     setStreamRoute(streamRoute) {
         if (streamRoute) {
-            this.streamRoute = streamRoute;
+            this.setHeader("x-stream-id", streamRoute);
         }
         return this;
     }
@@ -207,7 +205,7 @@ export class AsyncHttpRequest {
      * @returns true or false
      */
     isStream() {
-        return this.streamRoute != null;
+        return this.getStreamRoute() != null;
     }
     /**
      * Retrieve the filename of the input stream
@@ -243,7 +241,9 @@ export class AsyncHttpRequest {
      * @returns timeout value
      */
     getTimeoutSeconds() {
-        return Math.max(0, this.timeoutSeconds);
+        const v = this.getHeader("x-ttl");
+        const timeout = v == null ? 1 : util.str2int(v);
+        return Math.max(1, timeout);
     }
     /**
      * Set request timeout value
@@ -253,8 +253,9 @@ export class AsyncHttpRequest {
      */
     setTimeoutSeconds(timeoutSeconds) {
         if (timeoutSeconds) {
-            const integerValue = parseInt(String(timeoutSeconds));
-            this.timeoutSeconds = Math.max(0, integerValue);
+            const integerValue = util.str2int(String(timeoutSeconds));
+            const v = Math.max(1, integerValue);
+            this.setHeader("x-ttl", v + '');
         }
         return this;
     }
@@ -687,17 +688,11 @@ export class AsyncHttpRequest {
         if (this.url) {
             result[URL_LABEL] = this.url;
         }
-        if (this.timeoutSeconds != -1) {
-            result[TIMEOUT] = this.timeoutSeconds;
-        }
         if (this.filename) {
             result[FILE_NAME] = this.filename;
         }
         if (this.contentLength != -1) {
             result[CONTENT_LENGTH] = this.contentLength;
-        }
-        if (this.streamRoute) {
-            result[STREAM] = this.streamRoute;
         }
         if (this.body) {
             result[BODY] = this.body;
@@ -765,17 +760,11 @@ export class AsyncHttpRequest {
             if (URL_LABEL in map) {
                 this.url = String(map[URL_LABEL]);
             }
-            if (TIMEOUT in map) {
-                this.timeoutSeconds = parseInt(String(map[TIMEOUT]));
-            }
             if (FILE_NAME in map) {
                 this.filename = String(map[FILE_NAME]);
             }
             if (CONTENT_LENGTH in map) {
                 this.contentLength = parseInt(String(map[CONTENT_LENGTH]));
-            }
-            if (STREAM in map) {
-                this.streamRoute = String(map[STREAM]);
             }
             if (BODY in map) {
                 this.body = map[BODY];

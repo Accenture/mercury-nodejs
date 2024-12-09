@@ -316,7 +316,7 @@ class PO {
         return new Promise((resolve, reject) => {
             const bytes = event.toBytes();
             const req = new AsyncHttpRequest().setMethod('POST');
-            req.setHeader('Content-Type', APPLICATION_OCTET_STREAM).setHeader('X-Timeout', String(timeout)).setBody(bytes);
+            req.setHeader('Content-Type', APPLICATION_OCTET_STREAM).setHeader('X-TTL', String(timeout)).setBody(bytes);
             let host;
             let path;
             try {

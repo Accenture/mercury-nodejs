@@ -22,11 +22,11 @@ const MUST_DROP_HEADERS = ["content-encoding", "transfer-encoding", "host", "con
     "upgrade-insecure-requests", "accept-encoding", "user-agent",
     "sec-fetch-mode", "sec-fetch-site", "sec-fetch-user"];
 const MULTIPART_FORM_DATA = "multipart/form-data";
-const STREAM_CONTENT = 'stream';
+const STREAM_CONTENT = 'x-stream-id';
 const CONTENT_TYPE = 'content-type';
 const CONTENT_LENGTH = 'content-length';
 const X_CONTENT_LENGTH = 'x-content-length';
-const TIMEOUT = 'timeout';
+const X_TTL = 'x-ttl';
 const APPLICATION_JSON = 'application/json';
 const APPLICATION_XML = 'application/xml';
 const APPLICATION_JAVASCRIPT = "application/javascript";
@@ -128,18 +128,18 @@ export class AsyncHttpClient {
         const fqUrl = (secure ? 'https://' : 'http://') + targetUrl.host + uriWithQuery;
         // minimum timeout value is 5 seconds
         const timeout = Math.max(5000, request.getTimeoutSeconds() * 1000);
-        // Since we don't know the payload size of the HTTP response, 'stream' is a better option.
         if (traceId) {
             consolidatedHeaders[X_TRACE_ID] = traceId;
         }
         // When validateStatus returns true, HTTP-4xx and 5xx responses are processed as regular response.
         // We can then handle different HTTP responses in a consistent fashion.
+        // Since we don't know the payload size of the HTTP response, 'stream' is a better option.
         const requestConfig = {
             method: method,
             url: fqUrl,
             headers: consolidatedHeaders,
             timeout: timeout,
-            responseType: STREAM_CONTENT,
+            responseType: 'stream',
             validateStatus: (status) => status != null
         };
         if (PUT == method || POST == method || PATCH == method) {
@@ -282,7 +282,7 @@ export class AsyncHttpClient {
                             try {
                                 result.setBody(JSON.parse(text));
                             }
-                            catch (jsonError) {
+                            catch (_ignore) {
                                 result.setBody(text);
                             }
                         }
@@ -301,7 +301,7 @@ export class AsyncHttpClient {
                 else {
                     if (responseStream != null) {
                         result.setHeader(STREAM_CONTENT, objectStream.getInputStreamId());
-                        result.setHeader(TIMEOUT, String(timeout));
+                        result.setHeader(X_TTL, String(timeout));
                         result.setHeader(X_CONTENT_LENGTH, String(len));
                         responseStream.close();
                     }

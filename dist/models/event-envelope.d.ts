@@ -1,4 +1,3 @@
-/// <reference types="node" />
 export declare class EventEnvelope {
     private id;
     private headers;

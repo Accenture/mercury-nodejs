@@ -616,7 +616,7 @@ describe('post office use cases', () => {
       expect(map.getElement('url')).toBe('/api/hello/world');
       expect(map.getElement('ip')).toBe('127.0.0.1');
       expect(map.getElement('method')).toBe('GET');
-      expect(map.getElement('timeout')).toBe(10);
+      expect(map.getElement('headers.x-ttl')).toBe('10');
       expect(map.getElement('query')).toBe('a=b&c=d');
       expect(map.getElement('parameters.query.a')).toBe('b');
       expect(map.getElement('parameters.query.c')).toBe('d');
@@ -636,7 +636,7 @@ describe('post office use cases', () => {
       expect(map.getElement('url')).toBe('/api/hello/world');
       expect(map.getElement('ip')).toBe('127.0.0.1');
       expect(map.getElement('method')).toBe('POST');
-      expect(map.getElement('timeout')).toBe(10);
+      expect(map.getElement('headers.x-ttl')).toBe('10');
       expect(map.getElement('query')).toBe('a=b&c=d');
       expect(map.getElement('parameters.query.a')).toBe('b');
       expect(map.getElement('parameters.query.c')).toBe('d');
@@ -663,7 +663,7 @@ describe('post office use cases', () => {
       expect(map.getElement('url')).toBe('/api/hello/world');
       expect(map.getElement('ip')).toBe('127.0.0.1');
       expect(map.getElement('method')).toBe('PUT');
-      expect(map.getElement('timeout')).toBe(10);
+      expect(map.getElement('headers.x-ttl')).toBe('10');
       expect(map.getElement('query')).toBe('a=b&c=d');
       expect(map.getElement('parameters.query.a')).toBe('b');
       expect(map.getElement('parameters.query.c')).toBe('d');
@@ -689,7 +689,7 @@ describe('post office use cases', () => {
       expect(map.getElement('url')).toBe('/api/hello/world');
       expect(map.getElement('ip')).toBe('127.0.0.1');
       expect(map.getElement('method')).toBe('PUT');
-      expect(map.getElement('timeout')).toBe(10);
+      expect(map.getElement('headers.x-ttl')).toBe('10');
       expect(map.getElement('query')).toBe('a=b&c=d');
       expect(map.getElement('parameters.query.a')).toBe('b');
       expect(map.getElement('parameters.query.c')).toBe('d');
@@ -715,7 +715,7 @@ describe('post office use cases', () => {
       expect(map.getElement('url')).toBe('/api/hello/world');
       expect(map.getElement('ip')).toBe('127.0.0.1');
       expect(map.getElement('method')).toBe('PUT');
-      expect(map.getElement('timeout')).toBe(10);
+      expect(map.getElement('headers.x-ttl')).toBe('10');
       expect(map.getElement('query')).toBe('a=b&c=d');
       expect(map.getElement('parameters.query.a')).toBe('b');
       expect(map.getElement('parameters.query.c')).toBe('d');
@@ -903,7 +903,7 @@ describe('post office use cases', () => {
       expect(map.getElement('url')).toBe('/api/hello/world');
       expect(map.getElement('ip')).toBe('127.0.0.1');
       expect(map.getElement('method')).toBe('GET');
-      expect(map.getElement('timeout')).toBe(10);
+      expect(map.getElement('headers.x-ttl')).toBe('10');
       expect(map.getElement('query')).toBe('x=y&a=b&c=d');
       expect(map.getElement('parameters.query.a')).toBe('b');
       expect(map.getElement('parameters.query.c')).toBe('d');
@@ -936,7 +936,7 @@ describe('post office use cases', () => {
       expect(map.getElement('url')).toBe('/api/hello/world');
       expect(map.getElement('ip')).toBe('127.0.0.1');
       expect(map.getElement('method')).toBe('GET');
-      expect(map.getElement('timeout')).toBe(10);
+      expect(map.getElement('headers.x-ttl')).toBe('10');
       expect(map.getElement('query')).toBe('a=b&c=d');
       expect(map.getElement('parameters.query.a')).toBe('b');
       expect(map.getElement('parameters.query.c')).toBe('d');
@@ -968,7 +968,7 @@ describe('post office use cases', () => {
       expect(map.getElement('url')).toBe('/api/hello/world');
       expect(map.getElement('ip')).toBe('127.0.0.1');
       expect(map.getElement('method')).toBe('POST');
-      expect(map.getElement('timeout')).toBe(10);
+      expect(map.getElement('headers.x-ttl')).toBe('10');
       expect(map.getElement('query')).toBe('a=b&c=d');
       expect(map.getElement('parameters.query.a')).toBe('b');
       expect(map.getElement('parameters.query.c')).toBe('d');
@@ -1010,7 +1010,7 @@ describe('post office use cases', () => {
       expect(map.getElement('method')).toBe('POST');
       expect(map.getElement('headers.content-type').startsWith('multipart/form-data; boundary=')).toBe(true);
       expect(map.getElement('filename')).toBe('hello.txt');
-      expect(map.getElement('stream').startsWith('stream.')).toBe(true);
+      expect(map.getElement('headers.x-stream-id').startsWith('stream.')).toBe(true);
       expect(map.getElement('upload')).toBe('file');
     }); 
     
@@ -1038,8 +1038,8 @@ describe('post office use cases', () => {
       const result = await po.request(reqEvent, 3000);
       expect(result.getStatus()).toBe(200);
       expect(result.getBody()).toBe(null);
-      expect(result.getHeader('stream')).toBeTruthy();
-      const streamId = result.getHeader('stream');
+      expect(result.getHeader('x-stream-id')).toBeTruthy();
+      const streamId = result.getHeader('x-stream-id');
       const stream = new ObjectStreamReader(streamId, 5000);
       const blocks = new Array<string>();
       let len = 0;

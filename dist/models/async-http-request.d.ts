@@ -1,4 +1,3 @@
-/// <reference types="node" />
 export declare class AsyncHttpRequest {
     private method;
     private queryString;
@@ -11,13 +10,11 @@ export declare class AsyncHttpRequest {
     private cookies;
     private session;
     private body;
-    private streamRoute;
     private filename;
     private targetHost;
     private trustAllCert;
     private https;
     private contentLength;
-    private timeoutSeconds;
     constructor(map?: object);
     /**
      * Retrieve the request's HTTP method name

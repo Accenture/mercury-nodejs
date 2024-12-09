@@ -1,4 +1,4 @@
-import shell from 'shelljs';
+ import shell from 'shelljs';
 import { fileURLToPath } from "url";
 
 function getCurrentFolder() {

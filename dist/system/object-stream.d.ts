@@ -1,4 +1,3 @@
-/// <reference types="node" />
 export declare class ObjectStreamIO {
     private streamIn;
     private streamOut;

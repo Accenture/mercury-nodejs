@@ -97,8 +97,8 @@ describe('End-to-end tests', () => {
         expect(result).toBeTruthy();
         expect(result.getHeader('content-type')).toBe('application/octet-stream');
         expect(result.getHeader('Content-Disposition')).toBe('attachment; filename=hello.txt');
-        expect(result.getHeader('stream')).toBeTruthy();
-        const streamId = result.getHeader('stream');
+        expect(result.getHeader('x-stream-id')).toBeTruthy();
+        const streamId = result.getHeader('x-stream-id');
         const inStream = new ObjectStreamReader(streamId, 3000);
         const blocks = new Array<Buffer>();
         for (let i=0; i < 10; i++) {

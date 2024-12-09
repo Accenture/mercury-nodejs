@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://github.com/accenture/mercury/guides/CHAPTER-7/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Chapter-7 - Mercury</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Chapter-7";
+        var mkdocs_page_input_path = "guides/CHAPTER-7.md";
+        var mkdocs_page_url = "/accenture/mercury/guides/CHAPTER-7/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Mercury
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../TABLE-OF-CONTENTS/">Contents</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-1/">Chapter-1</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-2/">Chapter-2</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-3/">Chapter-3</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-4/">Chapter-4</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-5/">Chapter-5</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-6/">Chapter-6</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Chapter-7</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#running-tests">Running tests</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#unit-tests">Unit tests</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#end-to-end-tests">End-to-end tests</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#user-facing-vs-internal-services">User facing vs internal services</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#mocking">Mocking</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#standalone-command-line-application-examples">Standalone command line application examples</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-I/">Appendix-I</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-II/">Appendix-II</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CHANGELOG/">Release notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../arch-decisions/DESIGN-NOTES/">Design notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../INCLUSIVITY/">Inclusivity</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CODE_OF_CONDUCT/">Code of Conduct</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CONTRIBUTING/">Contribution</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Mercury</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Chapter-7</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="functional-tests">Functional tests</h1>
+<p>The example project is pre-configured with "esLint" for TypeScript syntax validation and Jest testing framework.</p>
+<p>Composable application is designed to be Test Driven Development (TDD) friendly.</p>
+<p>There are two test suites under the "examples/test" folder. One for unit tests and one for end-to-end tests.</p>
+<h2 id="running-tests">Running tests</h2>
+<p>Before running the tests, please build your application first. The E2E tests run against the build from the
+dist folder. Also make sure no apps are running on the configured port already.</p>
+<pre><code class="language-sh">npm run build # if you have not run yet
+npm test
+</code></pre>
+<h2 id="unit-tests">Unit tests</h2>
+<p>Since each user function is written in the first principle "input-process-output", you can write unit tests
+to validate the interface contract of each function directly.</p>
+<p>For the unit tests, the setup and tear down steps are as follows:</p>
+<pre><code class="language-javascript">beforeAll(async () =&gt; {
+    log.info('Begin service tests');
+    // locate the src/resources folder
+    resourceFolder = fileURLToPath(new URL('../src/resources', import.meta.url));
+    const appConfigPath = util.normalizeFilePath(resourceFolder + '/application.yml');
+    platform = new Platform(appConfigPath);
+    ComposableLoader.initialize();
+    platform.runForever();
+});
+
+afterAll(async () =&gt; {
+    await platform.stop();
+    // Give console.log a moment to finish
+    await util.sleep(1000);
+    log.info(&quot;Service tests completed&quot;);
+});
+</code></pre>
+<p>In the setup step, it points the system to use the base configuration from "src/resources/application.yml" file and
+tells the system to load the user functions into the event loop using <code>ComposableLoader.initialize()</code>.</p>
+<p>In the tear down step, it instructs the system to stop gracefully.</p>
+<p>A typical example for unit test is to use RPC method to send a request to a route served by a specific user function.</p>
+<pre><code class="language-javascript">it('can do health check', async () =&gt; {
+    const po = new PostOffice();
+    const req = new EventEnvelope().setTo('demo.health').setHeader('type', 'health');
+    const result = await po.request(req, 2000);
+    expect(result).toBeTruthy();
+    expect(result.getBody()).toEqual({&quot;status&quot;: &quot;demo.service is running fine&quot;});
+});
+</code></pre>
+<h2 id="end-to-end-tests">End-to-end tests</h2>
+<p>For end-to-end test, you can import and start your main application in the unit test like this:</p>
+<pre><code class="language-javascript">import '../src/hello-world.js';
+</code></pre>
+<p>The setup and tear down steps are shown below:</p>
+<pre><code class="language-javascript">beforeAll(async () =&gt; {
+    const platform = new Platform();
+    const config = platform.getConfig();
+    const port = config.get('server.port');
+    targetHost = `http://127.0.0.1:${port}`;
+    log.info('Begin end-to-end tests');
+}); 
+
+afterAll(async () =&gt; {
+    const platform = new Platform();
+    await platform.stop();
+    // Give console.log a moment to finish
+    await util.sleep(1000);
+    log.info(&quot;End-to-end tests completed&quot;);
+});
+</code></pre>
+<p>Since your main application ("hello world") has been loaded into the same memory space, it is served by the
+platform singleton object. You can obtain the parameter "server.port" from the base configuration so that 
+your tests can make HTTP calls to the REST endpoints of the hello world application.</p>
+<p>Let's examine the following test to make a HTTP GET request to the "/api/hello/world" REST endpoint.</p>
+<pre><code class="language-javascript">it('can do HTTP-GET to /api/hello/world', async () =&gt; {
+    const po = new PostOffice();
+    const httpRequest = new AsyncHttpRequest().setMethod('GET');
+    httpRequest.setTargetHost(targetHost).setUrl('/api/hello/world');
+    httpRequest.setQueryParameter('x', 'y');
+    const req = new EventEnvelope().setTo('async.http.request').setBody(httpRequest.toMap());
+    const result = await po.request(req, 2000);   
+    expect(result).toBeTruthy();
+    expect(result.getBody()).toBeInstanceOf(Object);
+    const map = new MultiLevelMap(result.getBody() as object);
+    expect(map.getElement('headers.user-agent')).toBe('async-http-client');
+    expect(map.getElement('method')).toBe('GET');
+    expect(map.getElement('ip')).toBe('127.0.0.1');
+    expect(map.getElement('url')).toBe('/api/hello/world');
+    expect(map.getElement('parameters.query.x')).toBe('y');
+}); 
+</code></pre>
+<p>The system has a built-in AsyncHttpClient with the route name "async.http.request".</p>
+<p>The above example code creates an AsyncHttpRequest object and passes it to the AsyncHttpClient that
+will in turn submit the HTTP GET request to the "/api/hello/world" endpoint.</p>
+<p>The MultiLevelMap is a convenient utility to retrieve key-values using the dot-bracket format.</p>
+<h2 id="user-facing-vs-internal-services">User facing vs internal services</h2>
+<p>The "hello world" application is a user facing application. It exposes the user functions through REST endpoints
+defined in the "rest.yaml" configuration file. When a function receives input from a REST endpoint, the payload
+in the incoming "event envelope" is an AsyncHttpRequest object. The user function can examine HTTP headers, 
+cookies, method, URL and request body, if any.</p>
+<p>A user function can also be internal. For example, it may be an algorithm doing calculation for a sales order.
+The function would receive its input from a user facing function like this:</p>
+<blockquote>
+<p>REST endpoint -&gt; user facing function -&gt; internal functions -&gt; database function</p>
+</blockquote>
+<p>Please refer to <a href="../CHAPTER-4/">Chapter 4</a> for some typical event patterns.</p>
+<ol>
+<li>RPC <code>“Request-response”, best for interactivity</code></li>
+<li>Asynchronous <code>e.g. Drop-n-forget</code></li>
+<li>Callback <code>e.g. Progressive rendering</code></li>
+<li>Pipeline <code>e.g. Work-flow application</code></li>
+<li>Streaming <code>e.g. File transfer</code></li>
+</ol>
+<h2 id="mocking">Mocking</h2>
+<p>In a composable application, user functions are written in a self-contained manner without dependencies to other
+user functions.</p>
+<p>You can imagine that a transaction may pass through multiple functions (aka <code>services</code>) because of event
+driven design. You can mock any user function by re-registering the "route name" with a mock function that you
+provide in a unit test.</p>
+<p>We advocate encapsulation of external dependencies. For example, database connection and query language 
+should be fully encapsulated within a data adapter function and other user functions should communicate with the 
+data adapter function using an agreed interface contract. This removes the tight coupling of user functions
+with the underlying infrastructure, allowing us to upgrade infrastructure technology without heavy refactoring 
+at the application level.</p>
+<p>For a user function that encapsulates a database or an external system, you may mock the underlying dependencies
+in the same fashion as you mock traditional code.</p>
+<h2 id="standalone-command-line-application-examples">Standalone command line application examples</h2>
+<p>You can apply the "Composable" methodology to write standalone command line applications. Please refer to the
+"extra" folder for some simple examples.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Example</th>
+<th style="text-align: left;">Name</th>
+<th style="text-align: left;">Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">1</td>
+<td style="text-align: left;">rpc.ts</td>
+<td style="text-align: left;">Demonstrate making RPC calls to a function</td>
+</tr>
+<tr>
+<td style="text-align: center;">2</td>
+<td style="text-align: left;">rpc-to-service.ts</td>
+<td style="text-align: left;">Demo program to make "event over HTTP" call to a service</td>
+</tr>
+<tr>
+<td style="text-align: center;">3</td>
+<td style="text-align: left;">async.ts</td>
+<td style="text-align: left;">Drop-n-forget async calls</td>
+</tr>
+<tr>
+<td style="text-align: center;">4</td>
+<td style="text-align: left;">callback.ts</td>
+<td style="text-align: left;">Make async call and ask the service to callback</td>
+</tr>
+<tr>
+<td style="text-align: center;">5</td>
+<td style="text-align: left;">nested-rpc.ts</td>
+<td style="text-align: left;">Making nested RPC calls chaining 2 functions</td>
+</tr>
+<tr>
+<td style="text-align: center;">6</td>
+<td style="text-align: left;">nested-rpc-with-trace.ts</td>
+<td style="text-align: left;">Same as (5) with distributed tracing turned on</td>
+</tr>
+</tbody>
+</table>
+<p>The command line applications are test programs. They are not covered by unit tests in the example project.</p>
+<p><br/></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Chapter-6</th>
+<th style="text-align: center;">Home</th>
+<th style="text-align: center;">Appendix-I</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><a href="../CHAPTER-6/">API overview</a></td>
+<td style="text-align: center;"><a href="../TABLE-OF-CONTENTS/">Table of Contents</a></td>
+<td style="text-align: center;"><a href="../APPENDIX-I/">Application config</a></td>
+</tr>
+</tbody>
+</table>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../CHAPTER-6/" class="btn btn-neutral float-left" title="Chapter-6"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../APPENDIX-I/" class="btn btn-neutral float-right" title="Appendix-I">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../CHAPTER-6/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../APPENDIX-I/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

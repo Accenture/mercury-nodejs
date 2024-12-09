@@ -116,16 +116,16 @@ It can set the session information as key-values in the response event headers.
 You can test this by visiting http://127.0.0.1:8086/api/hello/world to invoke the "hello.world" function.
 
 The console will print:
-```text
-2023-06-09 17:01:07.495 INFO {"trace":{"origin":"11efb0d8fcff4924b90aaf738deabed0",
-            "id":"4dd5db2e64b54eef8746ab5fbb4489a3","path":"GET /api/hello/world",
-            "service":"v1.api.auth","start":"2023-06-10T00:01:07.492Z","success":true,
-            "exec_time":0.525,"round_trip":0.8,"from":"http.request"}} (handleEvent:tracer.js:27)
-2023-06-09 17:01:07.497 INFO HTTP-200 GET /api/hello/world (RestEngine.relayRequest:rest-automation.js:604)
-2023-06-09 17:01:07.498 INFO {"trace":{"origin":"11efb0d8fcff4924b90aaf738deabed0",
-            "id":"4dd5db2e64b54eef8746ab5fbb4489a3","path":"GET /api/hello/world",
-            "service":"hello.world","start":"2023-06-10T00:01:07.495Z","success":true,
-            "exec_time":0.478,"round_trip":1.238,"from":"http.request"}} (handleEvent:tracer.js:27)                              
+```json
+INFO {"trace":{"origin":"11efb0d8fcff4924b90aaf738deabed0",
+      "id":"4dd5db2e64b54eef8746ab5fbb4489a3","path":"GET /api/hello/world",
+      "service":"v1.api.auth","start":"2023-06-10T00:01:07.492Z","success":true,
+      "exec_time":0.525,"round_trip":0.8,"from":"http.request"}} (handleEvent:tracer.js:27)
+INFO HTTP-200 GET /api/hello/world (RestEngine.relayRequest:rest-automation.js:604)
+INFO {"trace":{"origin":"11efb0d8fcff4924b90aaf738deabed0",
+      "id":"4dd5db2e64b54eef8746ab5fbb4489a3","path":"GET /api/hello/world",
+      "service":"hello.world","start":"2023-06-10T00:01:07.495Z","success":true,
+      "exec_time":0.478,"round_trip":1.238,"from":"http.request"}} (handleEvent:tracer.js:27)                              
 ```
 
 This illustrates that the HTTP request has been processed by the "v1.api.auth" function.

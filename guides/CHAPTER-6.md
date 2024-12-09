@@ -121,15 +121,13 @@ because the "rest.yaml" routes the HTTP request to the function via its unique "
 ## Inspect event metadata
 
 There are some reserved metadata for route name ("my_route"), trace ID ("my_trace_id") and trace path ("my_trace_path")
-in the event's headers. They do not exist in the incoming event envelope. Instead, the system automatically
+in the event's headers. They do not exist in the incoming event envelope. The system automatically
 insert them as read-only metadata.
 
-They are used when your code wants to obtain an instance of the PostOffice API.
+You may inspect other event metadata such as the replyTo address and correlation ID.
 
-You can also inspect other event metadata such as the replyTo address and correlation ID.
-
-Note that the "replyTo" address is optional. It only exists when the caller is making an RPC call to your function.
-If the caller sends an asynchronous request, the "replyTo" value is null.
+Note that the "replyTo" address is optional. It only exists when the caller is making an RPC request or callback to
+your function. If the caller sends an asynchronous drop-n-forget request, the "replyTo" value is null.
 
 ## Platform API
 
@@ -144,7 +142,7 @@ In some use cases where you want to create and destroy functions on demand, you 
 ### What is a public function?
 
 A public function is visible by any application instances in the same network. When a function is declared as
-"public", the function is reachable through the EventAPI REST endpoint.
+"public", the function is reachable through the Event-over-HTTP API REST endpoint.
 
 A private function is invisible outside the memory space of the application instance that it resides.
 This allows application to encapsulate business logic according to domain boundary. You can assemble closely
@@ -190,10 +188,10 @@ if (po.exists("another.function")) {
 }
 ```
 
-### Obtain the class instance of my function
+### Obtain the class instance of a function
 
-Since a composable function is executed as an anonymous function, the "this" reference is protected inside the
-functional scope and no longer relevant to the class scope.
+Since a composable function is executed as an anonymous function, the `this` reference is protected inside the
+functional scope and thus no longer relevant to the class scope.
 
 To invoke other methods in the same class holding the composable function, the "getMyClass()" API can be used.
 
@@ -381,7 +379,6 @@ are not likely to impact your applications.
 ## Optional Event Scripting
 
 To further reduce coding effort, you can perform "event orchestration" by configuration using "Event Script".
-It is available as an enterprise add-on module from Accenture.
 
 ## Co-existence with other development frameworks
 
@@ -389,7 +386,7 @@ Mercury libraries are designed to co-exist with your favorite frameworks and too
 a composable function, you can use any coding style and frameworks as you like, including sequential, object-oriented
 and reactive programming styles.
 
-Mercury version 3 has a built-in lightweight non-blocking HTTP server based on Express, but you can also use other
+Mercury has a built-in lightweight non-blocking HTTP server based on Express, but you can also use other
 application server framework with it.
 
 ## Template application for quick start

@@ -128,7 +128,7 @@ is enabled in the incoming request. If yes, it will propagate tracing informatio
 In enterprise application, RPC is the most common pattern in making call from one function to another.
 
 The "calling" function makes a request and waits for the response from the "called" function.
-There are 2 code patterns for RPC.
+There are two code patterns for RPC.
 
 #### async/await pattern
 
@@ -242,7 +242,7 @@ while (someCondition) {
 You can browse the "hello-world-service.ts" for the file upload and download statements to examine the
 streaming code patterns.
 
-Mercury 3.0 streams use the temporary folder at "/tmp/node/streams" folder to hold data blocks.
+Mercury streams use the temporary folder at "/tmp/node/streams" folder to hold data blocks.
 The temporary data blocks are cleaned once they are read by a function.
 
 In your functions, you can send/receive JSON object, bytes (`Buffer`) and text (`string`) with the object stream system.
@@ -263,12 +263,10 @@ your application works. It makes your code more readable.
 
 ## Event Script
 
-To automate event orchestration, there is an enterprise add-on module called "Event Script".
-This is the idea of "config over code" or "declarative programming". The primary purpose of "Event Script"
-is to reduce coding effort so that the team can focus in improving application design and code quality.
-Please contact your Accenture representative if you would like to evaluate the additional tool.
+For more sophisticated application design, you may use the Event Script engine in the
+[Mercury-Composable](https://accenture.github.io/mercury-composable/) project to do event choreography for your
+composable functions in your Node.js application.
 
-In the next chapter, we will discuss the build, test and deploy process.
 <br/>
 
 |            Chapter-3            |                   Home                    |            Chapter-5            |

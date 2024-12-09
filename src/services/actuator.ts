@@ -122,7 +122,7 @@ export class ActuatorServices implements Composable {
             }
             upstream.push(info);
         }
-        const result = {'up': up, 'origin': origin, 'name': appName, 'upstream': upstream};
+        const result = {'up': up, 'origin': origin, 'name': appName, 'dependency': upstream};
         if (upstream.length == 0) {
             result['message'] = 'Did you forget to define health.dependencies in application configuration?';
         }

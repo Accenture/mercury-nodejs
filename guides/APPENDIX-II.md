@@ -61,7 +61,7 @@ export class DemoHealthCheck implements Composable {
         }
         if (command == HEALTH) {
           // this is a dummy health check
-          return "demo.service is running fine";
+          return {'status': 'demo.service is running fine'};
         }
         throw new AppException(400, 'Request type must be info or health');
     }

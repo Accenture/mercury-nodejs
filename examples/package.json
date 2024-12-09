@@ -4,7 +4,7 @@
   "description": "Composable application example",
   "type": "module",
   "engines": {
-    "node": ">= 22.12.0"
+    "node": ">= 20.18.1"
   },
   "author": "Eric Law <eric.law@accenture.com>",
   "license": "Apache-2.0",

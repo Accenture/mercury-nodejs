@@ -4,7 +4,7 @@
   "description": "Composable application SDK",
   "type": "module",
   "engines": {
-    "node": ">= 22.12.0"
+    "node": ">= 20.18.1"
   },
   "main": "./dist/index.js",
   "author": "Eric Law <eric.law@accenture.com>",

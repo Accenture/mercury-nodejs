@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 4.0.0, 12/9/2024
+
+Upgraded to sync with Mercury-Composable for the foundation event-driven and Event-over-HTTP
+design. Tested with Node.js version 22.12.0 (LTS). Backward compatible to version 20.18.1 (LTS).
+
+Event-over-HTTP compatibility tests conducted with Mercury-Composable version 4.0.32.
+
+### Added
+
+N/A
+
+### Removed
+
+N/A
+
+### Changed
+
+1. Refactored Event-over-HTTP to use standardized HTTP headers X-Stream-Id and X-Ttl
+2. Updated OSS dependencies to latest version
+3. Configured for EsLint version 9.16.0
+
+---
 ## Version 3.0.0, 6/10/2023
 
 Ported composable core features from Mercury 3.0 Java version

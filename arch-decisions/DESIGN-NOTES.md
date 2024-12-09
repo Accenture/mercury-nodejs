@@ -12,7 +12,7 @@ and independent of the rest of the application. You can write code using the fir
 
 ## Fully event driven
 
-Mercury 3.0 is both a development methodology and a toolkit. It articulates the use of events between functions
+Mercury is both a development methodology and a toolkit. It articulates the use of events between functions
 instead of tight coupling using direct method calls.
 
 In Node.js, this is particular important because it ensures that each function yields to the event loop without

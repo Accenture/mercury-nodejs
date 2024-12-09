@@ -16,7 +16,7 @@ files using the `ConfigReader` API.
 | log.level            | default 'info'                       | Optional |
 | health.dependencies  | e.g. 'database.health'               | Optional |
 
-# Static HTML contents
+## Static HTML contents
 
 You can place static HTML files (e.g. the HTML bundle for a UI program) in the "resources/public" folder or
 in the local file system using the "static.html.folder" parameter.
@@ -31,11 +31,11 @@ mime.types:
   doc: 'application/msword'
 ```
 
-# Transient data store
+## Transient data store
 
 The system uses a temp folder in "/tmp/node/streams" to hold temporary data blocks for streaming I/O.
 
-# Reserved route names
+## Reserved route names
 
 The following route names are reserved by the system.
 
@@ -45,6 +45,16 @@ The following route names are reserved by the system.
 | async.http.request  | HTTP response event handler                      | core engine     |
 | event.api.service   | Event API handler                                | REST automation |
 | actuator.services   | admin endpoints (/info, /health, /livenessprobe) | REST automation |
+
+## Reserved HTTP header names
+
+| Header                   | Purpose                                                              | 
+|:-------------------------|:---------------------------------------------------------------------|
+| X-Stream-Id              | Temporal route name for streaming content                            |
+| X-TTL                    | Time to live in milliseconds for a streaming content                 |
+| X-Async                  | This header, if set to true, indicates it is a drop-n-forget request |
+| X-Trace-Id               | This allows the system to propagate trace ID                         |
+
 
 <br/>
 

@@ -107,7 +107,7 @@ export class ConfigReader {
         const result = this.config.getElement(key, defaultValue);
         if (typeof result == 'string') {
             const bracketStart = result.indexOf('${');
-            const bracketEnd = result.lastIndexOf('}');
+            const bracketEnd = bracketStart != -1 ? result.indexOf('}', bracketStart) : -1;
             if (bracketStart != -1 && bracketEnd != -1 && bracketEnd > bracketStart) {
                 let middle = result.substring(bracketStart + 2, bracketEnd).trim();
                 let middleDefault = null;

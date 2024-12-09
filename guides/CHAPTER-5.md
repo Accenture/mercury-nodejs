@@ -16,7 +16,7 @@ in the application.properties file:
 server.port=8086
 ```
 
-and then check if the following entry is configured in the "rest.yaml" endpoint definition file.
+and then add the following entry in the "rest.yaml" endpoint definition file.
 If not, update "rest.yaml" accordingly. The "timeout" value is set to 60 seconds to fit common use cases.
 
 ```yaml
@@ -55,17 +55,17 @@ service there.
 
 ```shell
 $ node rpc-to-service.js
-2023-06-09 17:45:37.621 INFO Event system started - ed28f069afc34647b7afc5e762522e9f (platform.js:441)
-2023-06-09 17:45:37.625 INFO PRIVATE distributed.tracing registered (platform.js:215)
-2023-06-09 17:45:37.626 INFO PRIVATE async.http.request registered with 200 instances (platform.js:218)
-2023-06-09 17:45:37.627 INFO Platform ed28f069afc34647b7afc5e762522e9f ready (main:rpc-to-service.js:10)
-2023-06-09 17:45:37.682 INFO Payload match? true (main:rpc-to-service.js:20)
-2023-06-09 17:45:37.682 INFO Received 1 (main:rpc-to-service.js:21)
-2023-06-09 17:45:37.691 INFO Payload match? true (main:rpc-to-service.js:20)
-2023-06-09 17:45:37.692 INFO Received 2 (main:rpc-to-service.js:21)
-2023-06-09 17:45:37.699 INFO Payload match? true (main:rpc-to-service.js:20)
-2023-06-09 17:45:37.700 INFO Received 3 (main:rpc-to-service.js:21)
-2023-06-09 17:45:37.700 INFO Demo application completed (main:rpc-to-service.js:29)
+INFO Event system started - ed28f069afc34647b7afc5e762522e9f (platform.js:441)
+INFO PRIVATE distributed.tracing registered (platform.js:215)
+INFO PRIVATE async.http.request registered with 200 instances (platform.js:218)
+INFO Platform ed28f069afc34647b7afc5e762522e9f ready (main:rpc-to-service.js:10)
+INFO Payload match? true (main:rpc-to-service.js:20)
+INFO Received 1 (main:rpc-to-service.js:21)
+INFO Payload match? true (main:rpc-to-service.js:20)
+INFO Received 2 (main:rpc-to-service.js:21)
+INFO Payload match? true (main:rpc-to-service.js:20)
+INFO Received 3 (main:rpc-to-service.js:21)
+INFO Demo application completed (main:rpc-to-service.js:29)
 ```
 
 In the rpc-to-service application, it makes the requests using the "await po.remoteRequest()" API.
@@ -80,7 +80,8 @@ const po = new PostOffice({ 'my_route': 'rpc.demo', 'my_trace_id': '200', 'my_tr
 const result = await po.remoteRequest(req, REMOTE_EVENT_ENDPOINT);
 ```
 
-The illustrates that you can write both command line application or service application using the Mercury 3.0 toolkit.
+This illustrates that you can write both command line application or service application using the Mercury-nodejs
+toolkit.
 
 ## Advantages
 
@@ -88,7 +89,7 @@ The Event API exposes all public functions of an application instance to the net
 
 The advantages of Event API includes:
 
-1. Convenient - you do not need to write or configure individual endpoint for each public service
+1. Convenient - you do not need to write or configure individual endpoint for each service
 2. Efficient - events are transported in binary format from one application to another
 3. Secure - you can protect the Event API endpoint with an authentication service
 
@@ -103,7 +104,7 @@ The following configuration adds authentication service to the Event API endpoin
 ```
 
 This enforces every incoming request to the Event API endpoint to be authenticated by the "v1.api.auth" service
-before passing to the Event API service. You can plug in your own authentication service such as OAuth 2.0
+before passing to the Event API service. You can plug in your own authentication service. For example, OAuth 2.0
 "bearer token" validation.
 
 Please refer to [Chapter-3 - REST automation](CHAPTER-3.md) for details.

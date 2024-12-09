@@ -8,12 +8,11 @@ There are two test suites under the "examples/test" folder. One for unit tests a
 
 ## Running tests
 
-Before running the tests be sure you have run preload and build. The E2E tests run against the build from the dist folder.
-Also make sure no apps are running on the configured port already. You may have a stray mercury app running on that port and your test results won't be what you expect.
-Then just npm run test as usual.
+Before running the tests, please build your application first. The E2E tests run against the build from the
+dist folder. Also make sure no apps are running on the configured port already.
 
 ```sh
-npm run preload && npm run build # if you have not run yet
+npm run build # if you have not run yet
 npm test
 ```
 
@@ -56,14 +55,13 @@ it('can do health check', async () => {
     const req = new EventEnvelope().setTo('demo.health').setHeader('type', 'health');
     const result = await po.request(req, 2000);
     expect(result).toBeTruthy();
-    expect(result.getBody()).toBe('demo.service is running fine');
+    expect(result.getBody()).toEqual({"status": "demo.service is running fine"});
 });
 ```
 
 ## End-to-end tests
 
-For end-to-end test, you can import your main application in the unit test. This assumes your main method starts
-when the script is loaded. For example:
+For end-to-end test, you can import and start your main application in the unit test like this:
 
 ```javascript
 import '../src/hello-world.js';
@@ -131,7 +129,7 @@ cookies, method, URL and request body, if any.
 A user function can also be internal. For example, it may be an algorithm doing calculation for a sales order.
 The function would receive its input from a user facing function like this:
 
-> REST endpoint -> user facing function -> internal functions -> database utility function
+> REST endpoint -> user facing function -> internal functions -> database function
 
 Please refer to [Chapter 4](CHAPTER-4.md) for some typical event patterns.
 
@@ -151,9 +149,9 @@ driven design. You can mock any user function by re-registering the "route name"
 provide in a unit test.
 
 We advocate encapsulation of external dependencies. For example, database connection and query language 
-should be fully encapsulated within a utility function and other user functions should communicate with the 
-database utility function using an agreed interface contract. This removes the tight coupling of user functions
-with any underlying infrastructure, allowing us to upgrade infrastructure technology without heavy refactoring 
+should be fully encapsulated within a data adapter function and other user functions should communicate with the 
+data adapter function using an agreed interface contract. This removes the tight coupling of user functions
+with the underlying infrastructure, allowing us to upgrade infrastructure technology without heavy refactoring 
 at the application level.
 
 For a user function that encapsulates a database or an external system, you may mock the underlying dependencies

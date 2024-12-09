@@ -48,7 +48,7 @@ describe('Service tests', () => {
         const req = new EventEnvelope().setTo('demo.health').setHeader('type', 'health');
         const result = await po.request(req, 2000);
         expect(result).toBeTruthy();
-        expect(result.getBody()).toBe('demo.service is running fine');
+        expect(result.getBody()).toEqual({"status": "demo.service is running fine"});
     });
 
     it('can read exception from health check', async () => {

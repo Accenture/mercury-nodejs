@@ -84,7 +84,7 @@ async function demoHealth(evt: EventEnvelope) {
   }
   if (command == 'health') {
     // this is a dummy health check
-    return "demo.service is running fine";
+    return {'status': 'demo.service is running fine'};
   }
   throw new AppException(400, 'Request type must be info or health');
 }
@@ -589,11 +589,11 @@ describe('post office use cases', () => {
       expect(map.getElement('name')).toBe('platform-core');
       expect(map.getElement('up')).toBe(true);
       expect(map.getElement('origin')).toBe(platform.getOriginId());
-      expect(map.getElement('upstream[0].route')).toBe('demo.health');
-      expect(map.getElement('upstream[0].service')).toBe('demo.service');
-      expect(map.getElement('upstream[0].status_code')).toBe(200);
-      expect(map.getElement('upstream[0].message')).toBe('demo.service is running fine');
-      expect(map.getElement('upstream[0].href')).toBe('http://127.0.0.1');
+      expect(map.getElement('dependency[0].route')).toBe('demo.health');
+      expect(map.getElement('dependency[0].service')).toBe('demo.service');
+      expect(map.getElement('dependency[0].status_code')).toBe(200);
+      expect(map.getElement('dependency[0].message')).toEqual({'status': 'demo.service is running fine'});
+      expect(map.getElement('dependency[0].href')).toBe('http://127.0.0.1');
     });
 
     it('can get response from /livenessprobe endpoint', async () => {

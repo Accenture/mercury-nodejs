@@ -1,4 +1,4 @@
-# Mercury 3.0 for Node.js
+# Mercury 4.0 for Node.js
 
 Reference engine for building "Composable architecture and applications".
 
@@ -7,16 +7,31 @@ Reference engine for building "Composable architecture and applications".
 The Mercury project is created with one primary objective -
 `to make software easy to write, read, test, deploy, scale and manage.`
 
-Mercury 3.0 for Node.js inherits core functionality from the original Mercury Java project.
+Mercury 4.0 for Node.js inherits core functionality from the original Mercury Java project.
 For examples,
 
 1. REST automation - you can create REST endpoints by configuration instead of code
-2. In-memory event system - we extend the standard Node.js EventEmitter to support high concurrency and ease of use
+2. In-memory event system - we extend the standard Node.js EventEmitter to support high concurrency
+   and ease of use
 3. Event API endpoint - this facilitates inter-container communication using events over HTTP
 
 To get started, please refer to the [Developer Guide](guides/CHAPTER-1.md).
 
-June, 2023
+Applications written using Mercury for Node.js can interoperate with composable applications using the
+Event-over-HTTP protocol, meaning that a composable Java application can invoke a Node.js application
+using events that delivered over a regular HTTP connection.
+
+The Event Scripting feature for event choreography is not available in this Node.js version because
+you can use the Java version as the event manager to orchestrate composable functions in a Node.js
+application.
+
+For more information on event scripting, please visit the
+[Mercury-Composable](https://accenture.github.io/mercury-composable/) project.
+  
+You may explore [Event Script](https://accenture.github.io/mercury-composable/guides/CHAPTER-4/) to see
+how to define event choreography for your composable application.
+
+December, 2024
 
 # Introduction to composable architecture
 
@@ -32,7 +47,7 @@ that are hard to modernize quickly.
 IT modernization is like moving into a new home. It would be the opportunity to clean up and to improve for
 business agility and strategic competitiveness.
 
-Composable architecture is gaining visibility recently because it accelerates organization transformation towards
+Composable architecture is gaining momentum because it accelerates organization transformation towards
 a cloud native future. We will discuss how we may reduce modernization risks with this approach.
 
 # Composability
@@ -87,18 +102,23 @@ sets of functions to address different business use cases.
 Cloud native applications are deployed as containers or serverless functions. Ideally, they communicate using events.
 For example, the CQRS design pattern is well accepted for building high performance cloud native applications.
 
+As shown in Figure 1, applications can communicate with each other using an enterprise event system.
+
+For inter-domain communication, it is called "Level 1 events". For inter-container communication within a single
+domain, it is called "Level 2 events".
+
 > Figure 1 - Cloud native applications use event streams to communicate
 
 ![figure-1.png](diagrams/figure-1.png)
 
-However, within a single application unit, the application is mostly built in a traditional way.
+However, within a single application unit, an application is mostly built in a traditional way.
 i.e. one function is calling other functions and libraries directly, thus making the modules and libraries
 tightly coupled. As a result, microservices may become smaller monolithic applications.
 
 To overcome this limitation, we can employ “event-driven design” to make the microservices application unit composable.
 
-An application unit is a collection of functions in memory and an “event bus” is the communication conduit to connect
-the functions together to form a single executable.
+An application unit is a collection of composable functions in memory. Functions communicate with each other
+over an “in-memory event bus” to form a single deployable application.
 
 > Figure 2 – Functions use in-memory event bus to communicate
 
@@ -111,8 +131,8 @@ input and output payloads are delivered as events. All input and output are immu
 and side effects.
 
 Since input and output for each function is well-defined, test-driven development (TDD) can be done naturally.
-It is also easier to define a user story for each function and the developer does not need to study and integrate
-multiple levels of dependencies, resulting in higher quality code.
+It is also easier to define a user story for each function and the developer does not need to integrate
+multiple levels of dependencies with code, resulting in a higher quality product.
 
 > Figure 3 - The first principle of a function
 
@@ -126,13 +146,12 @@ doing a calculation with a formula, etc.
 ![figure-4.png](diagrams/figure-4.png)
 
 As shown in Figure 4, if function-1 wants to send a request to function-2, we can write “event orchestration code”
-to put the output from function-1 into an event envelope and send it over an in-memory event bus. The event system
-will transport the event envelope to function-2, extract the payload and submit it as “input” to function-2
+to route the output from function-1 to function-2 send it over an in-memory event bus.
 
 # Function execution
 
-In event-driven application design, a function is executed when an event arrives as “input.” When a function
-finishes processing, your application can command the event system to route the result set (“output”) as an
+In event-driven application design, a function is executed when an event arrives as an `input`. When a function
+finishes processing, your application can command the event system to route the result set (`output`) as an
 event to another function.
 
 Each function is uniquely identified by a "route name". For example, when a REST endpoint receives a request, 
@@ -152,7 +171,7 @@ Each function is self-contained and loosely coupled by event flow.
 
 # Performance and throughput
 
-Mercury 3.0 for Node.js is written in TypeScript for improved type safety and IDE integration.
+Mercury for Node.js is written in TypeScript with type safety.
 
 Since Node.js application is usually single threaded, all functions must be executed cooperatively
 in the "event loop."
@@ -160,7 +179,7 @@ in the "event loop."
 However, a traditional Node.js or javascript application can run slower if it is not designed to run
 "cooperatively". i.e. each method must yield control to the event loop.
 
-Composable applications with Mercury 3.0 enjoy faster performance and throughput because each function is
+Composable applications enjoy faster performance and throughput because each function is
 written in a self-contained fashion without dependencies of other functions. When one function requests
 the service of another function, control is released to the event loop, thus promoting higher performance
 and throughput than traditional coding approach.
@@ -206,7 +225,7 @@ thread.
   you have many worker threads in your application. Therefore, please keep the number of worker threads
   to a bare minimal.
 
-# Event Orchestration
+# Use cases
 
 We can construct a composable application with self-contained functions that execute when events arrive.
 There is a simple event API that we call the “Post Office” to support sequential non-blocking RPC, async,
@@ -215,30 +234,16 @@ drop and forget, callback, workflow, pipeline, streaming and interceptor pattern
 The "async/await" pattern in Node.js reduces the effort in application modernization because we can directly
 port sequential legacy code from a monolithic application to the new composable cloud native design.
 
-Earlier we discussed “event orchestration.” We have an accelerator called “Event Script” that provides
-“event orchestration” in configuration to eliminate the most tedious coding effort. Event Script creates a
-composable application in three steps: (1) the product owner and architect describe the business transaction
-as a flow of events, (2) the developer converts the flow chart into event script and (3) write the individual
-functions for business logic. The system will connect the various functions together and orchestrate the
-event flow as a single application.
+You can use this composable foundation library to write high performance Node.js applications in a composable
+manner. The built-in REST automation feature allows you to create REST endpoints by configuration and link
+each endpoint with a composable function. The ideal use case would be a Backend for FrontEnd (BFF) application.
 
-```text
-Note: Event Script is outside the scope of this open sources project.
-      Please contact your Accenture representative if you are interested to use
-      Event Script to further reduce coding effort for composable applications.
-```
+For more complex application, we recommend using the Event Script system in the Mercury-Composable Java project
+as a engine to drive composable functions in a Node.js application.
 
-# How steep is the learning curve for a developer?
-
-The developer can use any coding style to write the individual functions, no matter it is sequential, 
-object-oriented, or reactive. One may use any favorite frameworks or libraries. There are no restrictions.
-
-There is a learning curve in writing “event orchestration.” Since event orchestration supports the "async/await"
-pattern, the developer can port existing legacy code to the modern style with direct mapping.
-Typically, the learning curve is about two weeks. If you are familiar with event-driven programming, the learning
-curve would be lower. To eliminate this learning curve, the developer may use Event Script that replaces
-orchestration code with event flow configuration files. Event Script is designed to have virtually zero API
-integration for exceptionally low learning curve.
+Event choreography using Event Script is the best way to create truly composable application that is truly
+decoupled. Your functions are executed according to an event flow that can be configured and readable by
+product owners and analysts and not just by developers.
 
 # Conclusion
 

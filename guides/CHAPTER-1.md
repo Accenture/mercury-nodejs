@@ -1,6 +1,6 @@
 # Introduction
 
-Mercury version 3 is a toolkit for writing composable applications.
+Mercury version 4 is a toolkit for writing composable applications.
 
 At the platform level, composable architecture refers to loosely coupled platform services, utilities, and
 business applications. With modular design, you can assemble platform components and applications to create
@@ -26,11 +26,19 @@ As shown in Figure 1, a minimalist composable application consists of three user
 2. One or more business logic modules (shown as "function-1" to "function-3" in the diagram)
 3. An event orchestration module to command the business logic modules to work together as an application
 
-and a composable event engine that provides:
+*Event choreography*: Instead of writing an orchestrator in code, you can deploy Event Script as an engine.
+Please refer to the composable-application example in the 
+[Mercury-Composable](https://accenture.github.io/mercury-composable/) project. You can configure an
+Event-over-HTTP configuration file to connect the Java based Event Script engine to your Node.js application.
+You can package the Event Script application and your Node.js application into a single container for
+deployment. Alternatively, you can deploy your node.js application as serverless function in the cloud and
+the Event Script application can execute the serverless functions according to an event flow configuration.
 
-1. REST automation
-2. An in-memory event system (aka "event loop")
-3. Local pub/sub system
+The foundation libary includes:
+
+1. The REST automation system for rapid creation of REST endpoints by configuration
+2. An in-memory event system (aka "event loop") using the Node's EventEmitter library.
+3. An optional Local pub/sub system for multiple functions to listen to the same topic.
 
 ### Main module
 
@@ -54,8 +62,8 @@ send the request as an event to a business logic function for processing.
 For a backend application, the MainApp is usually used to do some "initialization" or setup steps for your
 services.
 
-The "ComposableLoader.initialize()" statement will load your user functions into the event loop. There is
-no need to directly import each module in your application. The "ComposableLoader" automates the loading.
+The `ComposableLoader.initialize()` statement will register your user functions into the event loop. There is
+no need to directly import each module in your application.
 
 Please configure the functions to be loaded in `src/resources/preload.yaml`.
 
@@ -65,7 +73,6 @@ Your user function module may look like this:
 
 ```typescript
 export class HelloWorldService implements Composable {
-
     name = "hello.world";
 
     @preload()
@@ -77,7 +84,7 @@ export class HelloWorldService implements Composable {
         return this.name;
     }
     
-    async handleEvent(evt: EventEnvelope) {
+    async handleEvent(event: EventEnvelope) {
         // your business logic here
         return someResult;
     }
@@ -92,7 +99,7 @@ primitive value or JSON objects to be transported using standard event envelopes
 In the above example, the unique "route name" of the function is "hello.world".
 
 > Writing code in the first principle of "input-process-output" promotes Test Driven Development (TDD) because
-  interface contact is clearly defined. Self-containment means code is more readable too.
+  interface contact is clearly defined. Self-containment means code is more readable.
 
 ### Event orchestration
 
@@ -100,14 +107,8 @@ A transaction can pass through one or more user functions. In this case, you can
 request from a user, make requests to some user functions, and consolidate the responses before responding to the
 user.
 
-Note that event orchestration is optional. In the most basic REST application, the REST automation system can send
-the user request to a function directly. When the function finishes processing, its output will be routed as
-a HTTP response to the user.
-
-### The Composable engine
-
-Event routing is done behind the curtain by the composable engine which consists of the REST automation service,
-an in-memory event system ("event loop") and an optional localized pub/sub system.
+Note that event orchestration is optional. For example, you can create a BackEnd for FrontEnd (BFF) application
+simply by writing a composable function and link it with the built-in REST automation system.
 
 ### REST automation
 
@@ -125,14 +126,13 @@ will convert the HTTP request into an event for onward delivery to the user defi
 Your function will receive the HTTP request as input and return a result set that will be sent as a HTTP response
 to the user.
 
-For more sophisticated business logic, you can write a function to receive the HTTP request and do
-"event orchestration". i.e. you can do data transformation and send "events" to other user functions to
-process the request.
+For more sophisticated business logic, we recommend the use of Event Script for event choreography discussed
+earlier.
 
 ### In-memory event system
 
 The composable engine encapsulates the standard Node.js EventEmitter library for event routing. It exposes the
-"PostOffice" API for your orchestration function to send async or RPC events.
+"PostOffice" API for you to write your own event orchestration function to send async or RPC events.
 
 ### Local pub/sub system
 

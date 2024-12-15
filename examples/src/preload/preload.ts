@@ -9,7 +9,7 @@ import { parse as parseYaml } from 'yaml';
 import { fileURLToPath } from "url";
 import { Logger, Platform, ConfigReader, FunctionRegistry } from 'mercury';
 // import the user services
-// Generated: 2024-12-14 21:36:32.731
+// Generated: 2024-12-15 08:37:00.867
 import { DemoAuth } from '../services/demo-auth.js';
 import { DemoHealthCheck } from '../services/health-check.js';
 import { HelloWorldService } from '../services/hello-world-service.js';

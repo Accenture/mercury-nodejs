@@ -1,4 +1,5 @@
 import fs from 'fs';
+import { fileURLToPath } from "url";
 import { v4 as uuid4 } from 'uuid';
 import { parse as parseYaml } from 'yaml';
 import { MultiLevelMap } from './multi-level-map.js';
@@ -165,6 +166,14 @@ export class Utility {
                 }
             } 
         }
+    }
+
+    getFolder(relativePath: string): string {
+        const folder = fileURLToPath(new URL(relativePath, import.meta.url));
+        // for windows OS, convert backslash to regular slash and drop drive letter from path
+        const path = folder.includes('\\')? folder.replaceAll('\\', '/') : folder;
+        const colon = path.indexOf(':');
+        return colon == 1? path.substring(colon+1) : path;
     }
 
 }

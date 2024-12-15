@@ -1,10 +1,10 @@
 import fs from 'fs';
-import { fileURLToPath } from "url";
+import { Utility } from '../util/utility.js';
+const util = new Utility();
 export class TemplateLoader {
     templateFolder;
     constructor() {
-        const folder = fileURLToPath(new URL("../resources/templates/", import.meta.url));
-        this.templateFolder = folder.includes('\\') ? folder.replaceAll('\\', '/') : folder;
+        this.templateFolder = util.getFolder("../resources/templates/");
     }
     getTemplate(name) {
         const template = this.templateFolder + name;

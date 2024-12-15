@@ -10,7 +10,6 @@ import { RoutingEntry } from '../util/routing.js';
 import { ConfigReader } from '../util/config-reader.js';
 import { EventApiService } from '../services/event-api.js';
 import { ActuatorServices } from '../services/actuator.js';
-import { fileURLToPath } from "url";
 import express from 'express';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
@@ -158,10 +157,10 @@ class RestEngine {
             }
             this.htmlFolder = config.getProperty('static.html.folder', '');
             if (this.htmlFolder.length == 0) {
-                this.htmlFolder = util.normalizeFilePath(fileURLToPath(new URL("../resources/public", import.meta.url)));
+                this.htmlFolder = util.getFolder("../resources/public");
             }
             log.info(`Static HTML folder: ${this.htmlFolder}`);
-            const mimeFilePath = util.normalizeFilePath(fileURLToPath(new URL("../resources/mime-types.yml", import.meta.url)));
+            const mimeFilePath = util.getFolder("../resources/mime-types.yml");
             const mimeConfig = util.loadYamlFile(mimeFilePath);
             const mimeDefault = mimeConfig.getElement('mime.types');
             for (const k in mimeDefault) {

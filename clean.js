@@ -1,10 +1,16 @@
 import fs from 'fs';
+import { fileURLToPath } from "url";
 
-function getRootFolder() {
-    const filename = import.meta.url.substring(7);
-    const parts = filename.split('/');
-    const pathname = parts.length > 2 && parts[1].endsWith(':')? filename.substring(1) : filename;
-    return pathname.includes('/')? pathname.substring(0, pathname.lastIndexOf('/')) : pathname;
+function getCurrentFolder() {
+    const folder = fileURLToPath(new URL(".", import.meta.url));
+    // for windows OS, convert backslash to regular slash and drop drive letter from path
+    const path = folder.includes('\\')? folder.replaceAll('\\', '/') : folder;
+    const colon = path.indexOf(':');
+    return colon == 1? path.substring(colon+1) : path;
+}
+
+function getFolder(target) {
+    return getCurrentFolder() + target;
 }
 
 function removeDirectory(folder) {
@@ -22,9 +28,9 @@ function removeDirectory(folder) {
     }
 }
 
-const coverage = getRootFolder() + '/coverage';
-const dist = getRootFolder() + '/dist';
-const tmp = getRootFolder() + '/tmp';
+const coverage = getFolder('coverage');
+const dist = getFolder('dist');
+const tmp = getFolder('tmp');
 
 removeDirectory(coverage);
 removeDirectory(dist);

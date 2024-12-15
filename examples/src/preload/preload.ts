@@ -9,7 +9,7 @@ import { parse as parseYaml } from 'yaml';
 import { fileURLToPath } from "url";
 import { Logger, Platform, ConfigReader, FunctionRegistry } from 'mercury';
 // import the user services
-// Generated: 2024-12-09 15:44:40.414
+// Generated: 2024-12-14 21:36:32.731
 import { DemoAuth } from '../services/demo-auth.js';
 import { DemoHealthCheck } from '../services/health-check.js';
 import { HelloWorldService } from '../services/hello-world-service.js';
@@ -17,9 +17,16 @@ import { HelloWorldService } from '../services/hello-world-service.js';
 const log = new Logger();
 const PRELOAD_SECTION = 'preload';
 
+function getRootFolder() {
+    const folder = fileURLToPath(new URL("..", import.meta.url));
+    // for windows OS, convert backslash to regular slash and drop drive letter from path
+    const path = folder.includes('\\')? folder.replaceAll('\\', '/') : folder;
+    const colon = path.indexOf(':');
+    return colon == 1? path.substring(colon+1) : path;
+}
+
 function getPreloadConfig(): object {
-    const file = fileURLToPath(new URL("../resources/preload.yaml", import.meta.url));
-    const preloadYaml = file.includes('\\')? file.replaceAll('\\', '/') : file;
+    const preloadYaml = getRootFolder() + "resources/preload.yaml";
     if (fs.existsSync(preloadYaml)) {
         const fileContent = fs.readFileSync(preloadYaml, {encoding:'utf-8', flag:'r'});
         const config = new ConfigReader(parseYaml(fileContent));

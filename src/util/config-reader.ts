@@ -2,7 +2,6 @@ import fs from 'fs';
 import { MultiLevelMap } from './multi-level-map.js';
 import { Logger } from './logger.js';
 import { Utility } from '../util/utility.js';
-import { fileURLToPath } from "url";
 
 const log = new Logger();
 const util = new Utility();
@@ -75,7 +74,7 @@ export class ConfigReader {
             }
         }
         if (useDefaultAppConfig) {         
-            const filePath = util.normalizeFilePath(fileURLToPath(new URL("../resources/application.yml", import.meta.url)));
+            const filePath = util.getFolder("../resources/application.yml");
             this.config = util.loadYamlFile(filePath);
         }
     }

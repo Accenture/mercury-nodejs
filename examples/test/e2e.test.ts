@@ -45,10 +45,10 @@ describe('End-to-end tests', () => {
         expect(map.getElement('name')).toBe('example-app');
         expect(map.getElement('origin')).toBe(platform.getOriginId());
         expect(map.getElement('up')).toBe(true);
-        expect(map.getElement('upstream[0].href')).toBe('http://127.0.0.1');
-        expect(map.getElement('upstream[0].route')).toBe('demo.health');
-        expect(map.getElement('upstream[0].status_code')).toBe(200);
-        expect(map.getElement('upstream[0].message')).toEqual({"status": "demo.service is running fine"});
+        expect(map.getElement('dependency[0].href')).toBe('http://127.0.0.1');
+        expect(map.getElement('dependency[0].route')).toBe('demo.health');
+        expect(map.getElement('dependency[0].status_code')).toBe(200);
+        expect(map.getElement('dependency[0].message')).toEqual({"status": "demo.service is running fine"});
     });
 
     it('can do HTTP-GET to /api/hello/world', async () => {

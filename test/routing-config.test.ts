@@ -1,6 +1,5 @@
 import { Logger } from '../src/util/logger.js';
 import { Utility } from '../src/util/utility.js';
-import { fileURLToPath } from "url";
 import { AppConfig, ConfigReader } from '../src/util/config-reader.js';
 import { RoutingEntry } from '../src/util/routing.js';
 
@@ -15,8 +14,8 @@ describe('rest automation parser tests', () => {
     });
       
     it('can parse rest.yaml', () => {
-        const resourceFolder = fileURLToPath(new URL("./resources", import.meta.url));
-        const filePath = util.normalizeFilePath(resourceFolder + "/rest.yaml");
+        const resourceFolder = util.getFolder("../../test/resources");
+        const filePath = resourceFolder + "/rest.yaml";
         log.info(`Loading configuration from ${filePath}`);
 
         const config = new ConfigReader(filePath);

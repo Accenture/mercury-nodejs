@@ -13,8 +13,7 @@ const EXPORT_TAG = 'export';
 const PRELOAD_TAG = '@preload()';
 const INITIALIZE_TAG = 'initialize()';
 
-async function scanDir(path) {
-    const folder = path.endsWith('/')? path : path + '/';
+async function scanDir(folder) {
     const files = await fs.promises.readdir(folder);
     for (const f of files) {
         const stat = await fs.promises.stat(folder + f);
@@ -105,9 +104,17 @@ async function generateCode(src, lines) {
     log.info(`Service loader (${relativePath}) generated`);
 }
 
+function getCurrentFolder() {
+    const folder = fileURLToPath(new URL(".", import.meta.url));
+    // for windows OS, convert backslash to regular slash and drop drive letter from path
+    const path = folder.includes('\\')? folder.replaceAll('\\', '/') : folder;
+    const colon = path.indexOf(':');
+    return colon == 1? path.substring(colon+1) : path;
+}
+
 async function main() {
-    const folder = fileURLToPath(new URL("./src/", import.meta.url));
-    const src = folder.includes('\\')? folder.replaceAll('\\', '/') : folder;
+    const src = getCurrentFolder() + 'src/';
+    log.info(`Scanning ${src}`);
     await scanDir(src);
     if (clsMap.size > 0) {
         const loader = new TemplateLoader();

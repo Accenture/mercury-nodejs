@@ -1,13 +1,14 @@
 import fs from 'fs';
-import { fileURLToPath } from "url";
+import { Utility } from '../util/utility.js';
+
+const util = new Utility();
 
 export class TemplateLoader {
 
     private templateFolder: string;
 
     constructor() {
-        const folder = fileURLToPath(new URL("../resources/templates/", import.meta.url));
-        this.templateFolder = folder.includes('\\')? folder.replaceAll('\\', '/') : folder;
+        this.templateFolder = util.getFolder("../resources/templates/");
     }
 
     getTemplate(name: string): string {

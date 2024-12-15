@@ -13,4 +13,5 @@ export declare class Utility {
     loadYamlFile(filePath: string): MultiLevelMap;
     normalizeFilePath(filePath: string): string;
     mkdirsIfNotExist(path: string): void;
+    getFolder(relativePath: string): string;
 }

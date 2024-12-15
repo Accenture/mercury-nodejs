@@ -543,5 +543,4 @@ class EventSystem {
             this.forever = false;
         }
     }
-
 }

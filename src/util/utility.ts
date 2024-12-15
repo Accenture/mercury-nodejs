@@ -15,10 +15,21 @@ const ONE_DAY = 24 * ONE_HOUR;
 
 export class Utility {
 
+    /**
+     * Generate UUID without hyphen characters
+     * 
+     * @returns unique ID
+     */
     getUuid(): string {
         return uuid4().replace(new RegExp('-', 'g'), '');
     }
 
+    /**
+     * sleep for a short time in a non-blocking fashion
+     * 
+     * @param milliseconds to sleep
+     * @returns promise
+     */
     sleep(milliseconds = 1000) {
         return new Promise((resolve) => {
             setTimeout(() => {
@@ -27,10 +38,23 @@ export class Utility {
         });
     }
 
+    /**
+     * Format a floating point number to 3 decimal points
+     * 
+     * @param n is the number
+     * @param decimalPoint default 3
+     * @returns formatted floating point number
+     */
     getFloat(n: number, decimalPoint = 3): number {
         return n && n.constructor == Number? parseFloat(n.toFixed(decimalPoint)) : 0.0;
     }
 
+    /**
+     * Convert a text string into a number
+     * 
+     * @param s is the text string containing a number
+     * @returns integer value
+     */
     str2int(s: string): number {
         if (s) {
             const v = parseInt(s);
@@ -40,6 +64,12 @@ export class Utility {
         }
     }
 
+    /**
+     * Convert a text string into a floating point number
+     * 
+     * @param s is the text string containing a number
+     * @returns floating point number
+     */
     str2float(s: string): number {
         if (s) {
             const v = parseFloat(s);
@@ -49,6 +79,12 @@ export class Utility {
         }
     }
 
+    /**
+     * Test if the text string contains only digits
+     * 
+     * @param text string to be tested
+     * @returns true if numbers
+     */
     isDigits(text: string): boolean {
         for (let i=0; i < text.length; i++) {
             if (text.charAt(i) >= '0' && text.charAt(i) <= '9') continue;
@@ -57,6 +93,12 @@ export class Utility {
         return true;
     }
 
+    /**
+     * Check if the given route name is in valid format
+     * 
+     * @param route name
+     * @returns true if valid
+     */
     validRouteName(route: string): boolean {
         if (route == null || route.length == 0) return false;
         if (route.startsWith(".") || route.startsWith("_") || route.startsWith("-")
@@ -71,6 +113,12 @@ export class Utility {
         return route.includes('.');
     }
 
+    /**
+     * Convert milliseconds into a statement describing the elapsed time
+     * 
+     * @param milliseconds to convert
+     * @returns elapsed time
+     */
     getElapsedTime(milliseconds: number): string {
         let sb = '';
         let time = BigInt(Math.round(milliseconds));
@@ -100,6 +148,12 @@ export class Utility {
         return sb.length == 0? time + " ms" : sb.trim();
     }
 
+    /**
+     * Convert milliseconds to a local timestamp
+     * 
+     * @param milliseconds to convert
+     * @returns local timestamp
+     */
     getLocalTimestamp(milliseconds?: number): string {
         const now = milliseconds? new Date(milliseconds) : new Date();
         const offset = now.getTimezoneOffset() * 60 * 1000;
@@ -107,6 +161,12 @@ export class Utility {
         return new Date(ms - offset).toISOString().replace('T', ' ').replace('Z', '');
     }
 
+    /**
+     * Convert simple time format into seconds
+     * 
+     * @param duration in simple time format ending s, m, h, d
+     * @returns number of seconds
+     */
     getDurationInSeconds(duration: string): number {
         let multiplier = 1;
         let n: number;
@@ -127,6 +187,12 @@ export class Utility {
         return n * multiplier;
     }
     
+    /**
+     * Load a YAML file as a multi-level map
+     * 
+     * @param filePath to the YAML file
+     * @returns a multi-level map
+     */
     loadYamlFile(filePath: string): MultiLevelMap {
         if (filePath) {            
             const normalizedPath = this.normalizeFilePath(filePath);
@@ -141,11 +207,21 @@ export class Utility {
         throw new Error('Missing file path');
     }
 
-    // for consistency between Windows, Mac and Linux, use "forward" slash
+    /**
+     * Detect and convert from Windows to Unix file path
+     * 
+     * @param filePath that may use Windows backslash format
+     * @returns normalized file path in Unix format
+     */
     normalizeFilePath(filePath: string): string {
         return filePath.includes('\\')? filePath.replaceAll('\\', '/') : filePath;
     }
 
+    /**
+     * Create a directory if not exists
+     * 
+     * @param path of directory to create
+     */
     mkdirsIfNotExist(path: string): void {
         if (path) {
             const filePath = this.normalizeFilePath(path);
@@ -168,6 +244,15 @@ export class Utility {
         }
     }
 
+    /**
+     * DO NOT call this function directly in your applicaton code.
+     * 
+     * This function is reserved for system use because the folder is relative
+     * to the Utility class in the library.
+     * 
+     * @param relativePath relative to the Utility class
+     * @returns a fully qualified folder path
+     */
     getFolder(relativePath: string): string {
         const folder = fileURLToPath(new URL(relativePath, import.meta.url));
         // for windows OS, convert backslash to regular slash and drop drive letter from path
@@ -175,5 +260,4 @@ export class Utility {
         const colon = path.indexOf(':');
         return colon == 1? path.substring(colon+1) : path;
     }
-
 }

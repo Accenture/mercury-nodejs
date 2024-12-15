@@ -14,6 +14,7 @@ import { ObjectStreamIO, ObjectStreamReader, ObjectStreamWriter } from '../src/s
 import { HelloWorld } from './services/helloworld.js';
 import { NextFunction, Request, Response } from 'express';
 import fs from 'fs';
+import { fileURLToPath } from "url";
 
 const ASYNC_HTTP_CLIENT = 'async.http.request';
 const API_AUTH_SERVICE = 'event.api.auth';
@@ -112,10 +113,18 @@ async function demoInterceptor(evt: EventEnvelope) {
   }
 }
 
+function getRootFolder() {
+  const folder = fileURLToPath(new URL("..", import.meta.url));
+  // for windows OS, convert backslash to regular slash and drop drive letter from path
+  const path = folder.includes('\\')? folder.replaceAll('\\', '/') : folder;
+  const colon = path.indexOf(':');
+  return colon == 1? path.substring(colon+1) : path;
+}
+
 describe('post office use cases', () => {
 
     beforeAll(async () => {
-      resourceFolder = util.getFolder("../../test/resources");
+      resourceFolder = getRootFolder() + 'test/resources/';
       const filePath = resourceFolder + '/rest.yaml';
       // save the helloWorld as DEMO_LIBRARY_FUNCTION so that it can be retrieved by name
       const helloWorld = new HelloWorld();
@@ -144,7 +153,7 @@ describe('post office use cases', () => {
       const appConfig = new AppConfig().getReader();
       // add configuration parameters to the base config
       appConfig.set('rest.automation.yaml', filePath);
-      appConfig.set('static.html.folder', resourceFolder + '/public');
+      appConfig.set('static.html.folder', resourceFolder + 'public');
       appConfig.set('health.dependencies', 'demo.health');
       // the "server.port" parameter will be retrieved from the base configuration (AppConfig)
       const configMap = {'event.api.url': 'http://127.0.0.1:${server.port:8080}/api/event', 'base.url': 'http://127.0.0.1:${server.port:8080}'}
@@ -795,7 +804,7 @@ describe('post office use cases', () => {
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
       const result = await po.request(reqEvent);
       expect(typeof result.getBody()).toBe('string');
-      const filePath = resourceFolder + "/public/index.html";
+      const filePath = resourceFolder + "public/index.html";
       const content = await fs.promises.readFile(filePath);
       expect(Buffer.from(result.getBody() as string)).toStrictEqual(content);
       expect(result.getHeader('content-type')).toBe('text/html');
@@ -807,7 +816,7 @@ describe('post office use cases', () => {
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
       const result = await po.request(reqEvent);
       expect(typeof result.getBody()).toBe('string');
-      const filePath = resourceFolder + "/public/index.html";
+      const filePath = resourceFolder + "public/index.html";
       const content = await fs.promises.readFile(filePath);
       expect(Buffer.from(result.getBody() as string)).toStrictEqual(content);
       expect(result.getHeader('content-type')).toBe('text/html');
@@ -819,7 +828,7 @@ describe('post office use cases', () => {
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
       const result = await po.request(reqEvent);
       expect(typeof result.getBody()).toBe('string');
-      const filePath = resourceFolder + "/public/index.html";
+      const filePath = resourceFolder + "public/index.html";
       const content = await fs.promises.readFile(filePath);
       expect(Buffer.from(result.getBody() as string)).toStrictEqual(content);
       expect(result.getHeader('content-type')).toBe('text/html');
@@ -831,7 +840,7 @@ describe('post office use cases', () => {
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
       const result = await po.request(reqEvent);
       expect(typeof result.getBody()).toBe('string');
-      const filePath = resourceFolder + "/public/css/sample.css";
+      const filePath = resourceFolder + "public/css/sample.css";
       const content = await fs.promises.readFile(filePath);
       expect(Buffer.from(result.getBody() as string)).toStrictEqual(content);
       expect(result.getHeader('content-type')).toBe('text/css');
@@ -843,7 +852,7 @@ describe('post office use cases', () => {
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
       const result = await po.request(reqEvent);
       expect(typeof result.getBody()).toBe('string');
-      const filePath = resourceFolder + "/public/js/sample.js";
+      const filePath = resourceFolder + "public/js/sample.js";
       const content = await fs.promises.readFile(filePath);
       expect(Buffer.from(result.getBody() as string)).toStrictEqual(content);
       expect(result.getHeader('content-type')).toBe('text/javascript');
@@ -855,7 +864,7 @@ describe('post office use cases', () => {
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
       const result = await po.request(reqEvent);
       expect(typeof result.getBody()).toBe('string');
-      const filePath = resourceFolder + "/public/sample.txt";
+      const filePath = resourceFolder + "public/sample.txt";
       const content = await fs.promises.readFile(filePath);
       expect(Buffer.from(result.getBody() as string)).toStrictEqual(content);
       expect(result.getHeader('content-type')).toBe('text/plain');
@@ -867,7 +876,7 @@ describe('post office use cases', () => {
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
       const result = await po.request(reqEvent);
       expect(typeof result.getBody()).toBe('string');
-      const filePath = resourceFolder + "/public/sample.xml";
+      const filePath = resourceFolder + "public/sample.xml";
       const content = await fs.promises.readFile(filePath);
       expect(Buffer.from(result.getBody() as string)).toStrictEqual(content);
       expect(result.getHeader('content-type')).toBe('application/xml');
@@ -879,7 +888,7 @@ describe('post office use cases', () => {
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
       const result = await po.request(reqEvent);
       expect(typeof result.getBody()).toBe('string');
-      const filePath = resourceFolder + "/public/sample.txt";
+      const filePath = resourceFolder + "public/sample.txt";
       const content = await fs.promises.readFile(filePath);
       expect(Buffer.from(result.getBody() as string)).toStrictEqual(content);
       expect(result.getHeader('content-type')).toBe('text/plain');

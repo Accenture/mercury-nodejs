@@ -129,5 +129,4 @@ export class ActuatorServices implements Composable {
         const json = JSON.stringify(result, null, 2);
         return new EventEnvelope().setStatus(status).setHeader(CONTENT_TYPE, APPLICATION_JSON).setBody(json);
     }
-
 }

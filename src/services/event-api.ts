@@ -90,5 +90,4 @@ export class EventApiService implements Composable {
                     .setHeader(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
                     .setBody(result.toBytes());
     }
-
 }

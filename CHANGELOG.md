@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## Version 4.0.0, 12/9/2024
 
+Support parsing of multiple environment variables and base system properties for
+a single key-value in Config Reader.
+
+### Added
+
+N/A
+
+### Removed
+
+N/A
+
+### Changed
+
+1. Improved environment variable parsing logic and detection of config loops.
+2. Compatibility with Unix, Mac and Windows OS
+
+---
+## Version 4.0.0, 12/9/2024
+
 Upgraded to sync with Mercury-Composable for the foundation event-driven and Event-over-HTTP
 design. Tested with Node.js version 22.12.0 (LTS). Backward compatible to version 20.18.1 (LTS).
 

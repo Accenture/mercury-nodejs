@@ -8,12 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## Version 4.0.1, 12/16/2024
 
-Support parsing of multiple environment variables and base system properties for
-a single key-value in Config Reader.
-
 ### Added
 
-N/A
+Support parsing of multiple environment variables and base system properties for
+a single key-value in Config Reader.
 
 ### Removed
 

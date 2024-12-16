@@ -24,6 +24,8 @@ export declare class ConfigReader {
      * @returns value of the item
      */
     get(key: string, defaultValue?: any, loop?: string): any;
+    extractSegments(original: string): EnvVarSegment[];
+    performEnvVarSubstitution(key: string, text: string, defaultValue?: any, loop?: string): string;
     /**
      * Retrieve a key-value where value is enforced as a string
      *
@@ -50,3 +52,9 @@ export declare class ConfigReader {
      */
     reload(map: MultiLevelMap): ConfigReader;
 }
+declare class EnvVarSegment {
+    start: number;
+    end: number;
+    constructor(start: number, end: number);
+}
+export {};

@@ -103,52 +103,92 @@ export class ConfigReader {
      * @returns value of the item
      */
     get(key, defaultValue = null, loop) {
+        if (!key) {
+            return null;
+        }
+        if (process && key in process.env) {
+            return process.env[key];
+        }
         const result = this.config.getElement(key, defaultValue);
-        if (typeof result == 'string') {
-            const bracketStart = result.indexOf('${');
-            const bracketEnd = bracketStart != -1 ? result.indexOf('}', bracketStart) : -1;
-            if (bracketStart != -1 && bracketEnd != -1 && bracketEnd > bracketStart) {
-                let middle = result.substring(bracketStart + 2, bracketEnd).trim();
-                let middleDefault = null;
-                if (middle) {
-                    const loopId = String(loop ? loop : util.getUuid());
-                    const colon = middle.lastIndexOf(':');
-                    if (colon > 0) {
-                        middleDefault = middle.substring(colon + 1);
-                        middle = middle.substring(0, colon);
+        if (typeof result == 'string' && self) {
+            if (result.lastIndexOf('${') != -1) {
+                const segments = this.extractSegments(result);
+                segments.reverse();
+                let start = 0;
+                let sb = '';
+                for (const i in segments) {
+                    const s = segments[i];
+                    const middle = result.substring(s.start + 2, s.end - 1).trim();
+                    const evaluated = this.performEnvVarSubstitution(key, middle, defaultValue, loop);
+                    const heading = result.substring(start, s.start);
+                    if (heading) {
+                        sb += heading;
                     }
-                    if (process && middle in process.env) {
-                        middle = middle in process.env ? process.env[middle] : null;
+                    if (evaluated) {
+                        sb += evaluated;
                     }
-                    else {
-                        const refs = this.loopDetection.has(loopId) ? this.loopDetection.get(loopId) : [];
-                        if (refs.includes(middle)) {
-                            log.warn(`Config loop for '${middle}' detected`);
-                            middle = "* config loop *";
-                        }
-                        else {
-                            refs.push(middle);
-                            this.loopDetection.set(loopId, refs);
-                            // "self" points to the base configuration
-                            middle = self.get(middle, defaultValue, loopId);
-                        }
-                    }
-                    this.loopDetection.delete(loopId);
-                    const first = result.substring(0, bracketStart);
-                    const last = result.substring(bracketEnd + 1);
-                    if (first || last) {
-                        if (middleDefault == null) {
-                            middleDefault = '';
-                        }
-                        return first + (middle == null ? middleDefault : middle) + last;
-                    }
-                    else {
-                        return middle == null ? middleDefault : middle;
-                    }
+                    start = s.end;
                 }
+                const lastSegment = result.substring(start);
+                if (lastSegment) {
+                    sb += lastSegment;
+                }
+                return sb ? sb : null;
             }
         }
         return result;
+    }
+    extractSegments(original) {
+        const result = [];
+        let text = original;
+        while (true) {
+            const bracketStart = text.lastIndexOf('${');
+            const bracketEnd = text.lastIndexOf('}');
+            if (bracketStart != -1 && bracketEnd != -1 && bracketEnd > bracketStart) {
+                result.push(new EnvVarSegment(bracketStart, bracketEnd + 1));
+                text = original.substring(0, bracketStart);
+            }
+            else if (bracketStart != -1) {
+                text = original.substring(0, bracketStart);
+            }
+            else {
+                break;
+            }
+        }
+        return result;
+    }
+    performEnvVarSubstitution(key, text, defaultValue = null, loop) {
+        if (text) {
+            let middleDefault = null;
+            const loopId = String(loop ? loop : util.getUuid());
+            const colon = text.lastIndexOf(':');
+            if (colon > 0) {
+                middleDefault = text.substring(colon + 1);
+                text = text.substring(0, colon);
+            }
+            if (process && text in process.env) {
+                text = process.env[text];
+            }
+            else {
+                const refs = this.loopDetection.has(loopId) ? this.loopDetection.get(loopId) : [];
+                if (refs.includes(text)) {
+                    log.warn(`Config loop for '${key}' detected`);
+                    text = '';
+                }
+                else {
+                    refs.push(text);
+                    this.loopDetection.set(loopId, refs);
+                    // "self" points to the base configuration
+                    const mid = self.get(text, defaultValue, loopId);
+                    text = mid ? String(mid) : null;
+                }
+            }
+            this.loopDetection.delete(loopId);
+            return text ? text : middleDefault;
+        }
+        else {
+            return defaultValue ? String(defaultValue) : null;
+        }
     }
     /**
      * Retrieve a key-value where value is enforced as a string
@@ -184,6 +224,14 @@ export class ConfigReader {
     reload(map) {
         this.config = map;
         return this;
+    }
+}
+class EnvVarSegment {
+    start = 0;
+    end = 0;
+    constructor(start, end) {
+        this.start = start;
+        this.end = end;
     }
 }
 //# sourceMappingURL=config-reader.js.map

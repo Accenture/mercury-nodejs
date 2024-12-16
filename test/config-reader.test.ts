@@ -13,7 +13,7 @@ function getRootFolder() {
     return colon == 1? path.substring(colon+1) : path;
   }
 
-describe('rest automation parser tests', () => {
+describe('config reader tests', () => {
 
     beforeAll(async () => {
          const config = new AppConfig().getReader();
@@ -31,5 +31,34 @@ describe('rest automation parser tests', () => {
         expect(assigned.info.methods).toStrictEqual([ 'GET', 'PUT', 'POST', 'HEAD', 'PATCH', 'DELETE' ]);
         expect(assigned.info.url).toBe('/api/hello/world');
     }); 
+
+    it('can detect single level of config loop', () => {
+        const config = new AppConfig().getReader();
+        expect(config.get('recursive.key')).toBeNull();
+    });
+
+    it('can detect multiple levels of config loop', () => {
+        const config = new AppConfig().getReader();
+        expect(config.get('looping.test.1')).toBe("1000");
+        expect(config.get('looping.test.3')).toBe("hello hello ");
+    });
+
+    it('can get one environment variable', () => {
+        const config = new AppConfig().getReader();
+        if (process && 'PATH' in process.env) {
+            const p = process.env['PATH'];
+            expect(config.get('env.var.1')).toBe(p);
+        }
+    });
+
+    it('can get multiple environment variables', () => {
+        const config = new AppConfig().getReader();
+        if (process && 'PATH' in process.env) {
+            const p = process.env['PATH'];
+            // the last environment variable is broken
+            const v = 'first 8300 second ' + p + ' third ${invalid.format'
+            expect(config.get('env.var.2')).toBe(v);
+        }
+    });
 
 });

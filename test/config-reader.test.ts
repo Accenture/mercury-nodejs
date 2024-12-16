@@ -55,7 +55,8 @@ describe('config reader tests', () => {
         const config = new AppConfig().getReader();
         if (process && 'PATH' in process.env) {
             const p = process.env['PATH'];
-            const v = 'first 8300 second ' + p + ' third'
+            // the last environment variable is broken
+            const v = 'first 8300 second ' + p + ' third ${invalid.format'
             expect(config.get('env.var.2')).toBe(v);
         }
     });

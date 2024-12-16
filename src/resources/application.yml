@@ -35,4 +35,4 @@ recursive:
 # environment variable
 env.var.1: ${PATH}
 
-env.var.2: 'first ${server.port} second ${PATH} third'
+env.var.2: 'first ${server.port} second ${PATH} third ${invalid.format'

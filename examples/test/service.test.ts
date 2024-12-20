@@ -2,7 +2,7 @@ import { Logger, Utility, Platform, PostOffice, EventEnvelope, AppException, Asy
 import { ComposableLoader } from '../src/preload/preload.js';
 import { fileURLToPath } from "url";
 
-const log = new Logger();
+const log = Logger.getInstance();
 const util = new Utility();
 let platform: Platform;
 
@@ -25,7 +25,7 @@ describe('Service tests', () => {
     beforeAll(async () => { 
         const appConfigPath = getRootFolder() + 'src/resources/application.yml';
         log.info(`Using ${appConfigPath}`);
-        platform = new Platform(appConfigPath);
+        platform = Platform.getInstance(appConfigPath);
         ComposableLoader.initialize();
         platform.runForever();
     });

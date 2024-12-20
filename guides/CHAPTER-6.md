@@ -9,7 +9,7 @@ import { Logger, Platform, RestAutomation } from 'mercury';
 import { ComposableLoader } from './preload/preload.js'; 
 import { fileURLToPath } from "url";
 
-const log = new Logger();
+const log = Logger.getInstance();
 const REST_AUTOMATION_YAML = "rest.automation.yaml";
 const STATIC_HTML_FOLDER = "static.html.folder";
 
@@ -23,7 +23,7 @@ async function main() {
     // Start platform with user provided config file
     // IMPORTANT - this must be the first instantiation of the Platform object in your application
     const configFile = resources + 'application.yml';
-    const platform = new Platform(configFile);
+    const platform = Platform.getInstance(configFile);
     // Locate the REST automation config file
     const restYaml = resources + 'rest.yaml';
     const appConfig = platform.getConfig();
@@ -90,7 +90,7 @@ You can write a function like this:
 ```javascript
 import { preload, Composable, EventEnvelope, AsyncHttpRequest, Logger } from 'mercury';
 
-const log = new Logger();
+const log = Logger.getInstance();
 
 export class DemoAuth implements Composable {
     name = "v1.api.auth";

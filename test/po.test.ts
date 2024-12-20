@@ -40,8 +40,8 @@ const HTML_SUFFIX = '</pre></body></html>';
 const HELLO_WORLD_INSTANCES = 5;
 const TEST_CYCLES = 8;
 
-const log = new Logger();
-const platform = new Platform();
+const log = Logger.getInstance();
+const platform = Platform.getInstance();
 const registry = new FunctionRegistry();
 const util = new Utility();
 let server: RestAutomation;
@@ -150,7 +150,7 @@ describe('post office use cases', () => {
       // register the demo interceptor function
       platform.register(HELLO_INTERCEPTOR_SERVICE, demoInterceptor, true, 1, true);
       // AppConfig should be initialized with base configuration parameter when the Platform object is loaded
-      const appConfig = new AppConfig().getReader();
+      const appConfig = AppConfig.getInstance().getReader();
       // add configuration parameters to the base config
       appConfig.set('rest.automation.yaml', filePath);
       appConfig.set('static.html.folder', resourceFolder + 'public');

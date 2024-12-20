@@ -2,7 +2,7 @@ import { TemplateLoader, Logger, Utility } from 'mercury';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 
-const log = new Logger();
+const log = Logger.getInstance();
 const util = new Utility();
 const clsMap = new Map();
 

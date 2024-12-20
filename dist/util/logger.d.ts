@@ -1,5 +1,8 @@
 export declare class Logger {
-    constructor();
+    private static singleton;
+    private logger;
+    private constructor();
+    static getInstance(): Logger;
     setJsonFormat(jsonFormat: boolean): void;
     getLevel(): string;
     setLevel(level: string): void;

@@ -1,12 +1,17 @@
 import { Logger, Platform, PostOffice, EventEnvelope } from 'mercury';
+import { fileURLToPath } from "url";
 
 // Load system components
-const log = new Logger();
-const platform = new Platform();
+const log = Logger.getInstance();
 
 const HELLO_WORLD = 'hello.world';
 const ANOTHER_FUNCTION = 'another.function';
 const TEST_MESSAGE = 'test message';
+
+function getResourceFoler() {
+    const folder = fileURLToPath(new URL("../resources/", import.meta.url));
+    return folder.includes('\\')? folder.replaceAll('\\', '/') : folder;
+}
 
 // Your service should be declared as an async function with input as EventEnvelope
 async function hello(evt: EventEnvelope) {
@@ -29,6 +34,11 @@ async function anotherFunction(evt: EventEnvelope) {
 
 // Set this function as "async" so we can use the "await" method to write code in "sequential non-blocking" manner
 async function main() {
+    // Start platform with user provided config file
+    // IMPORTANT - this must be the first instantiation of the Platform object in your application
+    const configFile = getResourceFoler() + 'application.yml';
+    const platform = Platform.getInstance(configFile);
+    log.info(`Platform ${platform.getOriginId()} ready`);
     // Obtain a trackable PostOffice instance to enable distributed tracing
     const po = new PostOffice({'my_route': 'rpc.demo', 'my_trace_id': '200', 'my_trace_path': '/api/nested/rpc'});
     // Register your service with the named route "hello.world"

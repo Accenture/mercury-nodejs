@@ -11,7 +11,7 @@ import { Logger, Platform, ConfigReader, FunctionRegistry } from 'mercury';
 // import the user services
 ${import-statements}
 
-const log = new Logger();
+const log = Logger.getInstance();
 const PRELOAD_SECTION = 'preload';
 
 function getRootFolder() {
@@ -61,7 +61,7 @@ export class ComposableLoader {
 
     static initialize(config?: object): void {
         try {
-            const platform = new Platform();
+            const platform = Platform.getInstance();
             const registry = new FunctionRegistry();    
             // list of services
             ${service-list}

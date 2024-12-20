@@ -3,39 +3,54 @@ import { MultiLevelMap } from './multi-level-map.js';
 import { Logger } from './logger.js';
 import { Utility } from '../util/utility.js';
 
-const log = new Logger();
+const log = Logger.getInstance();
 const util = new Utility();
-let self: ConfigReader = null; 
-let sequence = 1;
 
 export class AppConfig {
+    private static singleton: AppConfig;
+    private reader: ConfigReader;
+    private id = util.getUuid();
 
-    constructor(configFileOrMap?: string | object) {
-        if (self == null) {
-            self = new ConfigReader(configFileOrMap, true);
+    private constructor(configFileOrMap?: string | object) { 
+        if (!this.reader) {
+            this.reader = new ConfigReader(configFileOrMap, true);
+            this.reader.resolveEnvVars();
         }
     }
 
-    getReader(): ConfigReader {
-        return self;
+    static getInstance(configFileOrMap?: string | object): AppConfig {
+        if (!AppConfig.singleton) {
+            AppConfig.singleton = new AppConfig(configFileOrMap);            
+        }        
+        return AppConfig.singleton;
     }
 
+    getId(): string {
+        return this.id;
+    }
+
+    getReader(): ConfigReader {
+        return this.reader;
+    }
 }
 
 export class ConfigReader {
+    private static self: ConfigReader;
     private config: MultiLevelMap;
     private loopDetection = new Map();
-    private instance: number;
+    private resolved = false;
+    private id: string;
 
     constructor(configFileOrMap?: string | object, isBaseConfig = false) {
         if (isBaseConfig) {
-            if (self == null) {
-                this.instance = 0;
+            if (ConfigReader.self == null) {
+                ConfigReader.self = this;
+                this.id = "base";
             } else {
                 throw new Error('Base configuration is already loaded');
             }
         } else {
-            this.instance = sequence++;
+            this.id = util.getUuid();
         }
         let useDefaultAppConfig = false;
         if (configFileOrMap) {
@@ -75,12 +90,46 @@ export class ConfigReader {
         }
         if (useDefaultAppConfig) {         
             const filePath = util.getFolder("../resources/application.yml");
+            log.warn(`Loading default base configuration from ${filePath}`);
             this.config = util.loadYamlFile(filePath);
         }
     }
 
     getId(): string {
-        return String(this.instance);
+        return this.id;
+    }
+
+    resolveEnvVars(): void {
+        if (this.id == "base") {
+            if (!this.resolved) {
+                this.resolved = true;
+                // Resolve environment variables and references to system properties
+                const flatMap: object = this.config.getFlatMap();
+                let n = 0;
+                for (const k in flatMap) {
+                    const v = this.config.getElement(k);
+                    if (typeof v == 'string') {
+                        const start = v.indexOf("${");
+                        const end = v.indexOf('}');
+                        if (start != -1 && end != -1 && end > start) {
+                            n++;
+                        }
+                    }
+                }
+                // if found, reload configuration
+                if (n > 0) {
+                    const mm = new MultiLevelMap();
+                    for (const k in flatMap) {
+                        mm.setElement(k, ConfigReader.self.get(k));
+                    }
+                    const s = n == 1? "" : "s";
+                    log.info(`Resolved ${n} key-value${s} from system properties and environment variables`);
+                    this.config = mm;
+                }   
+            }
+        } else {
+            throw new Error('This is not a base configuration');
+        }
     }
 
     getMap(): object {
@@ -114,7 +163,7 @@ export class ConfigReader {
             return process.env[key];
         }
         const result = this.config.getElement(key, defaultValue);
-        if (typeof result == 'string' && self) {
+        if (typeof result == 'string' && ConfigReader.self) {
             if (result.lastIndexOf('${') != -1) {
                 const segments = this.extractSegments(result);
                 segments.reverse();
@@ -181,7 +230,7 @@ export class ConfigReader {
                     refs.push(text);
                     this.loopDetection.set(loopId, refs);
                     // "self" points to the base configuration
-                    const mid = self.get(text, defaultValue, loopId);
+                    const mid = ConfigReader.self.get(text, defaultValue, loopId);
                     text = mid? String(mid) : null;
                 }
             }
@@ -229,9 +278,6 @@ export class ConfigReader {
         this.config = map;
         return this;
     }
-
-
-
 }
 
 class EnvVarSegment {

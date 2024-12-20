@@ -3,7 +3,7 @@ import { Platform } from './platform.js';
 import { Logger } from '../util/logger.js';
 import { EventEnvelope } from '../models/event-envelope.js';
 import { Utility } from '../util/utility.js';
-const log = new Logger();
+const log = Logger.getInstance();
 let platform = null;
 const util = new Utility();
 const topics = new Map();
@@ -21,11 +21,8 @@ async function publisher(evt) {
 }
 export class LocalPubSub {
     constructor() {
-        if (Platform.initialized()) {
-            platform = new Platform();
-        }
-        else {
-            throw new Error('Please load platform class before using PubSub');
+        if (!platform) {
+            platform = Platform.getInstance();
         }
     }
     createTopic(topic) {

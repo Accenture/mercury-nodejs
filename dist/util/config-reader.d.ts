@@ -1,14 +1,22 @@
 import { MultiLevelMap } from './multi-level-map.js';
 export declare class AppConfig {
-    constructor(configFileOrMap?: string | object);
+    private static singleton;
+    private reader;
+    private id;
+    private constructor();
+    static getInstance(configFileOrMap?: string | object): AppConfig;
+    getId(): string;
     getReader(): ConfigReader;
 }
 export declare class ConfigReader {
+    private static self;
     private config;
     private loopDetection;
-    private instance;
+    private resolved;
+    private id;
     constructor(configFileOrMap?: string | object, isBaseConfig?: boolean);
     getId(): string;
+    resolveEnvVars(): void;
     getMap(): object;
     exists(key: string): boolean;
     isEmpty(): boolean;

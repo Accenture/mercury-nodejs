@@ -21,7 +21,7 @@ export class EventApiService implements Composable {
     name = EVENT_API_SERVICE;
     
     constructor() {
-        platform = new Platform();
+        platform = Platform.getInstance();
     }
 
     initialize(): void {

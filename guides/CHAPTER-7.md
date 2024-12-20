@@ -29,7 +29,7 @@ beforeAll(async () => {
     // locate the src/resources folder
     resourceFolder = fileURLToPath(new URL('../src/resources', import.meta.url));
     const appConfigPath = util.normalizeFilePath(resourceFolder + '/application.yml');
-    platform = new Platform(appConfigPath);
+    platform = Platform.getInstance(appConfigPath);
     ComposableLoader.initialize();
     platform.runForever();
 });
@@ -71,7 +71,7 @@ The setup and tear down steps are shown below:
 
 ```javascript
 beforeAll(async () => {
-    const platform = new Platform();
+    const platform = Platform.getInstance();
     const config = platform.getConfig();
     const port = config.get('server.port');
     targetHost = `http://127.0.0.1:${port}`;
@@ -79,7 +79,7 @@ beforeAll(async () => {
 }); 
 
 afterAll(async () => {
-    const platform = new Platform();
+    const platform = Platform.getInstance();
     await platform.stop();
     // Give console.log a moment to finish
     await util.sleep(1000);

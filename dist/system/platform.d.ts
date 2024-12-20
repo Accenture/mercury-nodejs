@@ -1,8 +1,9 @@
 import { EventEnvelope } from '../models/event-envelope.js';
 import { ConfigReader } from '../util/config-reader.js';
 export declare class Platform {
-    constructor(configFile?: string | object);
-    static initialized(): boolean;
+    private static singleton;
+    private constructor();
+    static getInstance(configFile?: string | object): Platform;
     /**
      * Retrieve unique application instance ID (i.e. "originId")
      *

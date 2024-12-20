@@ -3,7 +3,6 @@ import { Utility } from '../util/utility.js';
 
 const util = new Utility();
 
-let self: SimpleLogger = null;
 let isDebug = false;
 let isInfo = true;
 let isWarn = true;
@@ -65,53 +64,59 @@ function printLog(jsonFormat: boolean, lineNumber: string, label: string, messag
 }
 
 export class Logger {
+    private static singleton: Logger;
+    private logger: SimpleLogger;
 
-    constructor() {
-        if (self == null) {
-            self = new SimpleLogger();
+    private constructor() { 
+        this.logger = new SimpleLogger();
+    }
+
+    static getInstance(): Logger {
+        if (!Logger.singleton) {
+            Logger.singleton = new Logger();            
         }
+        return Logger.singleton;
     }
 
     setJsonFormat(jsonFormat: boolean) {
-        self.setJsonFormat(jsonFormat);
+        this.logger.setJsonFormat(jsonFormat);
     }
 
     getLevel(): string {
-        return self.getLevel();
+        return this.logger.getLevel();
     }
 
     setLevel(level: string): void {
-        self.setLevel(level);
+        this.logger.setLevel(level);
     }
 
     info(message: string | object, e?: Error): void {
         if (isInfo) {
-            self.info(getLineNumber(), message, e);
+            this.logger.info(getLineNumber(), message, e);
         }
     }
 
     warn(message: string | object, e?: Error): void {
         if (isWarn) {
-            self.warn(getLineNumber(), message, e);
+            this.logger.warn(getLineNumber(), message, e);
         }
     }
 
     debug(message: string | object, e?: Error): void {
         if (isDebug) {
-            self.debug(getLineNumber(), message, e);
+            this.logger.debug(getLineNumber(), message, e);
         }        
     }
 
     error(message: string | object, e?: Error): void {
         if (isError) {
-            self.error(getLineNumber(), message, e);
+            this.logger.error(getLineNumber(), message, e);
         }
     }
 
 }
 
 class SimpleLogger {
-
     private logLevel = 'info';
     private logAsJson = false;
 
@@ -185,7 +190,4 @@ class SimpleLogger {
     error(lineNumber: string, message: string | object, e?: Error): void {
         printLog(this.logAsJson, lineNumber, 'ERROR', message, e);
     }
-
 }
-
-

@@ -1,6 +1,6 @@
 import { Logger } from './logger.js';
 import { Utility } from './utility.js';
-const log = new Logger();
+const log = Logger.getInstance();
 const util = new Utility();
 const ID = "id";
 const HEADERS = 'headers';

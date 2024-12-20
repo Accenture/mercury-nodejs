@@ -3,7 +3,7 @@ import { FunctionRegistry } from "../util/function-registry.js";
 import { Logger } from "../util/logger.js";
 
 const registry = new FunctionRegistry();
-const log = new Logger();
+const log = Logger.getInstance();
 
 export interface Composable {
 

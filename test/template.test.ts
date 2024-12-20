@@ -1,7 +1,7 @@
 import { Logger } from '../src/util/logger.js';
 import { TemplateLoader } from '../src/util/template-loader.js';
 
-const log = new Logger();
+const log = Logger.getInstance();
 
 describe('template tests', () => {   
       

@@ -13,7 +13,7 @@ let platform;
 export class EventApiService {
     name = EVENT_API_SERVICE;
     constructor() {
-        platform = new Platform();
+        platform = Platform.getInstance();
     }
     initialize() {
         // no-op

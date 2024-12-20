@@ -4,7 +4,7 @@ import { Utility } from '../util/utility.js';
 import { Platform } from './platform.js';
 import { PostOffice } from './post-office.js';
 import { EventEnvelope } from '../models/event-envelope.js';
-const log = new Logger();
+const log = Logger.getInstance();
 const util = new Utility();
 const po = new PostOffice();
 let platform = null;
@@ -53,7 +53,7 @@ export class ObjectStreamIO {
         const expiry = Math.max(1, parseInt(String(expirySeconds)));
         const id = util.getUuid();
         if (platform == null) {
-            platform = new Platform();
+            platform = Platform.getInstance();
             util.mkdirsIfNotExist(TEMP_DIR);
             platform.register(OBJECT_STREAM_MANAGER, housekeeper);
         }

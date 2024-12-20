@@ -7,7 +7,7 @@ import { AsyncHttpClient } from '../services/async-http-client.js';
 import { EventEnvelope } from '../models/event-envelope.js';
 import { AppException } from '../models/app-exception.js';
 import { AppConfig } from '../util/config-reader.js';
-const log = new Logger();
+const log = Logger.getInstance();
 const util = new Utility();
 const po = new PostOffice();
 const DISTRIBUTED_TRACING = 'distributed.tracing';
@@ -15,18 +15,22 @@ const SIGNATURE = "_";
 const RPC = "rpc";
 const OBJECT_STREAM_MANAGER = "object.stream.manager";
 const REST_AUTOMATION_MANAGER = "rest.automation.manager";
-let self = null;
 let startTime;
 let appName;
+let self;
 export class Platform {
+    static singleton;
     constructor(configFile) {
-        if (self == null) {
+        if (!self) {
             self = new EventSystem(configFile);
             startTime = new Date();
         }
     }
-    static initialized() {
-        return self != null;
+    static getInstance(configFile) {
+        if (!Platform.singleton) {
+            Platform.singleton = new Platform(configFile);
+        }
+        return Platform.singleton;
     }
     /**
      * Retrieve unique application instance ID (i.e. "originId")
@@ -372,7 +376,7 @@ class EventSystem {
     forever = false;
     stopping = false;
     constructor(configFileOrMap) {
-        this.config = new AppConfig(configFileOrMap).getReader();
+        this.config = AppConfig.getInstance(configFileOrMap).getReader();
         let levelInEnv = false;
         let reloaded = false;
         let reloadFile = null;

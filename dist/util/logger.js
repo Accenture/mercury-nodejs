@@ -1,6 +1,5 @@
 import { Utility } from '../util/utility.js';
 const util = new Utility();
-let self = null;
 let isDebug = false;
 let isInfo = true;
 let isWarn = true;
@@ -63,38 +62,44 @@ function printLog(jsonFormat, lineNumber, label, message, e) {
     }
 }
 export class Logger {
+    static singleton;
+    logger;
     constructor() {
-        if (self == null) {
-            self = new SimpleLogger();
+        this.logger = new SimpleLogger();
+    }
+    static getInstance() {
+        if (!Logger.singleton) {
+            Logger.singleton = new Logger();
         }
+        return Logger.singleton;
     }
     setJsonFormat(jsonFormat) {
-        self.setJsonFormat(jsonFormat);
+        this.logger.setJsonFormat(jsonFormat);
     }
     getLevel() {
-        return self.getLevel();
+        return this.logger.getLevel();
     }
     setLevel(level) {
-        self.setLevel(level);
+        this.logger.setLevel(level);
     }
     info(message, e) {
         if (isInfo) {
-            self.info(getLineNumber(), message, e);
+            this.logger.info(getLineNumber(), message, e);
         }
     }
     warn(message, e) {
         if (isWarn) {
-            self.warn(getLineNumber(), message, e);
+            this.logger.warn(getLineNumber(), message, e);
         }
     }
     debug(message, e) {
         if (isDebug) {
-            self.debug(getLineNumber(), message, e);
+            this.logger.debug(getLineNumber(), message, e);
         }
     }
     error(message, e) {
         if (isError) {
-            self.error(getLineNumber(), message, e);
+            this.logger.error(getLineNumber(), message, e);
         }
     }
 }

@@ -1,12 +1,21 @@
 import { Logger, Utility, Platform, PostOffice, EventEnvelope, AsyncHttpRequest, MultiLevelMap, ObjectStreamReader, ObjectStreamWriter, ObjectStreamIO } from 'mercury';
 // hello-world.ts is a main application and it will automatically start when imported
 import '../src/hello-world.js';
+import { fileURLToPath } from "url";
 
-const log = new Logger();
+const log = Logger.getInstance();
 const util = new Utility();
 
 const ASYNC_HTTP_CLIENT = "async.http.request";
 let targetHost: string;
+
+function getRootFolder() {
+    const folder = fileURLToPath(new URL("..", import.meta.url));
+    // for windows OS, convert backslash to regular slash and drop drive letter from path
+    const path = folder.includes('\\')? folder.replaceAll('\\', '/') : folder;
+    const colon = path.indexOf(':');
+    return colon == 1? path.substring(colon+1) : path;
+}
 
 /**
  * These are end-to-end tests by making HTTP requests with the AsyncHttpClient
@@ -18,15 +27,17 @@ let targetHost: string;
 describe('End-to-end tests', () => {
 
     beforeAll(async () => {
-        const platform = new Platform();
+        const appConfigPath = getRootFolder() + 'src/resources/application.yml';
+        log.info(`Using ${appConfigPath}`);
+        const platform = Platform.getInstance(appConfigPath);
         const config = platform.getConfig();
         const port = config.get('server.port');
         targetHost = `http://127.0.0.1:${port}`;
-        log.info('Begin end-to-end tests');
+        log.info(`Begin end-to-end tests with port ${port}`);
     });
 
     afterAll(async () => {
-        const platform = new Platform();
+        const platform = Platform.getInstance();
         await platform.stop();
         // Give console.log a moment to finish
         await util.sleep(1000);
@@ -34,7 +45,7 @@ describe('End-to-end tests', () => {
     });
 
     it('can do health check', async () => {
-        const platform = new Platform();
+        const platform = Platform.getInstance();
         const po = new PostOffice();
         const httpRequest = new AsyncHttpRequest().setMethod('GET').setTargetHost(targetHost).setUrl('/health');
         const req = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(httpRequest.toMap());

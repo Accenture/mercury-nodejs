@@ -3,7 +3,7 @@ import { PostOffice } from '../system/post-office.js';
 import { Composable } from '../models/composable.js';
 import { EventEnvelope } from '../models/event-envelope.js';
 
-const log = new Logger();
+const log = Logger.getInstance();
 const po = new PostOffice();
 const DISTRIBUTED_TRACING = 'distributed.tracing';
 const DISTRIBUTED_TRACE_FORWARDER = 'distributed.trace.forwarder';

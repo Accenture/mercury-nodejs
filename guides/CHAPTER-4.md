@@ -23,7 +23,7 @@ There are two ways to register a function:
 In programmatic registration, you can register a function like this:
 
 ```shell
-const platform = new Platform();
+const platform = Platform.getInstance();
 ...
 platform.register('my.function', helloWorld, true, 10);
 ```

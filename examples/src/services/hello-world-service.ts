@@ -2,7 +2,7 @@ import { preload, Composable, EventEnvelope, Logger,
         AsyncHttpRequest, ObjectStreamReader, AppException, 
         ObjectStreamIO, ObjectStreamWriter, PostOffice } from 'mercury';
 
-const log = new Logger();
+const log = Logger.getInstance();
 
 export class HelloWorldService implements Composable {       
     name = "hello.world";

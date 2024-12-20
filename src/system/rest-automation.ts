@@ -19,7 +19,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import { Socket } from 'net';
 
-const log = new Logger();
+const log = Logger.getInstance();
 const util = new Utility();
 const po = new PostOffice();
 const TYPE = 'type';
@@ -133,7 +133,7 @@ class RestEngine {
     private connections = new Map<number, Socket>();
 
     constructor(configFile?: string | object) {
-        platform = new Platform(configFile);
+        platform = Platform.getInstance(configFile);
         const appConfig = platform.getConfig();
         this.traceIdLabels = appConfig.getProperty('trace.http.header', 'x-trace-id')
                             .split(',').filter(v => v.length > 0).map(v => v.toLowerCase());

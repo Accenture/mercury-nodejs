@@ -3,7 +3,7 @@ import { AppConfig, ConfigReader } from '../src/util/config-reader.js';
 import { RoutingEntry } from '../src/util/routing.js';
 import { fileURLToPath } from "url";
 
-const log = new Logger();
+const log = Logger.getInstance();
 
 function getRootFolder() {
     const folder = fileURLToPath(new URL("..", import.meta.url));
@@ -16,7 +16,7 @@ function getRootFolder() {
 describe('config reader tests', () => {
 
     beforeAll(async () => {
-         const config = new AppConfig().getReader();
+         const config = AppConfig.getInstance().getReader();
          log.info(`Base configuration id=${config.getId()} loaded`);
     });
       
@@ -33,18 +33,18 @@ describe('config reader tests', () => {
     }); 
 
     it('can detect single level of config loop', () => {
-        const config = new AppConfig().getReader();
+        const config = AppConfig.getInstance().getReader();
         expect(config.get('recursive.key')).toBeNull();
     });
 
     it('can detect multiple levels of config loop', () => {
-        const config = new AppConfig().getReader();
+        const config = AppConfig.getInstance().getReader();
         expect(config.get('looping.test.1')).toBe("1000");
         expect(config.get('looping.test.3')).toBe("hello hello ");
     });
 
     it('can get one environment variable', () => {
-        const config = new AppConfig().getReader();
+        const config = AppConfig.getInstance().getReader();
         if (process && 'PATH' in process.env) {
             const p = process.env['PATH'];
             expect(config.get('env.var.1')).toBe(p);
@@ -52,7 +52,7 @@ describe('config reader tests', () => {
     });
 
     it('can get multiple environment variables', () => {
-        const config = new AppConfig().getReader();
+        const config = AppConfig.getInstance().getReader();
         if (process && 'PATH' in process.env) {
             const p = process.env['PATH'];
             // the last environment variable is broken

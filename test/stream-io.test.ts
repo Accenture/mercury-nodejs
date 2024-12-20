@@ -3,7 +3,7 @@ import { Utility } from '../src/util/utility.js';
 import { PostOffice } from '../src/system/post-office.js';
 import { ObjectStreamIO, ObjectStreamWriter, ObjectStreamReader } from '../src/system/object-stream.js';
 
-const log = new Logger();
+const log = Logger.getInstance();
 const util = new Utility();
 const po = new PostOffice();
 

@@ -2,7 +2,7 @@ import { Logger, PostOffice, EventEnvelope } from 'mercury';
 import { ComposableLoader } from '../preload/preload.js'; 
 
 // Load system components
-const log = new Logger();
+const log = Logger.getInstance();
 
 const HELLO_WORLD = 'hello.world'
 const TEST_MESSAGE = 'test message';

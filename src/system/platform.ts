@@ -8,7 +8,7 @@ import { EventEnvelope } from '../models/event-envelope.js';
 import { AppException } from '../models/app-exception.js';
 import { AppConfig, ConfigReader } from '../util/config-reader.js';
 
-const log = new Logger();
+const log = Logger.getInstance();
 const util = new Utility();
 const po = new PostOffice();
 const DISTRIBUTED_TRACING = 'distributed.tracing';
@@ -17,21 +17,25 @@ const RPC = "rpc";
 const OBJECT_STREAM_MANAGER = "object.stream.manager";
 const REST_AUTOMATION_MANAGER = "rest.automation.manager";
 
-let self: EventSystem = null;
 let startTime: Date;
 let appName: string;
+let self: EventSystem;
 
 export class Platform {
+    private static singleton: Platform;
 
-    constructor(configFile?: string | object) {
-        if (self == null) {
+    private constructor(configFile?: string | object) {
+        if (!self) {
             self = new EventSystem(configFile);
             startTime = new Date();
         }
     }
 
-    static initialized(): boolean {
-        return self != null;
+    static getInstance(configFile?: string | object): Platform {
+        if (!Platform.singleton) {
+            Platform.singleton = new Platform(configFile);
+        }
+        return Platform.singleton;
     }
 
     /**
@@ -380,7 +384,7 @@ class EventSystem {
     private stopping = false;
 
     constructor(configFileOrMap?: string | object) {
-        this.config = new AppConfig(configFileOrMap).getReader();
+        this.config = AppConfig.getInstance(configFileOrMap).getReader();
         let levelInEnv = false;
         let reloaded = false;
         let reloadFile: string = null;

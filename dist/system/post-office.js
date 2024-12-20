@@ -6,7 +6,7 @@ import { AppException } from '../models/app-exception.js';
 import { Utility } from '../util/utility.js';
 import { AsyncHttpRequest } from '../models/async-http-request.js';
 import { FunctionRegistry } from '../util/function-registry.js';
-const log = new Logger();
+const log = Logger.getInstance();
 const util = new Utility();
 const registry = new FunctionRegistry();
 let self = null;

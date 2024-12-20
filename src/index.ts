@@ -10,5 +10,5 @@ export { AsyncHttpRequest } from './models/async-http-request.js';
 export { AppException } from './models/app-exception.js';
 export { Composable, preload } from './models/composable.js';
 export { ObjectStreamIO, ObjectStreamWriter, ObjectStreamReader } from './system/object-stream.js';
-export { ConfigReader } from './util/config-reader.js';
+export { AppConfig, ConfigReader } from './util/config-reader.js';
 export { TemplateLoader } from './util/template-loader.js';

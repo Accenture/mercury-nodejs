@@ -9,12 +9,12 @@ import { parse as parseYaml } from 'yaml';
 import { fileURLToPath } from "url";
 import { Logger, Platform, ConfigReader, FunctionRegistry } from 'mercury';
 // import the user services
-// Generated: 2024-12-16 12:52:38.074
+// Generated: 2024-12-19 21:34:46.118
 import { DemoAuth } from '../services/demo-auth.js';
 import { DemoHealthCheck } from '../services/health-check.js';
 import { HelloWorldService } from '../services/hello-world-service.js';
 
-const log = new Logger();
+const log = Logger.getInstance();
 const PRELOAD_SECTION = 'preload';
 
 function getRootFolder() {
@@ -64,7 +64,7 @@ export class ComposableLoader {
 
     static initialize(config?: object): void {
         try {
-            const platform = new Platform();
+            const platform = Platform.getInstance();
             const registry = new FunctionRegistry();    
             // list of services
             new DemoAuth().initialize();

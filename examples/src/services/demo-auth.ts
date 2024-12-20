@@ -1,6 +1,6 @@
 import { preload, Composable, EventEnvelope, AsyncHttpRequest, Logger } from 'mercury';
 
-const log = new Logger();
+const log = Logger.getInstance();
 
 export class DemoAuth implements Composable {
     name = "v1.api.auth";

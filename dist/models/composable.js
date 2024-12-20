@@ -1,7 +1,7 @@
 import { FunctionRegistry } from "../util/function-registry.js";
 import { Logger } from "../util/logger.js";
 const registry = new FunctionRegistry();
-const log = new Logger();
+const log = Logger.getInstance();
 export function preload() {
     return function (_target, propertyKey, descriptor) {
         if ('initialize' == propertyKey) {

@@ -28,7 +28,7 @@ export class ActuatorServices {
     constructor() {
         if (!loaded) {
             loaded = true;
-            const platform = new Platform();
+            const platform = Platform.getInstance();
             const config = platform.getConfig();
             const appConfig = platform.getConfig();
             appName = appConfig.getProperty('application.name', 'untitled');

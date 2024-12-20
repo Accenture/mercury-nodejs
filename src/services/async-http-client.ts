@@ -9,7 +9,7 @@ import axios, { AxiosRequestConfig } from 'axios';
 import stream from 'stream';
 import FormData from 'form-data';
 
-const log = new Logger();
+const log = Logger.getInstance();
 const po = new PostOffice();
 const HTTP_CLIENT_SERVICE = 'async.http.request';
 const GET = 'GET';

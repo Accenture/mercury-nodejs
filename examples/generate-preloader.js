@@ -48,7 +48,7 @@ async function getComposable(path) {
                     signature = PRELOAD_TAG;
                 }
             }
-        } else if (PRELOAD_TAG == signature && line.startsWith(PRELOAD_TAG) && line.endsWith(')')) {
+        } else if (PRELOAD_TAG == signature && line.startsWith(PRELOAD_TAG) && line.includes(')')) {
             signature = INITIALIZE_TAG;
         } else if (INITIALIZE_TAG == signature && line.startsWith(INITIALIZE_TAG)) {
             found = true;

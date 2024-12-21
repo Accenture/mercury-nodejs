@@ -7,7 +7,7 @@ const log = Logger.getInstance();
 export class HelloWorldService implements Composable {       
     name = "hello.world";
 
-    @preload(10)
+    @preload(10, true) // define as a public function so it can be reached by event-over-http
     initialize(): void {
         // no-op
     }

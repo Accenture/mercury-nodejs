@@ -9,9 +9,18 @@ export class FunctionRegistry {
      * Save a Composable class to the registry by name.
      *
      * @param that is the class instance of the Composable function
+     * @param instances for concurrency
+     * @param isPublic is true if function is visible thru event-over-http
+     * @param isInterceptor is true if function is an event interceptor
      */
-    saveFunction(that) {
-        self.saveFunction(that);
+    saveFunction(that, instances, isPublic, isInterceptor) {
+        self.saveFunction(that, instances, isPublic, isInterceptor);
+    }
+    removeFunction(name) {
+        self.removeFunction(name);
+    }
+    getMetadata(name) {
+        return self.getMetadata(name);
     }
     /**
      * Retrieve a function by name so that you can register it programmatically.
@@ -53,8 +62,9 @@ export class FunctionRegistry {
     }
 }
 class SimpleRegistry {
-    functionRegistry = new Map();
-    saveFunction(that) {
+    registry = new Map();
+    metadata = new Map();
+    saveFunction(that, instances, isPublic, isInterceptor) {
         let valid = false;
         if ('name' in that && 'initialize' in that && 'getName' in that && 'handleEvent' in that) {
             const name = that['name'];
@@ -63,15 +73,25 @@ class SimpleRegistry {
             const f3 = that['handleEvent'];
             if (typeof name == 'string' && f1 instanceof Function && f2 instanceof Function && f3 instanceof Function) {
                 valid = true;
-                this.functionRegistry.set(name, that);
+                this.registry.set(name, that);
+                this.metadata.set(name, { 'instances': instances, 'public': isPublic, 'interceptor': isInterceptor });
             }
         }
         if (!valid) {
             throw new Error('Invalid Composable class');
         }
     }
+    removeFunction(name) {
+        if (this.exists(name)) {
+            this.registry.delete(name);
+            this.metadata.delete(name);
+        }
+    }
+    getMetadata(name) {
+        return this.metadata.get(name);
+    }
     getFunction(name) {
-        const cls = this.functionRegistry.get(name);
+        const cls = this.registry.get(name);
         if (cls && 'handleEvent' in cls) {
             return cls['handleEvent'];
         }
@@ -80,14 +100,14 @@ class SimpleRegistry {
         }
     }
     getClass(name) {
-        const cls = this.functionRegistry.get(name);
+        const cls = this.registry.get(name);
         return cls ? cls : null;
     }
     exists(name) {
         return this.getFunction(name) != null;
     }
     getFunctions() {
-        return Array.from(this.functionRegistry.keys());
+        return Array.from(this.registry.keys());
     }
 }
 //# sourceMappingURL=function-registry.js.map

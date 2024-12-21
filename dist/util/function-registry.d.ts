@@ -5,8 +5,13 @@ export declare class FunctionRegistry {
      * Save a Composable class to the registry by name.
      *
      * @param that is the class instance of the Composable function
+     * @param instances for concurrency
+     * @param isPublic is true if function is visible thru event-over-http
+     * @param isInterceptor is true if function is an event interceptor
      */
-    saveFunction(that: object): void;
+    saveFunction(that: object, instances: number, isPublic: boolean, isInterceptor: boolean): void;
+    removeFunction(name: string): void;
+    getMetadata(name: string): object;
     /**
      * Retrieve a function by name so that you can register it programmatically.
      * The "PreLoader" will also use this to find functions to register them

@@ -95,7 +95,7 @@ const log = Logger.getInstance();
 export class DemoAuth implements Composable {
     name = "v1.api.auth";
 
-    @preload()
+    @preload(5)
     initialize(): void {
         // no-op
     }
@@ -115,8 +115,12 @@ export class DemoAuth implements Composable {
 }
 ```
 
-The above example is a demo "API authentication" function. The event body is an AsyncHttpRequest object from the user
-because the "rest.yaml" routes the HTTP request to the function via its unique "route name".
+You can define instances, isPublic and isInterceptor in the `preload` annotation. The default values are
+instances=1, isPublic=false and isInterceptor=false. In the example, the number of instances is set to 5.
+You can set the number of instances from 1 to 500.
+
+The above example is a demo "API authentication" function. The event body is an AsyncHttpRequest object
+from the user because the "rest.yaml" routes the HTTP request to the function via its unique "route name".
 
 ## Inspect event metadata
 
@@ -135,7 +139,7 @@ You can obtain a singleton instance of the Platform object to do the following:
 
 ### Register a function
 
-We recommend using the `preLoad` annotation in a class to declare the function.
+We recommend using the ComposableLoader to search and load your functions.
 
 In some use cases where you want to create and destroy functions on demand, you can register them programmatically.
 

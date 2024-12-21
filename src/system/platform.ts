@@ -1,6 +1,7 @@
 import { performance } from 'perf_hooks';
 import { Logger } from '../util/logger.js';
 import { Utility } from '../util/utility.js';
+import { FunctionRegistry } from "../util/function-registry.js";
 import { PostOffice } from '../system/post-office.js';
 import { DistributedTrace } from '../services/tracer.js';
 import { AsyncHttpClient } from '../services/async-http-client.js';
@@ -9,6 +10,7 @@ import { AppException } from '../models/app-exception.js';
 import { AppConfig } from '../util/config-reader.js';
 
 const log = Logger.getInstance();
+const registry = new FunctionRegistry();
 const util = new Utility();
 const po = new PostOffice();
 const DISTRIBUTED_TRACING = 'distributed.tracing';
@@ -478,6 +480,7 @@ class EventSystem {
                 po.unsubscribe(route+"#"+i, false);
             }
             this.services.delete(route);
+            registry.removeFunction(route);
             log.info((isPrivate? 'PRIVATE ' : 'PUBLIC ') + route + ' released');            
         }
     }

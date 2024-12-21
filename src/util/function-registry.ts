@@ -11,12 +11,34 @@ export class FunctionRegistry {
     }
 
     /**
-     * Save a Composable class to the registry by name.
+     * Save a Composable function to the registry by name.
      * 
      * @param that is the class instance of the Composable function
+     * @param instances for concurrency
+     * @param isPublic is true if function is visible thru event-over-http
+     * @param isInterceptor is true if function is an event interceptor
      */
-    saveFunction(that: object): void {
-        self.saveFunction(that);
+    saveFunction(that: object, instances: number, isPublic: boolean, isInterceptor: boolean): void {
+        self.saveFunction(that, instances, isPublic, isInterceptor);
+    }
+
+    /**
+     * Remove a composable function from the registry by name.
+     * 
+     * @param name of the function
+     */
+    removeFunction(name: string): void {
+        self.removeFunction(name);
+    }
+
+    /**
+     * Retrieve metadata for the composable function
+     * 
+     * @param name of the function
+     * @returns map of key-values
+     */
+    getMetadata(name: string): object {
+        return self.getMetadata(name);
     }
 
     /**
@@ -65,9 +87,10 @@ export class FunctionRegistry {
 
 class SimpleRegistry {
     
-    private functionRegistry = new Map<string, object>();
+    private registry = new Map<string, object>();
+    private metadata = new Map<string, object>();
 
-    saveFunction(that: object): void {
+    saveFunction(that: object, instances: number, isPublic: boolean, isInterceptor: boolean): void {
         let valid = false;
         if ('name' in that && 'initialize' in that && 'getName' in that && 'handleEvent' in that) {
             const name = that['name'];
@@ -76,7 +99,8 @@ class SimpleRegistry {
             const f3 = that['handleEvent'];
             if (typeof name == 'string' && f1 instanceof Function && f2 instanceof Function && f3 instanceof Function) {
                 valid = true;                
-                this.functionRegistry.set(name, that);
+                this.registry.set(name, that);
+                this.metadata.set(name, {'instances': instances, 'public': isPublic, 'interceptor': isInterceptor});
             }
         }
         if (!valid) {
@@ -84,8 +108,19 @@ class SimpleRegistry {
         }
     }
 
+    removeFunction(name: string): void {
+        if (this.exists(name)) {
+            this.registry.delete(name);
+            this.metadata.delete(name);
+        }
+    }
+
+    getMetadata(name: string): object {
+        return this.metadata.get(name);
+    }
+
     getFunction(name: string): (evt: EventEnvelope) => void {
-        const cls = this.functionRegistry.get(name);
+        const cls = this.registry.get(name);
         if (cls && 'handleEvent' in cls) {
             return cls['handleEvent'] as (evt: EventEnvelope) => void;
         } else {
@@ -94,7 +129,7 @@ class SimpleRegistry {
     }
 
     getClass(name: string): object {
-        const cls = this.functionRegistry.get(name);
+        const cls = this.registry.get(name);
         return cls? cls : null;
     }
 
@@ -103,7 +138,7 @@ class SimpleRegistry {
     }
 
     getFunctions(): Array<string> {
-        return Array.from(this.functionRegistry.keys());
+        return Array.from(this.registry.keys());
     }
 
 }

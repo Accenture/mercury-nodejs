@@ -65,8 +65,6 @@ services.
 The `ComposableLoader.initialize()` statement will register your user functions into the event loop. There is
 no need to directly import each module in your application.
 
-Please configure the functions to be loaded in `src/resources/preload.yaml`.
-
 ### Business logic modules
 
 Your user function module may look like this:
@@ -75,7 +73,7 @@ Your user function module may look like this:
 export class HelloWorldService implements Composable {
     name = "hello.world";
 
-    @preload()
+    @preload(10)
     initialize(): void {
         // no-op
     }
@@ -97,6 +95,10 @@ composable application. Each function is addressable by a unique "route name". I
 primitive value or JSON objects to be transported using standard event envelopes.
 
 In the above example, the unique "route name" of the function is "hello.world".
+
+You can define instances, isPublic and isInterceptor in the `preload` annotation. The default values are
+instances=1, isPublic=false and isInterceptor=false. In the example, the number of instances is set to 10.
+You can set the number of instances from 1 to 500.
 
 > Writing code in the first principle of "input-process-output" promotes Test Driven Development (TDD) because
   interface contact is clearly defined. Self-containment means code is more readable.

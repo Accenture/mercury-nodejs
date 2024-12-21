@@ -14,11 +14,12 @@ AppConfig will resolve key-values from system properties and environment variabl
 
 ### Removed
 
-N/A
+Eliminate preload.yaml configuration file
 
 ### Changed
 
-Streamlined configuration management
+1. Streamlined configuration management
+2. Updated preload annotation for developer to define concurrency
 
 ---
 ## Version 4.0.1, 12/16/2024

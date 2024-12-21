@@ -10,7 +10,7 @@ const IMPORT_TAG = '${import-statements}';
 const SERVICE_TAG = '${service-list}';
 
 const EXPORT_TAG = 'export';
-const PRELOAD_TAG = '@preload()';
+const PRELOAD_TAG = '@preload(';
 const INITIALIZE_TAG = 'initialize()';
 
 async function scanDir(folder) {
@@ -45,10 +45,10 @@ async function getComposable(path) {
                 if (parts.length >= 5 && 'class' == parts[1] && 
                     'implements' == parts[3] && 'Composable' == parts[4]) {
                     clsName = parts[2];
-                    signature = '@preload()';
+                    signature = PRELOAD_TAG;
                 }
             }
-        } else if (PRELOAD_TAG == signature && PRELOAD_TAG == line) {
+        } else if (PRELOAD_TAG == signature && line.startsWith(PRELOAD_TAG) && line.endsWith(')')) {
             signature = INITIALIZE_TAG;
         } else if (INITIALIZE_TAG == signature && line.startsWith(INITIALIZE_TAG)) {
             found = true;

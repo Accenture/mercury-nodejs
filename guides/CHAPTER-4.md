@@ -38,7 +38,7 @@ export class HelloWorldService implements Composable {
 
     name = "hello.world";
 
-    @preload()
+    @preload(10)
     initialize(): void {
         // no-op
     }
@@ -54,25 +54,9 @@ export class HelloWorldService implements Composable {
 }
 ```
 
-To instruct the system to load some selected functions, you can configure the "preload.yaml" file like this:
-
-```yaml
-preload:
-  - name: 'hello.world'
-    private: false
-    instances: 10
-    interceptor: false
-  - name: 'demo.health'
-    private: true
-    instances: 5
-    interceptor: false
-  - name: 'v1.api.auth'
-    private: true
-    instances: 5
-    interceptor: false
-```
-
-In the above example, the system will load 3 named functions into the event loop.
+You can define instances, isPublic and isInterceptor in the `preload` annotation. The default values are
+instances=1, isPublic=false and isInterceptor=false. In the example, the number of instances is set to 10.
+You can set the number of instances from 1 to 500.
 
 Once a function is created using the declarative method, you can override it with a mock function by using the
 programmatic registration method in a unit test.

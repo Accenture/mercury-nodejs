@@ -1,9 +1,8 @@
-import { TemplateLoader, Logger, Utility } from 'mercury';
+import { TemplateLoader, Logger } from 'mercury';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 
 const log = Logger.getInstance();
-const util = new Utility();
 const clsMap = new Map();
 
 const IMPORT_TAG = '${import-statements}';

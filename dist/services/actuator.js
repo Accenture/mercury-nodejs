@@ -1,4 +1,5 @@
 import os from 'os';
+import { AppConfig } from '../util/config-reader.js';
 import { Platform } from '../system/platform.js';
 import { PostOffice } from '../system/post-office.js';
 import { Utility } from '../util/utility.js';
@@ -29,11 +30,10 @@ export class ActuatorServices {
         if (!loaded) {
             loaded = true;
             const platform = Platform.getInstance();
-            const config = platform.getConfig();
-            const appConfig = platform.getConfig();
-            appName = appConfig.getProperty('application.name', 'untitled');
-            appVersion = appConfig.getProperty('info.app.version', 'unknown');
-            appDesc = appConfig.getProperty('info.app.description', '-');
+            const config = AppConfig.getInstance().getReader();
+            appName = config.getProperty('application.name', 'untitled');
+            appVersion = config.getProperty('info.app.version', 'unknown');
+            appDesc = config.getProperty('info.app.description', '-');
             origin = platform.getOriginId();
             startTime = util.getLocalTimestamp(platform.getStartTime().getTime());
             const hs = config.getProperty('health.dependencies', '');

@@ -1,9 +1,8 @@
 import { EventEnvelope } from '../models/event-envelope.js';
-import { ConfigReader } from '../util/config-reader.js';
 export declare class Platform {
     private static singleton;
     private constructor();
-    static getInstance(configFile?: string | object): Platform;
+    static getInstance(): Platform;
     /**
      * Retrieve unique application instance ID (i.e. "originId")
      *
@@ -12,12 +11,6 @@ export declare class Platform {
     getOriginId(): string;
     getName(): string;
     getStartTime(): Date;
-    /**
-     * Get application configuration
-     *
-     * @returns config reader
-     */
-    getConfig(): ConfigReader;
     /**
      * Register a function with a route name.
      *

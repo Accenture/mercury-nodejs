@@ -7,56 +7,56 @@ Each application has an entry point. You may implement the main entry point like
 ```javascript
 import { Logger, Platform, RestAutomation } from 'mercury';
 import { ComposableLoader } from './preload/preload.js'; 
-import { fileURLToPath } from "url";
 
 const log = Logger.getInstance();
-const REST_AUTOMATION_YAML = "rest.automation.yaml";
-const STATIC_HTML_FOLDER = "static.html.folder";
-
-function getResourceFoler() {
-    const folder = fileURLToPath(new URL("./resources/", import.meta.url));
-    return folder.includes('\\')? folder.replaceAll('\\', '/') : folder;
-}
 
 async function main() {
-    const resources = getResourceFoler();
-    // Start platform with user provided config file
-    // IMPORTANT - this must be the first instantiation of the Platform object in your application
-    const configFile = resources + 'application.yml';
-    const platform = Platform.getInstance(configFile);
-    // Locate the REST automation config file
-    const restYaml = resources + 'rest.yaml';
-    const appConfig = platform.getConfig();
-    // Set configuration parameter before starting REST automation
-    if (!appConfig.exists(REST_AUTOMATION_YAML)) {
-        appConfig.set(REST_AUTOMATION_YAML, restYaml);
-    }
-    if (!appConfig.exists(STATIC_HTML_FOLDER)) {
-        appConfig.set(STATIC_HTML_FOLDER, resources + 'public');
-    }
-    // Load composable functions into memory
+    // Load composable functions into memory and initialize configuration management
     ComposableLoader.initialize();
     // start REST automation engine
     const server = new RestAutomation();
     server.start();
+    // keep the server running
+    const platform = Platform.getInstance();
     platform.runForever();
     log.info('Hello world application started');
 }
 
-// run this application
+// run the application
 main();
 ```
 
-In this example, it tells the system where to find its configuration files for "application.yml" and
-"rest.yaml". It also instructs the system about the location of the HTML static folder.
+In this example, the `ComposableLoader` will initialize the configuration management system, 
+search and register4 available user functions into the event system. The default location
+of the system files is the "src/resources" folder.
 
-Note that the input to the "Platform" object is the config file location.
+| File / bundle   | Purpose                                                                            |
+|:----------------|:-----------------------------------------------------------------------------------|
+| application.yml | Base configuration file is assumed to be under the "src/resources" folder          |
+| rest.yaml       | REST endpoint configuration file is assumed to be under the "src/resources" folder |
+| HTML bundle     | HTML/CSS/JS files, if any, can be placed under the "src/resources/public" folder   |
 
-Then it performs the following:
+To tell the system to use a different application.yml, you can use this following statement before
+running the `ComposableLoader.initialize()` command.
 
-1. Run the "ComposableLoader" to load user functions into memory
-2. Start the REST automation engine
-3. Tell the system to run as a service (`platform.runForever`)
+```javascript
+    // resourcePath should be a fully qualified file path to the application's "resources" folder.
+    const appConfig = AppConfig.getInstance(resourcePath);
+    log.info(`Base configuration ${appConfig.getId()}`); 
+```
+
+You may override the file path for REST endpoint configuration and HTML bundle with the following:
+
+```yaml
+yaml.rest.automation: 'classpath:/rest.yaml'
+static.html.folder: 'classpath:/public'
+```
+
+To enable the REST automation engine, you must use the server.start() command.
+
+To run the application as a service, use the platform.runForever() command. The application can be
+stopped with Control-C in interactive mode or the Kill command at the kernel level by a container
+management system such as Kubernetes.
 
 ## Event envelope
 
@@ -276,10 +276,10 @@ const myInstance = po.getMyInstance();
 
 ## Configuration API
 
-Your function can access the main application configuration from the platform like this:
+Your function can access the main application configuration management system like this:
 
 ```javascript
-const config = platform.getConfig();
+const config = AppConfig.getInstance().getReader();
 // the value can be string or a primitive
 const value = config.get('my.parameter');
 // the return value will be converted to a string
@@ -297,6 +297,8 @@ Additional configuration files can be added with the `ConfigReader` API like thi
 ```javascript
 const myConfig = new ConfigReader(filePath);
 ```
+
+where filePath can use the `classpath:/` or `file:/` prefix.
 
 The configuration system supports environment variable or reference to the main application configuration
 using the dollar-bracket syntax `${reference:default_value}`.

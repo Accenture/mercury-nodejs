@@ -2,12 +2,8 @@ import { RequestHandler } from 'express';
 export declare class RestAutomation {
     /**
      * Enable REST automation
-     *
-     * @param configFile location of application.yml or a JSON object configuration base configuration
-     *
-     *
      */
-    constructor(configFile?: string | object);
+    constructor();
     /**
      * Start the REST automation engine
      *

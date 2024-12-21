@@ -26,5 +26,5 @@ async function main() {
     log.info('Demo application completed');
 }
 
-// run this application
+// run the application
 main();

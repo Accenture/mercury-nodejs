@@ -1,14 +1,31 @@
 import { Logger } from '../src/util/logger.js';
 import { Utility } from '../src/util/utility.js';
 import { PostOffice } from '../src/system/post-office.js';
+import { AppConfig } from '../src/util/config-reader.js';
 import { ObjectStreamIO, ObjectStreamWriter, ObjectStreamReader } from '../src/system/object-stream.js';
+import { fileURLToPath } from "url";
 
 const log = Logger.getInstance();
 const util = new Utility();
 const po = new PostOffice();
 
-describe('object stream I/O tests', () => {   
-      
+function getRootFolder() {
+  const folder = fileURLToPath(new URL("..", import.meta.url));
+  // for windows OS, convert backslash to regular slash and drop drive letter from path
+  const path = folder.includes('\\')? folder.replaceAll('\\', '/') : folder;
+  const colon = path.indexOf(':');
+  return colon == 1? path.substring(colon+1) : path;
+}
+
+describe('object stream I/O tests', () => {
+
+    beforeAll(async () => {
+        const resourcePath = getRootFolder() + 'test/resources';
+        // AppConfig should be initialized with base configuration parameter when the Platform object is loaded
+        const config = AppConfig.getInstance(resourcePath).getReader();
+        log.info(`Using base configuration - ${config.getId()}`);
+    });
+    
     it('can write and read string', async () => {
         const cycles = 5;
         const stream = new ObjectStreamIO(10);

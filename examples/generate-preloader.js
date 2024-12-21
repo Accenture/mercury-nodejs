@@ -64,8 +64,7 @@ async function generateCode(src, lines) {
     let sb = '';
     for (const line of lines) {
         if (section == 'import') {
-            if (line.includes(IMPORT_TAG)) {
-                sb += `// Generated: ${util.getLocalTimestamp()}\n`;             
+            if (line.includes(IMPORT_TAG)) {         
                 for (const cls of names) {
                     const filePath = clsMap.get(cls);
                     const path = '../' + filePath.substring(src.length, filePath.length-3) + '.js';
@@ -100,7 +99,7 @@ async function generateCode(src, lines) {
     }
     const targetFile = src + 'preload/preload.ts';
     fs.writeFileSync(targetFile, sb);
-    const relativePath = './' + targetFile.substring(src.length);
+    const relativePath = targetFile.substring(src.length);
     log.info(`Service loader (${relativePath}) generated`);
 }
 

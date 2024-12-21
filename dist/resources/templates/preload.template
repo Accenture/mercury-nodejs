@@ -7,7 +7,7 @@
 import fs from 'fs';
 import { parse as parseYaml } from 'yaml';
 import { fileURLToPath } from "url";
-import { Logger, Platform, ConfigReader, FunctionRegistry } from 'mercury';
+import { Logger, Platform, AppConfig, ConfigReader, FunctionRegistry } from 'mercury';
 // import the user services
 ${import-statements}
 
@@ -58,29 +58,44 @@ function getPreloadConfig(): object {
 }
 
 export class ComposableLoader {
+    private static loaded = false;
 
     static initialize(config?: object): void {
-        try {
-            const platform = Platform.getInstance();
-            const registry = new FunctionRegistry();    
-            // list of services
-            ${service-list}
-            // register the services
-            const serviceMap = config && config.constructor == Object? config : getPreloadConfig();
-            for (const name in serviceMap) {
-                const entry = serviceMap[name];
-                const isPrivate = entry['private'] as boolean;
-                const instances = entry['instances'] as number;
-                const interceptor = entry['interceptor'] as boolean;
-                if (registry.exists(name)) {
-                    const f = registry.getFunction(name);
-                    platform.register(name, f, isPrivate, instances, interceptor);        
-                } else {
-                    throw new Error(`${name} not found`);
+        // execute only once
+        if (!ComposableLoader.loaded) {
+            ComposableLoader.loaded = true;
+            try {
+                const resourcePath = getRootFolder() + "resources";
+                if (!fs.existsSync(resourcePath)) {
+                    throw new Error('Missing resources folder');
                 }
+                const stats = fs.statSync(resourcePath);
+                if (!stats.isDirectory()) {
+                    throw new Error('resources is not a folder');
+                }
+                const appConfig = AppConfig.getInstance(resourcePath);
+                log.info(`Base configuration ${appConfig.getId()}`);            
+                const platform = Platform.getInstance();
+                const registry = new FunctionRegistry();    
+                // list of services
+                ${service-list}
+                // register the services
+                const serviceMap = config && config.constructor == Object? config : getPreloadConfig();
+                for (const name in serviceMap) {
+                    const entry = serviceMap[name];
+                    const isPrivate = entry['private'] as boolean;
+                    const instances = entry['instances'] as number;
+                    const interceptor = entry['interceptor'] as boolean;
+                    if (registry.exists(name)) {
+                        const f = registry.getFunction(name);
+                        platform.register(name, f, isPrivate, instances, interceptor);        
+                    } else {
+                        throw new Error(`${name} not found`);
+                    }
+                }
+            } catch (e) {
+                log.error(`Unable to preload - ${e.message}`);
             }
-        } catch (e) {
-            log.error(`Unable to preload - ${e.message}`);
         }
     }
 }

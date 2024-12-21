@@ -20,19 +20,3 @@ log:
 #
 # Static HTML folder location - default to "resources/public" of the mercury library if not given.
 # static.html.folder: '/opt/html'
-
-# Two levels of loops
-looping.test.1: ${looping.test.2}
-looping.test.2: ${looping.test.1:1000}
-
-looping.test.3: hello ${looping.test.4}
-looping.test.4: ${looping.test.3:1000}
-
-# one level of loop
-recursive:
-  key: ${recursive.key}
-
-# environment variable
-env.var.1: ${PATH}
-
-env.var.2: 'first ${server.port} second ${PATH} third ${invalid.format'

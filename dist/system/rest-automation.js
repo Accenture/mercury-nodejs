@@ -7,7 +7,7 @@ import { EventEnvelope } from '../models/event-envelope.js';
 import { AppException } from '../models/app-exception.js';
 import { AsyncHttpRequest } from '../models/async-http-request.js';
 import { RoutingEntry } from '../util/routing.js';
-import { ConfigReader } from '../util/config-reader.js';
+import { AppConfig, ConfigReader } from '../util/config-reader.js';
 import { EventApiService } from '../services/event-api.js';
 import { ActuatorServices } from '../services/actuator.js';
 import express from 'express';
@@ -45,21 +45,16 @@ const HTML_START = '<html><body><pre>\n';
 const HTML_END = '\n</pre></body></html>';
 const REST_AUTOMATION_MANAGER = "rest.automation.manager";
 const DEFAULT_SERVER_PORT = 8086;
-let platform = null;
 let server = null;
 let running = false;
 let self = null;
 export class RestAutomation {
     /**
      * Enable REST automation
-     *
-     * @param configFile location of application.yml or a JSON object configuration base configuration
-     *
-     *
      */
-    constructor(configFile) {
+    constructor() {
         if (self == null) {
-            self = new RestEngine(configFile);
+            self = new RestEngine();
         }
     }
     /**
@@ -119,10 +114,9 @@ class RestEngine {
     htmlFolder;
     mimeTypes = new Map();
     connections = new Map();
-    constructor(configFile) {
-        platform = Platform.getInstance(configFile);
-        const appConfig = platform.getConfig();
-        this.traceIdLabels = appConfig.getProperty('trace.http.header', 'x-trace-id')
+    constructor() {
+        const config = AppConfig.getInstance().getReader();
+        this.traceIdLabels = config.getProperty('trace.http.header', 'x-trace-id')
             .split(',').filter(v => v.length > 0).map(v => v.toLowerCase());
         if (!this.traceIdLabels.includes('x-trace-id')) {
             this.traceIdLabels.push('x-trace-id');
@@ -135,17 +129,18 @@ class RestEngine {
             // preload actuator services
             const actuator = new ActuatorServices();
             this.actuatorRouteName = actuator.getName();
+            const platform = Platform.getInstance();
             platform.register(actuator.getName(), actuator.handleEvent, true, 10);
             // preload Event-over-HTTP service
             const eventApiService = new EventApiService();
             platform.register(eventApiService.getName(), eventApiService.handleEvent, true, 200);
             platform.register(REST_AUTOMATION_MANAGER, housekeeper);
-            const config = platform.getConfig();
+            const config = AppConfig.getInstance().getReader();
             const router = new RoutingEntry();
             // initialize router and load configuration
-            const restYamlPath = config.getProperty('rest.automation.yaml');
+            const restYamlPath = config.getProperty('yaml.rest.automation', 'classpath:/rest.yaml');
             if (restYamlPath) {
-                const restYaml = util.loadYamlFile(restYamlPath);
+                const restYaml = util.loadYamlFile(config.resolveFilePath(restYamlPath));
                 try {
                     const restConfig = new ConfigReader(restYaml.getMap());
                     router.load(restConfig);
@@ -155,12 +150,11 @@ class RestEngine {
                     log.error(`Unable to initialize REST endpoints - ${e.message}`);
                 }
             }
-            this.htmlFolder = config.getProperty('static.html.folder', '');
-            if (this.htmlFolder.length == 0) {
-                this.htmlFolder = util.getFolder("../resources/public");
-            }
+            this.htmlFolder = config.resolveFilePath(config.getProperty('static.html.folder', 'classpath:/public'));
             log.info(`Static HTML folder: ${this.htmlFolder}`);
-            const mimeFilePath = util.getFolder("../resources/mime-types.yml");
+            const mtypes = config.getProperty('yaml.mime.types');
+            // if not configured, use the library's built-in mime-types.yml
+            const mimeFilePath = mtypes ? config.resolveFilePath(mtypes) : util.getFolder("../resources/mime-types.yml");
             const mimeConfig = util.loadYamlFile(mimeFilePath);
             const mimeDefault = mimeConfig.getElement('mime.types');
             for (const k in mimeDefault) {

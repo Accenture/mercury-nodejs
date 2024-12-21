@@ -16,8 +16,9 @@ function getRootFolder() {
 describe('config reader tests', () => {
 
     beforeAll(async () => {
-         const config = AppConfig.getInstance().getReader();
-         log.info(`Base configuration id=${config.getId()} loaded`);
+        const resourcePath = getRootFolder() + 'test/resources';
+        const config = AppConfig.getInstance(resourcePath).getReader();
+        log.info(`Base configuration id=${config.getId()} loaded`);
     });
       
     it('can parse rest.yaml', () => {

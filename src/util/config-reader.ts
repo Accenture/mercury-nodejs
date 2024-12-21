@@ -6,21 +6,50 @@ import { Utility } from '../util/utility.js';
 const log = Logger.getInstance();
 const util = new Utility();
 
+function resolveResource(configFile: string): string {
+    if (configFile.startsWith("classpath:/")) {
+        const resourcePath = AppConfig.getInstance().getReader().get('resource.path');
+        return resourcePath + configFile.substring("classpath:".length);
+    } else if (configFile.startsWith("file:/")) {
+        return configFile.substring("file:".length);        
+    } else {
+        return configFile;
+    }
+}
+
 export class AppConfig {
     private static singleton: AppConfig;
     private reader: ConfigReader;
     private id = util.getUuid();
 
-    private constructor(configFileOrMap?: string | object) { 
+    private constructor(resourcePath?: string) { 
         if (!this.reader) {
-            this.reader = new ConfigReader(configFileOrMap, true);
-            this.reader.resolveEnvVars();
+            if (typeof resourcePath == 'string') {
+                const filePath = resolveResource(resourcePath);
+                if (!fs.existsSync(filePath)) {
+                    throw new Error(`Missing resources folder - ${resourcePath}`);
+                }
+                const stats = fs.statSync(filePath);
+                if (!stats.isDirectory()) {
+                    throw new Error(`Not a resources folder - ${resourcePath}`);
+                }
+                this.reader = new ConfigReader(filePath + '/application.yml', true);
+                this.reader.resolveEnvVars();
+                // save file path
+                this.reader.set('resource.path', filePath);
+            } else {
+                if (resourcePath) {
+                    throw new Error('Not a resources folder path');
+                } else {
+                    throw new Error('Missing resources folder path');
+                }                
+            }            
         }
     }
 
-    static getInstance(configFileOrMap?: string | object): AppConfig {
+    static getInstance(resourcePath?: string): AppConfig {
         if (!AppConfig.singleton) {
-            AppConfig.singleton = new AppConfig(configFileOrMap);            
+            AppConfig.singleton = new AppConfig(resourcePath);            
         }        
         return AppConfig.singleton;
     }
@@ -50,53 +79,46 @@ export class ConfigReader {
                 throw new Error('Base configuration is already loaded');
             }
         } else {
+            if (!ConfigReader.self) {
+                throw new Error('Cannot user configuration because base configuration is not defined');
+            }
             this.id = util.getUuid();
         }
-        let useDefaultAppConfig = false;
         if (configFileOrMap) {
             if (configFileOrMap && configFileOrMap.constructor == Object) {
-                // Input should be a JSON object when using this library in a browser
                 if (isBaseConfig) {
-                    log.info('Loading base configuration from a JSON object');
-                }
-                this.config = new MultiLevelMap(configFileOrMap as object).normalizeMap();
-            } else if (typeof configFileOrMap == 'string') {
-                // File path is only supported when running as a Node.js application
-                const configFile = util.normalizeFilePath(String(configFileOrMap));
-                const fileExists = configFile && fs.existsSync(configFile);
-                if (fileExists) {
-                    if (isBaseConfig) {
-                        log.info(`Loading base configuration from ${configFile}`);
-                    }
-                    this.config = util.loadYamlFile(configFile);
+                    throw new Error('Base configuration must be a resource file');
                 } else {
-                    if (isBaseConfig) {
-                        log.error(`Config file ${configFile} does not exist. Fall back to resources/application.yml`);                            
-                        useDefaultAppConfig = true;                        
+                    this.config = new MultiLevelMap(configFileOrMap as object).normalizeMap();
+                }                
+            } else if (typeof configFileOrMap == 'string') {
+                if (isBaseConfig) {
+                    const configFile = util.normalizeFilePath(configFileOrMap);
+                    const fileExists = configFile && fs.existsSync(configFile);
+                    if (fileExists) {
+                        log.info(`Loading base configuration from ${configFile}`);
+                        this.config = util.loadYamlFile(configFile);
                     } else {
-                        throw new Error(`Config file ${configFile} does not exist`);
+                        throw new Error(`Base configuration file not found - ${configFile}`);
                     }
-                }
+                } else {
+                    this.config = util.loadYamlFile(resolveResource(configFileOrMap));
+                }                
             } else {
                 log.error(`Configuration not loaded because input '${typeof(configFileOrMap)}' is not a file path or a JSON object`);
                 this.config = new MultiLevelMap();
             }
         } else {
-            if (isBaseConfig) {                         
-                useDefaultAppConfig = true;                        
-            } else {
-                throw new Error(`Input must be a file path or a JSON object`);
-            }
-        }
-        if (useDefaultAppConfig) {         
-            const filePath = util.getFolder("../resources/application.yml");
-            log.warn(`Loading default base configuration from ${filePath}`);
-            this.config = util.loadYamlFile(filePath);
+            throw new Error(`Input must be a file path or a JSON object`);
         }
     }
 
     getId(): string {
         return this.id;
+    }
+
+    resolveFilePath(configFile: string): string {
+        return resolveResource(configFile);
     }
 
     resolveEnvVars(): void {

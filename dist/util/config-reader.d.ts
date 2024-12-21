@@ -4,7 +4,7 @@ export declare class AppConfig {
     private reader;
     private id;
     private constructor();
-    static getInstance(configFileOrMap?: string | object): AppConfig;
+    static getInstance(resourcePath?: string): AppConfig;
     getId(): string;
     getReader(): ConfigReader;
 }
@@ -16,6 +16,7 @@ export declare class ConfigReader {
     private id;
     constructor(configFileOrMap?: string | object, isBaseConfig?: boolean);
     getId(): string;
+    resolveFilePath(configFile: string): string;
     resolveEnvVars(): void;
     getMap(): object;
     exists(key: string): boolean;

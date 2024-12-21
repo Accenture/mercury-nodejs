@@ -41,13 +41,13 @@ const HELLO_WORLD_INSTANCES = 5;
 const TEST_CYCLES = 8;
 
 const log = Logger.getInstance();
-const platform = Platform.getInstance();
 const registry = new FunctionRegistry();
 const util = new Utility();
+let platform: Platform;
 let server: RestAutomation;
 let endApiUrl: string;
 let baseUrl: string;
-let resourceFolder: string;
+let resourcePath: string;
 let apiCount = 0;
 
 async function helloDownload(evt: EventEnvelope) {
@@ -124,11 +124,13 @@ function getRootFolder() {
 describe('post office use cases', () => {
 
     beforeAll(async () => {
-      resourceFolder = getRootFolder() + 'test/resources/';
-      const filePath = resourceFolder + '/rest.yaml';
+      resourcePath = getRootFolder() + 'test/resources';
+      // AppConfig should be initialized with base configuration parameter when the Platform object is loaded
+      const appConfig = AppConfig.getInstance(resourcePath).getReader();
       // save the helloWorld as DEMO_LIBRARY_FUNCTION so that it can be retrieved by name
       const helloWorld = new HelloWorld();
       registry.saveFunction(helloWorld);
+      platform = Platform.getInstance();
       // register a hello.world function to echo the incoming payload
       platform.register(HELLO_WORLD_SERVICE, helloWorld.handleEvent, false, HELLO_WORLD_INSTANCES);
       // register the same function as another route name and declare it as private
@@ -149,11 +151,6 @@ describe('post office use cases', () => {
       platform.register(DEMO_HEALTH_SERVICE, demoHealth);
       // register the demo interceptor function
       platform.register(HELLO_INTERCEPTOR_SERVICE, demoInterceptor, true, 1, true);
-      // AppConfig should be initialized with base configuration parameter when the Platform object is loaded
-      const appConfig = AppConfig.getInstance().getReader();
-      // add configuration parameters to the base config
-      appConfig.set('rest.automation.yaml', filePath);
-      appConfig.set('static.html.folder', resourceFolder + 'public');
       appConfig.set('health.dependencies', 'demo.health');
       // the "server.port" parameter will be retrieved from the base configuration (AppConfig)
       const configMap = {'event.api.url': 'http://127.0.0.1:${server.port:8080}/api/event', 'base.url': 'http://127.0.0.1:${server.port:8080}'}
@@ -804,7 +801,7 @@ describe('post office use cases', () => {
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
       const result = await po.request(reqEvent);
       expect(typeof result.getBody()).toBe('string');
-      const filePath = resourceFolder + "public/index.html";
+      const filePath = resourcePath + "/public/index.html";
       const content = await fs.promises.readFile(filePath);
       expect(Buffer.from(result.getBody() as string)).toStrictEqual(content);
       expect(result.getHeader('content-type')).toBe('text/html');
@@ -816,7 +813,7 @@ describe('post office use cases', () => {
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
       const result = await po.request(reqEvent);
       expect(typeof result.getBody()).toBe('string');
-      const filePath = resourceFolder + "public/index.html";
+      const filePath = resourcePath + "/public/index.html";
       const content = await fs.promises.readFile(filePath);
       expect(Buffer.from(result.getBody() as string)).toStrictEqual(content);
       expect(result.getHeader('content-type')).toBe('text/html');
@@ -828,7 +825,7 @@ describe('post office use cases', () => {
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
       const result = await po.request(reqEvent);
       expect(typeof result.getBody()).toBe('string');
-      const filePath = resourceFolder + "public/index.html";
+      const filePath = resourcePath + "/public/index.html";
       const content = await fs.promises.readFile(filePath);
       expect(Buffer.from(result.getBody() as string)).toStrictEqual(content);
       expect(result.getHeader('content-type')).toBe('text/html');
@@ -840,7 +837,7 @@ describe('post office use cases', () => {
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
       const result = await po.request(reqEvent);
       expect(typeof result.getBody()).toBe('string');
-      const filePath = resourceFolder + "public/css/sample.css";
+      const filePath = resourcePath + "/public/css/sample.css";
       const content = await fs.promises.readFile(filePath);
       expect(Buffer.from(result.getBody() as string)).toStrictEqual(content);
       expect(result.getHeader('content-type')).toBe('text/css');
@@ -852,7 +849,7 @@ describe('post office use cases', () => {
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
       const result = await po.request(reqEvent);
       expect(typeof result.getBody()).toBe('string');
-      const filePath = resourceFolder + "public/js/sample.js";
+      const filePath = resourcePath + "/public/js/sample.js";
       const content = await fs.promises.readFile(filePath);
       expect(Buffer.from(result.getBody() as string)).toStrictEqual(content);
       expect(result.getHeader('content-type')).toBe('text/javascript');
@@ -864,7 +861,7 @@ describe('post office use cases', () => {
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
       const result = await po.request(reqEvent);
       expect(typeof result.getBody()).toBe('string');
-      const filePath = resourceFolder + "public/sample.txt";
+      const filePath = resourcePath + "/public/sample.txt";
       const content = await fs.promises.readFile(filePath);
       expect(Buffer.from(result.getBody() as string)).toStrictEqual(content);
       expect(result.getHeader('content-type')).toBe('text/plain');
@@ -876,7 +873,7 @@ describe('post office use cases', () => {
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
       const result = await po.request(reqEvent);
       expect(typeof result.getBody()).toBe('string');
-      const filePath = resourceFolder + "public/sample.xml";
+      const filePath = resourcePath + "/public/sample.xml";
       const content = await fs.promises.readFile(filePath);
       expect(Buffer.from(result.getBody() as string)).toStrictEqual(content);
       expect(result.getHeader('content-type')).toBe('application/xml');
@@ -888,7 +885,7 @@ describe('post office use cases', () => {
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
       const result = await po.request(reqEvent);
       expect(typeof result.getBody()).toBe('string');
-      const filePath = resourceFolder + "public/sample.txt";
+      const filePath = resourcePath + "/public/sample.txt";
       const content = await fs.promises.readFile(filePath);
       expect(Buffer.from(result.getBody() as string)).toStrictEqual(content);
       expect(result.getHeader('content-type')).toBe('text/plain');

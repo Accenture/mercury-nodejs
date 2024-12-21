@@ -4,17 +4,19 @@ The following parameters are reserved by the system. You can add your applicatio
 in the main application configuration file (`application.yml`) or apply additional configuration
 files using the `ConfigReader` API.
 
-| Key                  | Value (example)                      | Required |
-|:---------------------|:-------------------------------------|:---------|
-| application.name     | Application name                     | Yes      |
-| info.app.version     | major.minor.build (e.g. 1.0.0)       | Yes      |
-| info.app.description | Something about your application     | Yes      |
-| server.port          | e.g. 8083                            | Yes      |
-| static.html.folder   | e.g. /tmp/html                       | Yes      |
-| mime.types           | Map of file extensions to MIME types | Optional |
-| log.format           | text or json                         | Optional |
-| log.level            | default 'info'                       | Optional |
-| health.dependencies  | e.g. 'database.health'               | Optional |
+| Key                  | Value (example)                       | Required |
+|:---------------------|:--------------------------------------|:---------|
+| application.name     | Application name                      | Yes      |
+| info.app.version     | major.minor.build (e.g. 1.0.0)        | Yes      |
+| info.app.description | Something about your application      | Yes      |
+| server.port          | e.g. 8083                             | Yes      |
+| static.html.folder   | e.g. /tmp/html                        | Yes      |
+| yaml.rest.automation | Default value is classpath:/rest.yaml | Optional |
+| yaml.mime.types      | Optional config file                  | Optional |
+| mime.types           | Map of file extensions to MIME types  | Optional |
+| log.format           | text or json                          | Optional |
+| log.level            | default 'info'                        | Optional |
+| health.dependencies  | e.g. 'database.health'                | Optional |
 
 ## Static HTML contents
 
@@ -30,6 +32,8 @@ mime.types:
   pdf: 'application/pdf'
   doc: 'application/msword'
 ```
+
+Alternatively, you can create a mime-types.yml file and point it using the "yaml.mime.types" parameter.
 
 ## Transient data store
 
@@ -54,7 +58,6 @@ The following route names are reserved by the system.
 | X-TTL                    | Time to live in milliseconds for a streaming content                 |
 | X-Async                  | This header, if set to true, indicates it is a drop-n-forget request |
 | X-Trace-Id               | This allows the system to propagate trace ID                         |
-
 
 <br/>
 

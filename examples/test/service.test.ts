@@ -1,6 +1,5 @@
 import { Logger, Utility, Platform, PostOffice, EventEnvelope, AppException, AsyncHttpRequest, ObjectStreamReader, ObjectStreamIO, ObjectStreamWriter } from 'mercury';
 import { ComposableLoader } from '../src/preload/preload.js';
-import { fileURLToPath } from "url";
 
 const log = Logger.getInstance();
 const util = new Utility();
@@ -9,30 +8,20 @@ let platform: Platform;
 const HELLO_WORLD = 'hello.world'
 const TEST_MESSAGE = 'test message';
 
-function getRootFolder() {
-    const folder = fileURLToPath(new URL("..", import.meta.url));
-    // for windows OS, convert backslash to regular slash and drop drive letter from path
-    const path = folder.includes('\\')? folder.replaceAll('\\', '/') : folder;
-    const colon = path.indexOf(':');
-    return colon == 1? path.substring(colon+1) : path;
-}
-
 /**
  * These are unit tests for each user functions
  */
 describe('Service tests', () => {
 
-    beforeAll(async () => { 
-        const appConfigPath = getRootFolder() + 'src/resources/application.yml';
-        log.info(`Using ${appConfigPath}`);
-        platform = Platform.getInstance(appConfigPath);
+    beforeAll(async () => {         
         ComposableLoader.initialize();
+        platform = Platform.getInstance();
         platform.runForever();
     });
 
     afterAll(async () => {
         await platform.stop();
-        // Give console.log a moment to finish
+        // give console.log a moment to finish
         await util.sleep(1000);
         log.info("Service tests completed");
     });

@@ -20,15 +20,15 @@ let appName;
 let self;
 export class Platform {
     static singleton;
-    constructor(configFile) {
+    constructor() {
         if (!self) {
-            self = new EventSystem(configFile);
+            self = new EventSystem();
             startTime = new Date();
         }
     }
-    static getInstance(configFile) {
+    static getInstance() {
         if (!Platform.singleton) {
-            Platform.singleton = new Platform(configFile);
+            Platform.singleton = new Platform();
         }
         return Platform.singleton;
     }
@@ -42,21 +42,13 @@ export class Platform {
     }
     getName() {
         if (!appName) {
-            const appConfig = self.getConfig();
-            appName = appConfig.getProperty('application.name', 'untitled');
+            const config = AppConfig.getInstance().getReader();
+            appName = config.getProperty('application.name', 'untitled');
         }
         return appName;
     }
     getStartTime() {
         return startTime;
-    }
-    /**
-     * Get application configuration
-     *
-     * @returns config reader
-     */
-    getConfig() {
-        return self.getConfig();
     }
     /**
      * Register a function with a route name.
@@ -371,12 +363,11 @@ class ServiceManager {
     }
 }
 class EventSystem {
-    config;
     services = new Map();
     forever = false;
     stopping = false;
-    constructor(configFileOrMap) {
-        this.config = AppConfig.getInstance(configFileOrMap).getReader();
+    constructor() {
+        const config = AppConfig.getInstance().getReader();
         let levelInEnv = false;
         let reloaded = false;
         let reloadFile = null;
@@ -395,7 +386,7 @@ class EventSystem {
                         errorInReload = `Configuration file ${reloadFile} is empty`;
                     }
                     else {
-                        this.config.reload(map);
+                        config.reload(map);
                         reloaded = true;
                     }
                 }
@@ -411,14 +402,14 @@ class EventSystem {
                 const k = p.substring(0, sep);
                 const v = p.substring(sep + 1);
                 if (k && v) {
-                    this.config.set(k, v);
+                    config.set(k, v);
                 }
             }
         }
         if (!levelInEnv) {
-            log.setLevel(this.config.getProperty('log.level', 'info'));
+            log.setLevel(config.getProperty('log.level', 'info'));
         }
-        log.setJsonFormat(this.config.getProperty('log.format', 'json') == 'json');
+        log.setJsonFormat(config.getProperty('log.format', 'json') == 'json');
         if (reloaded) {
             log.info(`Configuration reloaded from ${reloadFile}`);
         }
@@ -449,9 +440,6 @@ class EventSystem {
     }
     getOriginId() {
         return po.getId();
-    }
-    getConfig() {
-        return this.config;
     }
     register(route, listener, isPrivate = true, instances = 1, interceptor = false) {
         if (route) {

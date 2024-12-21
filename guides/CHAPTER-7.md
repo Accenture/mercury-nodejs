@@ -24,26 +24,22 @@ to validate the interface contract of each function directly.
 For the unit tests, the setup and tear down steps are as follows:
 
 ```javascript
-beforeAll(async () => {
-    log.info('Begin service tests');
-    // locate the src/resources folder
-    resourceFolder = fileURLToPath(new URL('../src/resources', import.meta.url));
-    const appConfigPath = util.normalizeFilePath(resourceFolder + '/application.yml');
-    platform = Platform.getInstance(appConfigPath);
-    ComposableLoader.initialize();
-    platform.runForever();
-});
+    beforeAll(async () => {         
+        ComposableLoader.initialize();
+        platform = Platform.getInstance();
+        platform.runForever();
+    });
 
-afterAll(async () => {
-    await platform.stop();
-    // Give console.log a moment to finish
-    await util.sleep(1000);
-    log.info("Service tests completed");
-});
+    afterAll(async () => {
+        await platform.stop();
+        // give console.log a moment to finish
+        await util.sleep(1000);
+        log.info("Service tests completed");
+    });
 ```
 
-In the setup step, it points the system to use the base configuration from "src/resources/application.yml" file and
-tells the system to load the user functions into the event loop using `ComposableLoader.initialize()`.
+In the setup step, it tells the system to load the user functions into the event loop using
+`ComposableLoader.initialize()` and setupo configuration management.
 
 In the tear down step, it instructs the system to stop gracefully.
 

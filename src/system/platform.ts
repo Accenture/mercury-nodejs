@@ -6,7 +6,7 @@ import { DistributedTrace } from '../services/tracer.js';
 import { AsyncHttpClient } from '../services/async-http-client.js';
 import { EventEnvelope } from '../models/event-envelope.js';
 import { AppException } from '../models/app-exception.js';
-import { AppConfig, ConfigReader } from '../util/config-reader.js';
+import { AppConfig } from '../util/config-reader.js';
 
 const log = Logger.getInstance();
 const util = new Utility();
@@ -24,16 +24,16 @@ let self: EventSystem;
 export class Platform {
     private static singleton: Platform;
 
-    private constructor(configFile?: string | object) {
+    private constructor() {
         if (!self) {
-            self = new EventSystem(configFile);
+            self = new EventSystem();
             startTime = new Date();
         }
     }
 
-    static getInstance(configFile?: string | object): Platform {
+    static getInstance(): Platform {
         if (!Platform.singleton) {
-            Platform.singleton = new Platform(configFile);
+            Platform.singleton = new Platform();
         }
         return Platform.singleton;
     }
@@ -49,23 +49,14 @@ export class Platform {
 
     getName(): string {
         if (!appName) {
-            const appConfig = self.getConfig();
-            appName = appConfig.getProperty('application.name', 'untitled');
+            const config = AppConfig.getInstance().getReader();
+            appName = config.getProperty('application.name', 'untitled');
         }
         return appName;
     }
 
     getStartTime(): Date {
         return startTime;
-    }
-
-    /**
-     * Get application configuration
-     * 
-     * @returns config reader
-     */
-    getConfig(): ConfigReader {
-        return self.getConfig();
     }
 
     /**
@@ -378,13 +369,12 @@ class ServiceManager {
 }
 
 class EventSystem {
-    private config: ConfigReader;
     private services = new Map<string, object>();
     private forever = false;
     private stopping = false;
 
-    constructor(configFileOrMap?: string | object) {
-        this.config = AppConfig.getInstance(configFileOrMap).getReader();
+    constructor() {
+        const config = AppConfig.getInstance().getReader();
         let levelInEnv = false;
         let reloaded = false;
         let reloadFile: string = null;
@@ -402,7 +392,7 @@ class EventSystem {
                     if (map.isEmpty()) {
                         errorInReload = `Configuration file ${reloadFile} is empty`;
                     } else {
-                        this.config.reload(map);
+                        config.reload(map);
                         reloaded = true;
                     }
                 } catch (e) {
@@ -417,14 +407,14 @@ class EventSystem {
                 const k = p.substring(0, sep);
                 const v = p.substring(sep+1);
                 if (k && v) {
-                    this.config.set(k, v);
+                    config.set(k, v);
                 }
             }
         }
         if (!levelInEnv) {
-            log.setLevel(this.config.getProperty('log.level', 'info'));
+            log.setLevel(config.getProperty('log.level', 'info'));
         }
-        log.setJsonFormat(this.config.getProperty('log.format', 'json') == 'json');
+        log.setJsonFormat(config.getProperty('log.format', 'json') == 'json');
         if (reloaded) {
             log.info(`Configuration reloaded from ${reloadFile}`);
         } else if (errorInReload) {
@@ -455,10 +445,6 @@ class EventSystem {
 
     getOriginId(): string {
         return po.getId();
-    }
-
-    getConfig(): ConfigReader {
-        return this.config;
     }
 
     register(route: string, listener: (evt: EventEnvelope) => void, isPrivate=true, instances=1, interceptor=false): void {

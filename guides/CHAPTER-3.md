@@ -22,26 +22,29 @@ REST automation is optional. To turn on REST automation, add the REST automation
 
 ```javascript
 import { Logger, Platform, RestAutomation } from 'mercury';
+import { ComposableLoader } from '../preload/preload.js'; 
 ...
 async function main() {
-    ...
+    ComposableLoader.initialize();  
     const server = new RestAutomation();
     server.start();
 }
 main();
 ```
 
+Note that the class "preload.ts" is automatically generated when you do "npm run preload" or "npm run build".
+The compiled file is located in the "dist/preload/preload.js". Therefore, you use the import statement for
+'../preload/preload.js'.
+
 Please review the "hello-world.ts" for more details.
 
-The `rest.automation.yaml` parameter in the application.yml file tells the system the location of the rest.yaml 
-configuration file. In the "hello world" example app, the following statement overrides the parameter:
+The `yaml.rest.automation` parameter in the application.yml file tells the system the location of the rest.yaml 
+configuration file. The default value is "classpath:/rest.yaml". The `classpath:/` prefix means that the config
+file is available under the "src/resources" folder in your project. If you want the rest.yaml configuration
+file to be externalized to the local file system, you can use the `file:/` prefix. e.g. "file:/tmp/config/rest.yaml".
 
-```javascript
-const appConfig = platform.getConfig();
-// Set configuration parameter before starting REST automation
-if (!appConfig.exists(REST_AUTOMATION_YAML)) {
-    appConfig.set(REST_AUTOMATION_YAML, restYaml);
-}
+```yaml
+yaml.rest.automation: 'classpath:/rest.yaml'
 ```
 
 ## Defining a REST endpoint

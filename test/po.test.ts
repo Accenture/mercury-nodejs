@@ -129,7 +129,7 @@ describe('post office use cases', () => {
       const appConfig = AppConfig.getInstance(resourcePath).getReader();
       // save the helloWorld as DEMO_LIBRARY_FUNCTION so that it can be retrieved by name
       const helloWorld = new HelloWorld();
-      registry.saveFunction(helloWorld);
+      registry.saveFunction(helloWorld, 1, false, false);
       platform = Platform.getInstance();
       // register a hello.world function to echo the incoming payload
       platform.register(HELLO_WORLD_SERVICE, helloWorld.handleEvent, false, HELLO_WORLD_INSTANCES);

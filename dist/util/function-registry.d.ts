@@ -2,7 +2,7 @@ import { EventEnvelope } from '../models/event-envelope.js';
 export declare class FunctionRegistry {
     constructor();
     /**
-     * Save a Composable class to the registry by name.
+     * Save a Composable function to the registry by name.
      *
      * @param that is the class instance of the Composable function
      * @param instances for concurrency
@@ -10,7 +10,18 @@ export declare class FunctionRegistry {
      * @param isInterceptor is true if function is an event interceptor
      */
     saveFunction(that: object, instances: number, isPublic: boolean, isInterceptor: boolean): void;
+    /**
+     * Remove a composable function from the registry by name.
+     *
+     * @param name of the function
+     */
     removeFunction(name: string): void;
+    /**
+     * Retrieve metadata for the composable function
+     *
+     * @param name of the function
+     * @returns map of key-values
+     */
     getMetadata(name: string): object;
     /**
      * Retrieve a function by name so that you can register it programmatically.

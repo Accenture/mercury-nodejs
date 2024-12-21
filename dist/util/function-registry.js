@@ -6,7 +6,7 @@ export class FunctionRegistry {
         }
     }
     /**
-     * Save a Composable class to the registry by name.
+     * Save a Composable function to the registry by name.
      *
      * @param that is the class instance of the Composable function
      * @param instances for concurrency
@@ -16,9 +16,20 @@ export class FunctionRegistry {
     saveFunction(that, instances, isPublic, isInterceptor) {
         self.saveFunction(that, instances, isPublic, isInterceptor);
     }
+    /**
+     * Remove a composable function from the registry by name.
+     *
+     * @param name of the function
+     */
     removeFunction(name) {
         self.removeFunction(name);
     }
+    /**
+     * Retrieve metadata for the composable function
+     *
+     * @param name of the function
+     * @returns map of key-values
+     */
     getMetadata(name) {
         return self.getMetadata(name);
     }

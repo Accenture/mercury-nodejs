@@ -578,9 +578,8 @@ describe('post office use cases', () => {
       expect(result.getBody() instanceof Object);
       const map = new MultiLevelMap(result.getBody() as object);
       expect(map.getElement('app.name')).toBe('platform-core');
-      expect(map.getElement('app.version')).toBe('3.0.0');
       expect(map.getElement('origin')).toBe(platform.getOriginId());
-      expect(map.getElement('app.version')).toBe('3.0.0');
+      expect(map.getElement('app.version')).toBe('4.1.1');
     });   
     
     it('can get response from /health endpoint', async () => {

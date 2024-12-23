@@ -31,7 +31,9 @@ function removeDirectory(folder) {
 const coverage = getFolder('coverage');
 const dist = getFolder('dist');
 const tmp = getFolder('tmp');
+const preloader = getFolder('src/preload');
 
 removeDirectory(coverage);
 removeDirectory(dist);
 removeDirectory(tmp);
+removeDirectory(preloader);

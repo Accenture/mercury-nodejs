@@ -1,3 +1,5 @@
+import { Logger } from '../util/logger.js';
+const log = Logger.getInstance();
 let self = null;
 export class FunctionRegistry {
     constructor() {
@@ -8,12 +10,14 @@ export class FunctionRegistry {
     /**
      * Save a Composable function to the registry by name.
      *
+     * @param route of the composable function
      * @param that is the class instance of the Composable function
      * @param instances for concurrency
      * @param isPublic is true if function is visible thru event-over-http
      * @param isInterceptor is true if function is an event interceptor
      */
-    saveFunction(that, instances, isPublic, isInterceptor) {
+    saveFunction(route, that, instances, isPublic, isInterceptor) {
+        log.info(`Loading ${that.constructor.name} as ${route}`);
         self.saveFunction(that, instances, isPublic, isInterceptor);
     }
     /**

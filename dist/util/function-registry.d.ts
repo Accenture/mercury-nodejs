@@ -4,12 +4,13 @@ export declare class FunctionRegistry {
     /**
      * Save a Composable function to the registry by name.
      *
+     * @param route of the composable function
      * @param that is the class instance of the Composable function
      * @param instances for concurrency
      * @param isPublic is true if function is visible thru event-over-http
      * @param isInterceptor is true if function is an event interceptor
      */
-    saveFunction(that: object, instances: number, isPublic: boolean, isInterceptor: boolean): void;
+    saveFunction(route: string, that: object, instances: number, isPublic: boolean, isInterceptor: boolean): void;
     /**
      * Remove a composable function from the registry by name.
      *

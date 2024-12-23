@@ -9,6 +9,7 @@ export interface Composable {
     handleEvent(evt: EventEnvelope): Promise<string | boolean | number | object | EventEnvelope | null>;
 }
 /**
+ * Annotation for a composable class
  *
  * @param instances to define concurrency
  * @param isPublic is true if this function is reachable thru event-over-http

@@ -20,6 +20,7 @@ export interface Composable {
 }
 
 /**
+ * Annotation for a composable class
  * 
  * @param instances to define concurrency
  * @param isPublic is true if this function is reachable thru event-over-http
@@ -32,8 +33,7 @@ export function preload(instances=1, isPublic=false, isInterceptor=false)  {
       const method = descriptor.value;
       descriptor.value = function (...args) {
         if (this.name && this.handleEvent instanceof Function) {
-            log.info(`Loading ${this.constructor.name} as ${this.name}`);
-            registry.saveFunction(this, Math.min(500, Math.max(1, instances)), isPublic, isInterceptor); 
+            registry.saveFunction(this.name, this, Math.min(500, Math.max(1, instances)), isPublic, isInterceptor); 
         } else {
             log.error(`Unable to load ${this.constructor.name} because it does not implement Composable`);
         }

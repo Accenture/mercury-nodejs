@@ -23,26 +23,25 @@ npm install
 
 ## Installing the Mercury library
 
-The Mercury library dependency is shown in the package.json file.
+When you enter `npm install`, it will fetch the configured Mercury library from github using
+package-lock.json.
 
-```shell
-"dependencies": {
-   "mercury": "github:accenture/mercury-nodejs"
-}
-```
-
-When you enter `npm install`, it will fetch the latest Mercury library from the main branch in github.
-If you want to install earlier release, you can update the github link below.
-
-To obtain the latest update, you can do this:
+To obtain the latest update, you can do `npm run pull`.
 
 ```shell
 cd examples
-npm uninstall mercury
-npm install https://github.com/Accenture/mercury-nodejs
+npm run pull
 ```
 
-Alternatively, you may build the Mercury for Node.js library and publish it to your corporate artifactory.
+If you want to use an earlier release, you can specify the release branch with a hash sign
+like this:
+
+```shell
+npm install https://github.com/Accenture/mercury-nodejs#release/v4.1.1
+```
+
+If you are using mercury-nodejs in your organization, we recommend publishing the mercury-nodejs
+core library to your corporate artifactory.
 
 ## Building the hello world application
 
@@ -56,65 +55,87 @@ Then it will generate the "dist" folder containing the executable "javascript" f
 
 ## Running the hello world application
 
-You can run the application using `node dist/hello-world.js`. You will see log messages like this:
+You can run the application using `node hello-world.js`. You will see log messages like this:
 
 ```shell
-$ node dist/hello-world.js
-INFO Loading base configuration from /sandbox/mercury-nodejs/examples/dist/resources/application.yml (config-reader.js:52)
-INFO Event system started - 2f2d6abd7b9c4d9d9694b3b900254f7a (platform.js:441)
-INFO PRIVATE distributed.tracing registered (platform.js:215)
-INFO PRIVATE async.http.request registered with 200 instances (platform.js:218)
-INFO Loading HelloWorldService as hello.world (descriptor.value:composable.js:11)
-INFO Loading DemoHealthCheck as demo.health (descriptor.value:composable.js:11)
-INFO PUBLIC hello.world registered with 10 instances (platform.js:218)
-INFO PRIVATE demo.health registered with 5 instances (platform.js:218)
-INFO PRIVATE actuator.services registered with 10 instances (platform.js:218)
-INFO PRIVATE event.api.service registered with 200 instances (platform.js:218)
-INFO PRIVATE rest.automation.manager registered (platform.js:215)
-INFO Loaded header_1, request headers, add=0, drop=5, keep=0 (RestEntry.loadHeaderEntry:routing.js:263)
-INFO Loaded header_1, response headers, add=4, drop=0, keep=0 (RestEntry.loadHeaderEntry:routing.js:263)
-INFO Loaded cors_1 cors headers (*) (RestEntry.loadCors:routing.js:280)
-INFO POST /api/event -> event.api.service, timeout=60s, tracing=true (routing.js:521)
-INFO OPTIONS /api/event -> event.api.service, timeout=60s (routing.js:515)
-INFO GET /api/hello/world -> hello.world, timeout=10s, tracing=true (routing.js:521)
-INFO PUT /api/hello/world -> hello.world, timeout=10s, tracing=true (routing.js:521)
-INFO POST /api/hello/world -> hello.world, timeout=10s, tracing=true (routing.js:521)
-INFO HEAD /api/hello/world -> hello.world, timeout=10s, tracing=true (routing.js:521)
-INFO PATCH /api/hello/world -> hello.world, timeout=10s, tracing=true (routing.js:521)
-INFO DELETE /api/hello/world -> hello.world, timeout=10s, tracing=true (routing.js:521)
-INFO OPTIONS /api/hello/world -> hello.world, timeout=10s (routing.js:515)
-INFO POST /api/hello/upload -> hello.world, timeout=15s, tracing=false (routing.js:521)
-INFO OPTIONS /api/hello/upload -> hello.world, timeout=15s (routing.js:515)
-INFO POST /api/hello/list -> hello.list, timeout=15s, tracing=false (routing.js:521)
-INFO OPTIONS /api/hello/list -> hello.list, timeout=15s (routing.js:515)
-INFO GET /api/simple/{task}/* -> hello.world, timeout=12s, tracing=false (routing.js:521)
-INFO PUT /api/simple/{task}/* -> hello.world, timeout=12s, tracing=false (routing.js:521)
-INFO POST /api/simple/{task}/* -> hello.world, timeout=12s, tracing=false (routing.js:521)
-INFO OPTIONS /api/simple/{task}/* -> hello.world, timeout=12s (routing.js:515)
-WARN trust_all_cert=true for http://127.0.0.1:8086 is not relevant - Do you meant https? (RestEntry.loadRestEntry:routing.js:484)
-INFO GET /api/v1/* -> http://127.0.0.1:8086, timeout=20s, tracing=true (routing.js:521)
-INFO PUT /api/v1/* -> http://127.0.0.1:8086, timeout=20s, tracing=true (routing.js:521)
-INFO POST /api/v1/* -> http://127.0.0.1:8086, timeout=20s, tracing=true (routing.js:521)
-INFO OPTIONS /api/v1/* -> http://127.0.0.1:8086, timeout=20s (routing.js:515)
-INFO GET /api/hello/download -> hello.download, timeout=20s, tracing=false (routing.js:521)
-INFO OPTIONS /api/hello/download -> hello.download, timeout=20s (routing.js:515)
-INFO Exact API path [/api/event, /api/hello/download, /api/hello/list, /api/hello/upload, /api/hello/world] (RestEntry.load:routing.js:175)
-INFO Wildcard API path [/api/simple/{task}/*, /api/v1/*] (RestEntry.load:routing.js:194)
-INFO Static HTML folder: /sandbox/mercury-nodejs/examples/dist/resources/public (RestEngine.startHttpServer:rest-automation.js:135)
-INFO To stop application, press Control-C (EventSystem.runForever:platform.js:523)
-INFO Hello world application started (main:hello-world.js:33)
-INFO REST automation service started on port 8086 (rest-automation.js:226)
+% npm run build
+> examples@4.1.1 prebuild
+> npm run lint
+> examples@4.1.1 lint
+> eslint . --fix
+> examples@4.1.1 build
+> npm run preload && tsc -p tsconfig.json && node copy-static-files.js
+> examples@4.1.1 preload
+> node generate-preloader.js
+INFO Loading base configuration from /examples/src/resources/application.yml (config-reader.js:98)
+INFO Scanning /examples/node_modules/mercury/dist (scanPackage:generate-preloader.js:19)
+INFO Class NoOp (scanPackageJs:generate-preloader.js:71)
+INFO Scanning /examples/src (main:generate-preloader.js:193)
+INFO Class DemoAuth (scanSourceFolder:generate-preloader.js:95)
+INFO Class DemoHealthCheck (scanSourceFolder:generate-preloader.js:95)
+INFO Class HelloWorldService (scanSourceFolder:generate-preloader.js:95)
+INFO Composable class loader (/preload/preload.ts) generated (generatePreLoader:generate-preloader.js:169)
+% cd dist 
+% node hello-world.js 
+INFO Loading base configuration from /Users/eric.law/sandbox/mercury-nodejs/examples/dist/resources/application.yml (config-reader.js:98)
+INFO Base configuration 2609990e76414441af65af27b65f2cdd (ComposableLoader.initialize:preload.js:40)
+INFO Loading NoOp as no.op (descriptor.value:composable.js:18)
+INFO Loading DemoAuth as v1.api.auth (descriptor.value:composable.js:18)
+INFO Loading DemoHealthCheck as demo.health (descriptor.value:composable.js:18)
+INFO Loading HelloWorldService as hello.world (descriptor.value:composable.js:18)
+INFO Event system started - 9f2fa4a008534f19a1cb1a3dfe1e3af0 (platform.js:437)
+INFO PRIVATE distributed.tracing registered (platform.js:213)
+INFO PRIVATE async.http.request registered with 200 instances (platform.js:216)
+INFO PRIVATE no.op registered (platform.js:213)
+INFO PRIVATE v1.api.auth registered (platform.js:213)
+INFO PRIVATE demo.health registered (platform.js:213)
+INFO PUBLIC hello.world registered with 10 instances (platform.js:216)
+INFO PRIVATE actuator.services registered with 10 instances (platform.js:216)
+INFO PRIVATE event.api.service registered with 200 instances (platform.js:216)
+INFO PRIVATE rest.automation.manager registered (platform.js:213)
+INFO Loaded header_1, request headers, add=0, drop=5, keep=0 (RestEntry.loadHeaderEntry:routing.js:259)
+INFO Loaded header_1, response headers, add=4, drop=0, keep=0 (RestEntry.loadHeaderEntry:routing.js:259)
+INFO Loaded cors_1 cors headers (*) (RestEntry.loadCors:routing.js:276)
+INFO POST /api/event -> event.api.service, timeout=60s, tracing=true (routing.js:513)
+INFO OPTIONS /api/event -> event.api.service, timeout=60s (routing.js:507)
+INFO GET /api/hello/world -> v1.api.auth -> hello.world, timeout=10s, tracing=true (routing.js:510)
+INFO PUT /api/hello/world -> v1.api.auth -> hello.world, timeout=10s, tracing=true (routing.js:510)
+INFO POST /api/hello/world -> v1.api.auth -> hello.world, timeout=10s, tracing=true (routing.js:510)
+INFO HEAD /api/hello/world -> v1.api.auth -> hello.world, timeout=10s, tracing=true (routing.js:510)
+INFO PATCH /api/hello/world -> v1.api.auth -> hello.world, timeout=10s, tracing=true (routing.js:510)
+INFO DELETE /api/hello/world -> v1.api.auth -> hello.world, timeout=10s, tracing=true (routing.js:510)
+INFO OPTIONS /api/hello/world -> hello.world, timeout=10s (routing.js:507)
+INFO POST /api/hello/upload -> hello.world, timeout=15s, tracing=false (routing.js:513)
+INFO OPTIONS /api/hello/upload -> hello.world, timeout=15s (routing.js:507)
+INFO POST /api/hello/list -> hello.list, timeout=15s, tracing=false (routing.js:513)
+INFO OPTIONS /api/hello/list -> hello.list, timeout=15s (routing.js:507)
+INFO GET /api/simple/{task}/* -> hello.world, timeout=12s, tracing=false (routing.js:513)
+INFO PUT /api/simple/{task}/* -> hello.world, timeout=12s, tracing=false (routing.js:513)
+INFO POST /api/simple/{task}/* -> hello.world, timeout=12s, tracing=false (routing.js:513)
+INFO OPTIONS /api/simple/{task}/* -> hello.world, timeout=12s (routing.js:507)
+WARN trust_all_cert=true for http://127.0.0.1:8086 is not relevant - Do you meant https? (RestEntry.loadRestEntry:routing.js:476)
+INFO GET /api/v1/* -> http://127.0.0.1:8086, timeout=20s, tracing=true (routing.js:513)
+INFO PUT /api/v1/* -> http://127.0.0.1:8086, timeout=20s, tracing=true (routing.js:513)
+INFO POST /api/v1/* -> http://127.0.0.1:8086, timeout=20s, tracing=true (routing.js:513)
+INFO OPTIONS /api/v1/* -> http://127.0.0.1:8086, timeout=20s (routing.js:507)
+INFO GET /api/hello/download -> hello.download, timeout=20s, tracing=false (routing.js:513)
+INFO OPTIONS /api/hello/download -> hello.download, timeout=20s (routing.js:507)
+INFO Exact API path [/api/event, /api/hello/download, /api/hello/list, /api/hello/upload, /api/hello/world] (RestEntry.load:routing.js:171)
+INFO Wildcard API path [/api/simple/{task}/*, /api/v1/*] (RestEntry.load:routing.js:190)
+INFO Static HTML folder: /Users/eric.law/sandbox/mercury-nodejs/examples/dist/resources/public (RestEngine.startHttpServer:rest-automation.js:154)
+INFO Loaded 18 mime types (RestEngine.startHttpServer:rest-automation.js:172)
+INFO To stop application, press Control-C (EventSystem.runForever:platform.js:517)
+INFO Hello world application started (main:hello-world.js:13)
+INFO REST automation service started on port 8086 (rest-automation.js:289)
 ```
 
-Now please open your browser to "http://127.0.0.1:8086". You will see the application home page:
+Open your browser to visit "http://127.0.0.1:8086". You will see the example application home page
+like this:
 
 ```text
 Hello World
-
 INFO endpoint
-
 Health endpoint
-
 Demo endpoint
 ```
 
@@ -126,7 +147,7 @@ When you click the INFO hyperlink, you will see a page like this:
 {
   "app": {
     "name": "example-app",
-    "version": "3.0.0",
+    "version": "4.1.1",
     "description": "Composable application example"
   },
   "memory": {
@@ -135,12 +156,12 @@ When you click the INFO hyperlink, you will see a page like this:
     "used": "12,988,104"
   },
   "node": {
-    "version": "v18.12.1"
+    "version": "v22.12.0"
   },
   "origin": "2f2d6abd7b9c4d9d9694b3b900254f7a",
   "time": {
-    "current": "2023-06-09 15:54:04.992",
-    "start": "2023-06-09 15:49:35.108"
+    "current": "2023-12-23 15:54:03.002",
+    "start": "2023-12-23 15:49:35.102"
   },
   "uptime": "4 minutes 33 seconds"
 }

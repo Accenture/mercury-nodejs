@@ -1,4 +1,4 @@
-# Mercury 4.0 for Node.js
+# Mercury version 4 for Node.js
 
 Reference engine for building "Composable architecture and applications".
 
@@ -7,7 +7,7 @@ Reference engine for building "Composable architecture and applications".
 The Mercury project is created with one primary objective -
 `to make software easy to write, read, test, deploy, scale and manage.`
 
-Mercury 4.0 for Node.js inherits core functionality from the original Mercury Java project.
+Mercury for Node.js inherits core functionality from the original Mercury Java project.
 For examples,
 
 1. REST automation - you can create REST endpoints by configuration instead of code

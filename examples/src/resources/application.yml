@@ -1,12 +1,12 @@
 # application configuration
 
-application.name: 'example-app'
+application.name: 'platform-core'
 info.app:
   version: '3.0.0'
-  description: 'Composable application example'
+  description: 'Composable application core library'
 
 # server port for Event API REST endpoint
-server.port: 8086
+server.port: 8300
 
 # log.format can be 'text' or 'json'
 log:
@@ -15,31 +15,8 @@ log:
 
 # You can add optional health checks that point to your custom health check functions
 # (the dependency list is a comma separated list) 
-health.dependencies: 'demo.health'
+# health.dependencies: 'demo.health'
 
 #
-# To scan libraries for composable functions, use a comma separated text string
-# for a list of library dependencies.
-#
-web.component.scan: 'mercury'
-
-#
-# Extension to MIME type mapping for static content
-#
-# By default, the system supports the following:
-# js: application/json
-# html: text/html
-# htm: text/html
-# txt: text/plain
-# css: text/css
-#
-# and the mapping in the mime-types.yml config file in the mercury library resources folder
-#
-# Any other extensions are served as application/octet-stream
-#
-# If your application needs specific MIME types, you may add or override them in the 
-# optional mime.types section here. See example below.
-#
-# mime.types:
-#   pdf: 'application/pdf'
-#   doc: 'application/msword'
+# Static HTML folder location - default to "resources/public" of the mercury library if not given.
+# static.html.folder: '/opt/html'

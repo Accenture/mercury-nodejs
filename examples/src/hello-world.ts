@@ -14,6 +14,5 @@ async function main() {
     platform.runForever();
     log.info('Hello world application started');
 }
-
 // run the application
 main();

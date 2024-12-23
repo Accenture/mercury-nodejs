@@ -91,6 +91,15 @@ export declare class Utility {
      */
     mkdirsIfNotExist(path: string): void;
     /**
+     * Split a text string into an array of elements
+     *
+     * @param text string
+     * @param chars as separators
+     * @param empty if true, returns empty elements else skip them
+     * @returns array of separated text string
+     */
+    split(text: string, chars: string, empty?: boolean): string[];
+    /**
      * DO NOT call this function directly in your applicaton code.
      *
      * This function is reserved for system use because the folder is relative

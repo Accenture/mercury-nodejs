@@ -41,5 +41,4 @@ export class DistributedTrace implements Composable {
         }
         return null;
     }
-
 }

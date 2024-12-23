@@ -44,26 +44,35 @@ The foundation libary includes:
 
 Each application has an entry point. You may implement an entry point in a main application like this:
 
-```javascript
-async function main() {
-    // ...
-    // Load composable functions into memory
-    ComposableLoader.initialize();
-    // your main application code here
-    // ...
-}
+```typescript
+import { Logger, Platform, RestAutomation } from 'mercury';
+import { ComposableLoader } from './preload/preload.js'; 
 
+const log = Logger.getInstance();
+
+async function main() {
+    // Load composable functions into memory and initialize configuration management
+    ComposableLoader.initialize();
+    // start REST automation engine
+    const server = new RestAutomation();
+    server.start();
+    // keep the server running
+    const platform = Platform.getInstance();
+    platform.runForever();
+    log.info('Hello world application started');
+}
+// run the application
 main();
 ```
 
-For a command line use case, your main application ("MainApp") module would get command line arguments and
+For a command line use case, your main application module would get command line arguments and
 send the request as an event to a business logic function for processing.
 
-For a backend application, the MainApp is usually used to do some "initialization" or setup steps for your
-services.
+For a backend application, the main application is usually used to do some "initialization" or
+setup steps for your services.
 
-The `ComposableLoader.initialize()` statement will register your user functions into the event loop. There is
-no need to directly import each module in your application.
+The `ComposableLoader.initialize()` statement will register your user functions into the event loop.
+There is no need to directly import each module in your application code.
 
 ### Business logic modules
 
@@ -102,6 +111,27 @@ You can set the number of instances from 1 to 500.
 
 > Writing code in the first principle of "input-process-output" promotes Test Driven Development (TDD) because
   interface contact is clearly defined. Self-containment means code is more readable.
+
+### Loading composable functions from a library
+
+You can publish a set of composable functions as a library. To import your composable functions from a library,
+you may add the following in the application.yml configuration file. In this example, it tells the system
+to search for composable functions in the package called "mercury".
+
+```yaml
+#
+# To scan libraries for composable functions, use a comma separated text string
+# for a list of library dependencies.
+#
+web.component.scan: 'mercury'
+```
+
+The "mercury" package is actually the composable core library. To illustate this feature, we have added a sample
+composable function called "no.op" in the NoOp.ts class. When you build the example app using "npm run build",
+the "preload" step will execute the "generate-preloader.js" script to generate the `preload.ts` class in the
+"src/preload" folder. The "no.op" composable function will simply echo input as output.
+
+A worked example of application.yml file is available in the examples/src/resources folder.
 
 ### Event orchestration
 
@@ -148,7 +178,7 @@ While REST is the most popular user facing interface, there are other communicat
 in a serverless environment. You can write a function to listen to these external event triggers and send the events
 to your user defined functions. This custom "adapter" pattern is illustrated as the dotted line path in Figure 1.
 
-## Test drive a sample application
+### Test drive a sample application
 
 To visualize what is a Composable application, let's try out the "Hello World" application in Chapter 2.
 

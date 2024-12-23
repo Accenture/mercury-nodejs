@@ -1,9 +1,11 @@
 import { Logger } from '../src/util/logger.js';
+import { Utility } from '../src/util/utility.js';
 import { AppConfig, ConfigReader } from '../src/util/config-reader.js';
 import { RoutingEntry } from '../src/util/routing.js';
 import { fileURLToPath } from "url";
 
 const log = Logger.getInstance();
+const util = new Utility();
 
 function getRootFolder() {
     const folder = fileURLToPath(new URL("..", import.meta.url));
@@ -60,6 +62,16 @@ describe('config reader tests', () => {
             const v = 'first 8300 second ' + p + ' third ${invalid.format'
             expect(config.get('env.var.2')).toBe(v);
         }
+    });
+
+    it('can split a text string with multiple separators', () => {
+        const text = 'hello, , world';
+        const chars = ', ';
+        const parts = util.split(text, chars);
+        expect(parts).toEqual(['hello', 'world']);
+        const parts2 = util.split(text, chars, true);
+        expect(parts2.length).toBe(5);
+        expect(parts2).toEqual(['hello', '', '', '', 'world']);
     });
 
 });

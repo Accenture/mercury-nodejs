@@ -239,6 +239,43 @@ export class Utility {
         }
     }
     /**
+     * Split a text string into an array of elements
+     *
+     * @param text string
+     * @param chars as separators
+     * @param empty if true, returns empty elements else skip them
+     * @returns array of separated text string
+     */
+    split(text, chars, empty = false) {
+        const result = [];
+        if (text && chars) {
+            let sb = '';
+            for (const i of text) {
+                let found = false;
+                for (const j of chars) {
+                    if (i == j) {
+                        if (sb.length > 0) {
+                            result.push(sb);
+                        }
+                        else if (empty) {
+                            result.push('');
+                        }
+                        sb = '';
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    sb += i;
+                }
+            }
+            if (sb.length > 0) {
+                result.push(sb);
+            }
+        }
+        return result;
+    }
+    /**
      * DO NOT call this function directly in your applicaton code.
      *
      * This function is reserved for system use because the folder is relative

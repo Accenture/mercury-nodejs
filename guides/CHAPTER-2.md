@@ -50,7 +50,9 @@ Alternatively, you may build the Mercury for Node.js library and publish it to y
 npm run build
 ```
 
-The "build" command will generate the "dist" folder containing the executable "javascript" files.
+When you build the example app using "npm run build", the "preload" step will execute the
+"generate-preloader.js" script to generate the `preload.ts` class in the "src/preload" folder.
+Then it will generate the "dist" folder containing the executable "javascript" files.
 
 ## Running the hello world application
 

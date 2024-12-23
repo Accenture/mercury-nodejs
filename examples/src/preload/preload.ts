@@ -7,7 +7,8 @@
 import fs from 'fs';
 import { fileURLToPath } from "url";
 import { Logger, AppConfig, FunctionRegistry, Platform } from 'mercury';
-// import the user functions
+// import composable functions
+import { NoOp } from '../../node_modules/mercury/dist/services/no-op.js';
 import { DemoAuth } from '../services/demo-auth.js';
 import { DemoHealthCheck } from '../services/health-check.js';
 import { HelloWorldService } from '../services/hello-world-service.js';
@@ -41,11 +42,12 @@ export class ComposableLoader {
                 // initialize base configuration
                 const config = AppConfig.getInstance(resourcePath);
                 log.info(`Base configuration ${config.getId()}`);  
-                // load composable functions
+                // initialize composable functions
+                new NoOp().initialize();
                 new DemoAuth().initialize();
                 new DemoHealthCheck().initialize();
                 new HelloWorldService().initialize();
-                // register them into the event system
+                // register the functions into the event system
                 const platform = Platform.getInstance();
                 const registry = new FunctionRegistry();
                 const registered = registry.getFunctions();

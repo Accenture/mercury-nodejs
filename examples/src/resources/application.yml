@@ -18,6 +18,12 @@ log:
 health.dependencies: 'demo.health'
 
 #
+# To scan libraries for composable functions, use a comma separated text string
+# for a list of library dependencies.
+#
+web.component.scan: 'mercury'
+
+#
 # Extension to MIME type mapping for static content
 #
 # By default, the system supports the following:

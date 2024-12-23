@@ -13,6 +13,6 @@ export class NoOp {
     }
 }
 __decorate([
-    preload()
+    preload(10)
 ], NoOp.prototype, "initialize", null);
 //# sourceMappingURL=no-op.js.map

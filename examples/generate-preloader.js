@@ -43,26 +43,32 @@ async function scanPackageJs(parent, folder) {
                 const blocks = [];
                 const lines = util.split(content, '\r\n');
                 let hasDecorators = false;
+                let hasPreload = false;
                 for (const line of lines) {
                     const text = line.trim();
                     if (!text.startsWith('//')) {
-                        if (text.startsWith('__decorate(')) {
+                        if (!hasDecorators && text.startsWith('__decorate([')) {
                             hasDecorators = true;
                             continue;
                         }
                         if (hasDecorators) {
-                            blocks.push(text);
+                            if (text.startsWith('preload(')) {
+                                hasPreload = true;
+                                continue;
+                            }
+                        }
+                        if (hasPreload) {
+                            if (text.startsWith('__decorate([')) {
+                                break;
+                            } else {
+                                blocks.push(text);
+                            }                            
                         }
                     }
                 }
-                if (hasDecorators) {
-                    let found = false;
+                if (hasPreload) {
                     for (const block of blocks) {
-                        if (block.startsWith('preload(')) {
-                            found = true;
-                            continue;
-                        }
-                        if (found) {
+                        if (block.includes('.prototype')) {
                             const elements = util.split(block, '], ";)');
                             const relativePath = '../../'+path.substring(parent.length);
                             if (elements.length > 1 && elements[1] == 'initialize' && elements[0].endsWith('.prototype')) {

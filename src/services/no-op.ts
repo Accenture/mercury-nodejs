@@ -6,7 +6,7 @@ export class NoOp implements Composable {
     
     name = "no.op";
 
-    @preload()
+    @preload(10)
     initialize(): void {
         // no-op
     }
@@ -18,5 +18,4 @@ export class NoOp implements Composable {
     async handleEvent(evt: EventEnvelope) {
        return evt;
     }
-
 }

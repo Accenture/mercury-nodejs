@@ -80,15 +80,10 @@ Your user function module may look like this:
 
 ```typescript
 export class HelloWorldService implements Composable {
-    name = "hello.world";
 
-    @preload(10)
-    initialize(): void {
-        // no-op
-    }
-
-    getName(): string {
-        return this.name;
+    @preload('hello.world', 10)
+    initialize(): HelloWorldService {
+        return this;
     }
     
     async handleEvent(event: EventEnvelope) {

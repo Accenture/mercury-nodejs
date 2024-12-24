@@ -81,15 +81,10 @@ Your custom authentication function may look like this:
 
 ```javascript
 export class DemoAuth implements Composable {
-    name = "v1.api.auth";
 
-    @preload()
-    initialize(): void {
-        // no-op
-    }
-
-    getName(): string {
-        return this.name;
+    @preload('v1.api.auth')
+    initialize(): DemoAuth {
+        return this;
     }
 
     async handleEvent(evt: EventEnvelope) {

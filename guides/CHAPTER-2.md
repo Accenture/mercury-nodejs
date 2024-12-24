@@ -236,15 +236,9 @@ A function can be defined in a class with this template:
 ```javascript
 export class HelloWorldService implements Composable {
 
-    name = "hello.world";
-
-    @preload(10)
-    initialize(): void {
-        // no-op
-    }
-
-    getName(): string {
-        return this.name;
+    @preload('hello.world', 10)
+    initialize(): HelloWorldService {
+       return this;
     }
     
     async handleEvent(evt: EventEnvelope) {
@@ -254,13 +248,13 @@ export class HelloWorldService implements Composable {
 }
 ```
 
-The "Composable" interface enforces the 3 methods (initialize, getName and handleEvent). 
+The "Composable" interface enforces two methods (initialize and handleEvent). 
 The "preload" annotation tells the system to load the function into memory so that it can be used
 anywhere in your application without tight coupling.
 
-You can define instances, isPublic and isInterceptor in the `preload` annotation. The default values are
-instances=1, isPublic=false and isInterceptor=false. In the example, the number of instances is set to 10.
-You can set the number of instances from 1 to 500.
+You can define route name, instances, isPublic and isInterceptor in the `preload` annotation.
+The default values are instances=1, isPublic=false and isInterceptor=false. In the example,
+the number of instances is set to 10. You can set the number of instances from 1 to 500.
 
 Optionally, you can put additional setup code in the "initialize" method. 
 

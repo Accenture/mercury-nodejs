@@ -93,15 +93,10 @@ import { preload, Composable, EventEnvelope, AsyncHttpRequest, Logger } from 'me
 const log = Logger.getInstance();
 
 export class DemoAuth implements Composable {
-    name = "v1.api.auth";
 
-    @preload(5)
-    initialize(): void {
-        // no-op
-    }
-
-    getName(): string {
-        return this.name;
+    @preload('v1.api.auth', 5)
+    initialize(): DemoAuth {
+        return this;
     }
 
     async handleEvent(evt: EventEnvelope) {
@@ -115,9 +110,9 @@ export class DemoAuth implements Composable {
 }
 ```
 
-You can define instances, isPublic and isInterceptor in the `preload` annotation. The default values are
-instances=1, isPublic=false and isInterceptor=false. In the example, the number of instances is set to 5.
-You can set the number of instances from 1 to 500.
+You can define route name, instances, isPublic and isInterceptor in the `preload` annotation.
+The default values are instances=1, isPublic=false and isInterceptor=false. In the example, 
+the number of instances is set to 5. You can set the number of instances from 1 to 500.
 
 The above example is a demo "API authentication" function. The event body is an AsyncHttpRequest object
 from the user because the "rest.yaml" routes the HTTP request to the function via its unique "route name".

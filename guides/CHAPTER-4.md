@@ -36,15 +36,9 @@ In declarative approach, you use the `preLoad` annotation to register a class wi
 ```javascript
 export class HelloWorldService implements Composable {
 
-    name = "hello.world";
-
-    @preload(10)
-    initialize(): void {
-        // no-op
-    }
-
-    getName(): string {
-        return this.name;
+    @preload('hello.world', 10)
+    initialize(): HelloWorldService {
+        return this;
     }
     
     async handleEvent(evt: EventEnvelope) {
@@ -54,7 +48,7 @@ export class HelloWorldService implements Composable {
 }
 ```
 
-You can define instances, isPublic and isInterceptor in the `preload` annotation. The default values are
+You can define route name, instances, isPublic and isInterceptor in the `preload` annotation. The default values are
 instances=1, isPublic=false and isInterceptor=false. In the example, the number of instances is set to 10.
 You can set the number of instances from 1 to 500.
 

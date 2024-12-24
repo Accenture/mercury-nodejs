@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://github.com/accenture/mercury/guides/CHAPTER-2/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Chapter-2 - Mercury</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Chapter-2";
+        var mkdocs_page_input_path = "guides/CHAPTER-2.md";
+        var mkdocs_page_url = "/accenture/mercury/guides/CHAPTER-2/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Mercury
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../TABLE-OF-CONTENTS/">Contents</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-1/">Chapter-1</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Chapter-2</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#clone-the-mercury-for-nodejs-project">Clone the Mercury for Node.js project</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#pre-requisites">Pre-requisites</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#installing-the-mercury-library">Installing the Mercury library</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#building-the-hello-world-application">Building the hello world application</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#running-the-hello-world-application">Running the hello world application</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#info-endpoint">INFO endpoint</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#health-endpoint">Health endpoint</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#hello-world-demo-endpoint">Hello World demo endpoint</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#define-a-function">Define a function</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#distributed-trace">Distributed trace</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#actuator-endpoints">Actuator endpoints</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#resources-folder">Resources folder</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#applicationyaml">application.yaml</a>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-3/">Chapter-3</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-4/">Chapter-4</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-5/">Chapter-5</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-6/">Chapter-6</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-7/">Chapter-7</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-I/">Appendix-I</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-II/">Appendix-II</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CHANGELOG/">Release notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../arch-decisions/DESIGN-NOTES/">Design notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../INCLUSIVITY/">Inclusivity</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CODE_OF_CONDUCT/">Code of Conduct</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CONTRIBUTING/">Contribution</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Mercury</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Chapter-2</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="hello-world-application">Hello World application</h1>
+<p>Getting started with the "hello world" application in the example sub-project.</p>
+<h2 id="clone-the-mercury-for-nodejs-project">Clone the Mercury for Node.js project</h2>
+<p>You can clone the project like this:</p>
+<pre><code class="language-shell">cd sandbox
+git clone https://github.com/Accenture/mercury-nodejs.git
+cd mercury-nodejs
+cd examples
+</code></pre>
+<h2 id="pre-requisites">Pre-requisites</h2>
+<p>Mercury for Node.js is written in TypeScript. Please install library dependencies using npm first:</p>
+<pre><code class="language-shell">npm install
+</code></pre>
+<h2 id="installing-the-mercury-library">Installing the Mercury library</h2>
+<p>When you enter <code>npm install</code>, it will fetch the configured Mercury library from github using
+package-lock.json.</p>
+<p>To obtain the latest update, you can do <code>npm run pull</code>.</p>
+<pre><code class="language-shell">cd examples
+npm run pull
+</code></pre>
+<p>If you want to use an earlier release, you can specify the release branch with a hash sign
+like this:</p>
+<pre><code class="language-shell">npm install https://github.com/Accenture/mercury-nodejs#release/v4.1.1
+</code></pre>
+<p>If you are using mercury-nodejs in your organization, we recommend publishing the mercury-nodejs
+core library to your corporate artifactory.</p>
+<h2 id="building-the-hello-world-application">Building the hello world application</h2>
+<pre><code class="language-shell">npm run build
+</code></pre>
+<p>When you build the example app using "npm run build", the "preload" step will execute the
+"generate-preloader.js" script to generate the <code>preload.ts</code> class in the "src/preload" folder.
+Then it will generate the "dist" folder containing the executable "javascript" files.</p>
+<h2 id="running-the-hello-world-application">Running the hello world application</h2>
+<p>You can run the application using <code>node hello-world.js</code>. You will see log messages like this:</p>
+<pre><code class="language-shell">% npm run build
+&gt; examples@4.1.1 prebuild
+&gt; npm run lint
+&gt; examples@4.1.1 lint
+&gt; eslint . --fix
+&gt; examples@4.1.1 build
+&gt; npm run preload &amp;&amp; tsc -p tsconfig.json &amp;&amp; node copy-static-files.js
+&gt; examples@4.1.1 preload
+&gt; node generate-preloader.js
+INFO Loading base configuration from /examples/src/resources/application.yml (config-reader.js:98)
+INFO Scanning /examples/node_modules/mercury/dist (scanPackage:generate-preloader.js:19)
+INFO Class NoOp (scanPackageJs:generate-preloader.js:71)
+INFO Scanning /examples/src (main:generate-preloader.js:193)
+INFO Class DemoAuth (scanSourceFolder:generate-preloader.js:95)
+INFO Class DemoHealthCheck (scanSourceFolder:generate-preloader.js:95)
+INFO Class HelloWorldService (scanSourceFolder:generate-preloader.js:95)
+INFO Composable class loader (/preload/preload.ts) generated (generatePreLoader:generate-preloader.js:169)
+% cd dist 
+% node hello-world.js 
+INFO Loading base configuration from /Users/eric.law/sandbox/mercury-nodejs/examples/dist/resources/application.yml (config-reader.js:98)
+INFO Base configuration 2609990e76414441af65af27b65f2cdd (ComposableLoader.initialize:preload.js:40)
+INFO Loading NoOp as no.op (descriptor.value:composable.js:18)
+INFO Loading DemoAuth as v1.api.auth (descriptor.value:composable.js:18)
+INFO Loading DemoHealthCheck as demo.health (descriptor.value:composable.js:18)
+INFO Loading HelloWorldService as hello.world (descriptor.value:composable.js:18)
+INFO Event system started - 9f2fa4a008534f19a1cb1a3dfe1e3af0 (platform.js:437)
+INFO PRIVATE distributed.tracing registered (platform.js:213)
+INFO PRIVATE async.http.request registered with 200 instances (platform.js:216)
+INFO PRIVATE no.op registered (platform.js:213)
+INFO PRIVATE v1.api.auth registered (platform.js:213)
+INFO PRIVATE demo.health registered (platform.js:213)
+INFO PUBLIC hello.world registered with 10 instances (platform.js:216)
+INFO PRIVATE actuator.services registered with 10 instances (platform.js:216)
+INFO PRIVATE event.api.service registered with 200 instances (platform.js:216)
+INFO PRIVATE rest.automation.manager registered (platform.js:213)
+INFO Loaded header_1, request headers, add=0, drop=5, keep=0 (RestEntry.loadHeaderEntry:routing.js:259)
+INFO Loaded header_1, response headers, add=4, drop=0, keep=0 (RestEntry.loadHeaderEntry:routing.js:259)
+INFO Loaded cors_1 cors headers (*) (RestEntry.loadCors:routing.js:276)
+INFO POST /api/event -&gt; event.api.service, timeout=60s, tracing=true (routing.js:513)
+INFO OPTIONS /api/event -&gt; event.api.service, timeout=60s (routing.js:507)
+INFO GET /api/hello/world -&gt; v1.api.auth -&gt; hello.world, timeout=10s, tracing=true (routing.js:510)
+INFO PUT /api/hello/world -&gt; v1.api.auth -&gt; hello.world, timeout=10s, tracing=true (routing.js:510)
+INFO POST /api/hello/world -&gt; v1.api.auth -&gt; hello.world, timeout=10s, tracing=true (routing.js:510)
+INFO HEAD /api/hello/world -&gt; v1.api.auth -&gt; hello.world, timeout=10s, tracing=true (routing.js:510)
+INFO PATCH /api/hello/world -&gt; v1.api.auth -&gt; hello.world, timeout=10s, tracing=true (routing.js:510)
+INFO DELETE /api/hello/world -&gt; v1.api.auth -&gt; hello.world, timeout=10s, tracing=true (routing.js:510)
+INFO OPTIONS /api/hello/world -&gt; hello.world, timeout=10s (routing.js:507)
+INFO POST /api/hello/upload -&gt; hello.world, timeout=15s, tracing=false (routing.js:513)
+INFO OPTIONS /api/hello/upload -&gt; hello.world, timeout=15s (routing.js:507)
+INFO POST /api/hello/list -&gt; hello.list, timeout=15s, tracing=false (routing.js:513)
+INFO OPTIONS /api/hello/list -&gt; hello.list, timeout=15s (routing.js:507)
+INFO GET /api/simple/{task}/* -&gt; hello.world, timeout=12s, tracing=false (routing.js:513)
+INFO PUT /api/simple/{task}/* -&gt; hello.world, timeout=12s, tracing=false (routing.js:513)
+INFO POST /api/simple/{task}/* -&gt; hello.world, timeout=12s, tracing=false (routing.js:513)
+INFO OPTIONS /api/simple/{task}/* -&gt; hello.world, timeout=12s (routing.js:507)
+WARN trust_all_cert=true for http://127.0.0.1:8086 is not relevant - Do you meant https? (RestEntry.loadRestEntry:routing.js:476)
+INFO GET /api/v1/* -&gt; http://127.0.0.1:8086, timeout=20s, tracing=true (routing.js:513)
+INFO PUT /api/v1/* -&gt; http://127.0.0.1:8086, timeout=20s, tracing=true (routing.js:513)
+INFO POST /api/v1/* -&gt; http://127.0.0.1:8086, timeout=20s, tracing=true (routing.js:513)
+INFO OPTIONS /api/v1/* -&gt; http://127.0.0.1:8086, timeout=20s (routing.js:507)
+INFO GET /api/hello/download -&gt; hello.download, timeout=20s, tracing=false (routing.js:513)
+INFO OPTIONS /api/hello/download -&gt; hello.download, timeout=20s (routing.js:507)
+INFO Exact API path [/api/event, /api/hello/download, /api/hello/list, /api/hello/upload, /api/hello/world] (RestEntry.load:routing.js:171)
+INFO Wildcard API path [/api/simple/{task}/*, /api/v1/*] (RestEntry.load:routing.js:190)
+INFO Static HTML folder: /Users/eric.law/sandbox/mercury-nodejs/examples/dist/resources/public (RestEngine.startHttpServer:rest-automation.js:154)
+INFO Loaded 18 mime types (RestEngine.startHttpServer:rest-automation.js:172)
+INFO To stop application, press Control-C (EventSystem.runForever:platform.js:517)
+INFO Hello world application started (main:hello-world.js:13)
+INFO REST automation service started on port 8086 (rest-automation.js:289)
+</code></pre>
+<p>Open your browser to visit "http://127.0.0.1:8086". You will see the example application home page
+like this:</p>
+<pre><code class="language-text">Hello World
+INFO endpoint
+Health endpoint
+Demo endpoint
+</code></pre>
+<h2 id="info-endpoint">INFO endpoint</h2>
+<p>When you click the INFO hyperlink, you will see a page like this:</p>
+<pre><code class="language-json">{
+  &quot;app&quot;: {
+    &quot;name&quot;: &quot;example-app&quot;,
+    &quot;version&quot;: &quot;4.1.1&quot;,
+    &quot;description&quot;: &quot;Composable application example&quot;
+  },
+  &quot;memory&quot;: {
+    &quot;max&quot;: &quot;34,093,076,480&quot;,
+    &quot;free&quot;: &quot;17,068,216,320&quot;,
+    &quot;used&quot;: &quot;12,988,104&quot;
+  },
+  &quot;node&quot;: {
+    &quot;version&quot;: &quot;v22.12.0&quot;
+  },
+  &quot;origin&quot;: &quot;2f2d6abd7b9c4d9d9694b3b900254f7a&quot;,
+  &quot;time&quot;: {
+    &quot;current&quot;: &quot;2023-12-23 15:54:03.002&quot;,
+    &quot;start&quot;: &quot;2023-12-23 15:49:35.102&quot;
+  },
+  &quot;uptime&quot;: &quot;4 minutes 33 seconds&quot;
+}
+</code></pre>
+<h2 id="health-endpoint">Health endpoint</h2>
+<p>The health endpoint may look like this:</p>
+<pre><code class="language-json">{
+  &quot;up&quot;: true,
+  &quot;origin&quot;: &quot;2f2d6abd7b9c4d9d9694b3b900254f7a&quot;,
+  &quot;name&quot;: &quot;example-app&quot;,
+  &quot;dependency&quot;: [
+    {
+      &quot;route&quot;: &quot;demo.health&quot;,
+      &quot;service&quot;: &quot;demo.service&quot;,
+      &quot;href&quot;: &quot;http://127.0.0.1&quot;,
+      &quot;status_code&quot;: 200,
+      &quot;message&quot;: {
+        &quot;status&quot;: &quot;demo.service is running fine&quot;
+      }
+    }
+  ]
+}
+</code></pre>
+<h2 id="hello-world-demo-endpoint">Hello World demo endpoint</h2>
+<p>When you enter "http://127.0.0.1:8086/api/hello/world" in the browser, you will see this page:</p>
+<pre><code class="language-json">{
+  &quot;headers&quot;: {
+    &quot;upgrade-insecure-requests&quot;: &quot;1&quot;,
+    &quot;dnt&quot;: &quot;1&quot;,
+    &quot;user-agent&quot;: &quot;Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)&quot;,
+    &quot;accept&quot;: &quot;text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;&quot;,
+    &quot;sec-fetch-site&quot;: &quot;same-origin&quot;,
+    &quot;sec-fetch-mode&quot;: &quot;navigate&quot;,
+    &quot;sec-fetch-user&quot;: &quot;?1&quot;,
+    &quot;sec-fetch-dest&quot;: &quot;document&quot;,
+    &quot;referer&quot;: &quot;http://127.0.0.1:8086/&quot;,
+    &quot;accept-language&quot;: &quot;en-US,en;q=0.9&quot;,
+    &quot;x-flow-id&quot;: &quot;hello-world&quot;
+  },
+  &quot;method&quot;: &quot;GET&quot;,
+  &quot;ip&quot;: &quot;127.0.0.1&quot;,
+  &quot;url&quot;: &quot;/api/hello/world&quot;,
+  &quot;timeout&quot;: 10,
+  &quot;https&quot;: false
+}
+</code></pre>
+<p>When you start the hello world application, you will find this "GET /api/hello/world -&gt; hello.world" in the log,
+indicating that REST automation has rendered the endpoint.</p>
+<p>This instructs the REST automation system to route the URI "/api/hello/world" to the function with the route name
+"hello.world".</p>
+<p>The function simply echoes back the incoming HTTP request object showing HTTP method, path and headers, etc.</p>
+<p>The "hello.world" function is available as "services/hello-world-service.ts" in the <code>examples/src</code> folder.</p>
+<p>The statement echoing the HTTP request is <code>return new EventEnvelope(evt)</code></p>
+<h2 id="define-a-function">Define a function</h2>
+<p>A function can be defined in a class with this template:</p>
+<pre><code class="language-javascript">export class HelloWorldService implements Composable {
+
+    @preload('hello.world', 10)
+    initialize(): HelloWorldService {
+       return this;
+    }
+
+    async handleEvent(evt: EventEnvelope) {
+        // your business logic here
+        return someResult;
+    }
+}
+</code></pre>
+<p>The "Composable" interface enforces two methods (initialize and handleEvent). 
+The "preload" annotation tells the system to load the function into memory so that it can be used
+anywhere in your application without tight coupling.</p>
+<p>You can define route name, instances, isPublic and isInterceptor in the <code>preload</code> annotation.
+The default values are instances=1, isPublic=false and isInterceptor=false. In the example,
+the number of instances is set to 10. You can set the number of instances from 1 to 500.</p>
+<p>Optionally, you can put additional setup code in the "initialize" method. </p>
+<p>If your function has a constructor, please do not use any input arguments.</p>
+<h2 id="distributed-trace">Distributed trace</h2>
+<p>When you browse the endpoint "http://127.0.0.1:8086/api/hello/world", you will see a log message like this:</p>
+<pre><code class="language-json">INFO {&quot;trace&quot;:{ &quot;origin&quot;:&quot;2f2d6abd7b9c4d9d9694b3b900254f7a&quot;,
+                &quot;id&quot;:&quot;5bf3cc1aab7647878d7ba91565d4ef9b&quot;,&quot;path&quot;:&quot;GET /api/hello/world&quot;,
+                &quot;service&quot;:&quot;hello.world&quot;,&quot;start&quot;:&quot;2023-06-09T23:13:23.263Z&quot;,&quot;success&quot;:true,
+                &quot;exec_time&quot;:0.538,&quot;round_trip&quot;:1.016,&quot;from&quot;:&quot;http.request&quot;}
+              }
+</code></pre>
+<p>Mercury has built-in distributed tracing ability. Composable application is by definition event driven.
+Since a transaction may pass through multiple services, distributed tracing helps to visualize the event flows.</p>
+<p>This can pinpoint to performance bottleneck or design flaws early in the development cycle. This contributes to
+higher product quality because the developer can make adjustment sooner.</p>
+<h2 id="actuator-endpoints">Actuator endpoints</h2>
+<p>The system comes with the standard "/info", "/health" and "/livenessprobe" admin endpoints.</p>
+<p>Please browse the "health-check.ts" as an example to write your own health checks. You can have more than one
+health check services.</p>
+<h2 id="resources-folder">Resources folder</h2>
+<p>Composable application is usually deployed as a containerized microservice or a serverless application.</p>
+<p>The resources folder contains the following:</p>
+<ol>
+<li>application.yml - you can put application specific configuration parameters</li>
+<li>rest.yaml - you can define REST endpoints by configuration</li>
+<li>preload.yaml - this instructs the system how to load your user functions into the event loop.</li>
+</ol>
+<h3 id="applicationyaml">application.yaml</h3>
+<pre><code class="language-yaml">application.name: 'example-app'
+info.app:
+  version: '3.0.0'
+  description: 'Composable application example'
+
+# server port for Event API REST endpoint
+server.port: 8086
+
+# log.format can be 'text' or 'json'
+log:
+  format: 'text'
+  level: INFO
+
+# You can add optional health checks that point to your custom health check functions
+# (the dependency list is a comma separated list) 
+health.dependencies: 'demo.health'
+</code></pre>
+<p>Note that you can use "environment variables" in the configuration using the standard dollar-bracket format.
+e.g.</p>
+<pre><code class="language-yaml">some.key=${MY_ENV_VAR:defaultValue}
+</code></pre>
+<p>The minimal set of parameters required by the system is shown above. You can add application specific parameters.</p>
+<p>The application.name, info.app.version, info.app.description, server.port, log.format, log.level
+and health.dependencies are required.</p>
+<p>Let's review REST automation in Chapter 3.</p>
+<p><br/></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Chapter-1</th>
+<th style="text-align: center;">Home</th>
+<th style="text-align: center;">Chapter-3</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><a href="../CHAPTER-1/">Introduction</a></td>
+<td style="text-align: center;"><a href="../TABLE-OF-CONTENTS/">Table of Contents</a></td>
+<td style="text-align: center;"><a href="../CHAPTER-3/">REST automation</a></td>
+</tr>
+</tbody>
+</table>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../CHAPTER-1/" class="btn btn-neutral float-left" title="Chapter-1"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../CHAPTER-3/" class="btn btn-neutral float-right" title="Chapter-3">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../CHAPTER-1/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../CHAPTER-3/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

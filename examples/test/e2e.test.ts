@@ -6,6 +6,7 @@ const log = Logger.getInstance();
 const util = new Utility();
 
 const ASYNC_HTTP_CLIENT = "async.http.request";
+const STREAM_CONTENT = 'x-stream-id';
 let targetHost: string;
 
 /**
@@ -96,8 +97,8 @@ describe('End-to-end tests', () => {
         expect(result).toBeTruthy();
         expect(result.getHeader('content-type')).toBe('application/octet-stream');
         expect(result.getHeader('Content-Disposition')).toBe('attachment; filename=hello.txt');
-        expect(result.getHeader('x-stream-id')).toBeTruthy();
-        const streamId = result.getHeader('x-stream-id');
+        expect(result.getHeader(STREAM_CONTENT)).toBeTruthy();
+        const streamId = result.getHeader(STREAM_CONTENT);
         const inStream = new ObjectStreamReader(streamId, 3000);
         const blocks = new Array<Buffer>();
         for (let i=0; i < 10; i++) {
@@ -136,10 +137,10 @@ describe('End-to-end tests', () => {
         expect(result).toBeTruthy();
         expect(result.getBody()).toBeInstanceOf(Object);
         const body = result.getBody() as object;
-        expect(body['stream']).toBeTruthy();
+        expect(body[STREAM_CONTENT]).toBeTruthy();
         // the echoed streamId will be different
         // because AsyncHttpClient will send the file upload as another stream
-        expect(body['stream'] != stream.getInputStreamId()).toBe(true);
+        expect(body[STREAM_CONTENT] != stream.getInputStreamId()).toBe(true);
         expect(body['filename']).toBe(filename);
         expect(typeof body['type']).toBe('string');
         expect(body['service']).toBe('hello.world');

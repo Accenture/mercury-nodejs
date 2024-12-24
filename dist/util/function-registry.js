@@ -1,11 +1,16 @@
 import { Logger } from '../util/logger.js';
 const log = Logger.getInstance();
-let self = null;
 export class FunctionRegistry {
+    static singleton;
+    registry;
     constructor() {
-        if (self == null) {
-            self = new SimpleRegistry();
+        this.registry = new SimpleRegistry();
+    }
+    static getInstance() {
+        if (!FunctionRegistry.singleton) {
+            FunctionRegistry.singleton = new FunctionRegistry();
         }
+        return FunctionRegistry.singleton;
     }
     /**
      * Save a Composable function to the registry by name.
@@ -18,7 +23,7 @@ export class FunctionRegistry {
      */
     saveFunction(route, that, instances, isPublic, isInterceptor) {
         log.info(`Loading ${that.constructor.name} as ${route}`);
-        self.saveFunction(that, instances, isPublic, isInterceptor);
+        this.registry.saveFunction(route, that, instances, isPublic, isInterceptor);
     }
     /**
      * Remove a composable function from the registry by name.
@@ -26,7 +31,7 @@ export class FunctionRegistry {
      * @param name of the function
      */
     removeFunction(name) {
-        self.removeFunction(name);
+        this.registry.removeFunction(name);
     }
     /**
      * Retrieve metadata for the composable function
@@ -35,7 +40,7 @@ export class FunctionRegistry {
      * @returns map of key-values
      */
     getMetadata(name) {
-        return self.getMetadata(name);
+        return this.registry.getMetadata(name);
     }
     /**
      * Retrieve a function by name so that you can register it programmatically.
@@ -46,7 +51,7 @@ export class FunctionRegistry {
      * @returns the function that was previously saved by a library
      */
     getFunction(name) {
-        return self.getFunction(name);
+        return this.registry.getFunction(name);
     }
     /**
      * Retrieve the class instance of a function
@@ -56,7 +61,7 @@ export class FunctionRegistry {
      * @returns the Composable class holding the function
      */
     getClass(name) {
-        return self.getClass(name);
+        return this.registry.getClass(name);
     }
     /**
      * Check if a function exists in registry
@@ -65,7 +70,7 @@ export class FunctionRegistry {
      * @returns true if the function exists
      */
     exists(name) {
-        return name ? self.exists(name) : false;
+        return name ? this.registry.exists(name) : false;
     }
     /**
      * Retrieve all function names in registry
@@ -73,26 +78,19 @@ export class FunctionRegistry {
      * @returns list of function names
      */
     getFunctions() {
-        return self.getFunctions();
+        return this.registry.getFunctions();
     }
 }
 class SimpleRegistry {
     registry = new Map();
     metadata = new Map();
-    saveFunction(that, instances, isPublic, isInterceptor) {
-        let valid = false;
-        if ('name' in that && 'initialize' in that && 'getName' in that && 'handleEvent' in that) {
-            const name = that['name'];
-            const f1 = that['initialize'];
-            const f2 = that['getName'];
-            const f3 = that['handleEvent'];
-            if (typeof name == 'string' && f1 instanceof Function && f2 instanceof Function && f3 instanceof Function) {
-                valid = true;
-                this.registry.set(name, that);
-                this.metadata.set(name, { 'instances': instances, 'public': isPublic, 'interceptor': isInterceptor });
-            }
+    saveFunction(route, that, instances, isPublic, isInterceptor) {
+        if (route && 'initialize' in that && 'handleEvent' in that
+            && that['initialize'] instanceof Function && that['handleEvent'] instanceof Function) {
+            this.registry.set(route, that);
+            this.metadata.set(route, { 'instances': instances, 'public': isPublic, 'interceptor': isInterceptor });
         }
-        if (!valid) {
+        else {
             throw new Error('Invalid Composable class');
         }
     }

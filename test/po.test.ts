@@ -36,12 +36,13 @@ const TIMEOUT = 'timeout';
 const HELLO_INSTANCE = 'x-hello-instance';
 const HTML_PREFIX = '<html><body><pre>';
 const HTML_SUFFIX = '</pre></body></html>';
+const STREAM_CONTENT = 'x-stream-id';
 // TEST_CYCLES must be larger than HELLO_WORLD_INSTANCES to demonstrate non-blocking event delivery
 const HELLO_WORLD_INSTANCES = 5;
 const TEST_CYCLES = 8;
 
 const log = Logger.getInstance();
-const registry = new FunctionRegistry();
+const registry = FunctionRegistry.getInstance();
 const util = new Utility();
 let platform: Platform;
 let server: RestAutomation;
@@ -60,7 +61,7 @@ async function helloDownload(evt: EventEnvelope) {
   out.write('hello world\n');
   out.write('end');
   out.close();
-  return new EventEnvelope().setHeader('stream', stream.getInputStreamId())
+  return new EventEnvelope().setHeader(STREAM_CONTENT, stream.getInputStreamId())
               .setHeader('content-type', 'application/octet-stream');
 }
 
@@ -128,8 +129,8 @@ describe('post office use cases', () => {
       // AppConfig should be initialized with base configuration parameter when the Platform object is loaded
       const appConfig = AppConfig.getInstance(resourcePath).getReader();
       // save the helloWorld as DEMO_LIBRARY_FUNCTION so that it can be retrieved by name
-      const helloWorld = new HelloWorld();
-      registry.saveFunction(helloWorld.getName(), helloWorld, 1, false, false);
+      const helloWorld = new HelloWorld().initialize();
+      registry.saveFunction(HelloWorld.name, helloWorld, 1, false, false);
       platform = Platform.getInstance();
       // register a hello.world function to echo the incoming payload
       platform.register(HELLO_WORLD_SERVICE, helloWorld.handleEvent, false, HELLO_WORLD_INSTANCES);
@@ -458,10 +459,6 @@ describe('post office use cases', () => {
       expect(f).toBeInstanceOf(Function);
       const cls = registry.getClass(DEMO_LIBRARY_FUNCTION);
       expect(cls).toBeInstanceOf(HelloWorld);
-      const hello = cls as HelloWorld;
-      expect(hello.getName()).toBe(DEMO_LIBRARY_FUNCTION);
-      expect(hello.handleEvent).toBe(f);
-      expect(hello.name).toBe(DEMO_LIBRARY_FUNCTION);
     });
 
     it('will reject platform registration of invalid route name', async () => {
@@ -1013,7 +1010,7 @@ describe('post office use cases', () => {
       expect(map.getElement('method')).toBe('POST');
       expect(map.getElement('headers.content-type').startsWith('multipart/form-data; boundary=')).toBe(true);
       expect(map.getElement('filename')).toBe('hello.txt');
-      expect(map.getElement('headers.x-stream-id').startsWith('stream.')).toBe(true);
+      expect(map.getElement('headers.'+STREAM_CONTENT).startsWith('stream.')).toBe(true);
       expect(map.getElement('upload')).toBe('file');
     }); 
     
@@ -1041,8 +1038,8 @@ describe('post office use cases', () => {
       const result = await po.request(reqEvent, 3000);
       expect(result.getStatus()).toBe(200);
       expect(result.getBody()).toBe(null);
-      expect(result.getHeader('x-stream-id')).toBeTruthy();
-      const streamId = result.getHeader('x-stream-id');
+      expect(result.getHeader(STREAM_CONTENT)).toBeTruthy();
+      const streamId = result.getHeader(STREAM_CONTENT);
       const stream = new ObjectStreamReader(streamId, 5000);
       const blocks = new Array<string>();
       let len = 0;

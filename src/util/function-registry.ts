@@ -2,14 +2,20 @@ import { EventEnvelope } from '../models/event-envelope.js';
 import { Logger } from '../util/logger.js';
 
 const log = Logger.getInstance();
-let self: SimpleRegistry = null;
 
 export class FunctionRegistry {
+    private static singleton: FunctionRegistry;
+    private registry: SimpleRegistry;
 
-    constructor() {
-        if (self == null) {
-            self = new SimpleRegistry();
+    private constructor() {
+        this.registry = new SimpleRegistry();        
+    }
+
+    static getInstance(): FunctionRegistry {
+        if (!FunctionRegistry.singleton) {
+            FunctionRegistry.singleton = new FunctionRegistry();
         }
+        return FunctionRegistry.singleton;
     }
 
     /**
@@ -24,7 +30,7 @@ export class FunctionRegistry {
     saveFunction(route: string, 
                  that: object, instances: number, isPublic: boolean, isInterceptor: boolean): void {
         log.info(`Loading ${that.constructor.name} as ${route}`);
-        self.saveFunction(that, instances, isPublic, isInterceptor);
+        this.registry.saveFunction(route, that, instances, isPublic, isInterceptor);
     }
 
     /**
@@ -33,7 +39,7 @@ export class FunctionRegistry {
      * @param name of the function
      */
     removeFunction(name: string): void {
-        self.removeFunction(name);
+        this.registry.removeFunction(name);
     }
 
     /**
@@ -43,7 +49,7 @@ export class FunctionRegistry {
      * @returns map of key-values
      */
     getMetadata(name: string): object {
-        return self.getMetadata(name);
+        return this.registry.getMetadata(name);
     }
 
     /**
@@ -55,7 +61,7 @@ export class FunctionRegistry {
      * @returns the function that was previously saved by a library
      */
     getFunction(name: string): (evt: EventEnvelope) => void  {
-        return self.getFunction(name);
+        return this.registry.getFunction(name);
     }
 
     /**
@@ -66,7 +72,7 @@ export class FunctionRegistry {
      * @returns the Composable class holding the function
      */
     getClass(name: string): object {
-        return self.getClass(name);
+        return this.registry.getClass(name);
     }
 
     /**
@@ -76,7 +82,7 @@ export class FunctionRegistry {
      * @returns true if the function exists
      */
     exists(name?: string): boolean {        
-        return name? self.exists(name) : false;
+        return name? this.registry.exists(name) : false;
     }
     
     /**
@@ -85,30 +91,20 @@ export class FunctionRegistry {
      * @returns list of function names
      */
     getFunctions(): Array<string> {
-        return self.getFunctions();
+        return this.registry.getFunctions();
     }
-
 }
 
 class SimpleRegistry {
-    
     private registry = new Map<string, object>();
     private metadata = new Map<string, object>();
 
-    saveFunction(that: object, instances: number, isPublic: boolean, isInterceptor: boolean): void {
-        let valid = false;
-        if ('name' in that && 'initialize' in that && 'getName' in that && 'handleEvent' in that) {
-            const name = that['name'];
-            const f1 = that['initialize'];
-            const f2 = that['getName'];
-            const f3 = that['handleEvent'];
-            if (typeof name == 'string' && f1 instanceof Function && f2 instanceof Function && f3 instanceof Function) {
-                valid = true;                
-                this.registry.set(name, that);
-                this.metadata.set(name, {'instances': instances, 'public': isPublic, 'interceptor': isInterceptor});
-            }
-        }
-        if (!valid) {
+    saveFunction(route: string, that: object, instances: number, isPublic: boolean, isInterceptor: boolean): void {
+        if (route && 'initialize' in that && 'handleEvent' in that 
+                    && that['initialize'] instanceof Function && that['handleEvent'] instanceof Function) {             
+            this.registry.set(route, that);
+            this.metadata.set(route, {'instances': instances, 'public': isPublic, 'interceptor': isInterceptor});            
+        } else {
             throw new Error('Invalid Composable class');
         }
     }
@@ -145,5 +141,4 @@ class SimpleRegistry {
     getFunctions(): Array<string> {
         return Array.from(this.registry.keys());
     }
-
 }

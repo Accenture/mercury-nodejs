@@ -1,6 +1,9 @@
 import { EventEnvelope } from '../models/event-envelope.js';
 export declare class FunctionRegistry {
-    constructor();
+    private static singleton;
+    private registry;
+    private constructor();
+    static getInstance(): FunctionRegistry;
     /**
      * Save a Composable function to the registry by name.
      *

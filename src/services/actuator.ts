@@ -29,10 +29,9 @@ const util = new Utility();
 const numberFormatter = new Intl.NumberFormat('en-us');
 
 export class ActuatorServices implements Composable {
+    static name = ACTUATOR_SERVICES;
     
-    name = ACTUATOR_SERVICES;
-
-    constructor() {
+    initialize(): ActuatorServices { 
         if (!loaded) {
             loaded = true;
             const platform = Platform.getInstance();
@@ -44,15 +43,8 @@ export class ActuatorServices implements Composable {
             startTime = util.getLocalTimestamp(platform.getStartTime().getTime());
             const hs = config.getProperty('health.dependencies', '');
             healthServices = hs.split(',').map(k => k.trim()).filter(k => k);
-        }        
-    }
-    
-    initialize(): void {
-        // no-op
-    }
-
-    getName(): string {
-        return this.name;
+        } 
+        return this;
     }
 
     async handleEvent(evt: EventEnvelope) {

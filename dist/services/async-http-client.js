@@ -37,12 +37,9 @@ const X_TRACE_ID = "x-trace-id";
 const USER_AGENT = "user-agent";
 const ECONNREFUSED = 'ECONNREFUSED';
 export class AsyncHttpClient {
-    name = HTTP_CLIENT_SERVICE;
+    static name = HTTP_CLIENT_SERVICE;
     initialize() {
-        // no-op
-    }
-    getName() {
-        return this.name;
+        return this;
     }
     async handleEvent(evt) {
         if (!(evt.getReplyTo() && evt.getBody() instanceof Object)) {

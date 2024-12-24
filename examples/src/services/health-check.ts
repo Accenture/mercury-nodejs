@@ -5,15 +5,10 @@ const INFO = 'info';
 const HEALTH = 'health';
 
 export class DemoHealthCheck implements Composable {
-    name = "demo.health";
 
-    @preload()
-    initialize(): void {
-        // no-op
-    }
-
-    getName(): string {
-        return this.name;
+    @preload('demo.health')
+    initialize(): DemoHealthCheck {
+        return this;
     }
 
     // Your service should be declared as an async function with input as EventEnvelope

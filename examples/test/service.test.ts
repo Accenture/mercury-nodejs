@@ -7,6 +7,7 @@ let platform: Platform;
 
 const HELLO_WORLD = 'hello.world'
 const TEST_MESSAGE = 'test message';
+const STREAM_CONTENT = 'x-stream-id';
 
 /**
  * These are unit tests for each user functions
@@ -78,8 +79,8 @@ describe('Service tests', () => {
         expect(result).toBeTruthy();
         expect(result.getHeader('content-type')).toBe('application/octet-stream');
         expect(result.getHeader('Content-Disposition')).toBe('attachment; filename=hello.txt');
-        expect(result.getHeader('stream')).toBeTruthy();
-        const streamId = result.getHeader('stream');
+        expect(result.getHeader(STREAM_CONTENT)).toBeTruthy();
+        const streamId = result.getHeader(STREAM_CONTENT);
         const inStream = new ObjectStreamReader(streamId, 3000);
         let n = 0;
         for (let i=0; i < 10; i++) {
@@ -114,7 +115,7 @@ describe('Service tests', () => {
         expect(result).toBeTruthy();
         expect(result.getBody()).toBeInstanceOf(Object);
         const body = result.getBody() as object;
-        expect(body['stream']).toBe(stream.getInputStreamId());
+        expect(body[STREAM_CONTENT]).toBe(stream.getInputStreamId());
         expect(body['filename']).toBe(filename);
         // See e2e test to see the difference between emulation and actual upload using AsyncHttpClient.
         expect(body['type']).toBe('multipart/form-data');

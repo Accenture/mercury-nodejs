@@ -25,8 +25,8 @@ let startTime;
 const util = new Utility();
 const numberFormatter = new Intl.NumberFormat('en-us');
 export class ActuatorServices {
-    name = ACTUATOR_SERVICES;
-    constructor() {
+    static name = ACTUATOR_SERVICES;
+    initialize() {
         if (!loaded) {
             loaded = true;
             const platform = Platform.getInstance();
@@ -39,12 +39,7 @@ export class ActuatorServices {
             const hs = config.getProperty('health.dependencies', '');
             healthServices = hs.split(',').map(k => k.trim()).filter(k => k);
         }
-    }
-    initialize() {
-        // no-op
-    }
-    getName() {
-        return this.name;
+        return this;
     }
     async handleEvent(evt) {
         if (INFO == evt.getHeader(TYPE)) {

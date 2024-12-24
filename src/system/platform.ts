@@ -10,7 +10,7 @@ import { AppException } from '../models/app-exception.js';
 import { AppConfig } from '../util/config-reader.js';
 
 const log = Logger.getInstance();
-const registry = new FunctionRegistry();
+const registry = FunctionRegistry.getInstance();
 const util = new Utility();
 const po = new PostOffice();
 const DISTRIBUTED_TRACING = 'distributed.tracing';
@@ -439,10 +439,10 @@ class EventSystem {
         }
         // Event system ready
         log.info(`Event system started - ${po.getId()}`);
-        const tracer = new DistributedTrace();
-        this.register(tracer.getName(), tracer.handleEvent, true, 1, true);
-        const httpClient = new AsyncHttpClient();
-        this.register(httpClient.getName(), httpClient.handleEvent, true, 200, true);
+        const tracer = new DistributedTrace().initialize();
+        const httpClient = new AsyncHttpClient().initialize();
+        this.register(DistributedTrace.name, tracer.handleEvent, true, 1, true);
+        this.register(AsyncHttpClient.name, httpClient.handleEvent, true, 200, true);
     }
 
     getOriginId(): string {

@@ -49,7 +49,7 @@ export class ComposableLoader {
                 new HelloWorldService().initialize();
                 // register the functions into the event system
                 const platform = Platform.getInstance();
-                const registry = new FunctionRegistry();
+                const registry = FunctionRegistry.getInstance();
                 const registered = registry.getFunctions();
                 for (const i in registered) {
                     const name = registered[i];

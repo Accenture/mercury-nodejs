@@ -47,6 +47,8 @@ const OPTIONS_METHOD = 'OPTIONS';
 const HTML_START = '<html><body><pre>\n';
 const HTML_END = '\n</pre></body></html>';
 const REST_AUTOMATION_MANAGER = "rest.automation.manager";
+const STREAM_CONTENT = 'x-stream-id';
+
 const DEFAULT_SERVER_PORT = 8086;
 
 let server: Server = null;
@@ -122,7 +124,6 @@ class RestEngine {
     private loaded = false;
     private plugins = new Array<RequestHandler>;
     private traceIdLabels: Array<string>;
-    private actuatorRouteName: string;
     private htmlFolder: string;
     private mimeTypes = new Map<string, string>();
     private connections = new Map<number, Socket>();
@@ -140,14 +141,12 @@ class RestEngine {
         if (!this.loaded) {
             this.loaded = true;
             let restEnabled = false;
-            // preload actuator services
-            const actuator = new ActuatorServices();
-            this.actuatorRouteName = actuator.getName();
             const platform = Platform.getInstance();
-            platform.register(actuator.getName(), actuator.handleEvent, true, 10);  
-            // preload Event-over-HTTP service
-            const eventApiService = new EventApiService();
-            platform.register(eventApiService.getName(), eventApiService.handleEvent, true, 200);
+            // preload Actuator and Event-over-HTTP services
+            const actuator = new ActuatorServices().initialize();
+            const eventApiService = new EventApiService().initialize();
+            platform.register(ActuatorServices.name, actuator.handleEvent, true, 10);  
+            platform.register(EventApiService.name, eventApiService.handleEvent, true, 200);
             platform.register(REST_AUTOMATION_MANAGER, housekeeper);
             const config = AppConfig.getInstance().getReader();
             const router = new RoutingEntry();
@@ -223,17 +222,17 @@ class RestEngine {
             app.use(binaryParser);
 
             app.get('/info', async (_req: Request, res: Response) => {
-                const request = new EventEnvelope().setTo(this.actuatorRouteName).setHeader(TYPE, INFO);
+                const request = new EventEnvelope().setTo(ActuatorServices.name).setHeader(TYPE, INFO);
                 await this.sendActuatorResponse(await po.request(request), res);
             });
 
             app.get('/health', async (_req: Request, res: Response) => {
-                const request = new EventEnvelope().setTo(this.actuatorRouteName).setHeader(TYPE, HEALTH);
+                const request = new EventEnvelope().setTo(ActuatorServices.name).setHeader(TYPE, HEALTH);
                 await this.sendActuatorResponse(await po.request(request), res);
             });
 
             app.get('/livenessprobe', async (_req: Request, res: Response) => {
-                const request = new EventEnvelope().setTo(this.actuatorRouteName).setHeader(TYPE, LIVENESS_PROBE);
+                const request = new EventEnvelope().setTo(ActuatorServices.name).setHeader(TYPE, LIVENESS_PROBE);
                 await this.sendActuatorResponse(await po.request(request), res);
             });
             // User provided middleware must call the "next()" as the last statement
@@ -572,7 +571,7 @@ class RestEngine {
         for (const h in serviceResponse.getHeaders()) {
             const key = h.toLowerCase();
             const value = serviceResponse.getHeader(h);
-            if (key == 'stream' && value.startsWith('stream.') && value.endsWith('.in')) {
+            if (key == STREAM_CONTENT && value.startsWith('stream.') && value.endsWith('.in')) {
                 streamId = value;
             } else if (key == 'timeout') {
                 streamTimeout = value;

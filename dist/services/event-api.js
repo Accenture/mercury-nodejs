@@ -11,15 +11,10 @@ const APPLICATION_OCTET_STREAM = "application/octet-stream";
 const EVENT_API_SERVICE = 'event.api.service';
 let platform;
 export class EventApiService {
-    name = EVENT_API_SERVICE;
-    constructor() {
-        platform = Platform.getInstance();
-    }
+    static name = EVENT_API_SERVICE;
     initialize() {
-        // no-op
-    }
-    getName() {
-        return this.name;
+        platform = Platform.getInstance();
+        return this;
     }
     async handleEvent(evt) {
         const payload = evt.getBody();

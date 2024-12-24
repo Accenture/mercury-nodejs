@@ -11,15 +11,10 @@ const TRACE = 'trace';
 const SERVICE = 'service';
 
 export class DistributedTrace implements Composable {
-    
-    name = DISTRIBUTED_TRACING;
+    static name = DISTRIBUTED_TRACING;
 
-    initialize(): void {
-        // no-op
-    }
-
-    getName(): string {
-        return this.name;
+    initialize(): DistributedTrace {
+        return this;
     }
 
     async handleEvent(evt: EventEnvelope) {

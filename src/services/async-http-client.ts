@@ -41,15 +41,10 @@ const USER_AGENT = "user-agent";
 const ECONNREFUSED = 'ECONNREFUSED';
 
 export class AsyncHttpClient implements Composable {
-    
-    name = HTTP_CLIENT_SERVICE;
+    static name = HTTP_CLIENT_SERVICE;
 
-    initialize(): void {
-        // no-op
-    }
-
-    getName(): string {
-        return this.name;
+    initialize(): AsyncHttpClient { 
+        return this;
     }
 
     async handleEvent(evt: EventEnvelope) {

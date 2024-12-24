@@ -21,7 +21,7 @@ rest:
   # This feature is used for seamless legacy system migration where we can send
   # the same request to the old and the new services at the same time for A/B comparison.
   - service: ["hello.world"]
-    methods: ['GET', 'PUT', 'POST', 'HEAD', 'PATCH', 'DELETE']
+    methods: ['GET', 'PUT', 'HEAD', 'PATCH', 'DELETE']
     url: "/api/hello/world"
     flow: "hello-world"
     timeout: 10s
@@ -47,10 +47,13 @@ rest:
     # optionally, you can turn on Distributed Tracing
     tracing: true
 
+  #
+  # "/api/hello/upload" is used to demonstrate multipart file upload.
+  # To support multipart file upload, set upload to true.
+  #
   - service: ["hello.world"]
     methods: ['POST']
     url: "/api/hello/upload"
-    # to support multipart file upload, set upload to true
     upload: true
     timeout: 15s
     cors: cors_1

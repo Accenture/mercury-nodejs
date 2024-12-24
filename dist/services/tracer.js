@@ -8,12 +8,9 @@ const DISTRIBUTED_TRACE_FORWARDER = 'distributed.trace.forwarder';
 const TRACE = 'trace';
 const SERVICE = 'service';
 export class DistributedTrace {
-    name = DISTRIBUTED_TRACING;
+    static name = DISTRIBUTED_TRACING;
     initialize() {
-        // no-op
-    }
-    getName() {
-        return this.name;
+        return this;
     }
     async handleEvent(evt) {
         const body = evt.getBody();

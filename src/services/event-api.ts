@@ -17,19 +17,11 @@ const EVENT_API_SERVICE = 'event.api.service';
 let platform: Platform;
 
 export class EventApiService implements Composable { 
+    static name = EVENT_API_SERVICE;
 
-    name = EVENT_API_SERVICE;
-    
-    constructor() {
+    initialize(): EventApiService {
         platform = Platform.getInstance();
-    }
-
-    initialize(): void {
-        // no-op
-    }
-
-    getName(): string {
-        return this.name;
+        return this;
     }
 
     async handleEvent(evt: EventEnvelope) {

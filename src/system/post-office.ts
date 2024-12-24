@@ -9,7 +9,7 @@ import { FunctionRegistry } from '../util/function-registry.js';
 
 const log = Logger.getInstance();
 const util = new Utility();
-const registry = new FunctionRegistry();
+const registry = FunctionRegistry.getInstance();
 let self: PO = null;
 const DISTRIBUTED_TRACING = 'distributed.tracing';
 const ASYNC_HTTP_CLIENT = 'async.http.request';

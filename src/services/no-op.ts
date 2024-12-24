@@ -3,16 +3,10 @@ import { EventEnvelope } from '../models/event-envelope.js';
 import { preload } from '../models/composable.js'
 
 export class NoOp implements Composable {
-    
-    name = "no.op";
 
-    @preload(10)
-    initialize(): void {
-        // no-op
-    }
-
-    getName(): string {
-        return this.name;
+    @preload('no.op', 10)
+    initialize(): NoOp { 
+        return this;
     }
 
     async handleEvent(evt: EventEnvelope) {

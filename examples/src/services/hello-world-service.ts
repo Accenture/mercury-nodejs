@@ -4,16 +4,12 @@ import { preload, Composable, EventEnvelope, Logger,
 
 const log = Logger.getInstance();
 
-export class HelloWorldService implements Composable {       
-    name = "hello.world";
+export class HelloWorldService implements Composable {
+    static name = 'hello.world'
 
-    @preload(10, true) // define as a public function so it can be reached by event-over-http
-    initialize(): void {
-        // no-op
-    }
-
-    getName(): string {
-        return this.name;
+    @preload(HelloWorldService.name, 10, true) // define as a public function so it can be reached by event-over-http
+    initialize(): HelloWorldService {
+        return this;
     }
 
     // Your service should be declared as an async function with input as EventEnvelope
@@ -33,16 +29,16 @@ export class HelloWorldService implements Composable {
                 if ('POST' == request.getMethod() && request.getFileName() && request.getStreamRoute()) {
                     const contentType = request.getHeader('content-type');
                     if (contentType && contentType.startsWith('multipart/form-data')) {
-                        const len = await self.downloadFile(request.getStreamRoute(), request.getFileName());
+                        const len = await self.renderMultiPartFileStream(request.getStreamRoute(), request.getFileName());
                         log.info(`Received ${request.getFileName()} - ${len} bytes`);    
-                        return {'filename': request.getFileName(), 'stream': request.getStreamRoute(), 
-                                'service': self.getName(),
+                        return {'filename': request.getFileName(), 'x-stream-id': request.getStreamRoute(), 
+                                'service': HelloWorldService.name,
                                 'type': contentType, 'size': len};
                     } else {
                         throw new AppException(400, 'Not a multipart file upload');
                     }
                 }
-                // demonstrate streaming file download to a user
+                // demonstrate streaming a file to a user
                 if ('GET' == request.getMethod() && request.getQueryParameter('download')) {
                     const filename = 'hello.txt';
                     // create a stream and emulate a file for download
@@ -52,7 +48,7 @@ export class HelloWorldService implements Composable {
                     streamOut.write('hello world\n');
                     streamOut.write('end of file');
                     streamOut.close();
-                    return new EventEnvelope().setHeader('stream', stream.getInputStreamId())
+                    return new EventEnvelope().setHeader('x-stream-id', stream.getInputStreamId())
                                                 .setHeader('Content-Type', 'application/octet-stream')
                                                 .setHeader('Content-Disposition', `attachment; filename=${filename}`);
                 }
@@ -66,7 +62,7 @@ export class HelloWorldService implements Composable {
         return new EventEnvelope(evt);
     } 
 
-    async downloadFile(streamId: string, filename: string) {
+    async renderMultiPartFileStream(streamId: string, filename: string) {
         let n = 0;
         let len = 0;
         let eof = false;

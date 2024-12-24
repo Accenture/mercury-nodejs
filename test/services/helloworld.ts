@@ -15,15 +15,12 @@ const HELLO_INSTANCE = 'x-hello-instance';
 const DEMO_EXCEPTION = 'demo exception';
 
 export class HelloWorld implements Composable {
+    static name = "demo.library.function";
 
-    name = "demo.library.function";
+    initialize(): HelloWorld {
+        return this;
+    }
 
-    initialize(): void {
-        throw new Error("Method not implemented.");
-    }
-    getName(): string {
-        return this.name;
-    }
     async handleEvent(evt: EventEnvelope) {
         const po = new PostOffice(evt.getHeaders());
         if (METADATA == evt.getHeader(TYPE)) {

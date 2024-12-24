@@ -17,19 +17,8 @@ with a mock function.
 
 There are two ways to register a function:
 
-1. Programmatic registration
-2. Declarative registration
-
-In programmatic registration, you can register a function like this:
-
-```shell
-const platform = Platform.getInstance();
-...
-platform.register('my.function', helloWorld, true, 10);
-```
-
-In the above example, You obtain a singleton instance of the Platform API class and use it to register a private
-function `helloWorld` with a route name "my.function" and up to 10 concurrent worker instances.
+1. Declarative approach
+2. Programmatic approach
 
 In declarative approach, you use the `preLoad` annotation to register a class with an event handler like this:
 
@@ -53,7 +42,24 @@ instances=1, isPublic=false and isInterceptor=false. In the example, the number 
 You can set the number of instances from 1 to 500.
 
 Once a function is created using the declarative method, you can override it with a mock function by using the
-programmatic registration method in a unit test.
+programmatic approach in a unit test.
+
+In programmatic approach, you can register a function like this:
+
+```javascript
+const platform = Platform.getInstance();
+const helloWorld = new HelloWorld().initialize();
+platform.register('my.function', helloWorld.handleEvent, true, 10);
+```
+
+In the above example, You obtain a singleton instance of the Platform API class and use it to register
+the `handleEvent` method of the HelloWorld.ts class with a route name `my.function` and up to 10
+concurrent worker instances. Note that you must not use the `preload` annotation in the initialize()
+method if you want to register the function programmatically.
+
+In both declarative and programmatic approaches, your function must implement the `Composable` interface which
+enforces the initialize and handleEvent methods. Optionally, the initialize method may contain additional setup
+code for your function.
 
 ## Private vs public functions
 

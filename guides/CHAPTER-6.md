@@ -40,9 +40,9 @@ To tell the system to use a different application.yml, you can use this followin
 running the `ComposableLoader.initialize()` command.
 
 ```javascript
-    // resourcePath should be a fully qualified file path to the application's "resources" folder.
-    const appConfig = AppConfig.getInstance(resourcePath);
-    log.info(`Base configuration ${appConfig.getId()}`); 
+// resourcePath should be a fully qualified file path to the application's "resources" folder.
+const appConfig = AppConfig.getInstance(resourcePath);
+log.info(`Base configuration ${appConfig.getId()}`); 
 ```
 
 You may override the file path for REST endpoint configuration and HTML bundle with the following:

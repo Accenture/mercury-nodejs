@@ -46,8 +46,8 @@ async function main() {
     const po = new PostOffice({'my_route': 'rpc.demo', 'my_trace_id': '200', 'my_trace_path': '/api/nested/rpc'});
     // Register your service with the named route "hello.world"
     const platform = Platform.getInstance();
-    platform.register(HELLO_WORLD, new Hello().initialize(), 5);
-    platform.register(ANOTHER_FUNCTION, new AnotherFunction().initialize(), 10);
+    platform.register(HELLO_WORLD, new Hello(), 5);
+    platform.register(ANOTHER_FUNCTION, new AnotherFunction(), 10);
     // Make multiple RPC calls to the service
     for (let i=1; i <= 5; i++) {
         const result = await po.request(new EventEnvelope().setTo(HELLO_WORLD).setHeader('n', String(i)).setBody(TEST_MESSAGE + ' ' + i), 5000);

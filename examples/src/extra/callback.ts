@@ -28,7 +28,7 @@ async function main() {
     const po = new PostOffice({'my_route': 'callback.demo', 'my_trace_id': '300', 'my_trace_path': '/api/callback/demo'});
     // Register the callback function programmatically
     const platform = Platform.getInstance();
-    platform.register(MY_CALLBACK, new MyCallBack().initialize());
+    platform.register(MY_CALLBACK, new MyCallBack());
     // Make multiple RPC calls to the service
     for (let i=1; i <= 5; i++) {
         po.send(new EventEnvelope().setTo(HELLO_WORLD).setReplyTo(MY_CALLBACK)

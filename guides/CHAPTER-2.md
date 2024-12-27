@@ -295,12 +295,12 @@ The resources folder contains the following:
 2. rest.yaml - you can define REST endpoints by configuration
 3. preload.yaml - this instructs the system how to load your user functions into the event loop.
 
-### application.yaml
+*application.yaml*
 
 ```yaml
 application.name: 'example-app'
 info.app:
-  version: '3.0.0'
+  version: '4.1.1'
   description: 'Composable application example'
   
 # server port for Event API REST endpoint
@@ -328,7 +328,24 @@ The minimal set of parameters required by the system is shown above. You can add
 The application.name, info.app.version, info.app.description, server.port, log.format, log.level
 and health.dependencies are required.
 
-Let's review REST automation in Chapter 3.
+## Using the example app as a template
+
+You may use the example app as a template to write your own composable application.
+
+Before you write new user functions, please reset the example project with the "clean" command.
+
+To obtain the latest update, you can do `npm run pull`.
+
+```shell
+cd examples
+npm run clean
+```
+
+This will clean up the compiled code and reset the `preload.ts` file to an initial state. You may then create
+your main class from `hello-world.ts` and your own functions in the `services` folder. Remember to update
+the application.yml, rest.yml and index.html page accordingly.
+
+*Note*: If you do not "clean" the example project, compilation would fail due to broken imports.
 
 <br/>
 

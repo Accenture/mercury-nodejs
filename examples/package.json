@@ -9,7 +9,7 @@
   "author": "Eric Law <eric.law@accenture.com>",
   "license": "Apache-2.0",
   "scripts": {
-    "clean": "node clean.js",
+    "clean": "node clean.js && node generate-placeholder.js",
     "pull": "npm uninstall mercury && npm install https://github.com/Accenture/mercury-nodejs",
     "preload": "node generate-preloader.js",
     "prebuild": "npm run lint",

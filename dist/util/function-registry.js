@@ -18,16 +18,16 @@ export class FunctionRegistry {
      * @param route of the composable function
      * @param that is the class instance of the Composable function
      * @param instances for concurrency
-     * @param isPublic is true if function is visible thru event-over-http
+     * @param isPrivate is false if function is visible thru event-over-http
      * @param isInterceptor is true if function is an event interceptor
      */
-    saveFunction(route, that, instances, isPublic, isInterceptor) {
+    saveFunction(route, that, instances, isPrivate, isInterceptor) {
         // save only when it does not exist to guarantee idempotent property
         if (!this.exists(route)) {
             if ('initialize' in that && 'handleEvent' in that &&
                 that.initialize instanceof Function && that.handleEvent instanceof Function) {
                 log.info(`Loading ${that.constructor.name} as ${route}`);
-                this.registry.saveFunction(route, that, instances, isPublic, isInterceptor);
+                this.registry.saveFunction(route, that, instances, isPrivate, isInterceptor);
             }
             else {
                 log.error(`Unable to load ${this.constructor.name} because it does not implement Composable`);
@@ -93,11 +93,11 @@ export class FunctionRegistry {
 class SimpleRegistry {
     registry = new Map();
     metadata = new Map();
-    saveFunction(route, that, instances, isPublic, isInterceptor) {
+    saveFunction(route, that, instances, isPrivate, isInterceptor) {
         if (route && 'initialize' in that && 'handleEvent' in that
             && that['initialize'] instanceof Function && that['handleEvent'] instanceof Function) {
             this.registry.set(route, that);
-            this.metadata.set(route, { 'instances': instances, 'public': isPublic, 'interceptor': isInterceptor });
+            this.metadata.set(route, { 'instances': instances, 'private': isPrivate, 'interceptor': isInterceptor });
         }
         else {
             throw new Error('Invalid Composable class');

@@ -12,8 +12,8 @@ export interface Composable {
  *
  * @param route name (aka functional topic)
  * @param instances to define concurrency
- * @param isPublic is true if this function is reachable thru event-over-http
+ * @param isPrivate is false if this function is reachable thru event-over-http
  * @param isInterceptor is true if this function is an event interceptor
  * @returns annotated function
  */
-export declare function preload(route: any, instances?: number, isPublic?: boolean, isInterceptor?: boolean): (_target: any, propertyKey: string, descriptor: PropertyDescriptor) => void;
+export declare function preload(route: any, instances?: number, isPrivate?: boolean, isInterceptor?: boolean): (_target: any, propertyKey: string, descriptor: PropertyDescriptor) => void;

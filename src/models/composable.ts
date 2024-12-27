@@ -19,17 +19,17 @@ export interface Composable {
  * 
  * @param route name (aka functional topic)
  * @param instances to define concurrency
- * @param isPublic is true if this function is reachable thru event-over-http
+ * @param isPrivate is false if this function is reachable thru event-over-http
  * @param isInterceptor is true if this function is an event interceptor
  * @returns annotated function
  */
-export function preload(route, instances=1, isPublic=false, isInterceptor=false)  {
+export function preload(route, instances=1, isPrivate=true, isInterceptor=false)  {
   return function (_target, propertyKey: string, descriptor: PropertyDescriptor) {
     if ('initialize' == propertyKey) {
       const method = descriptor.value;
         descriptor.value = function (...args) {
         const registry = FunctionRegistry.getInstance();
-        registry.saveFunction(route, this, Math.min(500, Math.max(1, instances)), isPublic, isInterceptor); 
+        registry.saveFunction(route, this, Math.min(500, Math.max(1, instances)), isPrivate, isInterceptor); 
         return method.apply(this, args);
       };
     } else {

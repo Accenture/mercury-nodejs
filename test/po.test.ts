@@ -538,55 +538,7 @@ describe('post office use cases', () => {
         expect(e.message).toBe('Invalid route name - use 0-9, a-z, period, hyphen or underscore characters');
       }    
       expect(normal).toBe(false);  
-    });  
-
-    it('will reject post office subscribe of invalid route name', async () => {
-      const exists = registry.exists(DEMO_LIBRARY_FUNCTION);
-      expect(exists).toBe(true);
-      const helloWorld = registry.getFunction(DEMO_LIBRARY_FUNCTION);
-      const po = new PostOffice();
-      const route = 'Invalid route';
-      let normal = false;
-      try {
-        po.subscribe(route, helloWorld);
-        normal = true;
-      } catch (e) {
-        expect(e.message).toBe('Invalid route name - use 0-9, a-z, period, hyphen or underscore characters');
-      }    
-      expect(normal).toBe(false);  
     }); 
-    
-    it('will reject post office subscribe of invalid worker name', async () => {
-      const exists = registry.exists(DEMO_LIBRARY_FUNCTION);
-      expect(exists).toBe(true);
-      const helloWorld = registry.getFunction(DEMO_LIBRARY_FUNCTION);
-      const po = new PostOffice();
-      const route = 'hello.world#abc';
-      let normal = false;
-      try {
-        po.subscribe(route, helloWorld);
-        normal = true;
-      } catch (e) {
-        expect(e.message).toBe('Invalid route worker suffix');
-      }    
-      expect(normal).toBe(false);  
-    }); 
-
-    it('will reject post office subscribe of empty worker suffix', async () => {
-      const exists = registry.exists(DEMO_LIBRARY_FUNCTION);
-      expect(exists).toBe(true);
-      const helloWorld = registry.getFunction(DEMO_LIBRARY_FUNCTION);
-      const po = new PostOffice();
-      const route = 'hello.world#';
-      let normal = false;
-      try {
-        po.subscribe(route, helloWorld);
-        normal = true;
-      } catch (e) {
-        expect(e.message).toBe('Invalid route worker suffix');
-      }    
-      expect(normal).toBe(false);  
-    });  
     
     it('can subscribe to a pub/sub topic', async () => {
       const topic = 'test.topic';

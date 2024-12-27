@@ -12,6 +12,8 @@ const log = Logger.getInstance();
 const registry = FunctionRegistry.getInstance();
 const util = new Utility();
 const po = new PostOffice();
+const emitter = po.getEventEmitter();
+const handlers = po.getHandlers();
 const DISTRIBUTED_TRACING = 'distributed.tracing';
 const SIGNATURE = "_";
 const RPC = "rpc";
@@ -20,6 +22,40 @@ const REST_AUTOMATION_MANAGER = "rest.automation.manager";
 let startTime;
 let appName;
 let self;
+function subscribe(route, listener) {
+    if (!route) {
+        throw new Error('Missing route');
+    }
+    const hash = route.indexOf('#');
+    const name = hash == -1 ? route : route.substring(0, hash);
+    const worker = hash == -1 ? null : route.substring(hash + 1);
+    if (!util.validRouteName(name)) {
+        throw new Error('Invalid route name - use 0-9, a-z, period, hyphen or underscore characters');
+    }
+    if (worker != null && (worker.length == 0 || !util.isDigits(worker))) {
+        throw new Error('Invalid route worker suffix');
+    }
+    if (!listener) {
+        throw new Error('Missing listener');
+    }
+    if (!(listener instanceof Function)) {
+        throw new Error('Invalid listener function');
+    }
+    if (handlers.has(route)) {
+        unsubscribe(route);
+    }
+    handlers.set(route, listener);
+    emitter.on(route, listener);
+    log.debug(`${route} registered`);
+}
+function unsubscribe(route) {
+    if (handlers.has(route)) {
+        const service = handlers.get(route);
+        emitter.removeListener(route, service);
+        handlers.delete(route);
+        log.debug(`${route} unregistered`);
+    }
+}
 export class Platform {
     static singleton;
     constructor() {
@@ -155,7 +191,7 @@ class ServiceManager {
             const workerRoute = route + "#" + i;
             const myInstance = String(i);
             this.workers.push(workerRoute);
-            po.subscribe(workerRoute, (evt) => {
+            subscribe(workerRoute, (evt) => {
                 evt.setTo(route);
                 evt.setHeader('my_route', route);
                 evt.setHeader('my_instance', myInstance);
@@ -179,7 +215,7 @@ class ServiceManager {
                 catch (e) {
                     this.handleError(workerRoute, utc, evt, e);
                 }
-            }, false);
+            });
         }
         //
         // Service manager event listener for each named route
@@ -189,7 +225,7 @@ class ServiceManager {
         // To guarantee strict message ordering, 
         // each worker sends a READY signal to the service manager before taking the next event.
         //
-        po.subscribe(route, (evt) => {
+        subscribe(route, (evt) => {
             if (this.signature == evt.getHeader(SIGNATURE)) {
                 const availableWorker = String(evt.getBody());
                 if (this.workerNotExists(availableWorker)) {
@@ -214,7 +250,7 @@ class ServiceManager {
                     this.eventQueue.push(evt);
                 }
             }
-        }, false);
+        });
         const category = this.isPrivate ? 'PRIVATE' : 'PUBLIC';
         if (total == 1) {
             log.info(`${category} ${this.route} registered`);
@@ -477,9 +513,9 @@ class EventSystem {
             const isPrivate = metadata['private'];
             const instances = metadata['instances'];
             // silently unsubscribe the service manager and workers
-            po.unsubscribe(route, false);
+            unsubscribe(route);
             for (let i = 1; i <= instances; i++) {
-                po.unsubscribe(route + "#" + i, false);
+                unsubscribe(route + "#" + i);
             }
             registry.removeFunction(route);
             this.registered.delete(route);

@@ -1,3 +1,4 @@
+import { EventEmitter } from 'events';
 import { EventEnvelope } from '../models/event-envelope.js';
 export declare class PostOffice {
     private from;
@@ -13,6 +14,18 @@ export declare class PostOffice {
      * @returns unique ID
      */
     getId(): string;
+    /**
+     * Internal API - DO NOT call this method from user code
+     *
+     * @returns the underlying event emitter
+     */
+    getEventEmitter(): EventEmitter;
+    /**
+     * Internal API - DO NOT call this method from user code
+     *
+     * @returns registered handlers in the event loop
+     */
+    getHandlers(): Map<any, any>;
     /**
      * Obtain the "this" reference (i.e. class instance) of my function
      *
@@ -50,29 +63,6 @@ export declare class PostOffice {
      * @returns promise of true or false
      */
     exists(route: string): boolean;
-    /**
-     * Reserved for internal use. Plese use the 'platform.release' API instead.
-     *
-     * Subscribe an event listener to a route name
-     *
-     * The system enforces exclusive subscriber. If you need multiple functions to listen to the same route,
-     * please implement your own multiple subscription logic. A typical approach is to implement a forwarder
-     * and send a subscription request to the forwarder function with your listener route name as a callback.
-     *
-     * @param route name for your event listener
-     * @param listener function (synchronous or Promise function)
-     * @param logging is true by default
-     */
-    subscribe(route: string, listener: (evt: EventEnvelope) => void, logging?: boolean): void;
-    /**
-     * Reserved for internal use. Plese use the 'platform.release' API instead.
-     *
-     * Unsubscribe a registered function from a route name
-     *
-     * @param route name
-     * @param logging is true by default
-     */
-    unsubscribe(route: string, logging?: boolean): void;
     /**
      * Send an event
      *

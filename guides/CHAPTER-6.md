@@ -399,13 +399,13 @@ You can use the `hello world` project as a template to start writing your own ap
 This project is licensed under the Apache 2.0 open sources license. We will update the public codebase after
 it passes regression tests and meets stability and performance benchmarks in our production systems.
 
-Mercury is developed as an engine for you to build the latest cloud native and composable applications.
-While we are updating the technology frequently, the essential internals and the core APIs are stable.
+The source code is provided as is, meaning that breaking API changes may be introduced from time to time.
 
 ## Technical support
 
-For enterprise clients, optional technical support is available. Please contact your Accenture representative
+For enterprise clients, technical support is available. Please contact your Accenture representative
 for details.
+
 <br/>
 
 |            Chapter-5            |                   Home                    |                Chapter-7                |

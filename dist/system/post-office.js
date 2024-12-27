@@ -9,6 +9,8 @@ import { FunctionRegistry } from './function-registry.js';
 const log = Logger.getInstance();
 const util = new Utility();
 const registry = FunctionRegistry.getInstance();
+const emitter = new EventEmitter();
+const handlers = new Map();
 let self = null;
 const DISTRIBUTED_TRACING = 'distributed.tracing';
 const ASYNC_HTTP_CLIENT = 'async.http.request';
@@ -71,6 +73,22 @@ export class PostOffice {
         return self.getId();
     }
     /**
+     * Internal API - DO NOT call this method from user code
+     *
+     * @returns the underlying event emitter
+     */
+    getEventEmitter() {
+        return emitter;
+    }
+    /**
+     * Internal API - DO NOT call this method from user code
+     *
+     * @returns registered handlers in the event loop
+     */
+    getHandlers() {
+        return handlers;
+    }
+    /**
      * Obtain the "this" reference (i.e. class instance) of my function
      *
      * @returns the Composable class holding the function that instantiates this PostOffice
@@ -120,33 +138,6 @@ export class PostOffice {
         return self.exists(route);
     }
     /**
-     * Reserved for internal use. Plese use the 'platform.release' API instead.
-     *
-     * Subscribe an event listener to a route name
-     *
-     * The system enforces exclusive subscriber. If you need multiple functions to listen to the same route,
-     * please implement your own multiple subscription logic. A typical approach is to implement a forwarder
-     * and send a subscription request to the forwarder function with your listener route name as a callback.
-     *
-     * @param route name for your event listener
-     * @param listener function (synchronous or Promise function)
-     * @param logging is true by default
-     */
-    subscribe(route, listener, logging = true) {
-        self.subscribe(route, listener, logging);
-    }
-    /**
-     * Reserved for internal use. Plese use the 'platform.release' API instead.
-     *
-     * Unsubscribe a registered function from a route name
-     *
-     * @param route name
-     * @param logging is true by default
-     */
-    unsubscribe(route, logging = true) {
-        self.unsubscribe(route, logging);
-    }
-    /**
      * Send an event
      *
      * @param event envelope
@@ -192,21 +183,19 @@ export class PostOffice {
     }
 }
 class PO {
-    po = new EventEmitter();
-    handlers = new Map();
     id = util.getUuid();
     getId() {
         return this.id;
     }
     exists(route) {
         if (route && route.length > 0) {
-            return this.handlers.has(route);
+            return handlers.has(route);
         }
         else {
             return false;
         }
     }
-    subscribe(route, listener, logging = true) {
+    subscribe(route, listener) {
         if (!route) {
             throw new Error('Missing route');
         }
@@ -225,30 +214,26 @@ class PO {
         if (!(listener instanceof Function)) {
             throw new Error('Invalid listener function');
         }
-        if (this.handlers.has(route)) {
+        if (handlers.has(route)) {
             this.unsubscribe(route);
         }
-        this.handlers.set(route, listener);
-        this.po.on(route, listener);
-        if (logging) {
-            log.info(`${route} registered`);
-        }
+        handlers.set(route, listener);
+        emitter.on(route, listener);
+        log.debug(`${route} registered`);
     }
-    unsubscribe(route, logging = true) {
-        if (this.handlers.has(route)) {
-            const service = this.handlers.get(route);
-            this.po.removeListener(route, service);
-            this.handlers.delete(route);
-            if (logging) {
-                log.info(`${route} unregistered`);
-            }
+    unsubscribe(route) {
+        if (handlers.has(route)) {
+            const service = handlers.get(route);
+            emitter.removeListener(route, service);
+            handlers.delete(route);
+            log.debug(`${route} unregistered`);
         }
     }
     send(event) {
         const route = event.getTo();
         if (route) {
-            if (this.handlers.has(route)) {
-                this.po.emit(route, event);
+            if (handlers.has(route)) {
+                emitter.emit(route, event);
             }
             else {
                 const traceRef = event.getTraceId() ? `Trace (${event.getTraceId()}), ` : '';
@@ -268,15 +253,15 @@ class PO {
             const start = performance.now();
             const route = event.getTo();
             if (route) {
-                if (this.handlers.has(route)) {
+                if (handlers.has(route)) {
                     const callback = 'r.' + util.getUuid();
                     const timer = setTimeout(() => {
-                        this.unsubscribe(callback, false);
+                        this.unsubscribe(callback);
                         reject(new AppException(408, `Route ${event.getTo()} timeout for ${timeout} ms`));
                     }, Math.max(10, timeout));
                     this.subscribe(callback, (response) => {
                         clearTimeout(timer);
-                        this.unsubscribe(callback, false);
+                        this.unsubscribe(callback);
                         if (response.isException()) {
                             reject(new AppException(response.getStatus(), String(response.getBody())));
                         }
@@ -298,10 +283,10 @@ class PO {
                             }
                             resolve(response);
                         }
-                    }, false);
+                    });
                     event.setReplyTo(callback);
                     event.addTag(RPC, String(timeout));
-                    this.po.emit(route, event);
+                    emitter.emit(route, event);
                 }
                 else {
                     reject(new AppException(404, `Event ${event.getId()} dropped because ${route} not found`));

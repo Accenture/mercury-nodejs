@@ -36,7 +36,7 @@ export class ActuatorServices implements Composable {
             loaded = true;
             const platform = Platform.getInstance();
             const config = AppConfig.getInstance().getReader();
-            appName = config.getProperty('application.name', 'untitled');
+            appName = platform.getName();
             appVersion = config.getProperty('info.app.version', 'unknown');
             appDesc = config.getProperty('info.app.description', '-');
             origin = platform.getOriginId();

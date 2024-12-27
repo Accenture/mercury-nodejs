@@ -295,7 +295,7 @@ The resources folder contains the following:
 2. rest.yaml - you can define REST endpoints by configuration
 3. preload.yaml - this instructs the system how to load your user functions into the event loop.
 
-*application.yaml*
+*application.yml*
 
 ```yaml
 application.name: 'example-app'
@@ -314,6 +314,10 @@ log:
 # You can add optional health checks that point to your custom health check functions
 # (the dependency list is a comma separated list) 
 health.dependencies: 'demo.health'
+
+# if you have some composable functions from one or more libraries, web.component.scan
+# should contain a comma separated list of library package names. 
+web.component.scan: 'mercury'
 ```
 
 Note that you can use "environment variables" in the configuration using the standard dollar-bracket format.

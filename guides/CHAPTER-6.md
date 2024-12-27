@@ -27,7 +27,7 @@ main();
 ```
 
 In this example, the `ComposableLoader` will initialize the configuration management system, 
-search and register4 available user functions into the event system. The default location
+search and register available user functions into the event system. The default location
 of the system files is the "src/resources" folder.
 
 | File / bundle   | Purpose                                                                            |

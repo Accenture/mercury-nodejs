@@ -34,7 +34,7 @@ export class FunctionRegistry {
             if ('initialize' in that && 'handleEvent' in that && 
                 that.initialize instanceof Function && that.handleEvent instanceof Function) {
                     log.info(`Loading ${that.constructor.name} as ${route}`);
-                    this.registry.saveFunction(route, that, instances, isPrivate, isInterceptor);            
+                    this.registry.saveFunction(route, that, instances, isPrivate, isInterceptor);
             } else {
                 log.error(`Unable to load ${this.constructor.name} because it does not implement Composable`);
             }

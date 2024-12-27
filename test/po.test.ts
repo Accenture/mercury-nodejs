@@ -1,6 +1,6 @@
 import { Logger } from '../src/util/logger.js';
 import { Composable } from '../src/models/composable.js';
-import { FunctionRegistry } from '../src/util/function-registry.js';
+import { FunctionRegistry } from '../src/system/function-registry.js';
 import { PostOffice } from '../src/system/post-office.js';
 import { Platform } from '../src/system/platform.js';
 import { LocalPubSub } from '../src/system/local-pubsub.js';
@@ -51,6 +51,7 @@ let endApiUrl: string;
 let baseUrl: string;
 let resourcePath: string;
 let apiCount = 0;
+let helloWorldSignature: string;
 
 function getRootFolder() {
   const folder = fileURLToPath(new URL("..", import.meta.url));
@@ -220,10 +221,12 @@ describe('post office use cases', () => {
       resourcePath = getRootFolder() + 'test/resources';
       // AppConfig should be initialized with base configuration parameter when the Platform object is loaded
       const appConfig = AppConfig.getInstance(resourcePath).getReader();
-      // save the helloWorld as DEMO_LIBRARY_FUNCTION so that it can be retrieved by name
-      const helloWorld = new HelloWorld();
-      registry.saveFunction(HelloWorld.name, helloWorld, 1, false, false);
       platform = Platform.getInstance();
+      // // save the helloWorld as DEMO_LIBRARY_FUNCTION so that it can be retrieved by name
+      const helloWorld = new HelloWorld();
+      helloWorldSignature = helloWorld.signature;
+      // when a composable class is registered, it is available in the registry
+      platform.register(DEMO_LIBRARY_FUNCTION, helloWorld);
       // register a hello.world function to echo the incoming payload
       platform.register(HELLO_WORLD_SERVICE, helloWorld, HELLO_WORLD_INSTANCES, false);
       // register the same function as another route name and declare it as private
@@ -806,7 +809,9 @@ describe('post office use cases', () => {
       const functionList = registry.getFunctions();
       expect(functionList.includes(DEMO_LIBRARY_FUNCTION)).toBe(true);
       const demoClass = registry.getClass(DEMO_LIBRARY_FUNCTION);
-      platform.register(DEMO_LIBRARY_FUNCTION, demoClass);
+      expect(demoClass).toBeInstanceOf(HelloWorld);
+      expect('signature' in demoClass).toBeTruthy();
+      expect(demoClass['signature']).toBe(helloWorldSignature);
       const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': '400', 'my_trace_path': 'TEST /library/rpc'});
       const req = new EventEnvelope().setTo(DEMO_LIBRARY_FUNCTION).setBody(TEST_MESSAGE);
       const result = await po.request(req, 3000);

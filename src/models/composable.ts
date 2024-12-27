@@ -1,5 +1,5 @@
 import { EventEnvelope } from "./event-envelope.js";
-import { FunctionRegistry } from "../util/function-registry.js";
+import { FunctionRegistry } from "../system/function-registry.js";
 import { Logger } from "../util/logger.js";
 
 const log = Logger.getInstance();

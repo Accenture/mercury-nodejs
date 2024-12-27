@@ -1,7 +1,7 @@
 export { Logger } from './util/logger.js';
 export { Platform } from './system/platform.js';
 export { PostOffice } from './system/post-office.js';
-export { FunctionRegistry } from './util/function-registry.js';
+export { FunctionRegistry } from './system/function-registry.js';
 export { RestAutomation } from './system/rest-automation.js';
 export { Utility } from './util/utility.js';
 export { MultiLevelMap } from './util/multi-level-map.js';

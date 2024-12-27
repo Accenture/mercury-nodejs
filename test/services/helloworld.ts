@@ -15,7 +15,8 @@ const HELLO_INSTANCE = 'x-hello-instance';
 const DEMO_EXCEPTION = 'demo exception';
 
 export class HelloWorld implements Composable {
-    static name = "demo.library.function";
+    static name = 'demo.library.function';
+    signature = util.getUuid();
 
     initialize(): HelloWorld {
         return this;

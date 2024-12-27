@@ -1,7 +1,7 @@
 import { performance } from 'perf_hooks';
 import { Logger } from '../util/logger.js';
 import { Utility } from '../util/utility.js';
-import { FunctionRegistry } from "../util/function-registry.js";
+import { FunctionRegistry } from "./function-registry.js";
 import { PostOffice } from '../system/post-office.js';
 import { DistributedTrace } from '../services/tracer.js';
 import { AsyncHttpClient } from '../services/async-http-client.js';
@@ -76,6 +76,7 @@ export class Platform {
         if ('initialize' in composable && 'handleEvent' in composable &&
             composable.initialize instanceof Function && composable.handleEvent instanceof Function) {
             if (!registry.exists(route)) {
+                registry.saveFunction(route, composable, instances, isPrivate, isInterceptor);
                 composable.initialize();
             }
             self.register(route, composable.handleEvent, instances, isPrivate, isInterceptor);
@@ -371,7 +372,7 @@ class ServiceManager {
     }
 }
 class EventSystem {
-    services = new Map();
+    registered = new Map();
     forever = false;
     stopping = false;
     constructor() {
@@ -455,12 +456,13 @@ class EventSystem {
                 throw new Error('Invalid route name - use 0-9, a-z, period, hyphen or underscore characters');
             }
             if (listener instanceof Function) {
-                if (this.services.has(route)) {
+                log.info(`REGISTER------> ${route}------${this.registered.has(route)} = ${registry.exists(route)}`);
+                if (this.registered.has(route)) {
                     log.warn(`Reloading ${route} service`);
                     this.release(route);
                 }
                 new ServiceManager(route, listener, instances, isPrivate, interceptor);
-                this.services.set(route, { "private": isPrivate, "instances": instances, "interceptor": interceptor });
+                this.registered.set(route, true);
             }
             else {
                 throw new Error('Invalid listener function');
@@ -471,27 +473,28 @@ class EventSystem {
         }
     }
     release(route) {
-        if (this.services.has(route)) {
-            const metadata = this.services.get(route);
+        log.info(`RELEASE-------> ${route}------${this.registered.has(route)} = ${registry.exists(route)}`);
+        if (registry.exists(route)) {
+            const metadata = registry.getMetadata(route);
             const isPrivate = metadata['private'];
-            const instances = parseInt(metadata['instances']);
+            const instances = metadata['instances'];
             // silently unsubscribe the service manager and workers
             po.unsubscribe(route, false);
             for (let i = 1; i <= instances; i++) {
                 po.unsubscribe(route + "#" + i, false);
             }
-            this.services.delete(route);
+            this.registered.delete(route);
             registry.removeFunction(route);
             log.info((isPrivate ? 'PRIVATE ' : 'PUBLIC ') + route + ' released');
         }
     }
     isPrivate(route) {
-        if (this.services.has(route)) {
-            const metadata = this.services.get(route);
+        if (registry.exists(route)) {
+            const metadata = registry.getMetadata(route);
             return metadata['private'];
         }
         else {
-            throw new Error(`Route ${route} not found`);
+            return true;
         }
     }
     async stop() {

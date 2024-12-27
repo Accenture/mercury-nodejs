@@ -5,7 +5,7 @@ import { EventEnvelope } from '../models/event-envelope.js';
 import { AppException } from '../models/app-exception.js';
 import { Utility } from '../util/utility.js';
 import { AsyncHttpRequest } from '../models/async-http-request.js';
-import { FunctionRegistry } from '../util/function-registry.js';
+import { FunctionRegistry } from './function-registry.js';
 
 const log = Logger.getInstance();
 const util = new Utility();

@@ -456,7 +456,6 @@ class EventSystem {
                 throw new Error('Invalid route name - use 0-9, a-z, period, hyphen or underscore characters');
             }
             if (listener instanceof Function) {
-                log.info(`REGISTER------> ${route}------${this.registered.has(route)} = ${registry.exists(route)}`);
                 if (this.registered.has(route)) {
                     log.warn(`Reloading ${route} service`);
                     this.release(route);
@@ -465,7 +464,7 @@ class EventSystem {
                 this.registered.set(route, true);
             }
             else {
-                throw new Error('Invalid listener function');
+                throw new Error('Not a composable function');
             }
         }
         else {
@@ -473,7 +472,6 @@ class EventSystem {
         }
     }
     release(route) {
-        log.info(`RELEASE-------> ${route}------${this.registered.has(route)} = ${registry.exists(route)}`);
         if (registry.exists(route)) {
             const metadata = registry.getMetadata(route);
             const isPrivate = metadata['private'];
@@ -483,8 +481,8 @@ class EventSystem {
             for (let i = 1; i <= instances; i++) {
                 po.unsubscribe(route + "#" + i, false);
             }
-            this.registered.delete(route);
             registry.removeFunction(route);
+            this.registered.delete(route);
             log.info((isPrivate ? 'PRIVATE ' : 'PUBLIC ') + route + ' released');
         }
     }

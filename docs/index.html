@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="description" content="None" /><link rel="canonical" href="https://github.com/accenture/mercury/" />
+      <link rel="shortcut icon" href="img/favicon.ico" />
+    <title>Mercury</title>
+    <link rel="stylesheet" href="css/theme.css" />
+    <link rel="stylesheet" href="css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Home";
+        var mkdocs_page_input_path = "README.md";
+        var mkdocs_page_url = "/accenture/mercury/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="." class="icon icon-home"> Mercury
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="./search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Home</a>
+    <ul class="current">
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="guides/TABLE-OF-CONTENTS/">Contents</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="guides/CHAPTER-1/">Chapter-1</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="guides/CHAPTER-2/">Chapter-2</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="guides/CHAPTER-3/">Chapter-3</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="guides/CHAPTER-4/">Chapter-4</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="guides/CHAPTER-5/">Chapter-5</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="guides/CHAPTER-6/">Chapter-6</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="guides/CHAPTER-7/">Chapter-7</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="guides/APPENDIX-I/">Appendix-I</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="guides/APPENDIX-II/">Appendix-II</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="CHANGELOG/">Release notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="arch-decisions/DESIGN-NOTES/">Design notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="INCLUSIVITY/">Inclusivity</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="CODE_OF_CONDUCT/">Code of Conduct</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="CONTRIBUTING/">Contribution</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href=".">Mercury</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Home</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="mercury-version-4-for-nodejs">Mercury version 4 for Node.js</h1>
+<p>Reference engine for building "Composable architecture and applications".</p>
+<h1 id="welcome-to-the-mercury-project">Welcome to the Mercury project</h1>
+<p>The Mercury project is created with one primary objective -
+<code>to make software easy to write, read, test, deploy, scale and manage.</code></p>
+<p>Mercury for Node.js inherits core functionality from the original Mercury Java project.
+For examples,</p>
+<ol>
+<li>REST automation - you can create REST endpoints by configuration instead of code</li>
+<li>In-memory event system - we extend the standard Node.js EventEmitter to support high concurrency
+   and ease of use</li>
+<li>Event API endpoint - this facilitates inter-container communication using events over HTTP</li>
+</ol>
+<p>To get started, please refer to the <a href="guides/CHAPTER-1/">Developer Guide</a>.</p>
+<p>Applications written using Mercury for Node.js can interoperate with composable applications using the
+Event-over-HTTP protocol, meaning that a composable Java application can invoke a Node.js application
+using events that delivered over a regular HTTP connection.</p>
+<p>The Event Scripting feature for event choreography is not available in this Node.js version because
+you can use the Java version as the event manager to orchestrate composable functions in a Node.js
+application.</p>
+<p>For more information on event scripting, please visit the
+<a href="https://accenture.github.io/mercury-composable/">Mercury-Composable</a> project.</p>
+<p>You may explore <a href="https://accenture.github.io/mercury-composable/guides/CHAPTER-4/">Event Script</a> to see
+how to define event choreography for your composable application.</p>
+<p>December, 2024</p>
+<h1 id="introduction-to-composable-architecture">Introduction to composable architecture</h1>
+<p>In cloud migration and IT modernization, we evaluate application portfolio and recommend different
+disposition strategies based on the 7R migration methodology.</p>
+<pre><code class="language-text">7R: Retire, retain, re-host, re-platform, replace, re-architect and re-imagine.
+</code></pre>
+<p>The most common observation during IT modernization discovery is that there are many complex monolithic applications
+that are hard to modernize quickly.</p>
+<p>IT modernization is like moving into a new home. It would be the opportunity to clean up and to improve for
+business agility and strategic competitiveness.</p>
+<p>Composable architecture is gaining momentum because it accelerates organization transformation towards
+a cloud native future. We will discuss how we may reduce modernization risks with this approach.</p>
+<h1 id="composability">Composability</h1>
+<p>Composability applies to both platform and application levels.</p>
+<p>We can trace the root of composability to Service Oriented Architecture (SOA) in 2000 or a technical bulletin on
+"Flow-Based Programming" by IBM in 1971. This is the idea that architecture and applications are built using
+modular building blocks and each block is self-contained with predictable behavior.</p>
+<p>At the platform level, composable architecture refers to loosely coupled platform services, utilities, and
+business applications. With modular design, you can assemble platform components and applications to create
+new use cases or to adjust for ever-changing business environment and requirements. Domain driven design (DDD),
+Command Query Responsibility Segregation (CQRS) and Microservices patterns are the popular tools that architects
+use to build composable architecture. You may deploy application in container, serverless or other means.</p>
+<p>At the application level, a composable application means that an application is assembled from modular software
+components or functions that are self-contained and pluggable. You can mix-n-match functions to form new applications.
+You can retire outdated functions without adverse side effect to a production system. Multiple versions of a function
+can exist, and you can decide how to route user requests to different versions of a function. Applications would be
+easier to design, develop, maintain, deploy, and scale.</p>
+<p>Composable architecture and applications contribute to business agility.</p>
+<h1 id="building-a-composable-application">Building a composable application</h1>
+<h2 id="microservices">Microservices</h2>
+<p>Since 2014, microservices architectural pattern helps to decompose a big application into smaller pieces of
+“self-contained” services. We also apply digital decoupling techniques to services and domains. Smaller is better.
+However, we are writing code in the same old fashion. One method is calling other methods directly. Functional and
+reactive programming techniques are means to run code in a non-blocking manner, for example Reactive Streams, Akka,
+Vertx, Quarkus Multi/Uni and Spring Reactive Flux/Mono. These are excellent tools, but they do not reduce the
+complexity of business applications.</p>
+<h2 id="composable-application">Composable application</h2>
+<p>To make an application composable, the software components within a single application should be loosely coupled
+where each component has zero or minimal dependencies.</p>
+<p>Unlike traditional programming approach, composable application is built from the top down. First, we describe
+a business transaction as an event flow. Second, from the event flow, we identify individual functions for
+business logic. Third, we write user story for each function and write code in a self-contained manner.
+Finally, we write orchestration code to coordinate event flow among the functions, so they work together
+as a single application.</p>
+<p>The individual functions become the building block for a composable application. We can mix-n-match different
+sets of functions to address different business use cases.</p>
+<h1 id="event-is-the-communication-conduit">Event is the communication conduit</h1>
+<p>Cloud native applications are deployed as containers or serverless functions. Ideally, they communicate using events.
+For example, the CQRS design pattern is well accepted for building high performance cloud native applications.</p>
+<p>As shown in Figure 1, applications can communicate with each other using an enterprise event system.</p>
+<p>For inter-domain communication, it is called "Level 1 events". For inter-container communication within a single
+domain, it is called "Level 2 events".</p>
+<blockquote>
+<p>Figure 1 - Cloud native applications use event streams to communicate</p>
+</blockquote>
+<p><img alt="figure-1.png" src="diagrams/figure-1.png" /></p>
+<p>However, within a single application unit, an application is mostly built in a traditional way.
+i.e. one function is calling other functions and libraries directly, thus making the modules and libraries
+tightly coupled. As a result, microservices may become smaller monolithic applications.</p>
+<p>To overcome this limitation, we can employ “event-driven design” to make the microservices application unit composable.</p>
+<p>An application unit is a collection of composable functions in memory. Functions communicate with each other
+over an “in-memory event bus” to form a single deployable application.</p>
+<blockquote>
+<p>Figure 2 – Functions use in-memory event bus to communicate</p>
+</blockquote>
+<p><img alt="figure-2.png" src="diagrams/figure-2.png" /></p>
+<h1 id="in-memory-event-bus">In-memory event bus</h1>
+<p>For a composable application, each function is written using the first principle of “input-process-output” where
+input and output payloads are delivered as events. All input and output are immutable to reduce unintended bugs
+and side effects.</p>
+<p>Since input and output for each function is well-defined, test-driven development (TDD) can be done naturally.
+It is also easier to define a user story for each function and the developer does not need to integrate
+multiple levels of dependencies with code, resulting in a higher quality product.</p>
+<blockquote>
+<p>Figure 3 - The first principle of a function</p>
+</blockquote>
+<p><img alt="figure-3.png" src="diagrams/figure-3.png" /></p>
+<p>What is a “function”? For example, reading a record from a database and performing some data transformation,
+doing a calculation with a formula, etc.</p>
+<blockquote>
+<p>Figure 4 - Connecting output of one function to input of another</p>
+</blockquote>
+<p><img alt="figure-4.png" src="diagrams/figure-4.png" /></p>
+<p>As shown in Figure 4, if function-1 wants to send a request to function-2, we can write “event orchestration code”
+to route the output from function-1 to function-2 send it over an in-memory event bus.</p>
+<h1 id="function-execution">Function execution</h1>
+<p>In event-driven application design, a function is executed when an event arrives as an <code>input</code>. When a function
+finishes processing, your application can command the event system to route the result set (<code>output</code>) as an
+event to another function.</p>
+<p>Each function is uniquely identified by a "route name". For example, when a REST endpoint receives a request, 
+the request object is sent as an event to a function with a route name defined in the REST automation configuration
+file called "rest.yaml". The event system will execute the function with the incoming event as input. When the 
+function finishes execution, the event system will route its output to the next function or as an HTTP response
+to the user.</p>
+<blockquote>
+<p>Figure 5 - Executing function through event flow</p>
+</blockquote>
+<p><img alt="figure-5.png" src="diagrams/figure-5.png" /></p>
+<p>As shown in Figure 5, functions can send/receive events using the underlying Node.js event loop.</p>
+<p>This event-driven architecture provides the foundation to design and implement composable applications.
+Each function is self-contained and loosely coupled by event flow.</p>
+<h1 id="performance-and-throughput">Performance and throughput</h1>
+<p>Mercury for Node.js is written in TypeScript with type safety.</p>
+<p>Since Node.js application is usually single threaded, all functions must be executed cooperatively
+in the "event loop."</p>
+<p>However, a traditional Node.js or javascript application can run slower if it is not designed to run
+"cooperatively". i.e. each method must yield control to the event loop.</p>
+<p>Composable applications enjoy faster performance and throughput because each function is
+written in a self-contained fashion without dependencies of other functions. When one function requests
+the service of another function, control is released to the event loop, thus promoting higher performance
+and throughput than traditional coding approach.</p>
+<p>Let's examine this in more details.</p>
+<h2 id="throughput">Throughput</h2>
+<p>For higher throughput, the platform core engine allows you to configure "concurrent" workers for each function
+addressable by a unique route name. The engine is designed to be reactive. This means when one worker is busy,
+it will not process the next event until it has finished processing of the current event. This reactive design
+ensures orderly execution.</p>
+<p>To handle "concurrent" requests, we can configure more than one worker for a function. To ensure all functions
+are executed in a non-blocking manner, your function should implement the "Composable" class interface that
+enforces your function to use the "Promises" or "async/await" pattern. This means your function will release
+control to the event loop while it is waiting for a response from another service, external REST endpoint or
+a database.</p>
+<h2 id="performance">Performance</h2>
+<p>If your application is computational intensive, you can increase performance with the Node.js standard 
+"Worker Thread" library. While each function is running cooperatively in the event loop, a function can 
+spin up a worker thread to run CPU heavy operations in the background. This adds true "multi-threading" 
+ability to your application.</p>
+<p>There is one limitation. A worker thread and a function in the main event loop can only communicate using
+a separate messaging tunnel like this:</p>
+<pre><code class="language-javascript">// in the main thread
+worker.postMessage(someRequest);
+
+// in the worker thread
+parentPort.postMessage(someResponse);
+</code></pre>
+<p>Mercury reduces this complexity because you can write a function as a gateway to interface with the worker
+thread.</p>
+<blockquote>
+<p>IMPORTANT - Please be careful about the use of worker threads. Since each worker thread runs in a 
+  separate "v8" instance, it may overload the target machine and degrade application performance when
+  you have many worker threads in your application. Therefore, please keep the number of worker threads
+  to a bare minimal.</p>
+</blockquote>
+<h1 id="use-cases">Use cases</h1>
+<p>We can construct a composable application with self-contained functions that execute when events arrive.
+There is a simple event API that we call the “Post Office” to support sequential non-blocking RPC, async,
+drop and forget, callback, workflow, pipeline, streaming and interceptor patterns.</p>
+<p>The "async/await" pattern in Node.js reduces the effort in application modernization because we can directly
+port sequential legacy code from a monolithic application to the new composable cloud native design.</p>
+<p>You can use this composable foundation library to write high performance Node.js applications in a composable
+manner. The built-in REST automation feature allows you to create REST endpoints by configuration and link
+each endpoint with a composable function. The ideal use case would be a Backend for FrontEnd (BFF) application.</p>
+<p>For more complex application, we recommend using the Event Script system in the Mercury-Composable Java project
+as a engine to drive composable functions in a Node.js application.</p>
+<p>Event choreography using Event Script is the best way to create truly composable application that is truly
+decoupled. Your functions are executed according to an event flow that can be configured and readable by
+product owners and analysts and not just by developers.</p>
+<h1 id="conclusion">Conclusion</h1>
+<p>Composability applies to both platform and application levels. We can design and implement better cloud native
+applications that are composable using event-driven design, leading to code that is readable, modular and reusable.</p>
+<p>We can deliver application that demonstrates both high performance and high throughput, an objective that has been
+technically challenging with traditional means. With built-in observability, we can scientifically predict
+application performance and throughput in design and development time, thus saving time and ensuring consistent
+product quality.</p>
+<p>Composable approach also facilitates the migration of monolithic application into cloud native by decomposing the
+application to functional level and assembling them into microservices and/or serverless according to domain
+boundary. It reduces coding effort and application complexity, meaning less project risks.</p>
+<p>This opens a new frontier of cloud native applications that are composable, scalable, and easy to maintain,
+thus contributing to business agility.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="guides/TABLE-OF-CONTENTS/" class="btn btn-neutral float-right" title="Contents">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+    
+      <span><a href="guides/TABLE-OF-CONTENTS/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = ".";</script>
+    <script src="js/theme_extra.js"></script>
+    <script src="js/theme.js"></script>
+      <script src="search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
+
+<!--
+MkDocs version : 1.6.1
+Build Date UTC : 2024-12-27 22:09:34.159506+00:00
+-->

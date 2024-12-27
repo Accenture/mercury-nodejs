@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://github.com/accenture/mercury/guides/CHAPTER-4/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Chapter-4 - Mercury</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Chapter-4";
+        var mkdocs_page_input_path = "guides/CHAPTER-4.md";
+        var mkdocs_page_url = "/accenture/mercury/guides/CHAPTER-4/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Mercury
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../TABLE-OF-CONTENTS/">Contents</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-1/">Chapter-1</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-2/">Chapter-2</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-3/">Chapter-3</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Chapter-4</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#register-a-function-with-the-in-memory-event-system">Register a function with the in-memory event system</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#private-vs-public-functions">Private vs public functions</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#singleton-function">Singleton function</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#interceptor">Interceptor</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#post-office-api">Post Office API</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#event-patterns">Event patterns</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#request-response-rpc">Request-response (RPC)</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#asyncawait-pattern">async/await pattern</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#promise-pattern">Promise pattern</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#callback">Callback</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#pipeline">Pipeline</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#streaming">Streaming</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#orchestration-layer">Orchestration layer</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#event-script">Event Script</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-5/">Chapter-5</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-6/">Chapter-6</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-7/">Chapter-7</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-I/">Appendix-I</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-II/">Appendix-II</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CHANGELOG/">Release notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../arch-decisions/DESIGN-NOTES/">Design notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../INCLUSIVITY/">Inclusivity</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CODE_OF_CONDUCT/">Code of Conduct</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CONTRIBUTING/">Contribution</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Mercury</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Chapter-4</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="event-orchestration">Event orchestration</h1>
+<p>In traditional programming, we can write modular software components and wire them together as a single application.
+There are many ways to do that. You can rely on a "dependency injection" framework. In many cases, you would need
+to write orchestration logic to coordinate how the various components talk to each other to process a transaction.</p>
+<p>In a composable application, you write modular functions using the first principle of "input-process-output".</p>
+<p>Functions communicate with each other using events and each function has a "handleEvent" method to process "input"
+and return result as "output". Writing software component in the first principle makes Test Driven Development (TDD)
+straight forward. You can write mock function and unit tests before you put in actual business logic.</p>
+<p>Mocking an event-driven function in a composable application is as simple as overriding the function's route name
+with a mock function.</p>
+<h2 id="register-a-function-with-the-in-memory-event-system">Register a function with the in-memory event system</h2>
+<p>There are two ways to register a function:</p>
+<ol>
+<li>Declarative approach</li>
+<li>Programmatic approach</li>
+</ol>
+<p>In declarative approach, you use the <code>preLoad</code> annotation to register a class with an event handler like this:</p>
+<pre><code class="language-javascript">export class HelloWorldService implements Composable {
+
+    @preload('hello.world', 10)
+    initialize(): HelloWorldService {
+        return this;
+    }
+
+    async handleEvent(evt: EventEnvelope) {
+        // your business logic here
+        return someResult;
+    }
+}
+</code></pre>
+<p>You can define route name, instances, isPublic and isInterceptor in the <code>preload</code> annotation. The default values are
+instances=1, isPublic=false and isInterceptor=false. In the example, the number of instances is set to 10.
+You can set the number of instances from 1 to 500.</p>
+<p>Once a function is created using the declarative method, you can override it with a mock function by using the
+programmatic approach in a unit test.</p>
+<p>In programmatic approach, you can register a composable class like this:</p>
+<pre><code class="language-javascript">const platform = Platform.getInstance();
+platform.register('my.function', new HelloWorld(), 10);
+</code></pre>
+<p>In the above example, You obtain a singleton instance of the Platform API class and use it to register
+the HelloWorld.ts class with a route name <code>my.function</code> and up to 10 concurrent worker instances.
+Note that the class must implement the <code>Composable</code> interface and you must not use the <code>preload</code> annotation
+in the initialize() method if you want to register the function programmatically.</p>
+<p>In both declarative and programmatic approaches, the initialize method may contain additional setup
+code for your function.</p>
+<h2 id="private-vs-public-functions">Private vs public functions</h2>
+<p>A private function is visible by other functions in the same application memory space.</p>
+<p>A public function is accessible by other function from another application instance using the
+"Event over HTTP" method. We will discuss inter-container communication in <a href="../CHAPTER-5/">Chapter-5</a>.</p>
+<h2 id="singleton-function">Singleton function</h2>
+<p>The number of concurrent workers for a function is defined in the "instances" parameter.</p>
+<p>When you set "instances" to one, the function will be declared as a singleton.</p>
+<h2 id="interceptor">Interceptor</h2>
+<p>When you declare a function as an interceptor, the system will ignore return value from the function.</p>
+<p>Usually, the interceptor function can use the PostOffice's send API to forward the incoming event to 
+the downstream function(s). In some use cases, you may use the interceptor to conditionally return value
+by sending the result set to the "reply to" address.</p>
+<h2 id="post-office-api">Post Office API</h2>
+<p>To send an asynchronous event or an event RPC call from one function to another, you can use the <code>PostOffice</code> APIs.</p>
+<p>For example,</p>
+<pre><code class="language-javascript">async handleEvent(evt: EventEnvelope) {
+    const po = new PostOffice(evt.headers());
+    const req = new EventEnvelope().setTo(HELLO_WORLD_SERVICE).setBody(TEST_MESSAGE);
+    const result = await po.request(req, 3000);
+    ...
+</code></pre>
+<p>Note that the input to the PostOffice is the incoming event's headers. The PostOffice API detects if tracing
+is enabled in the incoming request. If yes, it will propagate tracing information to "downstream" functions.</p>
+<h2 id="event-patterns">Event patterns</h2>
+<ol>
+<li>RPC <code>“Request-response”, best for interactivity</code></li>
+<li>Asynchronous <code>e.g. Drop-n-forget</code></li>
+<li>Callback <code>e.g. Progressive rendering</code></li>
+<li>Pipeline <code>e.g. Work-flow application</code></li>
+<li>Streaming <code>e.g. File transfer</code></li>
+</ol>
+<h3 id="request-response-rpc">Request-response (RPC)</h3>
+<p>In enterprise application, RPC is the most common pattern in making call from one function to another.</p>
+<p>The "calling" function makes a request and waits for the response from the "called" function.
+There are two code patterns for RPC.</p>
+<h4 id="asyncawait-pattern">async/await pattern</h4>
+<p>To wait for a response, you can use the "await" keyboard since your function has been declared as "async".</p>
+<pre><code class="language-javascript">const result = await po.request(req, 3000);
+</code></pre>
+<h4 id="promise-pattern">Promise pattern</h4>
+<pre><code class="language-javascript">po.request(req, 3000)
+    .then(event =&gt; {
+        // handle the response
+    })
+    .catch(e =&gt; {
+        // handle exception
+    });
+</code></pre>
+<h3 id="callback">Callback</h3>
+<p>You can declare another function as a "callback". When you send a request to another function, you can set the
+"replyTo" address in the request event. When a response is received, your callback function will be invoked to
+handle the response event.</p>
+<pre><code class="language-javascript">const request = new EventEnvelope().setTo('hello.world')
+                                   .setBody('test message').setReplyTo('my.callback');
+po.send(request);
+</code></pre>
+<p>In the above example, you have a callback function with route name "my.callback". You send the request event
+with a JSON object as payload to the "hello.world" function. When a response is received, the "my.callback"
+function will get the response as input.</p>
+<h3 id="pipeline">Pipeline</h3>
+<p>Pipeline is a linked list of event calls. There are many ways to do pipeline. One way is to keep the pipeline plan
+in an event's header and pass the event across multiple functions where you can set the "replyTo" address from the
+pipeline plan. You should handle exception cases when a pipeline breaks in the middle of a transaction.</p>
+<p>An example of the pipeline header key-value may look like this:</p>
+<pre><code class="language-properties">pipeline=service.1, service.2, service.3, service.4, service.5
+</code></pre>
+<p>In the above example, when the pipeline event is received by a function, the function can check its position
+in the pipeline by comparing its own route name with the pipeline plan.</p>
+<p>In a function, you can retrieve its own route name like this:</p>
+<pre><code class="language-javascript">const myRoute = evt.getHeader('my_route');
+</code></pre>
+<p>The "my_route" header is a metadata inserted by the system.</p>
+<p>Suppose myRoute is "service.2", the function can send the response event to "service.3".
+When "service.3" receives the event, it can send its response event to the next one. i.e. "service.4".</p>
+<p>When the event reaches the last service ("service.5"), the processing will complete.</p>
+<h3 id="streaming">Streaming</h3>
+<p>If you set a function as singleton (i.e. one worker instance), it will receive event in an orderly fashion.
+This way you can "stream" events to the function, and it will process the events one by one.</p>
+<p>Another means to do streaming is to create an "ObjectStreamIO" event stream like this:</p>
+<pre><code class="language-javascript">const stream = new ObjectStreamIO(60);
+const out = new ObjectStreamWriter(stream.getOutputStreamId());
+out.write(messageOne);
+out.write(messageTwo);
+out.close();
+
+const streamId = stream.getInputStreamId();
+// pass the streamId to another function
+</code></pre>
+<p>In the code segment above, your function creates an object event stream and writes 2 messages into the stream
+It obtains the streamId of the event stream and sends it to another function. The other function can read the
+data blocks orderly.</p>
+<p>You must declare "end of stream" by closing the output stream. If you do not close an output stream,
+it remains open and idle. If a function is trying to read an input stream using the stream ID and the
+next data block is not available, it will time out.</p>
+<p>A stream will be automatically closed when the idle inactivity timer is reached. In the above example,
+ObjectStreamIO(60) means an idle inactivity timer of 60 seconds.</p>
+<p>In another function, it may read the input stream like this:</p>
+<pre><code class="language-javascript">const stream = new ObjectStreamReader(streamId, 5000);
+while (someCondition) {
+    const b = await stream.read();
+    if (b instanceof Buffer) {
+        // process the data block
+    }
+    if (b == null) {
+        // this means EOF - the stream will be closed automatically
+        break
+    }
+}
+</code></pre>
+<p>You can browse the "hello-world-service.ts" for the file upload and download statements to examine the
+streaming code patterns.</p>
+<p>Mercury streams use the temporary folder at "/tmp/node/streams" folder to hold data blocks.
+The temporary data blocks are cleaned once they are read by a function.</p>
+<p>In your functions, you can send/receive JSON object, bytes (<code>Buffer</code>) and text (<code>string</code>) with the object stream system.</p>
+<p>For REST automation, it uses only Buffer and string.</p>
+<h2 id="orchestration-layer">Orchestration layer</h2>
+<p>Once you have implemented modular functions in a self-contained manner, the best practice is to write one or more
+functions to do "event orchestration".</p>
+<p>Think of the orchestration function as a music conductor who guides the whole team to perform.</p>
+<p>For event orchestration, your function can be the "conductor" that sends events to the individual functions so that
+they operate together as a single application. To simplify design, the best practice is to apply event orchestration
+for each transaction or use case. The event orchestration function also serves as a living documentation about how
+your application works. It makes your code more readable.</p>
+<h2 id="event-script">Event Script</h2>
+<p>For more sophisticated application design, you may use the Event Script engine in the
+<a href="https://accenture.github.io/mercury-composable/">Mercury-Composable</a> project to do event choreography for your
+composable functions in your Node.js application.</p>
+<p><br/></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Chapter-3</th>
+<th style="text-align: center;">Home</th>
+<th style="text-align: center;">Chapter-5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><a href="../CHAPTER-3/">REST automation</a></td>
+<td style="text-align: center;"><a href="../TABLE-OF-CONTENTS/">Table of Contents</a></td>
+<td style="text-align: center;"><a href="../CHAPTER-5/">Event over HTTP</a></td>
+</tr>
+</tbody>
+</table>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../CHAPTER-3/" class="btn btn-neutral float-left" title="Chapter-3"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../CHAPTER-5/" class="btn btn-neutral float-right" title="Chapter-5">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../CHAPTER-3/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../CHAPTER-5/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

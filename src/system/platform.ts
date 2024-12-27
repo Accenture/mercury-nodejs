@@ -62,30 +62,35 @@ export class Platform {
     }
 
     /**
-     * Register a function with a route name.
+     * Register a composable class with a route name.
      * 
-     * Your function will be registered as PRIVATE unless you set isPrivate=false.
-     * PUBLIC functions are reachable by a peer from the Event API Endpoint "/api/event".
-     * PRIVATE functions are invisible outside the current application instance. 
-     * INTERCEPTOR functions' return values are ignored because they are designed to forward events themselves.
+     * Your composable function will be registered as PRIVATE unless you set isPrivate=false.
+     * PUBLIC function is reachable by a peer from the Event API Endpoint "/api/event".
+     * PRIVATE function is invisible outside the current application instance. 
+     * INTERCEPTOR function's return value is ignored because it is designed to forward events.
      * 
-     * Note that the listener should be ideally an asynchronous function or a function that returns a promise.
-     * However, the system would accept regular function too.
+     * Note that the class must implement the Composable interface
+     * and the handleEvent function should be an asynchronous function or a function that returns a promise.
      * 
-     * The 'void' return type in the listener is used in typescipt compile time only. 
-     * It is safe for the function to return value as a primitive value, JSON object, an EventEnvelope.
-     * 
-     * Your function can throw an Error or an AppException.
+     * The handleEvent function can throw an Error or an AppException.
      * With AppException, you can set status code and message.
      * 
      * @param route name
-     * @param listener function with EventEnvelope as input
+     * @param composable class implementing the initialize and handleEvent methods
+     * @param instances number of workers for this function
      * @param isPrivate true or false
      * @param isInterceptor true or false
-     * @param instances number of workers for this function
      */
-    register(route: string, listener: (evt: EventEnvelope) => void, isPrivate = true, instances=1, isInterceptor=false): void {
-        self.register(route, listener, isPrivate, instances, isInterceptor);
+    register(route: string, composable: object, instances=1, isPrivate = true, isInterceptor=false): void {
+        if ('initialize' in composable && 'handleEvent' in composable &&
+            composable.initialize instanceof Function && composable.handleEvent instanceof Function) {
+                if (!registry.exists(route)) {
+                    composable.initialize();
+                }                
+                self.register(route, composable.handleEvent, instances, isPrivate, isInterceptor);
+        } else {
+            throw new Error(`Unable to register ${route} because the given function is not a Composable`);
+        }       
     }
 
     /**
@@ -142,7 +147,7 @@ class ServiceManager {
     private workers = [];
     private signature: string;
 
-    constructor(route: string, listener, isPrivate=false, instances=1, interceptor=false) {
+    constructor(route: string, listener: object, instances=1, isPrivate=false, interceptor=false) {
         if (!route) {
             throw new Error('Missing route');
         }
@@ -441,15 +446,15 @@ class EventSystem {
         log.info(`Event system started - ${po.getId()}`);
         const tracer = new DistributedTrace().initialize();
         const httpClient = new AsyncHttpClient().initialize();
-        this.register(DistributedTrace.name, tracer.handleEvent, true, 1, true);
-        this.register(AsyncHttpClient.name, httpClient.handleEvent, true, 200, true);
+        this.register(DistributedTrace.name, tracer.handleEvent, 1, true, true);
+        this.register(AsyncHttpClient.name, httpClient.handleEvent, 200, true, true);
     }
 
     getOriginId(): string {
         return po.getId();
     }
 
-    register(route: string, listener: (evt: EventEnvelope) => void, isPrivate=true, instances=1, interceptor=false): void {
+    register(route: string, listener: object, instances=1, isPrivate=true, interceptor=false): void {
         if (route) {
             if (!util.validRouteName(route)) {
                 throw new Error('Invalid route name - use 0-9, a-z, period, hyphen or underscore characters');
@@ -459,7 +464,7 @@ class EventSystem {
                     log.warn(`Reloading ${route} service`);
                     this.release(route);
                 }
-                new ServiceManager(route, listener, isPrivate, instances, interceptor);
+                new ServiceManager(route, listener, instances, isPrivate, interceptor);
                 this.services.set(route, {"private": isPrivate, "instances": instances, "interceptor": interceptor});
             } else {
                 throw new Error('Invalid listener function');

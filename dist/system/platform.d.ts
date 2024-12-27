@@ -1,4 +1,3 @@
-import { EventEnvelope } from '../models/event-envelope.js';
 export declare class Platform {
     private static singleton;
     private constructor();
@@ -12,29 +11,26 @@ export declare class Platform {
     getName(): string;
     getStartTime(): Date;
     /**
-     * Register a function with a route name.
+     * Register a composable class with a route name.
      *
-     * Your function will be registered as PRIVATE unless you set isPrivate=false.
-     * PUBLIC functions are reachable by a peer from the Event API Endpoint "/api/event".
-     * PRIVATE functions are invisible outside the current application instance.
-     * INTERCEPTOR functions' return values are ignored because they are designed to forward events themselves.
+     * Your composable function will be registered as PRIVATE unless you set isPrivate=false.
+     * PUBLIC function is reachable by a peer from the Event API Endpoint "/api/event".
+     * PRIVATE function is invisible outside the current application instance.
+     * INTERCEPTOR function's return value is ignored because it is designed to forward events.
      *
-     * Note that the listener should be ideally an asynchronous function or a function that returns a promise.
-     * However, the system would accept regular function too.
+     * Note that the class must implement the Composable interface
+     * and the handleEvent function should be an asynchronous function or a function that returns a promise.
      *
-     * The 'void' return type in the listener is used in typescipt compile time only.
-     * It is safe for the function to return value as a primitive value, JSON object, an EventEnvelope.
-     *
-     * Your function can throw an Error or an AppException.
+     * The handleEvent function can throw an Error or an AppException.
      * With AppException, you can set status code and message.
      *
      * @param route name
-     * @param listener function with EventEnvelope as input
+     * @param composable class implementing the initialize and handleEvent methods
+     * @param instances number of workers for this function
      * @param isPrivate true or false
      * @param isInterceptor true or false
-     * @param instances number of workers for this function
      */
-    register(route: string, listener: (evt: EventEnvelope) => void, isPrivate?: boolean, instances?: number, isInterceptor?: boolean): void;
+    register(route: string, composable: object, instances?: number, isPrivate?: boolean, isInterceptor?: boolean): void;
     /**
      * Release a previously registered function
      *

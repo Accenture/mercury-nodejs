@@ -1,5 +1,6 @@
 import { Logger } from '../util/logger.js';
 import { Utility } from '../util/utility.js';
+import { Composable } from '../models/composable.js';
 import { Platform } from './platform.js';
 import { PostOffice } from './post-office.js';
 import { ObjectStreamIO, ObjectStreamWriter, ObjectStreamReader } from './object-stream.js';
@@ -112,11 +113,18 @@ export class RestAutomation {
     }
 }
 
-async function housekeeper(evt: EventEnvelope) {
-    if ('close' == evt.getHeader('type')) {
-        if (self) {
-            await self.close();
+class HouseKeeper implements Composable {
+    initialize(): HouseKeeper { 
+        return this;
+    }
+
+    async handleEvent(evt: EventEnvelope) {
+        if ('close' == evt.getHeader('type')) {
+            if (self) {
+                await self.close();
+            }
         }
+        return null;
     }
 }
 
@@ -143,11 +151,9 @@ class RestEngine {
             let restEnabled = false;
             const platform = Platform.getInstance();
             // preload Actuator and Event-over-HTTP services
-            const actuator = new ActuatorServices().initialize();
-            const eventApiService = new EventApiService().initialize();
-            platform.register(ActuatorServices.name, actuator.handleEvent, true, 10);  
-            platform.register(EventApiService.name, eventApiService.handleEvent, true, 200);
-            platform.register(REST_AUTOMATION_MANAGER, housekeeper);
+            platform.register(ActuatorServices.name, new ActuatorServices(), 10);
+            platform.register(EventApiService.name,  new EventApiService(), 200);
+            platform.register(REST_AUTOMATION_MANAGER, new HouseKeeper());
             const config = AppConfig.getInstance().getReader();
             const router = new RoutingEntry();
             // initialize router and load configuration

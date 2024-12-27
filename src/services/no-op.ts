@@ -1,6 +1,5 @@
-import { Composable } from '../models/composable.js';
 import { EventEnvelope } from '../models/event-envelope.js';
-import { preload } from '../models/composable.js'
+import { Composable, preload } from '../models/composable.js'
 
 export class NoOp implements Composable {
 

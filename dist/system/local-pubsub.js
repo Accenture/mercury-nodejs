@@ -7,16 +7,22 @@ const log = Logger.getInstance();
 let platform = null;
 const util = new Utility();
 const topics = new Map();
-async function publisher(evt) {
-    const po = new PostOffice(evt.getHeaders());
-    const myTopic = evt.getHeader('my_route');
-    const members = topics.get(myTopic);
-    if (members && members.length > 0) {
-        members.forEach(m => {
-            if (po.exists(m)) {
-                po.send(new EventEnvelope(evt).setTo(m));
-            }
-        });
+class LocalPublisher {
+    initialize() {
+        return this;
+    }
+    async handleEvent(evt) {
+        const po = new PostOffice(evt.getHeaders());
+        const myTopic = evt.getHeader('my_route');
+        const members = topics.get(myTopic);
+        if (members && members.length > 0) {
+            members.forEach(m => {
+                if (po.exists(m)) {
+                    po.send(new EventEnvelope(evt).setTo(m));
+                }
+            });
+        }
+        return null;
     }
 }
 export class LocalPubSub {
@@ -33,7 +39,7 @@ export class LocalPubSub {
             topics.set(topic, []);
             log.info(`Topic ${topic} created`);
         }
-        platform.register(topic, publisher, true, 1, true);
+        platform.register(topic, new LocalPublisher(), 1, true, true);
     }
     deleteTopic(topic) {
         if (topic && topic.length > 0) {

@@ -1,6 +1,7 @@
 import fs from 'fs';
 import { Logger } from '../util/logger.js';
 import { Utility } from '../util/utility.js';
+import { Composable } from '../models/composable.js';
 import { Platform } from './platform.js';
 import { PostOffice } from './post-office.js';
 import { EventEnvelope } from '../models/event-envelope.js';
@@ -8,7 +9,6 @@ import { EventEnvelope } from '../models/event-envelope.js';
 const log = Logger.getInstance();
 const util = new Utility();
 const po = new PostOffice();
-let platform: Platform = null;
 
 const streams = new Map<string, StreamInfo>();
 
@@ -25,20 +25,80 @@ const DEFAULT_TIMEOUT = 30 * 60; // 30 minutes
 const OBJECT_STREAM_MANAGER = "object.stream.manager";
 const RPC = "rpc";
 
-async function housekeeper(evt: EventEnvelope) {
-    if (CLOSE == evt.getHeader(TYPE)) {
-        const keys = Array.from(streams.keys());     
-        if (keys.length > 0) {
-            for (const k of keys) {
-                const stream = streams.get(k);
-                if (stream) {
-                    stream.close();
+class HouseKeeper implements Composable {
+    initialize(): HouseKeeper { 
+        return this;
+    }
+
+    async handleEvent(evt: EventEnvelope) {
+        if (CLOSE == evt.getHeader(TYPE)) {
+            const keys = Array.from(streams.keys());     
+            if (keys.length > 0) {
+                for (const k of keys) {
+                    const stream = streams.get(k);
+                    if (stream) {
+                        stream.close();
+                    }
                 }
+                const s = keys.length == 1? '' : 's';
+                log.info(`Total ${keys.length} outstanding stream${s} released`);
             }
-            const s = keys.length == 1? '' : 's';
-            log.info(`Total ${keys.length} outstanding stream${s} released`);
+        }
+        return null;
+    }
+}
+
+function getIdFromRoute(route: string): string {
+    if (route) {
+        const parts = route.split('.');
+        if (parts.length > 2) {
+            return parts[1];
         }
     }
+    return null;
+}
+
+async function fetchNextBlock(replyTo: string, stream: StreamInfo, timeout: number) {
+    const begin = new Date().getTime();
+    let now = begin;
+    let n = 0;
+    while (now - begin < timeout) {
+        if (stream.write_count >= stream.read_count) {                
+            const filename = TEMP_DIR + '/' + stream.id + '-' + stream.read_count;
+            const exists = fs.existsSync(filename);
+            if (exists) {
+                const data = await fs.promises.readFile(filename);
+                if (data) {                            
+                    stream.read_count++;                                               
+                    fs.promises.unlink(filename);
+                    const block = new EventEnvelope(data);
+                    if (DATA == block.getHeader(TYPE)) {
+                        stream.touch();
+                        po.send(new EventEnvelope().setTo(replyTo).setHeader(TYPE, DATA).setBody(block.getBody()));
+                        return;
+                    } else if (END_OF_STREAM == block.getHeader(TYPE)) {
+                        // EOF detected
+                        stream.eof_read = true;
+                        po.send(new EventEnvelope().setTo(replyTo).setHeader(TYPE, END_OF_STREAM));
+                        return;
+                    }
+                }
+            }
+        }
+        //
+        // Since file I/O is asynchronous, it is possible that newly written file is not immediately available.
+        //
+        // Furthermore, object streaming may also be used in "continuous" mode where the publisher keeps
+        // the output stream active. Therefore, the consumer must wait for the next data block until the
+        // data block arrives or when read timeout occurs.
+        //
+        // The retry mechanism includes faster cycles for the first 5 retries where the first retry
+        // is in the next tick of the event loop.
+        //
+        await util.sleep(n < 5? 10 * n : 100);
+        n++;
+        now = new Date().getTime();
+    } 
 }
 
 export class ObjectStreamIO {
@@ -58,16 +118,13 @@ export class ObjectStreamIO {
     constructor(expirySeconds = DEFAULT_TIMEOUT) {
         const expiry = Math.max(1, parseInt(String(expirySeconds)));
         const id = util.getUuid();
-        if (platform == null) {
-            platform = Platform.getInstance();
-            util.mkdirsIfNotExist(TEMP_DIR);
-            platform.register(OBJECT_STREAM_MANAGER, housekeeper);
-        }        
-        const worker = new StreamWorker();
+        const platform = Platform.getInstance();
+        util.mkdirsIfNotExist(TEMP_DIR);
+        platform.register(OBJECT_STREAM_MANAGER, new HouseKeeper());               
         this.streamIn = STREAM_PREFIX + id + IN;
         this.streamOut = STREAM_PREFIX + id + OUT;
-        platform.register(this.streamIn, worker.consumer, true, 1, true);
-        platform.register(this.streamOut, worker.publisher);
+        platform.register(this.streamIn, new StreamConsumer(), 1, true, true);
+        platform.register(this.streamOut, new StreamPublisher());
         streams.set(id, new StreamInfo(expiry, id));
         const elapsed = util.getElapsedTime(expiry * 1000);
         log.info(`Stream ${id} created, idle expiry ${elapsed}`);
@@ -204,63 +261,13 @@ export class ObjectStreamReader {
 
 }
 
-class StreamWorker {
-
-    static getIdFromRoute(route: string): string {
-        if (route) {
-            const parts = route.split('.');
-            if (parts.length > 2) {
-                return parts[1];
-            }
-        }
-        return null;
+class StreamPublisher implements Composable {
+    initialize(): StreamPublisher { 
+        return this;
     }
 
-    static async fetchNextBlock(replyTo: string, stream: StreamInfo, timeout: number) {
-        const begin = new Date().getTime();
-        let now = begin;
-        let n = 0;
-        while (now - begin < timeout) {
-            if (stream.write_count >= stream.read_count) {                
-                const filename = TEMP_DIR + '/' + stream.id + '-' + stream.read_count;
-                const exists = fs.existsSync(filename);
-                if (exists) {
-                    const data = await fs.promises.readFile(filename);
-                    if (data) {                            
-                        stream.read_count++;                                               
-                        fs.promises.unlink(filename);
-                        const block = new EventEnvelope(data);
-                        if (DATA == block.getHeader(TYPE)) {
-                            stream.touch();
-                            po.send(new EventEnvelope().setTo(replyTo).setHeader(TYPE, DATA).setBody(block.getBody()));
-                            return;
-                        } else if (END_OF_STREAM == block.getHeader(TYPE)) {
-                            // EOF detected
-                            stream.eof_read = true;
-                            po.send(new EventEnvelope().setTo(replyTo).setHeader(TYPE, END_OF_STREAM));
-                            return;
-                        }
-                    }
-                }
-            }
-            //
-            // Since file I/O is asynchronous, it is possible that newly written file is not immediately available.
-            //
-            // Furthermore, object streaming may also be used in "continuous" mode where the publisher keeps
-            // the output stream active. Therefore, the consumer must wait for the next data block until the
-            // data block arrives or when read timeout occurs.
-            //
-            // The retry mechanism includes faster cycles for the first 5 retries where the first retry
-            // is in the next tick of the event loop.
-            //
-            await util.sleep(n < 5? 10 * n : 100);
-            n++;
-            now = new Date().getTime();
-        } 
-    }
-
-    async publisher(evt: EventEnvelope) {
-        const id = StreamWorker.getIdFromRoute(evt.getHeader('my_route'));
+    async handleEvent(evt: EventEnvelope) {
+        const id = getIdFromRoute(evt.getHeader('my_route'));
         if (id) {
             const stream = streams.get(id);
             if (stream) {
@@ -285,20 +292,26 @@ class StreamWorker {
         }
         return false;
     }
+}
+
+class StreamConsumer implements Composable {
+    initialize(): StreamConsumer { 
+        return this;
+    }
     
-    async consumer(evt: EventEnvelope) {
+    async handleEvent(evt: EventEnvelope) {
         const rpcTag = evt.getTag(RPC);
         const readTimeout = rpcTag? util.str2int(rpcTag) : 1000;
         const replyTo = evt.getReplyTo();
         if (replyTo) {   
-            const id = StreamWorker.getIdFromRoute(evt.getHeader('my_route'));
+            const id = getIdFromRoute(evt.getHeader('my_route'));
             const stream = streams.get(id);
             if (stream) {
                 if (READ == evt.getHeader(TYPE)) {
                     if (stream.eof_read) {
                         po.send(new EventEnvelope().setTo(replyTo).setHeader(TYPE, END_OF_STREAM));
                     } else {
-                        await StreamWorker.fetchNextBlock(replyTo, stream, readTimeout);
+                        await fetchNextBlock(replyTo, stream, readTimeout);
                     }
                 }
                 if (CLOSE == evt.getHeader(TYPE)) {
@@ -311,6 +324,7 @@ class StreamWorker {
                 }
             }
         }
+        return null;
     }
 }
 
@@ -380,6 +394,7 @@ class StreamInfo {
                 log.warn(`Deleted ${count} unread block${s} from stream ${this.id}`);
             }
             // release the input and output stream services
+            const platform = Platform.getInstance();
             platform.release(this.streamIn);
             platform.release(this.streamOut);
         }

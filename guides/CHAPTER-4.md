@@ -44,21 +44,19 @@ You can set the number of instances from 1 to 500.
 Once a function is created using the declarative method, you can override it with a mock function by using the
 programmatic approach in a unit test.
 
-In programmatic approach, you can register a function like this:
+In programmatic approach, you can register a composable class like this:
 
 ```javascript
 const platform = Platform.getInstance();
-const helloWorld = new HelloWorld().initialize();
-platform.register('my.function', helloWorld.handleEvent, true, 10);
+platform.register('my.function', new HelloWorld(), 10);
 ```
 
 In the above example, You obtain a singleton instance of the Platform API class and use it to register
-the `handleEvent` method of the HelloWorld.ts class with a route name `my.function` and up to 10
-concurrent worker instances. Note that you must not use the `preload` annotation in the initialize()
-method if you want to register the function programmatically.
+the HelloWorld.ts class with a route name `my.function` and up to 10 concurrent worker instances.
+Note that the class must implement the `Composable` interface and you must not use the `preload` annotation
+in the initialize() method if you want to register the function programmatically.
 
-In both declarative and programmatic approaches, your function must implement the `Composable` interface which
-enforces the initialize and handleEvent methods. Optionally, the initialize method may contain additional setup
+In both declarative and programmatic approaches, the initialize method may contain additional setup
 code for your function.
 
 ## Private vs public functions

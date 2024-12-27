@@ -17,7 +17,7 @@ async function main() {
     for (let i=1; i <= 10; i++) {
         po.send(new EventEnvelope().setTo(HELLO_WORLD).setHeader('n', String(i)).setBody(TEST_MESSAGE + ' ' + i));
     }
-    log.info('Demo application completed <--- this will show before the events are processed');
+    log.info('Demo application completed <--- this will show first');
     // keep the server running
     const platform = Platform.getInstance();
     platform.runForever();

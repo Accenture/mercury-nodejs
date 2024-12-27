@@ -1,4 +1,5 @@
 import { Logger } from '../src/util/logger.js';
+import { Composable } from '../src/models/composable.js';
 import { FunctionRegistry } from '../src/util/function-registry.js';
 import { PostOffice } from '../src/system/post-office.js';
 import { Platform } from '../src/system/platform.js';
@@ -51,75 +52,166 @@ let baseUrl: string;
 let resourcePath: string;
 let apiCount = 0;
 
-async function helloDownload(evt: EventEnvelope) {
-  const request = new AsyncHttpRequest(evt.getBody() as object);
-  if ('GET' != request.getMethod()) {
-    throw new AppException(400, 'Download must be GET method');
-  }
-  const stream = new ObjectStreamIO();
-  const out = new ObjectStreamWriter(stream.getOutputStreamId());
-  out.write('hello world\n');
-  out.write('end');
-  out.close();
-  return new EventEnvelope().setHeader(STREAM_CONTENT, stream.getInputStreamId())
-              .setHeader('content-type', 'application/octet-stream');
-}
-
-async function simpleAuth(evt: EventEnvelope) {
-  const req = new AsyncHttpRequest(evt.getBody() as object);
-  const authorized = "demo" == req.getHeader("authorization");
-  const method = req.getMethod();
-  const url = req.getUrl();
-  log.info(`Perform API authentication for ${method} ${url}`);
-  //
-  // This is a test. When authorization=demo, it will approve the request.
-  // When function returns false, the system will send "HTTP-401 Unauthorized" to the caller.
-  //
-  return new EventEnvelope().setBody(authorized).setHeader('user', 'demo');
-} 
-
-async function demoHealth(evt: EventEnvelope) {
-  const command = evt.getHeader('type');
-  if (command == 'info') {
-    return {'service': 'demo.service', 'href': 'http://127.0.0.1'};
-  }
-  if (command == 'health') {
-    // this is a dummy health check
-    return {'status': 'demo.service is running fine'};
-  }
-  throw new AppException(400, 'Request type must be info or health');
-}
-
-async function demoInterceptor(evt: EventEnvelope) {
-  const myRoute = evt.getHeader('my_route');
-  //
-  // Service interceptor does not need to have a "return" value.
-  //
-  // Usually, an interceptor will validate and forward the incoming event to another function.
-  // For this unit test, this function will use the po.send method to return result to the caller.
-  //
-  const replyTo = evt.getReplyTo();
-  if (replyTo) {
-    log.info(`Interceptor ${myRoute} finds reply_to address as ${replyTo}`);
-    const po = new PostOffice(evt.getHeaders());
-    const response = new EventEnvelope().setBody(evt.getBody()).setTo(replyTo).setCorrelationId(evt.getCorrelationId());
-    const cid = evt.getCorrelationId();
-    if (cid) {
-      log.info(`Interceptor ${myRoute} finds corelation_id as ${cid}`);
-      response.setCorrelationId(cid);
-    }
-    po.send(response);
-  } else {
-    log.info(`Interceptor ${myRoute} does not respond because there is no reply_to address`);
-  }
-}
-
 function getRootFolder() {
   const folder = fileURLToPath(new URL("..", import.meta.url));
   // for windows OS, convert backslash to regular slash and drop drive letter from path
   const path = folder.includes('\\')? folder.replaceAll('\\', '/') : folder;
   const colon = path.indexOf(':');
   return colon == 1? path.substring(colon+1) : path;
+}
+
+class HelloDownload implements Composable {
+  initialize(): HelloDownload {
+    return this;
+  }
+  async handleEvent(evt: EventEnvelope) {
+    const request = new AsyncHttpRequest(evt.getBody() as object);
+    if ('GET' != request.getMethod()) {
+      throw new AppException(400, 'Download must be GET method');
+    }
+    const stream = new ObjectStreamIO();
+    const out = new ObjectStreamWriter(stream.getOutputStreamId());
+    out.write('hello world\n');
+    out.write('end');
+    out.close();
+    return new EventEnvelope().setHeader(STREAM_CONTENT, stream.getInputStreamId())
+                .setHeader('content-type', 'application/octet-stream');
+  }
+}
+
+class DemoHealth implements Composable {
+  initialize(): DemoHealth {
+    return this;
+  }
+  async handleEvent(evt: EventEnvelope) {
+    const command = evt.getHeader('type');
+    if (command == 'info') {
+      return {'service': 'demo.service', 'href': 'http://127.0.0.1'};
+    }
+    if (command == 'health') {
+      // this is a dummy health check
+      return {'status': 'demo.service is running fine'};
+    }
+    throw new AppException(400, 'Request type must be info or health');
+  }
+}
+
+class DemoInterceptor implements Composable {
+  initialize(): DemoInterceptor {
+    return this;
+  }
+
+  async handleEvent(evt: EventEnvelope) {
+    const myRoute = evt.getHeader('my_route');
+    //
+    // Service interceptor does not need to have a "return" value.
+    //
+    // Usually, an interceptor will validate and forward the incoming event to another function.
+    // For this unit test, this function will use the po.send method to return result to the caller.
+    //
+    const replyTo = evt.getReplyTo();
+    if (replyTo) {
+      log.info(`Interceptor ${myRoute} finds reply_to address as ${replyTo}`);
+      const po = new PostOffice(evt.getHeaders());
+      const response = new EventEnvelope().setBody(evt.getBody()).setTo(replyTo).setCorrelationId(evt.getCorrelationId());
+      const cid = evt.getCorrelationId();
+      if (cid) {
+        log.info(`Interceptor ${myRoute} finds corelation_id as ${cid}`);
+        response.setCorrelationId(cid);
+      }
+      po.send(response);
+    } else {
+      log.info(`Interceptor ${myRoute} does not respond because there is no reply_to address`);
+    }
+    return null;
+  }
+}
+
+class SimpleAuth implements Composable {
+  initialize(): SimpleAuth {
+    return this;
+  }
+  async handleEvent(evt: EventEnvelope) {
+    const req = new AsyncHttpRequest(evt.getBody() as object);
+    const authorized = "demo" == req.getHeader("authorization");
+    const method = req.getMethod();
+    const url = req.getUrl();
+    log.info(`Perform API authentication for ${method} ${url}`);
+    //
+    // This is a test. When authorization=demo, it will approve the request.
+    // When function returns false, the system will send "HTTP-401 Unauthorized" to the caller.
+    //
+    return new EventEnvelope().setBody(authorized).setHeader('user', 'demo');
+  }
+}
+
+class HelloBff implements Composable {
+  initialize(): HelloBff {
+    return this;
+  }
+
+  handleEvent(evt: EventEnvelope): Promise<object> {
+    // you can create a service as a Promise too
+    return new Promise((resolve, reject) => {
+      const req = new AsyncHttpRequest(evt.getBody() as object);
+      if (req.getMethod()) {
+        resolve(req.toMap());
+      } else {
+        reject(new Error(NOT_HTTP_REQUEST));
+      }
+    });
+  }
+}
+
+class MyCallBackOne implements Composable {
+  static name = 'my.callback.1';
+  static result: string = '';
+
+  initialize(): MyCallBackOne {
+    return this;
+  }
+
+  async handleEvent(evt: EventEnvelope) {
+    MyCallBackOne.result = String(evt.getBody());
+    return null;
+  }
+}
+
+class MyCallBackTwo implements Composable {
+  static name = 'my.callback.2';
+  static result = new Map<number, EventEnvelope>();
+  static count = 0;
+
+  initialize(): MyCallBackTwo {
+    return this;
+  }
+
+  async handleEvent(evt: EventEnvelope) {
+    MyCallBackTwo.result.set(++MyCallBackTwo.count, evt);
+    return null;
+  }
+}
+
+class TraceForwarder implements Composable {
+  static traceId = util.getUuid();
+  static tracePath = 'PUT /api/demo/test';
+  static traceStack: Array<object> = [];
+
+  initialize(): TraceForwarder {
+    return this;
+  }
+
+  async handleEvent(evt: EventEnvelope) {
+    const payload = evt.getBody() as object;
+    if ('trace' in payload) {
+      const metrics = payload['trace'] as object;
+      // ignore trace metrics from other unit tests
+      if (TraceForwarder.traceId == metrics['id']) {
+        TraceForwarder.traceStack.push(metrics);
+      }
+    }
+    return null;
+  }
 }
 
 describe('post office use cases', () => {
@@ -129,36 +221,27 @@ describe('post office use cases', () => {
       // AppConfig should be initialized with base configuration parameter when the Platform object is loaded
       const appConfig = AppConfig.getInstance(resourcePath).getReader();
       // save the helloWorld as DEMO_LIBRARY_FUNCTION so that it can be retrieved by name
-      const helloWorld = new HelloWorld().initialize();
+      const helloWorld = new HelloWorld();
       registry.saveFunction(HelloWorld.name, helloWorld, 1, false, false);
       platform = Platform.getInstance();
       // register a hello.world function to echo the incoming payload
-      platform.register(HELLO_WORLD_SERVICE, helloWorld.handleEvent, false, HELLO_WORLD_INSTANCES);
+      platform.register(HELLO_WORLD_SERVICE, helloWorld, HELLO_WORLD_INSTANCES, false);
       // register the same function as another route name and declare it as private
-      platform.register(HELLO_PRIVATE_SERVICE, helloWorld.handleEvent, true, 1);
+      platform.register(HELLO_PRIVATE_SERVICE, helloWorld);
       // you can create a service as a Promise too
-      platform.register(HELLO_BFF_SERVICE, (evt: EventEnvelope) => {
-        return new Promise((resolve, reject) => {
-          const req = new AsyncHttpRequest(evt.getBody() as object);
-          if (req.getMethod()) {
-            resolve(req.toMap());
-          } else {
-            reject(new Error(NOT_HTTP_REQUEST));
-          }
-        });
-      });
-      platform.register(HELLO_DOWNLOAD, helloDownload);
+      platform.register(HELLO_BFF_SERVICE, new HelloBff());
+      platform.register(HELLO_DOWNLOAD, new HelloDownload());
       // register a demo health check
-      platform.register(DEMO_HEALTH_SERVICE, demoHealth);
+      platform.register(DEMO_HEALTH_SERVICE, new DemoHealth());
       // register the demo interceptor function
-      platform.register(HELLO_INTERCEPTOR_SERVICE, demoInterceptor, true, 1, true);
+      platform.register(HELLO_INTERCEPTOR_SERVICE, new DemoInterceptor(), 1, true, true);
       appConfig.set('health.dependencies', 'demo.health');
       // the "server.port" parameter will be retrieved from the base configuration (AppConfig)
       const configMap = {'event.api.url': 'http://127.0.0.1:${server.port:8080}/api/event', 'base.url': 'http://127.0.0.1:${server.port:8080}'}
       const reader = new ConfigReader(configMap);
       endApiUrl = reader.getProperty('event.api.url');
       baseUrl = reader.getProperty('base.url');
-      platform.register(API_AUTH_SERVICE, simpleAuth);
+      platform.register(API_AUTH_SERVICE, new SimpleAuth());
       // test streaming I/O
       const stream = new ObjectStreamIO();
       const outputId = stream.getOutputStreamId();
@@ -300,58 +383,43 @@ describe('post office use cases', () => {
     });
 
     it('can reply to a callback', async () => {
-      const MY_CALLBACK = "my.callback.1";
-      let callbackResult: string = '';
-        platform.register(MY_CALLBACK, (evt: EventEnvelope) => {
-          callbackResult = String(evt.getBody());
-          return null;
-        });
+        const callback = new MyCallBackOne();
+        platform.register(MyCallBackOne.name, callback);
         const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': '333', 'my_trace_path': 'TEST /demo/callback'});
         // send a request to hello.world and set the replyTo address as my.callback
-        const request = new EventEnvelope().setTo(HELLO_WORLD_SERVICE).setBody(TEST_MESSAGE).setReplyTo(MY_CALLBACK);
+        const request = new EventEnvelope().setTo(HELLO_WORLD_SERVICE).setBody(TEST_MESSAGE).setReplyTo(MyCallBackOne.name);
         po.send(request);
         // since it is asynchronous, we will wait up to 5 seconds for the callback result
         for (let i=0; i < 100; i++) {
           await util.sleep(50);
-          if (callbackResult.length > 0) {
+          if (MyCallBackOne.result.length > 0) {
             break;
           }
         }
-        expect(callbackResult).toBe(TEST_MESSAGE);
+        expect(MyCallBackOne.result).toBe(TEST_MESSAGE);
         // the call back function is used once
-        platform.release(MY_CALLBACK);     
+        platform.release(MyCallBackOne.name);     
     });
     
     it('can catch all traces with a distributed trace forwarder', async () => {
-      const traceId = util.getUuid();
-      const tracePath = 'PUT /api/demo/test';
-      let traceStack: Array<object> = [];
-      platform.register(DISTRIBUTED_TRACE_FORWARDER, (evt: EventEnvelope) => {
-          const payload = evt.getBody() as object;
-          if ('trace' in payload) {
-            const metrics = payload['trace'] as object;
-            // ignore trace metrics from other unit tests
-            if (traceId == metrics['id']) {
-              traceStack.push(metrics);
-            }
-          }
-          return null;
-        });
-        const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': traceId, 'my_trace_path': tracePath});
+        const forwarder = new TraceForwarder();
+        platform.register(DISTRIBUTED_TRACE_FORWARDER, forwarder);
+        const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': TraceForwarder.traceId, 
+                                    'my_trace_path': TraceForwarder.tracePath});
         const request = new EventEnvelope().setTo(HELLO_WORLD_SERVICE).setBody(TEST_MESSAGE);
         const result = await po.request(request, 3000);      
         expect(result.getBody()).toBe(TEST_MESSAGE);
         // since it is asynchronous, we will wait up to 5 seconds for the callback result
         for (let i=0; i < 100; i++) {
           await util.sleep(50);
-          if (traceStack.length > 0) {
+          if (TraceForwarder.traceStack.length > 0) {
             break;
           }
         }        
-        expect(traceStack.length).toBe(1);
-        const metrics: object = traceStack[0];
-        expect(metrics['id']).toBe(traceId);
-        expect(metrics['path']).toBe(tracePath);
+        expect(TraceForwarder.traceStack.length).toBe(1);
+        const metrics: object = TraceForwarder.traceStack[0];
+        expect(metrics['id']).toBe(TraceForwarder.traceId);
+        expect(metrics['path']).toBe(TraceForwarder.tracePath);
         expect(metrics['from']).toBe(UNIT_TEST);
         expect(metrics['service']).toBe(HELLO_WORLD_SERVICE);
         expect(metrics['success']).toBe(true);
@@ -360,44 +428,37 @@ describe('post office use cases', () => {
     });
 
     it('can deliver events orderly', async () => {
-      const MY_CALLBACK = "my.callback.2";
-      let count = 0;
-      let callbackResult = new Map<number, EventEnvelope>();
-      platform.register(MY_CALLBACK, (evt: EventEnvelope) => {
-        expect(evt.getTo()).toBe(MY_CALLBACK);
-        // system provided metadata. "my_instance" must be "1" with default parameter (instances=1)
-        expect(evt.getHeader('my_route')).toBe(MY_CALLBACK);
-        expect(evt.getHeader('my_instance')).toBe('1');
-        callbackResult.set(++count, evt);
-        return null;
-      });
-      const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': 123, 'my_trace_path': '/test/queuing'});
-      // send a request to hello.world and set the replyTo address as my.callback
-      
-      for (let i=1; i <= TEST_CYCLES; i++) {
-        const request = new EventEnvelope().setTo(HELLO_WORLD_SERVICE).setBody(TEST_MESSAGE+' '+i).setReplyTo(MY_CALLBACK);
-        po.send(request);
-      }
-      // since it is asynchronous, we will wait up to 5 seconds for all callback results
-      for (let i=0; i < 100; i++) {
-        await util.sleep(50);
-        if (count == TEST_CYCLES) {
-          break;
+        const callback = new MyCallBackTwo();
+        platform.register(MyCallBackTwo.name, callback);
+        const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': 123, 'my_trace_path': '/test/queuing'});
+        // send a request to hello.world and set the replyTo address as my.callback        
+        for (let i=1; i <= TEST_CYCLES; i++) {
+          const request = new EventEnvelope().setTo(HELLO_WORLD_SERVICE).setBody(TEST_MESSAGE+' '+i).setReplyTo(MyCallBackTwo.name);
+          po.send(request);
         }
-      }
-      expect(count).toBe(TEST_CYCLES);
-      // verify that the events are delivered orderly
-      for (let i=1; i <= count; i++) {
-        const event = callbackResult.get(i);
-        // There are a total of 5 workers of "hello.world".
-        // Two workers are engaged for the "timeout" unit test earlier.
-        // Therefore, the events will be distributed among the remaining 3 workers.
-        // This demonstrates that the workers are working in a non-blocking fashion.
-        log.info({'received': {'header': event?.getHeaders(), 'body': event?.getBody()}});
-        expect(event?.getBody()).toBe(TEST_MESSAGE+' '+i);
-      }
-      // the call back function is used once
-      platform.release(MY_CALLBACK);
+        // since it is asynchronous, we will wait up to 5 seconds for all callback results
+        for (let i=0; i < 100; i++) {
+          await util.sleep(50);
+          if (MyCallBackTwo.count == TEST_CYCLES) {
+            break;
+          }
+        }
+        expect(MyCallBackTwo.count).toBe(TEST_CYCLES);
+        // verify that the events are delivered orderly
+        for (let i=1; i <= MyCallBackTwo.count; i++) {
+          const event = MyCallBackTwo.result.get(i);
+          expect(event?.getTo()).toBe(MyCallBackTwo.name);
+          expect(event?.getHeader('my_route')).toBe(MyCallBackTwo.name);
+          expect(event?.getHeader('my_instance')).toBe('1');
+          // There are a total of 5 workers of "hello.world".
+          // Two workers are engaged for the "timeout" unit test earlier.
+          // Therefore, the events will be distributed among the remaining 3 workers.
+          // This demonstrates that the workers are working in a non-blocking fashion.
+          log.info({'received': {'header': event?.getHeaders(), 'body': event?.getBody()}});
+          expect(event?.getBody()).toBe(TEST_MESSAGE+' '+i);
+        }
+        // the call back function is used once
+        platform.release(MyCallBackTwo.name);
     });
 
     it('can make a RPC call using Event API', async () => {
@@ -464,7 +525,7 @@ describe('post office use cases', () => {
     it('will reject platform registration of invalid route name', async () => {
       const exists = registry.exists(DEMO_LIBRARY_FUNCTION);
       expect(exists).toBe(true);
-      const helloWorld = registry.getFunction(DEMO_LIBRARY_FUNCTION);
+      const helloWorld = registry.getClass(DEMO_LIBRARY_FUNCTION);
       const route = 'Invalid route';
       let normal = false;
       try {
@@ -534,8 +595,8 @@ describe('post office use cases', () => {
       ps.subscribe(topic, member1);
       ps.subscribe(topic, member2);
       // register the member services
-      platform.register(member1, demoInterceptor, true, 1, true);
-      platform.register(member2, demoInterceptor, true, 1, true);
+      platform.register(member1, new DemoInterceptor(), 1, true, true);
+      platform.register(member2, new DemoInterceptor(), 1, true, true);
       const cid = 'x201';
       const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': '222', 'my_trace_path': 'TEST /demo/pubsub'});
       const req = new EventEnvelope().setTo(topic).setBody(TEST_MESSAGE).setCorrelationId(cid);
@@ -744,8 +805,8 @@ describe('post office use cases', () => {
       expect(exists).toBe(true);
       const functionList = registry.getFunctions();
       expect(functionList.includes(DEMO_LIBRARY_FUNCTION)).toBe(true);
-      const listener = registry.getFunction(DEMO_LIBRARY_FUNCTION);
-      platform.register(DEMO_LIBRARY_FUNCTION, listener);
+      const demoClass = registry.getClass(DEMO_LIBRARY_FUNCTION);
+      platform.register(DEMO_LIBRARY_FUNCTION, demoClass);
       const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': '400', 'my_trace_path': 'TEST /library/rpc'});
       const req = new EventEnvelope().setTo(DEMO_LIBRARY_FUNCTION).setBody(TEST_MESSAGE);
       const result = await po.request(req, 3000);
@@ -755,17 +816,17 @@ describe('post office use cases', () => {
     it('can re-register a service', async () => {
       const exists = registry.exists(DEMO_LIBRARY_FUNCTION);
       expect(exists).toBe(true);
-      const helloWorld = registry.getFunction(DEMO_LIBRARY_FUNCTION);
+      const helloWorld = registry.getClass(DEMO_LIBRARY_FUNCTION);
       const count1 = 10;
       const count2 = 5;
       const po = new PostOffice();
       const serviceName = 'my.new.service'; 
       const helloInstance = HELLO_INSTANCE;     
-      platform.register(serviceName, helloWorld, true, count1);
+      platform.register(serviceName, helloWorld, count1);
       let result = await po.request(new EventEnvelope().setTo(serviceName).setBody(TEST_MESSAGE));        
       expect(result.getBody()).toBe(TEST_MESSAGE); 
       // register it again - the platform will reload service automatically
-      platform.register(serviceName, helloWorld, true, count2);
+      platform.register(serviceName, helloWorld, count2);
       const map = new Map<string, boolean>();
       for (let i=0; i < 10; i++) {
           result = await po.request(new EventEnvelope().setTo(serviceName).setBody(TEST_MESSAGE+i));

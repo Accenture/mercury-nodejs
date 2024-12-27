@@ -1,3 +1,4 @@
+import { Composable } from '../models/composable.js';
 import { PostOffice } from './post-office.js';
 import { Platform } from './platform.js';
 import { Logger } from '../util/logger.js';
@@ -9,16 +10,23 @@ let platform: Platform = null;
 const util = new Utility();
 const topics = new Map<string, Array<string>>();
 
-async function publisher(evt: EventEnvelope) {
-    const po = new PostOffice(evt.getHeaders());
-    const myTopic = evt.getHeader('my_route');
-    const members = topics.get(myTopic);
-    if (members && members.length > 0) {
-        members.forEach(m => {
-            if (po.exists(m)) {
-                po.send(new EventEnvelope(evt).setTo(m));
-            }            
-        });
+class LocalPublisher implements Composable{
+    initialize(): LocalPublisher { 
+        return this;
+    }
+
+    async handleEvent(evt: EventEnvelope) {
+        const po = new PostOffice(evt.getHeaders());
+        const myTopic = evt.getHeader('my_route');
+        const members = topics.get(myTopic);
+        if (members && members.length > 0) {
+            members.forEach(m => {
+                if (po.exists(m)) {
+                    po.send(new EventEnvelope(evt).setTo(m));
+                }            
+            });
+        }
+        return null;
     }
 }
 
@@ -38,7 +46,7 @@ export class LocalPubSub {
             topics.set(topic, []);
             log.info(`Topic ${topic} created`);
         }
-        platform.register(topic, publisher, true, 1, true);
+        platform.register(topic, new LocalPublisher(), 1, true, true);
     }
 
     deleteTopic(topic: string): void {

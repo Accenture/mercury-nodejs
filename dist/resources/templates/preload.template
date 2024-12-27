@@ -45,14 +45,12 @@ export class ComposableLoader {
                 const platform = Platform.getInstance();
                 const registry = FunctionRegistry.getInstance();
                 const registered = registry.getFunctions();
-                for (const i in registered) {
-                    const name = registered[i];
-                    const f = registry.getFunction(name);
+                for (const name of registered) {
                     const md = registry.getMetadata(name) as object;
                     const instances = md['instances'] as number;
                     const isPublic = md['public'] as boolean;
                     const isInterceptor = md['interceptor'] as boolean;
-                    platform.register(name, f, !isPublic, instances, isInterceptor);
+                    platform.register(name, registry.getClass(name), instances, !isPublic, isInterceptor);
                 }
             } catch (e) {
                 log.error(`Unable to preload - ${e.message}`);

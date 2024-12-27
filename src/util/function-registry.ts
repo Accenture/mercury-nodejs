@@ -29,8 +29,16 @@ export class FunctionRegistry {
      */
     saveFunction(route: string, 
                  that: object, instances: number, isPublic: boolean, isInterceptor: boolean): void {
-        log.info(`Loading ${that.constructor.name} as ${route}`);
-        this.registry.saveFunction(route, that, instances, isPublic, isInterceptor);
+        // save only when it does not exist to guarantee idempotent property
+        if (!this.exists(route)) {
+            if ('initialize' in that && 'handleEvent' in that && 
+                that.initialize instanceof Function && that.handleEvent instanceof Function) {
+                    log.info(`Loading ${that.constructor.name} as ${route}`);
+                    this.registry.saveFunction(route, that, instances, isPublic, isInterceptor);            
+            } else {
+                log.error(`Unable to load ${this.constructor.name} because it does not implement Composable`);
+            }
+        }
     }
 
     /**

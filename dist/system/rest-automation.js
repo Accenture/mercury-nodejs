@@ -100,11 +100,17 @@ export class RestAutomation {
         self.setupMiddleWare(handler);
     }
 }
-async function housekeeper(evt) {
-    if ('close' == evt.getHeader('type')) {
-        if (self) {
-            await self.close();
+class HouseKeeper {
+    initialize() {
+        return this;
+    }
+    async handleEvent(evt) {
+        if ('close' == evt.getHeader('type')) {
+            if (self) {
+                await self.close();
+            }
         }
+        return null;
     }
 }
 class RestEngine {
@@ -128,11 +134,9 @@ class RestEngine {
             let restEnabled = false;
             const platform = Platform.getInstance();
             // preload Actuator and Event-over-HTTP services
-            const actuator = new ActuatorServices().initialize();
-            const eventApiService = new EventApiService().initialize();
-            platform.register(ActuatorServices.name, actuator.handleEvent, true, 10);
-            platform.register(EventApiService.name, eventApiService.handleEvent, true, 200);
-            platform.register(REST_AUTOMATION_MANAGER, housekeeper);
+            platform.register(ActuatorServices.name, new ActuatorServices(), 10);
+            platform.register(EventApiService.name, new EventApiService(), 200);
+            platform.register(REST_AUTOMATION_MANAGER, new HouseKeeper());
             const config = AppConfig.getInstance().getReader();
             const router = new RoutingEntry();
             // initialize router and load configuration

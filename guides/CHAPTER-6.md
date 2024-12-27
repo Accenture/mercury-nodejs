@@ -199,7 +199,6 @@ async handleEvent(evt: EventEnvelope) {
     const po = new PostOffice(evt.getHeaders());
     const self = po.getMyClass() as HelloWorldService;
     // business logic here
-    // ...
     const len = await self.downloadFile(request.getStreamRoute(), request.getFileName());
 }
 ```
@@ -219,6 +218,7 @@ async handleEvent(evt: EventEnvelope) {
     const workerNumber = po.getMyInstance();
     const traceId = po.getMyTraceId();
     const tracePath = po.getMyTracePath();
+    // processing logic here
 }
 ```
 

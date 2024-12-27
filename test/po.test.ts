@@ -749,8 +749,8 @@ describe('post office use cases', () => {
       req.setHeader('authorization', 'demo');
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
       const result = await po.request(reqEvent);
-      expect(typeof result.getBody()).toBe('string');  
-      expect(result.getBody()).toBe('');
+      expect(result.getStatus()).toBe(204);
+      expect(result.getBody()).toBe(null);
       expect(result.getHeader('access-control-allow-origin')).toBe('*');
       expect(result.getHeader('access-control-allow-methods')).toBe('GET, DELETE, PUT, POST, PATCH, OPTIONS');
     });

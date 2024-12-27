@@ -14,8 +14,8 @@ const util = new Utility();
 const po = new PostOffice();
 const emitter = po.getEventEmitter();
 const handlers = po.getHandlers();
+const SIGNATURE = util.getUuid() + '/';
 const DISTRIBUTED_TRACING = 'distributed.tracing';
-const SIGNATURE = "_";
 const RPC = "rpc";
 const OBJECT_STREAM_MANAGER = "object.stream.manager";
 const REST_AUTOMATION_MANAGER = "rest.automation.manager";
@@ -167,7 +167,6 @@ class ServiceManager {
     isInterceptor;
     eventQueue = [];
     workers = [];
-    signature;
     constructor(route, listener, instances = 1, isPrivate = false, interceptor = false) {
         if (!route) {
             throw new Error('Missing route');
@@ -178,7 +177,6 @@ class ServiceManager {
         if (!(listener instanceof Function)) {
             throw new Error('Invalid listener function');
         }
-        this.signature = util.getUuid();
         this.route = route;
         this.isPrivate = isPrivate;
         this.isInterceptor = interceptor;
@@ -225,29 +223,34 @@ class ServiceManager {
         // To guarantee strict message ordering, 
         // each worker sends a READY signal to the service manager before taking the next event.
         //
-        subscribe(route, (evt) => {
-            if (this.signature == evt.getHeader(SIGNATURE)) {
-                const availableWorker = String(evt.getBody());
-                if (this.workerNotExists(availableWorker)) {
-                    this.workers.push(availableWorker);
-                }
-                const nextEvent = this.eventQueue.shift();
-                if (nextEvent) {
-                    const nextWorker = this.workers.shift();
-                    setImmediate(() => {
-                        po.send(nextEvent.setTo(nextWorker));
-                    });
+        subscribe(route, (payload) => {
+            if (typeof payload == 'string') {
+                // validate unique signature for worker routing
+                if (payload.startsWith(SIGNATURE)) {
+                    const availableWorker = payload.substring(SIGNATURE.length);
+                    if (this.workerNotExists(availableWorker)) {
+                        this.workers.push(availableWorker);
+                    }
+                    const nextEvent = this.eventQueue.shift();
+                    if (nextEvent) {
+                        const nextWorker = this.workers.shift();
+                        setImmediate(() => {
+                            const event = new EventEnvelope(nextEvent);
+                            emitter.emit(nextWorker, event);
+                        });
+                    }
                 }
             }
-            else {
+            else if (payload instanceof Buffer) {
+                const event = new EventEnvelope(payload);
                 const worker = this.workers.shift();
                 if (worker) {
                     setImmediate(() => {
-                        po.send(evt.setTo(worker));
+                        emitter.emit(worker, event);
                     });
                 }
                 else {
-                    this.eventQueue.push(evt);
+                    this.eventQueue.push(payload);
                 }
             }
         });
@@ -322,9 +325,9 @@ class ServiceManager {
             const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACING).setBody({ 'trace': metrics });
             po.send(trace);
         }
-        // send ready signal if the service is still active
+        // send ready signal
         if (po.exists(this.route)) {
-            po.send(new EventEnvelope().setTo(this.route).setBody(workerRoute).setHeader(SIGNATURE, this.signature));
+            emitter.emit(this.route, SIGNATURE + workerRoute);
         }
     }
     handleError(workerRoute, utc, evt, e) {
@@ -404,7 +407,9 @@ class ServiceManager {
             po.send(trace);
         }
         // send ready signal
-        po.send(new EventEnvelope().setTo(this.route).setBody(workerRoute).setHeader(SIGNATURE, this.signature));
+        if (po.exists(this.route)) {
+            emitter.emit(this.route, SIGNATURE + workerRoute);
+        }
     }
 }
 class EventSystem {

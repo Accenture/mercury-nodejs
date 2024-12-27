@@ -215,7 +215,7 @@ class PO {
         }        
     }
 
-    subscribe(route: string, listener: (evt: EventEnvelope) => void): void {
+    subscribe(route: string, listener: (payload: Buffer) => void): void {
         if (!route) {
             throw new Error('Missing route');
         }
@@ -255,7 +255,8 @@ class PO {
         const route = event.getTo();
         if (route) {
             if (handlers.has(route)) {
-                emitter.emit(route, event);
+                // serialize event envelope for immutability
+                emitter.emit(route, event.toBytes());
             } else {
                 const traceRef = event.getTraceId()? `Trace (${event.getTraceId()}), ` : '';
                 log.error(`${traceRef}Event ${event.getId()} dropped because ${route} not found`);                
@@ -281,7 +282,8 @@ class PO {
                         this.unsubscribe(callback);
                         reject(new AppException(408, `Route ${event.getTo()} timeout for ${timeout} ms`));
                     }, Math.max(10, timeout));                    
-                    this.subscribe(callback, (response: EventEnvelope) => {                        
+                    this.subscribe(callback, (payload: Buffer) => {
+                        const response = new EventEnvelope(payload);                   
                         clearTimeout(timer);
                         this.unsubscribe(callback);
                         if (response.isException()) {
@@ -307,7 +309,8 @@ class PO {
                     });
                     event.setReplyTo(callback);
                     event.addTag(RPC, String(timeout));
-                    emitter.emit(route, event);                    
+                    // serialize event envelope for immutability
+                    emitter.emit(route, event.toBytes());                    
                 } else {
                     reject(new AppException(404, `Event ${event.getId()} dropped because ${route} not found`));
                 }

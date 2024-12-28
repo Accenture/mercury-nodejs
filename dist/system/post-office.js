@@ -195,38 +195,23 @@ class PO {
             return false;
         }
     }
-    subscribe(route, listener) {
+    subscribeInbox(route, listener) {
         if (!route) {
             throw new Error('Missing route');
         }
-        const hash = route.indexOf('#');
-        const name = hash == -1 ? route : route.substring(0, hash);
-        const worker = hash == -1 ? null : route.substring(hash + 1);
-        if (!util.validRouteName(name)) {
-            throw new Error('Invalid route name - use 0-9, a-z, period, hyphen or underscore characters');
-        }
-        if (worker != null && (worker.length == 0 || !util.isDigits(worker))) {
-            throw new Error('Invalid route worker suffix');
-        }
-        if (!listener) {
-            throw new Error('Missing listener');
-        }
-        if (!(listener instanceof Function)) {
-            throw new Error('Invalid listener function');
-        }
         if (handlers.has(route)) {
-            this.unsubscribe(route);
+            this.unsubscribeInbox(route);
         }
         handlers.set(route, listener);
         emitter.on(route, listener);
-        log.debug(`${route} registered`);
+        log.debug(`Inbox ${route} registered`);
     }
-    unsubscribe(route) {
+    unsubscribeInbox(route) {
         if (handlers.has(route)) {
             const service = handlers.get(route);
             emitter.removeListener(route, service);
             handlers.delete(route);
-            log.debug(`${route} unregistered`);
+            log.debug(`Inbox ${route} unregistered`);
         }
     }
     send(event) {
@@ -257,13 +242,13 @@ class PO {
                 if (handlers.has(route)) {
                     const callback = 'r.' + util.getUuid();
                     const timer = setTimeout(() => {
-                        this.unsubscribe(callback);
+                        this.unsubscribeInbox(callback);
                         reject(new AppException(408, `Route ${event.getTo()} timeout for ${timeout} ms`));
                     }, Math.max(10, timeout));
-                    this.subscribe(callback, (payload) => {
+                    this.subscribeInbox(callback, (payload) => {
                         const response = new EventEnvelope(payload);
                         clearTimeout(timer);
-                        this.unsubscribe(callback);
+                        this.unsubscribeInbox(callback);
                         if (response.isException()) {
                             reject(new AppException(response.getStatus(), String(response.getBody())));
                         }

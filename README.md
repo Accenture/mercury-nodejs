@@ -1,3 +1,10 @@
+# Upcoming release 4.1.6
+
+We are preparing the next milestone release 4.1.6 that includes the same event script engine
+as Mercury Composable Java version.
+
+Once documentation is ready, this source repo will be updated.
+
 # Mercury version 4 for Node.js
 
 Reference engine for building "Composable architecture and applications".

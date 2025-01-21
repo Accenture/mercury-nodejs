@@ -226,9 +226,6 @@ For easy matching, please use lower case for headers, cookies, query and path pa
 
 Regular API uses JSON that will be converted to an object of key-values in the event's body.
 
-For special use cases like file upload/download, your application logic may invoke a streaming API to retrieve
-the binary payload. Please refer to [Appendix-III](../guides/APPENDIX-III.md)
-
 ## Task and its corresponding function
 
 Each task in a flow must have a corresponding function. You can assign a task name to the function using the

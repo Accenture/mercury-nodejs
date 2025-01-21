@@ -18,7 +18,7 @@ export class HelloWorld implements Composable {
     static name = 'demo.library.function';
     signature = util.getUuid();
 
-    initialize(): HelloWorld {
+    initialize(): Composable {
         return this;
     }
 

@@ -1,5 +1,8 @@
-import { Logger, Utility, Platform, PostOffice, EventEnvelope, AppException, AsyncHttpRequest, ObjectStreamReader, ObjectStreamIO, ObjectStreamWriter } from 'mercury';
-import { ComposableLoader } from '../src/preload/preload.js';
+import { Logger, Utility, Platform, PostOffice, Sender, EventEnvelope, AppException, 
+    AsyncHttpRequest, ObjectStreamReader, ObjectStreamIO, ObjectStreamWriter, 
+    AppConfig} from 'mercury-composable';
+import { fileURLToPath } from "url";
+import { ComposableLoader } from '../src/preload/preload';
 
 const log = Logger.getInstance();
 const util = new Utility();
@@ -9,12 +12,30 @@ const HELLO_WORLD = 'hello.world'
 const TEST_MESSAGE = 'test message';
 const STREAM_CONTENT = 'x-stream-id';
 
+function getRootFolder() {
+    const folder = fileURLToPath(new URL("..", import.meta.url));
+    // for windows OS, convert backslash to regular slash and drop drive letter from path
+    const path = folder.includes('\\')? folder.replaceAll('\\', '/') : folder;
+    const colon = path.indexOf(':');
+    return colon == 1? path.substring(colon+1) : path;
+}
+
 /**
  * These are unit tests for each user functions
  */
 describe('Service tests', () => {
 
-    beforeAll(async () => {         
+    beforeAll(async () => {
+        const resourcePath = getRootFolder() + 'src/resources';
+        // AppConfig should be initialized with base configuration parameter before everything else
+        const appConfig = AppConfig.getInstance(resourcePath);
+        // You can programmatically change a configuration parameter.
+        // This emulates Java's System.setProperty behavior.
+        appConfig.set('server.port', 8303);
+        const port = appConfig.getProperty("server.port");
+        // print out the port number to confirm that it is using a different one.
+        const baseUrl = `http://127.0.0.1:${port}`;
+        log.info(`Service tests will use ${baseUrl}`);         
         ComposableLoader.initialize();
         platform = Platform.getInstance();
         platform.runForever();
@@ -23,7 +44,7 @@ describe('Service tests', () => {
     afterAll(async () => {
         await platform.stop();
         // give console.log a moment to finish
-        await util.sleep(1000);
+        await util.sleep(2000);
         log.info("Service tests completed");
     });
 
@@ -62,7 +83,7 @@ describe('Service tests', () => {
     });
 
     it('can make RPC call to hello.world', async () => {
-        const po = new PostOffice({'my_route': 'rpc.demo', 'my_trace_id': '100', 'my_trace_path': '/test/rpc'});
+        const po = new PostOffice(new Sender('rpc.demo', '100', '/test/rpc'));
         const req = new EventEnvelope().setTo(HELLO_WORLD).setHeader('n', '1').setBody(TEST_MESSAGE);
         const result = await po.request(req, 2000);
         expect(result).toBeTruthy();
@@ -71,7 +92,7 @@ describe('Service tests', () => {
     });
 
     it('can download file from hello.world', async () => {
-        const po = new PostOffice({'my_route': 'rpc.demo', 'my_trace_id': '200', 'my_trace_path': '/test/download'});
+        const po = new PostOffice(new Sender('rpc.demo', '200', '/test/download'));
         const httpRequest = new AsyncHttpRequest().setMethod('GET').setUrl('/api/hello/world');
         httpRequest.setQueryParameter('download', 'true');
         const req = new EventEnvelope().setTo(HELLO_WORLD).setBody(httpRequest.toMap());
@@ -98,7 +119,7 @@ describe('Service tests', () => {
 
     it('can upload file to hello.world', async () => {
         const filename = 'hello-world.txt';
-        const po = new PostOffice({'my_route': 'rpc.demo', 'my_trace_id': '300', 'my_trace_path': '/test/upload'});
+        const po = new PostOffice(new Sender('rpc.demo', '300', '/test/upload'));
         // emulate file upload
         const httpRequest = new AsyncHttpRequest().setMethod('POST').setUrl('/api/hello/upload');
         httpRequest.setHeader('content-type', 'multipart/form-data');
@@ -124,7 +145,7 @@ describe('Service tests', () => {
 
     it('will fail file upload to hello.world when multipart protocol is not used', async () => {
         const filename = 'hello-world.txt';
-        const po = new PostOffice({'my_route': 'rpc.demo', 'my_trace_id': '300', 'my_trace_path': '/test/upload'});
+        const po = new PostOffice(new Sender('rpc.demo', '300', '/test/upload'));
         // Emulation of file upload without multipart/form-data header will fail
         const httpRequest = new AsyncHttpRequest().setMethod('POST').setUrl('/api/hello/upload');
         const stream = new ObjectStreamIO(60);

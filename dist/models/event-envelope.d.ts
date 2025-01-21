@@ -7,6 +7,7 @@ export declare class EventEnvelope {
     private sender;
     private replyTo;
     private extra;
+    private stackTrace;
     private correlationId;
     private traceId;
     private tracePath;
@@ -221,14 +222,16 @@ export declare class EventEnvelope {
      */
     getTracePath(): string;
     /**
-     * You can indicate that an event contains an exception message in the body
+     * Set exception status and message
      *
-     * @param exception indicator
+     * @param status code
+     * @param error message
      * @returns this
      */
-    setException(exception?: boolean): EventEnvelope;
+    setException(error: Error): EventEnvelope;
+    getStackTrace(): string;
     /**
-     * Check if this event contains an exception message in the body
+     * Check if this event contains an exception
      *
      * @returns true or false
      */

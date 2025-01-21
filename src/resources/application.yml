@@ -2,15 +2,19 @@
 
 application.name: 'platform-core'
 info.app:
-  version: '4.1.1'
+  version: '4.1.5'
   description: 'Composable application core library'
 
 # server port for Event API REST endpoint
 server.port: 8300
 
-# log.format can be 'text' or 'json'
+#
+# log.format = text | compact | json
+# text and json are for human readers
+# compact is json without pretty print. It is for log analytics consumption.
+#
 log:
-  format: 'text'
+  format: text
   level: INFO
 
 # You can add optional health checks that point to your custom health check functions

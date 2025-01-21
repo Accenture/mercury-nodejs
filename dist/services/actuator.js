@@ -24,13 +24,17 @@ let origin;
 let startTime;
 const util = new Utility();
 const numberFormatter = new Intl.NumberFormat('en-us');
+/**
+ * This is reserved for system use.
+ * DO NOT use this directly in your application code.
+ */
 export class ActuatorServices {
     static name = ACTUATOR_SERVICES;
     initialize() {
         if (!loaded) {
             loaded = true;
             const platform = Platform.getInstance();
-            const config = AppConfig.getInstance().getReader();
+            const config = AppConfig.getInstance();
             appName = platform.getName();
             appVersion = config.getProperty('info.app.version', 'unknown');
             appDesc = config.getProperty('info.app.description', '-');

@@ -21,13 +21,5 @@ export class AppException extends Error {
     getMessage() {
         return this.message;
     }
-    /**
-     * Encode composite error message for easy validation in unit tests
-     *
-     * @returns composite error message
-     */
-    toString() {
-        return `AppException: (${this.status}) ${this.message}`;
-    }
 }
 //# sourceMappingURL=app-exception.js.map

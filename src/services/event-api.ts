@@ -16,10 +16,14 @@ const EVENT_API_SERVICE = 'event.api.service';
 
 let platform: Platform;
 
+/**
+ * This is reserved for system use.
+ * DO NOT use this directly in your application code.
+ */
 export class EventApiService implements Composable { 
     static name = EVENT_API_SERVICE;
 
-    initialize(): EventApiService {
+    initialize(): Composable {
         platform = Platform.getInstance();
         return this;
     }
@@ -45,7 +49,7 @@ export class EventApiService implements Composable {
                             return EventApiService.eventApiError(403, `Route ${target} is private`);
                         }
                         if (async) {
-                            po.send(request);
+                            await po.send(request);
                             const ack = {type: 'async', delivered: true, time: new Date().toISOString()};
                             const res = new EventEnvelope().setBody(ack);
                             return new EventEnvelope()

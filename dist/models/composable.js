@@ -16,7 +16,7 @@ export function preload(route, instances = 1, isPrivate = true, isInterceptor = 
             const method = descriptor.value;
             descriptor.value = function (...args) {
                 const registry = FunctionRegistry.getInstance();
-                registry.saveFunction(route, this, Math.min(500, Math.max(1, instances)), isPrivate, isInterceptor);
+                registry.save(route, this, Math.min(500, Math.max(1, instances)), isPrivate, isInterceptor);
                 return method.apply(this, args);
             };
         }

@@ -14,10 +14,4 @@ export declare class AppException extends Error {
      * @returns message
      */
     getMessage(): string;
-    /**
-     * Encode composite error message for easy validation in unit tests
-     *
-     * @returns composite error message
-     */
-    toString(): string;
 }

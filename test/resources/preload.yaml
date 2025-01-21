@@ -1,9 +1,0 @@
-import:
-  - class: HelloWorldService
-    location: './services/hello-world-service.js'
-
-preload:
-  - name: 'v1.hello.world'
-    private: true
-    instance: 10
-    interceptor: false

@@ -7,7 +7,7 @@ of REST endpoints.
 The REST automation system is not a code generator. The REST endpoints in the rest.yaml file are handled by
 the system directly - "Config is the code".
 
-We will use the "rest.yaml" sample configuration file in the "hello world" example app to elaborate the configuration
+We will use the "rest.yaml" sample configuration file in the "composable-example" app to elaborate the configuration
 approach.
 
 The rest.yaml configuration has three sections:
@@ -21,22 +21,25 @@ The rest.yaml configuration has three sections:
 REST automation is optional. To turn on REST automation, add the REST automation start up script in your main app:
 
 ```javascript
-import { Logger, Platform, RestAutomation } from 'mercury';
+import { Logger, Platform, RestAutomation } from 'mercury-composable';
 import { ComposableLoader } from '../preload/preload.js'; 
 ...
 async function main() {
+    // Load composable functions into memory and initialize configuration management
     ComposableLoader.initialize();  
-    const server = new RestAutomation();
-    server.start();
+    // keep the server running
+    const platform = Platform.getInstance();
+    platform.runForever();
+    log.info('Composable application started');
 }
 main();
 ```
 
-Note that the class "preload.ts" is automatically generated when you do "npm run preload" or "npm run build".
-The compiled file is located in the "dist/preload/preload.js". Therefore, you use the import statement for
-'../preload/preload.js'.
+> *Note*: The class "preload.ts" is automatically generated when you do "npm run preload" or "npm run build".
+  The compiled file is located in the "dist/preload/preload.js". Therefore, you must use an import statement for
+  '../preload/preload.js'.
 
-Please review the "hello-world.ts" for more details.
+Please review the "composable-example.ts" for more details.
 
 The `yaml.rest.automation` parameter in the application.yml file tells the system the location of the rest.yaml 
 configuration file. The default value is "classpath:/rest.yaml". The `classpath:/` prefix means that the config
@@ -60,7 +63,6 @@ A REST endpoint may look like this:
     timeout: 10s
     cors: cors_1
     headers: header_1
-    threshold: 30000
     authentication: 'v1.api.auth'
     tracing: true
 ```
@@ -83,7 +85,7 @@ Your custom authentication function may look like this:
 export class DemoAuth implements Composable {
 
     @preload('v1.api.auth')
-    initialize(): DemoAuth {
+    initialize(): Composable {
         return this;
     }
 
@@ -114,12 +116,11 @@ It can set the session information as key-values in the response event headers.
 You can test this by visiting http://127.0.0.1:8086/api/hello/world to invoke the "hello.world" function.
 
 The console will print:
-```json
+```shell
 INFO {"trace":{"origin":"11efb0d8fcff4924b90aaf738deabed0",
       "id":"4dd5db2e64b54eef8746ab5fbb4489a3","path":"GET /api/hello/world",
       "service":"v1.api.auth","start":"2023-06-10T00:01:07.492Z","success":true,
       "exec_time":0.525,"round_trip":0.8,"from":"http.request"}} (handleEvent:tracer.js:27)
-INFO HTTP-200 GET /api/hello/world (RestEngine.relayRequest:rest-automation.js:604)
 INFO {"trace":{"origin":"11efb0d8fcff4924b90aaf738deabed0",
       "id":"4dd5db2e64b54eef8746ab5fbb4489a3","path":"GET /api/hello/world",
       "service":"hello.world","start":"2023-06-10T00:01:07.495Z","success":true,
@@ -128,11 +129,11 @@ INFO {"trace":{"origin":"11efb0d8fcff4924b90aaf738deabed0",
 
 This illustrates that the HTTP request has been processed by the "v1.api.auth" function.
 
-The `tracing` tag tells the system to turn on "distributed tracing". In the console log shown above, you see
+The `tracing` parameter tells the system to turn on "distributed tracing". In the console log shown above, you see
 two lines of log from "distributed trace" showing that the HTTP request is processed by "v1.api.auth" and
 "hello.world" before returning result to the browser.
 
-The optional `cors` and `headers` tags point to the specific CORS and HEADERS sections respectively.
+The optional `cors` and `headers` sections point to the specific CORS and HEADERS sections respectively.
 
 ## CORS section
 
@@ -208,11 +209,9 @@ headers:
 
 ## Feature variation from the Java version
 
-The "threshold" parameter in the REST endpoint definition is not supported in the Node.js version.
-
-In the Java version, the underlying HTTP server is Vertx HTTP server. HTTP request body is handled as a stream.
-When content length is given, the REST automation engine will render the input as a byte array if the length
-is less than the threshold value. Otherwise, it will render it as a stream for a user function to read.
+To support multipart upload, a REST endpoint entry must have the parameter `upload: true`. The is not required
+in the Java version because automatic switching to multipart rendering is supported in the underlying Netty
+HTTP server.
 
 In the Node.js version, the underlying HTTP server is Express. We have configured the bodyParser to render
 HTTP request body in this order:
@@ -222,9 +221,8 @@ HTTP request body in this order:
 3. "application/xml" or content type starts with "text/"
 4. "multipart/form-data" for file upload
 5. all other types of content will be rendered as byte array (Buffer) with a payload limit of 2 MB
-
 <br/>
 
-|          Chapter-2          |                   Home                    |              Chapter-4              |
-|:---------------------------:|:-----------------------------------------:|:-----------------------------------:|
-| [Hello World](CHAPTER-2.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Event orchestration](CHAPTER-4.md) |
+|                   Chapter-2                   |                   Home                    |              Chapter-4              |
+|:---------------------------------------------:|:-----------------------------------------:|:-----------------------------------:|
+| [Function Execution Strategies](CHAPTER-2.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Event Script Syntax](CHAPTER-4.md) |

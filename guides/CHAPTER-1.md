@@ -1,184 +1,464 @@
 # Introduction
 
-Mercury version 4 is a toolkit for writing composable applications.
+Mercury Composable is a software development toolkit for writing composable applications.
 
-At the platform level, composable architecture refers to loosely coupled platform services, utilities, and
-business applications. With modular design, you can assemble platform components and applications to create
-new use cases or to adjust for ever-changing business environment and requirements. Domain driven design (DDD),
-Command Query Responsibility Segregation (CQRS) and Microservices patterns are the popular tools that architects
-use to build composable architecture. You may deploy application in container, serverless or other means.
-
-At the application level, a composable application means that an application is assembled from modular software
-components or functions that are self-contained and pluggable. You can mix-n-match functions to form new applications.
-You can retire outdated functions without adverse side effect to a production system. Multiple versions of a function
-can exist, and you can decide how to route user requests to different versions of a function. Applications would be
-easier to design, develop, maintain, deploy, and scale.
+Composable application means that an application is assembled from modular software components or functions that
+are self-contained and pluggable. You can mix-n-match functions to form new applications. You can retire outdated
+functions without adverse side effect to a production system. Multiple versions of a function can exist, and you
+can decide how to route user requests to different versions of a function. Applications would be easier to design,
+develop, maintain, deploy, and scale.
 
 ## Composable application architecture
 
 > Figure 1 - Composable application architecture
 
-![architecture.png](diagrams/architecture.png)
+![Composable Application Architecture](./diagrams/composable-framework.png)
 
-As shown in Figure 1, a minimalist composable application consists of three user defined components:
+As shown in Figure 1, a composable application contains the following:
 
-1. Main modules that provides an entry point to your application
-2. One or more business logic modules (shown as "function-1" to "function-3" in the diagram)
-3. An event orchestration module to command the business logic modules to work together as an application
+1. *Flow adapters*: Each flow adapter listens to requests for onwards delivery to an event manager.
+2. *Event Manager*: it sends events to a set of user functions for them to work together as an application.
+3. *User functions*: these are self-contained functions with clear input and output that are immutable.
 
-*Event choreography*: Instead of writing an orchestrator in code, you can deploy Event Script as an engine.
-Please refer to the composable-application example in the 
-[Mercury-Composable](https://accenture.github.io/mercury-composable/) project. You can configure an
-Event-over-HTTP configuration file to connect the Java based Event Script engine to your Node.js application.
-You can package the Event Script application and your Node.js application into a single container for
-deployment. Alternatively, you can deploy your node.js application as serverless function in the cloud and
-the Event Script application can execute the serverless functions according to an event flow configuration.
+### HTTP flow adapter
 
-The foundation libary includes:
+A non-blocking HTTP flow adapter is built-in. For other external interface types, you can implement your own
+flow adapters. e.g. Adapters for MQ, Kafka, Serverless, File based staging area, etc.
 
-1. The REST automation system for rapid creation of REST endpoints by configuration
-2. An in-memory event system (aka "event loop") using the Node's EventEmitter library.
-3. An optional Local pub/sub system for multiple functions to listen to the same topic.
+The standard HTTP flow adapter leverages the underlying REST automation system to serve user facing REST
+API endpoints. For example, a hypothetical "get profile" endpoint is created like this in the "rest.yaml"
+configuration file:
+
+```yaml
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/profile/{profile_id}"
+    flow: 'get-profile'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+```
+
+In this REST configuration entry, the system creates a REST API endpoint for "GET /api/profile/{profile_id}".
+When a request arrives at this endpoint, the HTTP request will be converted to an incoming event by the flow adapter
+that routes the event to the "event manager" to execute a new instance of the "get-profile" flow.
+
+### Flow configuration example
+
+The event manager is driven by configuration instead of code. A hypothetical "get profile" flow is defined in
+a YAML file like this:
+
+```yaml
+flow:
+  id: 'get-profile'
+  description: 'Get a user profile using profile ID'
+  ttl: 10s
+  exception: 'v1.hello.exception'
+
+first.task: 'v1.get.profile'
+
+tasks:
+  - input:
+      - 'input.path_parameter.profile_id -> header.profile_id'
+    process: 'v1.get.profile'
+    output:
+      - 'result -> model.profile'
+    description: 'Retrieve user profile from database using profile_id'
+    execution: sequential
+    next:
+      - 'v1.decrypt.fields'
+
+  - input:
+      - 'model.profile -> dataset'
+      - 'text(telephone, address) -> protected_fields'
+    process: 'v1.decrypt.fields'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+    description: 'Decrypt fields'
+    execution: end
+
+  - input:
+      - 'error.code -> status'
+      - 'error.message -> message'
+      - 'error.stack -> stack'
+    process: 'v1.hello.exception'
+    output:
+      - 'result.status -> output.status'
+      - 'result -> output.body'
+    description: 'Just a demo exception handler'
+    execution: end
+```
+
+Note that the flow configuration is referring user functions by their "route" names. It is because all user functions
+are self-contained with clearly defined input and output and the event manager would set their inputs and collect their
+outputs accordingly. Note that you can map selected key-values or the whole event as a business object and this
+decoupling promotes highly reusable user functional software.
+
+The event manager will create a "state machine" to manage each transaction flow because all user functions are
+stateless. The "state machine" is referenced using the namespace "model".
+
+### Assigning a route name to a user function
+
+You can assign a route name to a Composite class using the `preLoad` annotation like this:
+
+```shell
+export class GetProfile implements Composable {
+
+    @preload('v1.get.profile', 10)
+    initialize(): Composable {
+        return this;
+    }
+
+    async handleEvent(evt: EventEnvelope) {
+        // your business logic here
+        return result;
+    }
+}
+```
+
+Inside the "handleEvent" method, you can write regular TypeScript code using your preferred coding style and
+framework. You can define input/output as key-values (i.e. JSON objects).
+
+## Building the Mercury libraries from source
+
+Assuming you clone the repository into the "sandbox" directory, you may build the libraries like this.
+
+```shell
+cd sandbox/mercury-nodejs
+npm install
+npm run build
+```
+
+The compiled libraries will be saved to the distribution folder (`dist`). For production, you may publish
+the distribution into your enterprise artifactory.
+
+## Composable application example
+
+Let's take a test drive of a composable application example in the "examples" folder.
+
+To build the sample app, you may do this:
+
+```shell
+cd sandbox/mercury-nodejs/examples
+npm install
+npm run build
+```
+
+You will see the build log like this:
+
+```text
+INFO Scanning ./node_modules/mercury-composable/dist (scanPackage:preloader.js:20)
+INFO Class NoOp (scanLibrary:preloader.js:78)
+INFO Scanning ./src (main:preloader.js:200)
+INFO Class DemoAuth (scanSource:preloader.js:102)
+INFO Class DemoHealthCheck (scanSource:preloader.js:102)
+INFO Class HelloWorldService (scanSource:preloader.js:102)
+INFO Class CreateProfile (scanSource:preloader.js:102)
+INFO Class DecryptFields (scanSource:preloader.js:102)
+INFO Class DeleteProfile (scanSource:preloader.js:102)
+INFO Class EncryptFields (scanSource:preloader.js:102)
+INFO Class GetProfile (scanSource:preloader.js:102)
+INFO Class HelloException (scanSource:preloader.js:102)
+INFO Class SaveProfile (scanSource:preloader.js:102)
+INFO Composable class loader (/preload/preload.ts) generated (generatePreLoader:preloader.js:176)
+```
+
+The build script will compile your TypeScript source files into Javascript and then run the "preloader.js" script
+to scan for your composable functions. Optionally, you can ask it to scan for composable libraries using the
+"web.component.scan" parameter. In the above example, it scan for the package "mercury-composable" in the
+"node_modules" folder and find the NoOp function.
+
+The first step in designing a composable application is to draw an event flow diagram. This is similar to
+a data flow diagram where the arrows are labeled with the event objects. Note that event flow diagram is
+not a flow chart and thus decision box is not required. If a user function (also known as a "task") contains
+decision logic, you can draw two or more output from the task to connect to the next set of functions.
+For example, label the arrows as true, false or a number starting from 1.
+
+The composable-example application is a hypothetical "profile management system" where you can create a profile,
+browse or delete it.
+
+> Figure 2 - Create a profile
+
+![Event Flow Diagram](./diagrams/create-profile.png)
+
+Figure 2 illustrates an event flow to create a profile. Note that the "create profile" can send acknowledgement
+to the user first. It then encrypts and saves the profile into a data store.
+
+> Figure 3 - Retrieve a profile
+
+![Event Flow Diagram](./diagrams/get-profile.png)
+
+Figure 3 demonstrates the case to retrieve a profile. It retrieves an encrypted profile and then passes it to
+the decryption decryption function to return "clear text" of the profile to the user.
+
+> Figure 4 - Delete a profile
+
+![Event Flow Diagram](./diagrams/delete-profile.png)
+
+Figure 4 shows the case to delete a profile. It deletes a profile using the given profile ID and sends an
+acknowledgement to the user.
+
+The REST endpoints for the three use cases are shown in the "rest.yaml" configuration file under the "main/resources"
+in the example subproject.
+
+Extract of some configuration parameters in "application.yml" is shown below:
+
+```yaml
+application.name: 'composable-example'
+web.component.scan: 'mercury-composable'
+server.port: 8086
+rest.automation: true
+yaml.rest.automation: classpath:/rest.yaml
+yaml.flow.automation: classpath:/flows.yaml
+```
+
+The flow configuration files are shown in the "src/resources/flows" folder where you will find the flow configuration
+files for the three event flows, namely get-profile.yml, delete-profile.yml and create-profile.yml.
+
+### Starting the application
+
+To run the composable-example application, you can do this:
+
+```shell
+cd sandbox/mercury-nodejs/examples
+npm install
+npm run build
+node dist/composable-example.js
+```
+
+You can skip the build step if you have already done that earlier.
+
+When the application starts, you will see extract of the application log like this:
+
+```log
+INFO Loading NoOp as no.op (FunctionRegistry.save:function-registry.js:33)
+INFO Loading DemoAuth as v1.api.auth (FunctionRegistry.save:function-registry.js:33)
+INFO Loading DemoHealthCheck as demo.health (FunctionRegistry.save:function-registry.js:33)
+INFO Loading hello.world as hello.world (FunctionRegistry.save:function-registry.js:33)
+INFO Loading CreateProfile as v1.create.profile (FunctionRegistry.save:function-registry.js:33)
+INFO Loading DecryptFields as v1.decrypt.fields (FunctionRegistry.save:function-registry.js:33)
+INFO Loading DeleteProfile as v1.delete.profile (FunctionRegistry.save:function-registry.js:33)
+INFO Loading EncryptFields as v1.encrypt.fields (FunctionRegistry.save:function-registry.js:33)
+INFO Loading GetProfile as v1.get.profile (FunctionRegistry.save:function-registry.js:33)
+INFO Loading HelloException as v1.hello.exception (FunctionRegistry.save:function-registry.js:33)
+INFO Loading SaveProfile as v1.save.profile (FunctionRegistry.save:function-registry.js:33)
+INFO Event system started - 15cda88cb4bf4f658357bb6007869296 (platform.js:503)
+INFO PRIVATE distributed.tracing registered (platform.js:259)
+INFO PRIVATE async.http.request registered with 200 instances (platform.js:262)
+INFO PRIVATE no.op registered with 10 instances (platform.js:262)
+INFO PRIVATE v1.api.auth registered (platform.js:259)
+INFO PRIVATE demo.health registered (platform.js:259)
+INFO PUBLIC hello.world registered with 10 instances (platform.js:262)
+INFO PRIVATE v1.create.profile registered with 10 instances (platform.js:262)
+INFO PRIVATE v1.decrypt.fields registered with 10 instances (platform.js:262)
+INFO PRIVATE v1.delete.profile registered with 10 instances (platform.js:262)
+INFO PRIVATE v1.encrypt.fields registered with 10 instances (platform.js:262)
+INFO PRIVATE v1.get.profile registered with 10 instances (platform.js:262)
+INFO PRIVATE v1.hello.exception registered with 10 instances (platform.js:262)
+INFO PRIVATE v1.save.profile registered with 10 instances (platform.js:262)
+INFO Loading event scripts from classpath:/flows.yaml (CompileFlows.start:compile-flows.js:72)
+INFO Parsing create-profile.yml (CompileFlows.createFlow:compile-flows.js:108)
+INFO Parsing delete-profile.yml (CompileFlows.createFlow:compile-flows.js:108)
+INFO Parsing get-profile.yml (CompileFlows.createFlow:compile-flows.js:108)
+INFO Loaded create-profile (CompileFlows.start:compile-flows.js:102)
+INFO Loaded delete-profile (CompileFlows.start:compile-flows.js:102)
+INFO Loaded get-profile (CompileFlows.start:compile-flows.js:102)
+INFO Event scripts deployed: 3 (CompileFlows.start:compile-flows.js:104)
+INFO Loading EventScriptManager as event.script.manager (FunctionRegistry.save:function-registry.js:33)
+INFO PRIVATE event.script.manager registered (platform.js:259)
+INFO Loading TaskExecutor as task.executor (FunctionRegistry.save:function-registry.js:33)
+INFO PRIVATE task.executor registered (platform.js:259)
+INFO Loading HttpToFlow as http.flow.adapter (FunctionRegistry.save:function-registry.js:33)
+INFO PRIVATE http.flow.adapter registered with 200 instances (platform.js:262)
+INFO To stop application, press Control-C (EventSystem.runForever:platform.js:589)
+INFO Composable application started (main:composable-example.js:27)
+INFO REST automation service started on port 8086 (rest-automation.js:443)
+```
+
+It shows that the 3 flow configuration files are compiled as objects to optimize performance. The user functions are
+loaded into the event system and the REST endpoints are rendered from the "rest.yaml" file.
+
+### Testing the application
+
+You can create a test user profile with this python code. Alternatively, you can also use PostMan or other means
+to do this.
+
+```python
+>>> import requests, json
+>>> d = { 'id': 12345, 'name': 'Hello World', 'address': '100 World Blvd', 'telephone': '123-456-7890' }
+>>> h = { 'content-type': 'application/json', 'accept': 'application/json' }
+>>> r = requests.post('http://127.0.0.1:8100/api/profile', data=json.dumps(d), headers=h)
+>>> print(r.status_code)
+201
+>>> print(r.text)
+{
+  "profile": {
+    "address": "***",
+    "name": "Hello World",
+    "telephone": "***",
+    "id": 12345
+  },
+  "type": "CREATE",
+  "secure": [
+    "address",
+    "telephone"
+  ]
+}
+```
+
+To verify that the user profile has been created, you can point your browser to
+
+```text
+http://127.0.0.1:8100/api/profile/12345
+```
+
+Your browser will return the following:
+```json
+{
+  "address": "100 World Blvd",
+  "name": "Hello World",
+  "telephone": "123-456-7890",
+  "id": 12345
+}
+```
+
+You have successfully tested the two REST endpoints. Tracing information in the application log may look like this:
+
+```log
+DistributedTrace:76 - trace={path=POST /api/profile, service=http.flow.adapter, success=true, 
+                            origin=202406249aea0a481d46401d8379c8896a6698a2, start=2024-06-24T22:41:23.524Z, 
+                            exec_time=0.284, from=http.request, id=f6a6ae62340e43afb0a6f30445166e08}
+DistributedTrace:76 - trace={path=POST /api/profile, service=event.script.manager, success=true,
+                            origin=202406249aea0a481d46401d8379c8896a6698a2, start=2024-06-24T22:41:23.525Z,
+                            exec_time=0.57, from=http.flow.adapter, id=f6a6ae62340e43afb0a6f30445166e08}
+DistributedTrace:76 - trace={path=POST /api/profile, service=v1.create.profile, success=true,
+                            origin=202406249aea0a481d46401d8379c8896a6698a2, start=2024-06-24T22:41:23.526Z,
+                            exec_time=0.342, from=task.executor, id=f6a6ae62340e43afb0a6f30445166e08}
+DistributedTrace:76 - trace={path=POST /api/profile, service=async.http.response, success=true,
+                            origin=202406249aea0a481d46401d8379c8896a6698a2, start=2024-06-24T22:41:23.528Z,
+                            exec_time=0.294, from=task.executor, id=f6a6ae62340e43afb0a6f30445166e08}
+DistributedTrace:76 - trace={path=POST /api/profile, service=v1.encrypt.fields, success=true,
+                            origin=202406249aea0a481d46401d8379c8896a6698a2, start=2024-06-24T22:41:23.528Z,
+                            exec_time=3.64, from=task.executor, id=f6a6ae62340e43afb0a6f30445166e08}
+SaveProfile:52 - Profile 12345 saved
+TaskExecutor:186 - TaskExecutor:262 - {
+  "execution": "Run 3 tasks in 11 ms",
+  "id": "a0eef12d94bd4ab3b5fd6c25e2461130",
+  "flow": "get-profile",
+  "tasks": [
+    "v1.create.profile",
+    "v1.encrypt.fields",
+    "v1.save.profile"
+  ],
+  "status": "completed"
+}
+DistributedTrace:76 - trace={path=POST /api/profile, service=v1.save.profile, success=true,
+                            origin=202406249aea0a481d46401d8379c8896a6698a2, start=2024-06-24T22:41:23.533Z,
+                            exec_time=2.006, from=task.executor, id=f6a6ae62340e43afb0a6f30445166e08}
+DistributedTrace:76 - trace={path=GET /api/profile/12345, service=http.flow.adapter, success=true, 
+                            origin=202406249aea0a481d46401d8379c8896a6698a2, start=2024-06-24T22:41:52.089Z,
+                            exec_time=0.152, from=http.request, id=1a29105044e94cc3ac68aee002f6f429}
+DistributedTrace:76 - trace={path=GET /api/profile/12345, service=event.script.manager, success=true,
+                            origin=202406249aea0a481d46401d8379c8896a6698a2, start=2024-06-24T22:41:52.090Z,
+                            exec_time=0.291, from=http.flow.adapter, id=1a29105044e94cc3ac68aee002f6f429}
+DistributedTrace:76 - trace={path=GET /api/profile/12345, service=v1.get.profile, success=true,
+                            origin=202406249aea0a481d46401d8379c8896a6698a2, start=2024-06-24T22:41:52.091Z,
+                            exec_time=1.137, from=task.executor, id=1a29105044e94cc3ac68aee002f6f429}
+DistributedTrace:76 - trace={path=GET /api/profile/12345, service=v1.decrypt.fields, success=true, 
+                            origin=202406249aea0a481d46401d8379c8896a6698a2, start=2024-06-24T22:41:52.093Z,
+                            exec_time=1.22, from=task.executor, id=1a29105044e94cc3ac68aee002f6f429}
+TaskExecutor:262 - {
+  "execution": "Run 2 tasks in 7 ms",
+  "id": "a0eef12d94bd4ab3b5fd6c25e2461130",
+  "flow": "get-profile",
+  "tasks": [
+    "v1.get.profile",
+    "v1.decrypt.fields"
+  ],
+  "status": "completed"
+}
+DistributedTrace:76 - trace={path=GET /api/profile/12345, service=async.http.response, success=true, 
+                            origin=202406249aea0a481d46401d8379c8896a6698a2, start=2024-06-24T22:41:52.095Z, 
+                            exec_time=0.214, from=task.executor, id=1a29105044e94cc3ac68aee002f6f429}
+```
 
 ### Main module
 
-Each application has an entry point. You may implement an entry point in a main application like this:
+Every application has an entry point. The MainApp in the example app contains the entry point like this:
 
-```typescript
-import { Logger, Platform, RestAutomation } from 'mercury';
-import { ComposableLoader } from './preload/preload.js'; 
-
-const log = Logger.getInstance();
-
+```java
 async function main() {
     // Load composable functions into memory and initialize configuration management
     ComposableLoader.initialize();
-    // start REST automation engine
-    const server = new RestAutomation();
-    server.start();
     // keep the server running
     const platform = Platform.getInstance();
     platform.runForever();
-    log.info('Hello world application started');
+    log.info('Composable application started');
 }
 // run the application
 main();
 ```
 
-For a command line use case, your main application module would get command line arguments and
-send the request as an event to a business logic function for processing.
+The "ComposableLoader.initializer()" command will load the composable functions into the event loop.
+The "platform.runForever()" command will run the application as a service.
 
-For a backend application, the main application is usually used to do some "initialization" or
-setup steps for your services.
+Since your application is event driven, the main application does not need any additional code in the above
+example. However, this is a good place to put application initialization code if any.
 
-The `ComposableLoader.initialize()` statement will register your user functions into the event loop.
-There is no need to directly import each module in your application code.
+## Dependency management
 
-### Business logic modules
+As a best practice, your user functions should not have any dependencies with other user functions.
 
-Your user function module may look like this:
+The second principle of composable design is "zero to one dependency". If your composable function must use
+an external system, platform or database, you can encapsulate the dependency in a composable function.
 
-```typescript
-export class HelloWorldService implements Composable {
+## Component scan
 
-    @preload('hello.world', 10)
-    initialize(): HelloWorldService {
-        return this;
-    }
-    
-    async handleEvent(event: EventEnvelope) {
-        // your business logic here
-        return someResult;
-    }
-}
+Please update the following in the application.yml to include packages of your own functions:
+
+```properties
+web.component.scan=your-package-name
 ```
 
-Each function in a composable application should be implemented in the first principle of "input-process-output".
-It should be stateless and self-contained. i.e. it has no direct dependencies with any other functions in the
-composable application. Each function is addressable by a unique "route name". Input and output can be
-primitive value or JSON objects to be transported using standard event envelopes.
+> You should replace "your-package-name" with the real package name(s) that you use in your application.
+  "web.component.scan" is a comma separated list of package names.
 
-In the above example, the unique "route name" of the function is "hello.world".
+## Deploy your application
 
-You can define instances, isPublic and isInterceptor in the `preload` annotation. The default values are
-instances=1, isPublic=false and isInterceptor=false. In the example, the number of instances is set to 10.
-You can set the number of instances from 1 to 500.
+Composable design can be used to create microservices. You can put related functions in a bounded context with
+database persistence.
 
-> Writing code in the first principle of "input-process-output" promotes Test Driven Development (TDD) because
-  interface contact is clearly defined. Self-containment means code is more readable.
+Each composable application can be compiled and built into a single "executable" for deployment using
+`npm run build`.
 
-### Loading composable functions from a library
+The executable Javascript application bundle is in the `dist` folder.
 
-You can publish a set of composable functions as a library. To import your composable functions from a library,
-you may add the following in the application.yml configuration file. In this example, it tells the system
-to search for composable functions in the package called "mercury".
+Composable application is by definition cloud native. It is designed to be deployable using Kubernetes or serverless.
 
-```yaml
-#
-# To scan libraries for composable functions, use a comma separated text string
-# for a list of library dependencies.
-#
-web.component.scan: 'mercury'
-```
+## Event choreography by configuration
 
-The "mercury" package is actually the composable core library. To illustate this feature, we have added a sample
-composable function called "no.op" in the NoOp.ts class. When you build the example app using "npm run build",
-the "preload" step will execute the "generate-preloader.js" script to generate the `preload.ts` class in the
-"src/preload" folder. The "no.op" composable function will simply echo input as output.
+The best practice for composable design is event choreography by configuration (`Event Script`) discussed above.
+We will examine the Event Script syntax in [Chapter 4](CHAPTER-4.md).
 
-A worked example of application.yml file is available in the examples/src/resources folder.
+Generally, you only need to use a very minimal set of mercury core APIs in your user function.
+e.g. use PostOffice to obtain a trackable event emitter and AsyncHttpRequest to connect to external system.
 
-### Event orchestration
+For composable applications that use Event Script, Mercury core APIs (Platform, PostOffice and FastRPC) are only
+required for writing unit tests, "custom flow adapters", "legacy functional wrappers" or "external gateways".
 
-A transaction can pass through one or more user functions. In this case, you can write a user function to receive
-request from a user, make requests to some user functions, and consolidate the responses before responding to the
-user.
+## Orchestration by code
 
-Note that event orchestration is optional. For example, you can create a BackEnd for FrontEnd (BFF) application
-simply by writing a composable function and link it with the built-in REST automation system.
+*Orchestration by code is strongly discouraged because it would result in tightly coupled code*.
 
-### REST automation
+For example, just an "Import" statement of another function would create tight coupling of two pieces of code,
+even when using reactive or event-driven programming styles.
 
-REST automation creates REST endpoints by configuration rather than code. You can define a REST endpoint like this:
-
-```yaml
-  - service: "hello.world"
-    methods: ['GET']
-    url: "/api/hello/world"
-    timeout: 10s
-```
-
-In this example, when a HTTP request is received at the URL path "/api/hello/world", the REST automation system
-will convert the HTTP request into an event for onward delivery to the user defined function "hello.world". 
-Your function will receive the HTTP request as input and return a result set that will be sent as a HTTP response
-to the user.
-
-For more sophisticated business logic, we recommend the use of Event Script for event choreography discussed
-earlier.
-
-### In-memory event system
-
-The composable engine encapsulates the standard Node.js EventEmitter library for event routing. It exposes the
-"PostOffice" API for you to write your own event orchestration function to send async or RPC events.
-
-### Local pub/sub system
-
-The in-memory event system is designed for point-to-point delivery. In some use cases, you may like to have
-a broadcast channel so that more than one function can receive the same event. For example, sending notification
-events to multiple functions. The optional local pub/sub system provides this multicast capability.
-
-### Other user facing channels
-
-While REST is the most popular user facing interface, there are other communication means such as event triggers
-in a serverless environment. You can write a function to listen to these external event triggers and send the events
-to your user defined functions. This custom "adapter" pattern is illustrated as the dotted line path in Figure 1.
-
-### Test drive a sample application
-
-To visualize what is a Composable application, let's try out the "Hello World" application in Chapter 2.
-
+However, if there is a use case that you prefer to write orchestration logic by code, you may use the Mercury core
+APIs to do event-driven programming. API overview will be covered in [Chapter 9](CHAPTER-9.md).
 <br/>
 
-|                   Home                    |                Chapter-2                |
-|:-----------------------------------------:|:---------------------------------------:|
-| [Table of Contents](TABLE-OF-CONTENTS.md) | [Hello World application](CHAPTER-2.md) |
+|          Methodology          |                   Home                    |                  Chapter-2                  |
+|:-----------------------------:|:-----------------------------------------:|:-------------------------------------------:|
+| [Methodology](METHODOLOGY.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Function Execution Strategy](CHAPTER-2.md) |

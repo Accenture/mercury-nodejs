@@ -1,4 +1,8 @@
 import { EventEnvelope } from '../models/event-envelope.js';
+/**
+ * This is reserved for system use.
+ * DO NOT use this directly in your application code.
+ */
 export declare class FunctionRegistry {
     private static singleton;
     private registry;
@@ -13,13 +17,13 @@ export declare class FunctionRegistry {
      * @param isPrivate is false if function is visible thru event-over-http
      * @param isInterceptor is true if function is an event interceptor
      */
-    saveFunction(route: string, that: object, instances: number, isPrivate: boolean, isInterceptor: boolean): void;
+    save(route: string, that: object, instances: number, isPrivate: boolean, isInterceptor: boolean): void;
     /**
      * Remove a composable function from the registry by name.
      *
      * @param name of the function
      */
-    removeFunction(name: string): void;
+    remove(name: string): void;
     /**
      * Retrieve metadata for the composable function
      *
@@ -35,7 +39,7 @@ export declare class FunctionRegistry {
      * @param name of the function
      * @returns the function that was previously saved by a library
      */
-    getFunction(name: string): (evt: EventEnvelope) => void;
+    get(name: string): (evt: EventEnvelope) => void;
     /**
      * Retrieve the class instance of a function
      * (this would be used to invoke other methods in the same class)
@@ -56,5 +60,5 @@ export declare class FunctionRegistry {
      *
      * @returns list of function names
      */
-    getFunctions(): Array<string>;
+    getFunctionList(): Array<string>;
 }

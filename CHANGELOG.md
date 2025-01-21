@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 4.2.0, 1/20/2025
+
+This is a milestone release for consistent features and behaviors between
+Java and Node.js versions
+
+### Added
+
+1. Composable methodology in developer guide
+2. Event Script engine for event choreography
+3. Composable example application
+
+### Removed
+
+N/A
+
+### Changed
+
+N/A
+
+---
 ## Version 4.1.1, 12/22/2024
 
 ### Added

@@ -1,5 +1,9 @@
 import { Logger } from '../util/logger.js';
 const log = Logger.getInstance();
+/**
+ * This is reserved for system use.
+ * DO NOT use this directly in your application code.
+ */
 export class FunctionRegistry {
     static singleton;
     registry;
@@ -21,13 +25,13 @@ export class FunctionRegistry {
      * @param isPrivate is false if function is visible thru event-over-http
      * @param isInterceptor is true if function is an event interceptor
      */
-    saveFunction(route, that, instances, isPrivate, isInterceptor) {
+    save(route, that, instances, isPrivate, isInterceptor) {
         // save only when it does not exist to guarantee idempotent property
         if (!this.exists(route)) {
             if ('initialize' in that && 'handleEvent' in that &&
                 that.initialize instanceof Function && that.handleEvent instanceof Function) {
                 log.info(`Loading ${that.constructor.name} as ${route}`);
-                this.registry.saveFunction(route, that, instances, isPrivate, isInterceptor);
+                this.registry.save(route, that, instances, isPrivate, isInterceptor);
             }
             else {
                 log.error(`Unable to load ${this.constructor.name} because it does not implement Composable`);
@@ -39,8 +43,8 @@ export class FunctionRegistry {
      *
      * @param name of the function
      */
-    removeFunction(name) {
-        this.registry.removeFunction(name);
+    remove(name) {
+        this.registry.remove(name);
     }
     /**
      * Retrieve metadata for the composable function
@@ -59,8 +63,8 @@ export class FunctionRegistry {
      * @param name of the function
      * @returns the function that was previously saved by a library
      */
-    getFunction(name) {
-        return this.registry.getFunction(name);
+    get(name) {
+        return this.registry.get(name);
     }
     /**
      * Retrieve the class instance of a function
@@ -86,14 +90,14 @@ export class FunctionRegistry {
      *
      * @returns list of function names
      */
-    getFunctions() {
-        return this.registry.getFunctions();
+    getFunctionList() {
+        return this.registry.getFunctionList();
     }
 }
 class SimpleRegistry {
     registry = new Map();
     metadata = new Map();
-    saveFunction(route, that, instances, isPrivate, isInterceptor) {
+    save(route, that, instances, isPrivate, isInterceptor) {
         if (route && 'initialize' in that && 'handleEvent' in that
             && that['initialize'] instanceof Function && that['handleEvent'] instanceof Function) {
             this.registry.set(route, that);
@@ -103,7 +107,7 @@ class SimpleRegistry {
             throw new Error('Invalid Composable class');
         }
     }
-    removeFunction(name) {
+    remove(name) {
         if (this.exists(name)) {
             this.registry.delete(name);
             this.metadata.delete(name);
@@ -112,7 +116,7 @@ class SimpleRegistry {
     getMetadata(name) {
         return this.metadata.get(name);
     }
-    getFunction(name) {
+    get(name) {
         const cls = this.registry.get(name);
         if (cls && 'handleEvent' in cls) {
             return cls['handleEvent'];
@@ -126,9 +130,9 @@ class SimpleRegistry {
         return cls ? cls : null;
     }
     exists(name) {
-        return this.getFunction(name) != null;
+        return this.get(name) != null;
     }
-    getFunctions() {
+    getFunctionList() {
         return Array.from(this.registry.keys());
     }
 }

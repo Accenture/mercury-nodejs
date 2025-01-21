@@ -7,7 +7,7 @@ import { DistributedTrace } from '../services/tracer.js';
 import { AsyncHttpClient } from '../services/async-http-client.js';
 import { EventEnvelope } from '../models/event-envelope.js';
 import { AppException } from '../models/app-exception.js';
-import { AppConfig } from '../util/config-reader.js';
+import { AppConfig, ConfigReader } from '../util/config-reader.js';
 
 const log = Logger.getInstance();
 const registry = FunctionRegistry.getInstance();
@@ -24,6 +24,12 @@ const REST_AUTOMATION_MANAGER = "rest.automation.manager";
 let startTime: Date;
 let appName: string;
 let self: EventSystem;
+
+const LOG_FORMAT = {
+    TEXT: 0,
+    COMPACT: 1,
+    JSON: 2
+};
 
 function subscribe(route: string, listener: (evt: EventEnvelope) => void): void {
     if (!route) {
@@ -89,7 +95,7 @@ export class Platform {
 
     getName(): string {
         if (!appName) {
-            const config = AppConfig.getInstance().getReader();
+            const config = AppConfig.getInstance();
             appName = config.getProperty('application.name', 'untitled');
         }
         return appName;
@@ -123,7 +129,7 @@ export class Platform {
         if ('initialize' in composable && 'handleEvent' in composable &&
             composable.initialize instanceof Function && composable.handleEvent instanceof Function) {
                 if (!registry.exists(route)) {
-                    registry.saveFunction(route, composable, instances, isPrivate, isInterceptor);
+                    registry.save(route, composable, instances, isPrivate, isInterceptor);
                     composable.initialize();
                 }
                 self.register(route, composable.handleEvent, instances, isPrivate, isInterceptor);
@@ -218,15 +224,12 @@ class ServiceManager {
                 }            
                 const utc = new Date().toISOString();
                 const start = performance.now();
-                try {
-                    const result = listener(evt);
-                    if (result && Object(result).constructor == Promise) {
-                        result.then(v => this.handleResult(workerRoute, utc, start, evt, v)).catch(e => this.handleError(workerRoute, utc, evt, e));
-                    } else {
-                        this.handleResult(workerRoute, utc, start, evt, result);
-                    }
-                } catch (e) {
-                    this.handleError(workerRoute, utc, evt, e);
+                const result = listener(evt);
+                // The listener must implement Composable interface.
+                // Anything else will be ignored.
+                if (result && Object(result).constructor == Promise) {                    
+                    result.then(v => this.handleResult(workerRoute, utc, start, evt, v))
+                          .catch(e => this.handleError(workerRoute, utc, evt, e));
                 }
             });
         }
@@ -284,7 +287,7 @@ class ServiceManager {
         return true;
     }
 
-    handleResult(workerRoute: string, utc: string, start: number, evt: EventEnvelope, response): void {
+    handleResult(workerRoute: string, utc: string, start: number, evt: EventEnvelope, response): void {     
         let traced = false;
         const diff = parseFloat((performance.now() - start).toFixed(3));
         const replyTo = evt.getReplyTo();
@@ -310,8 +313,8 @@ class ServiceManager {
                     // unable to deliver response
                     if (evt.getTraceId() && evt.getTracePath()) {
                         const metrics = {'origin': self.getOriginId(), 'id': evt.getTraceId(), 'path': evt.getTracePath(), 
-                                        'service': this.route, 'start': utc, 'success': true, 'exec_time': diff,
-                                        'remark': 'Response not delivered - Route '+replyTo+' not found'};
+                                        'service': this.route, 'start': utc, 'success': false, 'exec_time': diff,
+                                        'status': 500, 'exception': 'Response not delivered - Route '+replyTo+' not found'};
                         if (evt.getFrom()) {
                             metrics['from'] = evt.getFrom();
                         }
@@ -327,11 +330,27 @@ class ServiceManager {
         }
         // send tracing information if needed
         const tag = evt.getTag(RPC);
-        if (!traced && tag == null && evt.getTraceId() && evt.getTracePath()) {
+        if (!traced && !tag && evt.getTraceId() && evt.getTracePath()) {
             const metrics = {'origin': self.getOriginId(), 'id': evt.getTraceId(), 'path': evt.getTracePath(), 
                             'service': this.route, 'start': utc, 'success': true, 'exec_time': diff};
             if (evt.getFrom()) {
                 metrics['from'] = evt.getFrom();
+            }
+            if (evt.getStatus() >= 400) {
+                metrics['success'] = false;
+                metrics['status'] = evt.getStatus();
+                const error = evt.getBody();
+                if (typeof error == 'string') {
+                    metrics['exception'] = error;
+                } else if (error instanceof Object) {
+                    if ('message' in error) {
+                        metrics['exception'] = error['message'];
+                    } else {
+                        metrics['exception'] = error;
+                    }
+                } else {
+                    metrics['exception'] = error? error : 'null';
+                }                
             }
             const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACING).setBody({'trace': metrics});
             po.send(trace);
@@ -342,7 +361,7 @@ class ServiceManager {
         }
     }
 
-    handleError(workerRoute: string, utc: string, evt: EventEnvelope, e): void {
+    handleError(workerRoute: string, utc: string, evt: EventEnvelope, e: AppException | Error): void {
         let errorCode = 500;
         let traced = false;
         const replyTo = evt.getReplyTo();
@@ -363,22 +382,14 @@ class ServiceManager {
                     }
                     if (e instanceof AppException) {
                         errorCode = e.getStatus();
-                        result.setStatus(errorCode).setBody(e.message).setException(true);
-                    } else if (e instanceof Error) {
-                        errorCode = 500;
-                        result.setStatus(errorCode).setBody(e.message).setException(true);
-                    } else {
-                        errorCode = 400;
-                        result.setStatus(errorCode).setBody(String(e)).setException(true);
                     }
-                    po.send(result);
+                    po.send(result.setException(e));
                 } else {
                     // unable to deliver response
                     if (evt.getTraceId() && evt.getTracePath()) {
                         const metrics = {'origin': self.getOriginId(), 'id': evt.getTraceId(), 'path': evt.getTracePath(), 
-                                        'status': errorCode, 'exception': e.message,
-                                        'service': this.route, 'start': utc, 'success': false, 
-                                        'remark': 'Response not delivered - Route '+replyTo+' not found'};
+                                        'status': 500, 'service': this.route, 'start': utc, 'success': false, 
+                                        'exception': 'Response not delivered - Route '+replyTo+' not found'};
                         if (evt.getFrom()) {
                             metrics['from'] = evt.getFrom();
                         }
@@ -424,7 +435,7 @@ class EventSystem {
     private stopping = false;
 
     constructor() {
-        const config = AppConfig.getInstance().getReader();
+        const config = AppConfig.getInstance();
         let levelInEnv = false;
         let reloaded = false;
         let reloadFile: string = null;
@@ -464,7 +475,15 @@ class EventSystem {
         if (!levelInEnv) {
             log.setLevel(config.getProperty('log.level', 'info'));
         }
-        log.setJsonFormat(config.getProperty('log.format', 'json') == 'json');
+        const logFormat = config.getProperty('log.format', 'text');
+        if (logFormat) {
+            const format = logFormat.toLowerCase();
+            if ('json' == format) {
+                log.setLogFormat(LOG_FORMAT.JSON);
+            } else if ('compact' == format) {
+                log.setLogFormat(LOG_FORMAT.COMPACT);
+            } 
+        }
         if (reloaded) {
             log.info(`Configuration reloaded from ${reloadFile}`);
         } else if (errorInReload) {
@@ -487,6 +506,12 @@ class EventSystem {
         }
         // Event system ready
         log.info(`Event system started - ${po.getId()}`);
+        // load event-over-http.yaml if present
+        const yamlFile = config.getProperty('yaml.event.over.http');
+        if (yamlFile) {
+            po.loadHttpRoutes(yamlFile, new ConfigReader(yamlFile));
+        }
+        // load distributed trace and HTTP client functions
         const tracer = new DistributedTrace().initialize();
         const httpClient = new AsyncHttpClient().initialize();
         this.register(DistributedTrace.name, tracer.handleEvent, 1, true, true);
@@ -527,7 +552,7 @@ class EventSystem {
             for (let i=1; i <= instances; i++) {
                 unsubscribe(route+"#"+i);
             }
-            registry.removeFunction(route);
+            registry.remove(route);
             this.registered.delete(route);
             log.info((isPrivate? 'PRIVATE ' : 'PUBLIC ') + route + ' released');            
         }

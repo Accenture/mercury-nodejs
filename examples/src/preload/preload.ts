@@ -1,17 +1,21 @@
 /*
  * DO NOT modify this file, it will be updated automatically.
- *
- * The generate-preloader.js build script will update this file 
- * using the "resources/preload.yaml" configuration file.
  */
 import fs from 'fs';
 import { fileURLToPath } from "url";
-import { Logger, AppConfig, FunctionRegistry, Platform } from 'mercury';
+import { Logger, AppConfig, FunctionRegistry, Platform, RestAutomation, EventScriptEngine } from 'mercury-composable';
 // import composable functions
-import { NoOp } from '../../node_modules/mercury/dist/services/no-op.js';
+import { NoOp } from '../../node_modules/mercury-composable/dist/services/no-op.js';
 import { DemoAuth } from '../services/demo-auth.js';
 import { DemoHealthCheck } from '../services/health-check.js';
 import { HelloWorldService } from '../services/hello-world-service.js';
+import { CreateProfile } from '../tasks/create-profile.js';
+import { DecryptFields } from '../tasks/decrypt-fields.js';
+import { DeleteProfile } from '../tasks/delete-profile.js';
+import { EncryptFields } from '../tasks/encrypt-fields.js';
+import { GetProfile } from '../tasks/get-profile.js';
+import { HelloException } from '../tasks/hello-exception.js';
+import { SaveProfile } from '../tasks/save-profile.js';
 
 const log = Logger.getInstance();
 
@@ -47,10 +51,17 @@ export class ComposableLoader {
                 new DemoAuth().initialize();
                 new DemoHealthCheck().initialize();
                 new HelloWorldService().initialize();
+                new CreateProfile().initialize();
+                new DecryptFields().initialize();
+                new DeleteProfile().initialize();
+                new EncryptFields().initialize();
+                new GetProfile().initialize();
+                new HelloException().initialize();
+                new SaveProfile().initialize();
                 // register the functions into the event system
                 const platform = Platform.getInstance();
                 const registry = FunctionRegistry.getInstance();
-                const registered = registry.getFunctions();
+                const registered = registry.getFunctionList();
                 for (const name of registered) {
                     const md = registry.getMetadata(name) as object;
                     const instances = md['instances'] as number;
@@ -58,6 +69,14 @@ export class ComposableLoader {
                     const isInterceptor = md['interceptor'] as boolean;
                     platform.register(name, registry.getClass(name), instances, isPrivate, isInterceptor);
                 }
+                // start REST automation engine
+                const restEnabled = 'true' == config.getProperty('rest.automation');
+                if (restEnabled) {
+                    const server = new RestAutomation();
+                    server.start();
+                }
+                const eventManager = new EventScriptEngine();
+                eventManager.start();
             } catch (e) {
                 log.error(`Unable to preload - ${e.message}`);
             }

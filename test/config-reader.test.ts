@@ -1,7 +1,7 @@
-import { Logger } from '../src/util/logger.js';
-import { Utility } from '../src/util/utility.js';
-import { AppConfig, ConfigReader } from '../src/util/config-reader.js';
-import { RoutingEntry } from '../src/util/routing.js';
+import { Logger } from '../src/util/logger';
+import { Utility } from '../src/util/utility';
+import { AppConfig, ConfigReader } from '../src/util/config-reader';
+import { RoutingEntry } from '../src/util/routing';
 import { fileURLToPath } from "url";
 
 const log = Logger.getInstance();
@@ -17,15 +17,15 @@ function getRootFolder() {
 
 describe('config reader tests', () => {
 
-    beforeAll(async () => {
+    beforeAll(() => {
         const resourcePath = getRootFolder() + 'test/resources';
-        const config = AppConfig.getInstance(resourcePath).getReader();
+        const config = AppConfig.getInstance(resourcePath);
         log.info(`Base configuration id=${config.getId()} loaded`);
     });
       
     it('can parse rest.yaml', () => {
-        const filePath = getRootFolder() + 'test/resources/rest.yaml';
-        log.info(`Loading configuration from ${filePath}`);
+        // config reader will resolve alternative extension automatically
+        const filePath = 'classpath:/rest.yml';
         const config = new ConfigReader(filePath);
         const router = new RoutingEntry();
         router.load(config);
@@ -35,19 +35,44 @@ describe('config reader tests', () => {
         expect(assigned.info.url).toBe('/api/hello/world');
     }); 
 
+    it("should throw an error when reading a folder as a configuration file", () => {
+        const filePath = 'classpath:/invalid.yml';        
+        expect(() => new ConfigReader(filePath)).toThrow("Config file must not be a directory"); 
+        // this tests the Logger's warning log feature since we don't have a separate logger test
+        log.warn('Successfully throw exception when reading a folder as a config file');
+        const level = log.getLevel();
+        expect(level).toBe('info');
+    });
+
+    it("should throw an error with invalid YAML extensions", () => {
+        const filePath = 'classpath:/invalid.json';        
+        expect(() => new ConfigReader(filePath)).toThrow("Config file must use .yml or .yaml extension"); 
+        // this tests some Logger features since we don't have a separate logger test
+        log.error('Successfully throw exception when reading YAML file with invalid extension', new Error('Hello World'));
+    });
+
+    it("should throw an error when config file does not exist", () => {
+        const filePath = 'classpath:/no-such-file.yaml';
+        expect(() => new ConfigReader(filePath)).toThrow(`${filePath} not found`); 
+    });
+
+    it("should throw an error when config file is missing", () => {
+        expect(() => new ConfigReader()).toThrow('Missing config resource'); 
+    });
+
     it('can detect single level of config loop', () => {
-        const config = AppConfig.getInstance().getReader();
+        const config = AppConfig.getInstance();
         expect(config.get('recursive.key')).toBeNull();
     });
 
     it('can detect multiple levels of config loop', () => {
-        const config = AppConfig.getInstance().getReader();
+        const config = AppConfig.getInstance();
         expect(config.get('looping.test.1')).toBe("1000");
         expect(config.get('looping.test.3')).toBe("hello hello ");
     });
 
     it('can get one environment variable', () => {
-        const config = AppConfig.getInstance().getReader();
+        const config = AppConfig.getInstance();
         if (process && 'PATH' in process.env) {
             const p = process.env['PATH'];
             expect(config.get('env.var.1')).toBe(p);
@@ -55,7 +80,7 @@ describe('config reader tests', () => {
     });
 
     it('can get multiple environment variables', () => {
-        const config = AppConfig.getInstance().getReader();
+        const config = AppConfig.getInstance();
         if (process && 'PATH' in process.env) {
             const p = process.env['PATH'];
             // the last environment variable is broken

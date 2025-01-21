@@ -43,7 +43,7 @@ const ECONNREFUSED = 'ECONNREFUSED';
 export class AsyncHttpClient implements Composable {
     static name = HTTP_CLIENT_SERVICE;
 
-    initialize(): AsyncHttpClient { 
+    initialize(): Composable { 
         return this;
     }
 
@@ -300,7 +300,7 @@ export class AsyncHttpClient implements Composable {
             // this happens only when HTTP connection fails
             const error = new EventEnvelope().setTo(evt.getReplyTo()).setCorrelationId(evt.getCorrelationId());
             error.setStatus(500).setBody(normalizeTextResponse(500, ex.message));
-            po.send(error);
+            await po.send(error);
         }
         return null;    
     }

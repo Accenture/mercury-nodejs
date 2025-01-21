@@ -1,4 +1,4 @@
-import { preload, Composable, EventEnvelope, AppException } from 'mercury';
+import { preload, Composable, EventEnvelope, AppException } from 'mercury-composable';
 
 const TYPE = 'type';
 const INFO = 'info';
@@ -7,7 +7,7 @@ const HEALTH = 'health';
 export class DemoHealthCheck implements Composable {
 
     @preload('demo.health')
-    initialize(): DemoHealthCheck {
+    initialize(): Composable {
         return this;
     }
 

@@ -44,10 +44,6 @@ rest:
     - "default: event.api.auth"
     cors: cors_1
     headers: header_1
-    # for HTTP request body that is not JSON/XML, it will be turned into a stream if it is undefined
-    # or larger than threshold. Otherwise, it will be delivered as a byte array in the message body.
-    # Default is 50000 bytes, min is 5000, max is 500000
-    threshold: 5000
     # optionally, you can turn on Distributed Tracing
     tracing: true
 
@@ -107,6 +103,253 @@ rest:
     headers: header_1
     tracing: true
 
+#
+# REST endpoints for unit tests
+#
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/greetings/{user}?ex=_"
+    flow: 'greetings'
+    timeout: 4s
+    # optional authentication service which should return result as an EventEnvelope
+    # with session info in headers and true or false in body
+    #    authentication: "v1.api.auth"
+    cors: cors_1
+    headers: header_1
+    # optionally, you can turn on Distributed Tracing
+    tracing: true
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/no-such-flow"
+    flow: 'no-such-flow'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: "http.flow.adapter"
+    methods: ['PUT']
+    url: "/api/ext/state/{user}"
+    flow: 'externalize-put-key-value'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/ext/state/{user}"
+    flow: 'externalize-get-key-value'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/type/matching"
+    flow: 'type-matching'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: "http.flow.adapter"
+    methods: ['POST']
+    url: "/api/body/test"
+    flow: 'body-test'
+    timeout: 10s
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/header/test"
+    flow: 'header-test'
+    timeout: 10s
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/file/vault"
+    flow: 'file-vault-test'
+    timeout: 10s
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/circuit/breaker/{accept}"
+    flow: 'circuit-breaker-example'
+    timeout: 10s
+    tracing: true
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/parent-greeting/{user}?ex=_"
+    flow: 'parent-greetings'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/missing-flow/{user}?ex=_"
+    flow: 'missing-sub-flow'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/timeout/{user}?ex=_"
+    flow: 'timeout-test'
+    timeout: 5s
+    cors: cors_1
+    headers: header_1
+    tracing: true   
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/decision?decision=_"
+    flow: 'decision-test'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/noop/decision?decision=_"
+    flow: 'decision-with-no-op-test'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/numeric-decision?decision=_"
+    flow: 'numeric-decision-test'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true   
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/sequential/{user}?seq=_"
+    flow: 'sequential-test'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true  
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/response/{user}?seq=_"
+    flow: 'response-test'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/delayed-response/{user}?seq=_"
+    flow: 'delayed-response-test'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/fork-n-join/{user}?seq=_"
+    flow: 'fork-n-join-test'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true    
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/pipeline/{user}?seq=_"
+    flow: 'pipeline-test'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/for-loop/{user}?seq=_"
+    flow: 'for-loop-test'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true   
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/for-loop-break/{user}?seq=_"
+    flow: 'for-loop-break'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/for-loop-continue/{user}?seq=_"
+    flow: 'for-loop-continue'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/pipeline-exception/{user}?seq=_"
+    flow: 'pipeline-exception'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/while-loop/{user}?seq=_"
+    flow: 'while-loop'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/while-loop-break/{user}?seq=_"
+    flow: 'while-loop-break'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/while-loop-continue/{user}?seq=_"
+    flow: 'while-loop-continue'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true 
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/parallel"
+    flow: 'parallel-test'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true                   
 #
 # CORS HEADERS for pre-flight (HTTP OPTIONS) and normal responses
 #

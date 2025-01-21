@@ -1,6 +1,6 @@
 import { preload, Composable, EventEnvelope, Logger, 
         AsyncHttpRequest, ObjectStreamReader, AppException, 
-        ObjectStreamIO, ObjectStreamWriter, PostOffice } from 'mercury';
+        ObjectStreamIO, ObjectStreamWriter, PostOffice } from 'mercury-composable';
 
 const log = Logger.getInstance();
 
@@ -8,7 +8,7 @@ export class HelloWorldService implements Composable {
     static name = 'hello.world'
 
     @preload(HelloWorldService.name, 10, false) // define as a public function so it can be reached by event-over-http
-    initialize(): HelloWorldService {
+    initialize(): Composable {
         return this;
     }
 
@@ -18,8 +18,9 @@ export class HelloWorldService implements Composable {
         // You can use the PostOffice's getMyClass() method to get its class instance
         const po = new PostOffice(evt.getHeaders());
         const self = po.getMyClass() as HelloWorldService;
+        const myInstance = po.getMyInstance();
         // headers contain tracing metadata and body is the incoming HTTP request
-        log.info({'headers': evt.getHeaders(), 'body': evt.getBody()});
+        log.info(`request received by instance #${myInstance}`);
         const payload = evt.getBody();
         if (payload && payload instanceof Object) {
             // interpret the incoming HTTP request

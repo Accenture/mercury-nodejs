@@ -11,33 +11,43 @@ const util = new Utility();
 const registry = FunctionRegistry.getInstance();
 const emitter = new EventEmitter();
 const handlers = new Map();
+const eventHttpTargets = {};
+const eventHttpHeaders = {};
 let self = null;
+const EVENT_MANAGER = "event.script.manager";
+const TASK_EXECUTOR = "task.executor";
 const DISTRIBUTED_TRACING = 'distributed.tracing';
 const ASYNC_HTTP_CLIENT = 'async.http.request';
 const APPLICATION_OCTET_STREAM = "application/octet-stream";
 const RPC = "rpc";
+const X_EVENT_API = "x-event-api";
 export class PostOffice {
     from = null;
-    instance = null;
     traceId = null;
     tracePath = null;
+    instance = "1";
     trackable = false;
     constructor(headers) {
         if (self == null) {
             self = new PO();
         }
+        if (headers && headers instanceof Sender) {
+            this.trackable = true;
+            this.from = headers.originator;
+            this.traceId = headers.traceId;
+            this.tracePath = headers.tracePath;
+        }
         if (headers && headers.constructor == Object) {
             if ('my_route' in headers) {
-                this.from = String(headers['my_route']);
                 this.trackable = true;
+                this.from = String(headers['my_route']);
             }
             if ('my_instance' in headers) {
                 this.instance = String(headers['my_instance']);
-                this.trackable = true;
             }
             if ('my_trace_id' in headers) {
-                this.traceId = String(headers['my_trace_id']);
                 this.trackable = true;
+                this.traceId = String(headers['my_trace_id']);
             }
             if ('my_trace_path' in headers) {
                 this.tracePath = String(headers['my_trace_path']);
@@ -62,6 +72,42 @@ export class PostOffice {
             event.setFrom(this.from);
             event.setTraceId(this.traceId);
             event.setTracePath(this.tracePath);
+        }
+    }
+    /**
+     * DO NOT use this method directly.
+     * This will be invoked at application startup by the platform class.
+     *
+     * @param file path of the config file
+     * @param config ConfigReader
+     */
+    loadHttpRoutes(file, config) {
+        const o = config.get("event.http");
+        if (Array.isArray(o)) {
+            const eventHttpEntries = o;
+            for (let i = 0; i < eventHttpEntries.length; i++) {
+                const route = config.getProperty("event.http[" + i + "].route");
+                const target = config.getProperty("event.http[" + i + "].target");
+                if (route && target) {
+                    eventHttpTargets[route] = target;
+                    let headerCount = 0;
+                    const h = config.get("event.http[" + i + "].headers");
+                    if (h instanceof Object && !Array.isArray(h)) {
+                        const headers = {};
+                        Object.keys(h).forEach(k => {
+                            headers[String(k)] = config.getProperty("event.http[" + i + "].headers." + k);
+                            headerCount++;
+                        });
+                        eventHttpHeaders[route] = headers;
+                    }
+                    log.info(`Event-over-HTTP ${route} -> ${target} with ${headerCount} header${headerCount == 1 ? '' : 's'}`);
+                }
+            }
+            const total = Object.keys(eventHttpTargets).length;
+            log.info(`Total ${total} event-over-http target${total == 1 ? '' : 's'} configured`);
+        }
+        else {
+            log.error(`Invalid config ${file} - the event.http section should be a list of route and target`);
         }
     }
     /**
@@ -142,19 +188,23 @@ export class PostOffice {
      *
      * @param event envelope
      */
-    send(event) {
+    async send(event) {
         this.touch(event);
-        self.send(event);
+        await self.send(event);
     }
     /**
      * Send an event later
      *
      * @param event envelope
      * @param delay in milliseconds (default one second)
+     * @returns timer
      */
     sendLater(event, delay = 1000) {
         this.touch(event);
-        self.sendLater(event, delay);
+        return self.sendLater(event, delay);
+    }
+    cancelFutureEvent(timer) {
+        self.cancelFutureEvent(timer);
     }
     /**
      * Make an asynchronous RPC call
@@ -182,6 +232,16 @@ export class PostOffice {
         return self.remoteRequest(event, endpoint, securityHeaders, rpc, timeout);
     }
 }
+export class Sender {
+    originator;
+    traceId;
+    tracePath;
+    constructor(originator, traceId, tracePath) {
+        this.originator = originator;
+        this.traceId = traceId;
+        this.tracePath = tracePath;
+    }
+}
 class PO {
     id = util.getUuid();
     getId() {
@@ -196,12 +256,7 @@ class PO {
         }
     }
     subscribeInbox(route, listener) {
-        if (!route) {
-            throw new Error('Missing route');
-        }
-        if (handlers.has(route)) {
-            this.unsubscribeInbox(route);
-        }
+        // no need for input validation because this method is used internally by the request method
         handlers.set(route, listener);
         emitter.on(route, listener);
         log.debug(`Inbox ${route} registered`);
@@ -214,16 +269,53 @@ class PO {
             log.debug(`Inbox ${route} unregistered`);
         }
     }
-    send(event) {
+    async send(event) {
         const route = event.getTo();
         if (route) {
+            const targetHttp = event.getHeader(X_EVENT_API) ? null : eventHttpTargets[route];
+            const headers = eventHttpHeaders[route];
+            if (targetHttp) {
+                const callback = event.getReplyTo();
+                const rpc = callback ? true : false;
+                const eventApiType = rpc ? "callback" : "async";
+                event.setReplyTo(null);
+                const forwardEvent = new EventEnvelope(event.toMap()).setHeader(X_EVENT_API, eventApiType);
+                const evt = await this.remoteRequest(forwardEvent, targetHttp, headers, rpc);
+                if (rpc) {
+                    // Send the RPC response from the remote target service to the callback
+                    evt.setTo(callback).setReplyTo(null).setFrom(route)
+                        .setTraceId(event.getTraceId()).setTracePath(event.getTracePath())
+                        .setCorrelationId(event.getCorrelationId());
+                    try {
+                        await this.send(evt);
+                    }
+                    catch (e) {
+                        log.error(`Error in sending callback event ${route} from ${targetHttp} to ${callback} - ${e.message}`);
+                    }
+                }
+                else {
+                    if (evt.getStatus() != 202) {
+                        log.error(`Error in sending async event ${route} to ${targetHttp} - status=${evt.getStatus()}, error=${String(evt.getBody())}`);
+                    }
+                }
+                return;
+            }
             if (handlers.has(route)) {
-                // serialize event envelope for immutability
-                emitter.emit(route, event.toBytes());
+                if (route == EVENT_MANAGER || route == TASK_EXECUTOR) {
+                    // let event manager and task executor process the event directly
+                    // because they are considered to be part of the event system.
+                    setImmediate(() => {
+                        const f = registry.getClass(route);
+                        f.handleEvent(event.setHeader('my_route', route));
+                    });
+                }
+                else {
+                    // serialize event envelope for immutability
+                    emitter.emit(route, event.toBytes());
+                }
             }
             else {
-                const traceRef = event.getTraceId() ? `Trace (${event.getTraceId()}), ` : '';
-                log.error(`${traceRef}Event ${event.getId()} dropped because ${route} not found`);
+                throw new Error(`Route ${route} not found`);
             }
         }
         else {
@@ -231,7 +323,13 @@ class PO {
         }
     }
     sendLater(event, delay = 1000) {
-        util.sleep(Math.max(10, delay)).then(() => this.send(event));
+        const timer = setTimeout(() => {
+            this.send(event);
+        }, delay);
+        return timer;
+    }
+    cancelFutureEvent(timer) {
+        clearTimeout(timer);
     }
     request(event, timeout = 60000) {
         return new Promise((resolve, reject) => {
@@ -239,6 +337,20 @@ class PO {
             const start = performance.now();
             const route = event.getTo();
             if (route) {
+                const targetHttp = event.getHeader(X_EVENT_API) ? null : eventHttpTargets[route];
+                const headers = eventHttpHeaders[route];
+                if (targetHttp) {
+                    const callback = event.getReplyTo();
+                    const rpc = callback ? true : false;
+                    const eventApiType = rpc ? "callback" : "async";
+                    event.setReplyTo(null);
+                    const forwardEvent = new EventEnvelope(event.toMap()).setHeader(X_EVENT_API, eventApiType);
+                    this.remoteRequest(forwardEvent, targetHttp, headers, rpc).then(res => {
+                        resolve(res);
+                    }).catch(e => {
+                        reject(e);
+                    });
+                }
                 if (handlers.has(route)) {
                     const callback = 'r.' + util.getUuid();
                     const timer = setTimeout(() => {
@@ -264,6 +376,25 @@ class PO {
                                     'exec_time': response.getExecTime(), 'round_trip': diff };
                                 if (event.getFrom()) {
                                     metrics['from'] = event.getFrom();
+                                }
+                                if (response.getStatus() >= 400) {
+                                    metrics['success'] = false;
+                                    metrics['status'] = response.getStatus();
+                                    const error = response.getBody();
+                                    if (typeof error == 'string') {
+                                        metrics['exception'] = error;
+                                    }
+                                    else if (error instanceof Object) {
+                                        if ('message' in error) {
+                                            metrics['exception'] = error['message'];
+                                        }
+                                        else {
+                                            metrics['exception'] = error;
+                                        }
+                                    }
+                                    else {
+                                        metrics['exception'] = error ? error : 'null';
+                                    }
                                 }
                                 const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACING).setBody({ 'trace': metrics });
                                 this.send(trace);

@@ -44,7 +44,10 @@ function getFlattenList(prefix, src, target) {
         }
     }
 }
-function setMapElement(pathname, value, map) {
+function removeMapElement(pathname, map) {
+    setMapElement(pathname, null, map, true);
+}
+function setMapElement(pathname, value, map, remove = false) {
     validateCompositePathSyntax(pathname);
     const nullValue = value == null || value == undefined;
     // ignore null value
@@ -109,7 +112,12 @@ function setMapElement(pathname, value, map) {
             }
             else {
                 if (n == len) {
-                    current[p] = value;
+                    if (nullValue && remove) {
+                        delete current[p];
+                    }
+                    else {
+                        current[p] = value;
+                    }
                     break;
                 }
                 else {
@@ -352,6 +360,11 @@ export class MultiLevelMap {
     getMap() {
         return this.multiLevels;
     }
+    reload(kv) {
+        if (kv && kv.constructor == Object) {
+            this.multiLevels = kv;
+        }
+    }
     /**
      * Check if the map is empty
      *
@@ -392,9 +405,7 @@ export class MultiLevelMap {
         return value instanceof NotFound ? defaultValue : value;
     }
     /**
-     * Set value using a composite key
-     *
-     * e.g.
+     * Set value using a composite key. e.g.
      * const m = {'hello': 'world', 'x': {'y': [1, [10, 20, 30], {'a': 'b'}]}}
      * const mm = new MultiLevelMap(m);
      * const result = mm.getElement('x.y[1][1]'))
@@ -406,6 +417,16 @@ export class MultiLevelMap {
      */
     setElement(compositePath, value) {
         setMapElement(compositePath, value, this.multiLevels);
+        return this;
+    }
+    /**
+     * Remove an element using a composite key
+     *
+     * @param compositePath in dot-bracket convention
+     * @returns this
+     */
+    removeElement(compositePath) {
+        removeMapElement(compositePath, this.multiLevels);
         return this;
     }
     /**

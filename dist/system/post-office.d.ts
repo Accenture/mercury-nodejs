@@ -1,13 +1,22 @@
 import { EventEmitter } from 'events';
 import { EventEnvelope } from '../models/event-envelope.js';
+import { ConfigReader } from '../util/config-reader.js';
 export declare class PostOffice {
     private from;
-    private instance;
     private traceId;
     private tracePath;
+    private instance;
     private trackable;
-    constructor(headers?: object);
+    constructor(headers?: Sender | object);
     private touch;
+    /**
+     * DO NOT use this method directly.
+     * This will be invoked at application startup by the platform class.
+     *
+     * @param file path of the config file
+     * @param config ConfigReader
+     */
+    loadHttpRoutes(file: string, config: ConfigReader): void;
     /**
      * Application instance ID
      *
@@ -68,14 +77,16 @@ export declare class PostOffice {
      *
      * @param event envelope
      */
-    send(event: EventEnvelope): void;
+    send(event: EventEnvelope): Promise<void>;
     /**
      * Send an event later
      *
      * @param event envelope
      * @param delay in milliseconds (default one second)
+     * @returns timer
      */
-    sendLater(event: EventEnvelope, delay?: number): void;
+    sendLater(event: EventEnvelope, delay?: number): NodeJS.Timeout;
+    cancelFutureEvent(timer: NodeJS.Timeout): void;
     /**
      * Make an asynchronous RPC call
      *
@@ -95,4 +106,10 @@ export declare class PostOffice {
      * @returns a future promise of result or error
      */
     remoteRequest(event: EventEnvelope, endpoint: string, securityHeaders?: object, rpc?: boolean, timeout?: number): Promise<EventEnvelope>;
+}
+export declare class Sender {
+    originator: string;
+    traceId: string;
+    tracePath: string;
+    constructor(originator: string, traceId: string, tracePath: string);
 }

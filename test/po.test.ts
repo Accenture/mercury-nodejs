@@ -1,18 +1,18 @@
-import { Logger } from '../src/util/logger.js';
-import { Composable } from '../src/models/composable.js';
-import { FunctionRegistry } from '../src/system/function-registry.js';
-import { PostOffice } from '../src/system/post-office.js';
-import { Platform } from '../src/system/platform.js';
-import { LocalPubSub } from '../src/system/local-pubsub.js';
-import { RestAutomation } from '../src/system/rest-automation.js';
-import { AppConfig, ConfigReader } from '../src/util/config-reader.js';
-import { Utility } from '../src/util/utility.js';
-import { MultiLevelMap } from '../src/util/multi-level-map.js';
-import { EventEnvelope } from '../src/models/event-envelope.js';
-import { AsyncHttpRequest } from '../src/models/async-http-request.js';
-import { AppException } from '../src/models/app-exception.js';
-import { ObjectStreamIO, ObjectStreamReader, ObjectStreamWriter } from '../src/system/object-stream.js';
-import { HelloWorld } from './services/helloworld.js';
+import { Logger } from '../src/util/logger';
+import { Composable } from '../src/models/composable';
+import { FunctionRegistry } from '../src/system/function-registry';
+import { PostOffice, Sender } from '../src/system/post-office';
+import { Platform } from '../src/system/platform';
+import { LocalPubSub } from '../src/system/local-pubsub';
+import { RestAutomation } from '../src/system/rest-automation';
+import { AppConfig, ConfigReader } from '../src/util/config-reader';
+import { Utility } from '../src/util/utility';
+import { MultiLevelMap } from '../src/util/multi-level-map';
+import { EventEnvelope } from '../src/models/event-envelope';
+import { AsyncHttpRequest } from '../src/models/async-http-request';
+import { AppException } from '../src/models/app-exception';
+import { ObjectStreamIO, ObjectStreamReader, ObjectStreamWriter } from '../src/system/object-stream';
+import { HelloWorld } from './services/helloworld';
 import { NextFunction, Request, Response } from 'express';
 import fs from 'fs';
 import { fileURLToPath } from "url";
@@ -62,7 +62,7 @@ function getRootFolder() {
 }
 
 class HelloDownload implements Composable {
-  initialize(): HelloDownload {
+  initialize(): Composable {
     return this;
   }
   async handleEvent(evt: EventEnvelope) {
@@ -74,14 +74,14 @@ class HelloDownload implements Composable {
     const out = new ObjectStreamWriter(stream.getOutputStreamId());
     out.write('hello world\n');
     out.write('end');
-    out.close();
+    await out.close();
     return new EventEnvelope().setHeader(STREAM_CONTENT, stream.getInputStreamId())
                 .setHeader('content-type', 'application/octet-stream');
   }
 }
 
 class DemoHealth implements Composable {
-  initialize(): DemoHealth {
+  initialize(): Composable {
     return this;
   }
   async handleEvent(evt: EventEnvelope) {
@@ -98,7 +98,7 @@ class DemoHealth implements Composable {
 }
 
 class DemoInterceptor implements Composable {
-  initialize(): DemoInterceptor {
+  initialize(): Composable {
     return this;
   }
 
@@ -120,7 +120,7 @@ class DemoInterceptor implements Composable {
         log.info(`Interceptor ${myRoute} finds corelation_id as ${cid}`);
         response.setCorrelationId(cid);
       }
-      po.send(response);
+      await po.send(response);
     } else {
       log.info(`Interceptor ${myRoute} does not respond because there is no reply_to address`);
     }
@@ -129,7 +129,7 @@ class DemoInterceptor implements Composable {
 }
 
 class SimpleAuth implements Composable {
-  initialize(): SimpleAuth {
+  initialize(): Composable {
     return this;
   }
   async handleEvent(evt: EventEnvelope) {
@@ -147,7 +147,7 @@ class SimpleAuth implements Composable {
 }
 
 class HelloBff implements Composable {
-  initialize(): HelloBff {
+  initialize(): Composable {
     return this;
   }
 
@@ -168,7 +168,7 @@ class MyCallBackOne implements Composable {
   static name = 'my.callback.1';
   static result: string = '';
 
-  initialize(): MyCallBackOne {
+  initialize(): Composable {
     return this;
   }
 
@@ -183,7 +183,7 @@ class MyCallBackTwo implements Composable {
   static result = new Map<number, EventEnvelope>();
   static count = 0;
 
-  initialize(): MyCallBackTwo {
+  initialize(): Composable {
     return this;
   }
 
@@ -198,7 +198,7 @@ class TraceForwarder implements Composable {
   static tracePath = 'PUT /api/demo/test';
   static traceStack: Array<object> = [];
 
-  initialize(): TraceForwarder {
+  initialize(): Composable {
     return this;
   }
 
@@ -219,10 +219,10 @@ describe('post office use cases', () => {
 
     beforeAll(async () => {
       resourcePath = getRootFolder() + 'test/resources';
-      // AppConfig should be initialized with base configuration parameter when the Platform object is loaded
-      const appConfig = AppConfig.getInstance(resourcePath).getReader();
+      // AppConfig should be initialized with base configuration parameter before everything else
+      const appConfig = AppConfig.getInstance(resourcePath);
       platform = Platform.getInstance();
-      // // save the helloWorld as DEMO_LIBRARY_FUNCTION so that it can be retrieved by name
+      // save the helloWorld as DEMO_LIBRARY_FUNCTION so that it can be retrieved by name
       const helloWorld = new HelloWorld();
       helloWorldSignature = helloWorld.signature;
       // when a composable class is registered, it is available in the registry
@@ -239,11 +239,12 @@ describe('post office use cases', () => {
       // register the demo interceptor function
       platform.register(HELLO_INTERCEPTOR_SERVICE, new DemoInterceptor(), 1, true, true);
       appConfig.set('health.dependencies', 'demo.health');
-      // the "server.port" parameter will be retrieved from the base configuration (AppConfig)
+      // this tests that we can create a user defined config reader that resolves references from the base configuration
       const configMap = {'event.api.url': 'http://127.0.0.1:${server.port:8080}/api/event', 'base.url': 'http://127.0.0.1:${server.port:8080}'}
       const reader = new ConfigReader(configMap);
       endApiUrl = reader.getProperty('event.api.url');
       baseUrl = reader.getProperty('base.url');
+      log.info(`PostOffice tests will use ${baseUrl}`);
       platform.register(API_AUTH_SERVICE, new SimpleAuth());
       // test streaming I/O
       const stream = new ObjectStreamIO();
@@ -274,14 +275,14 @@ describe('post office use cases', () => {
     });
 
     it('can make a RPC call', async () => {
-        const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': '100', 'my_trace_path': 'TEST /demo/rpc'});
-        const req = new EventEnvelope().setTo(HELLO_WORLD_SERVICE).setBody(TEST_MESSAGE);
-        const result = await po.request(req, 3000);
-        expect(result.getBody()).toBe(TEST_MESSAGE);       
+      const po = new PostOffice(new Sender('unit.test', '100', 'TEST /demo/rpc'));
+      const req = new EventEnvelope().setTo(HELLO_WORLD_SERVICE).setBody(TEST_MESSAGE);
+      const result = await po.request(req, 3000);
+      expect(result.getBody()).toBe(TEST_MESSAGE);       
     });
 
     it('can retrieve metadata from Composable function', async () => {
-      const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': '101', 'my_trace_path': 'TEST /demo/metadata'});
+      const po = new PostOffice(new Sender('unit.test', '101', 'TEST /demo/metadata'));
       const req = new EventEnvelope().setTo(HELLO_WORLD_SERVICE).setHeader('type', 'metadata');
       const result = await po.request(req, 3000);
       expect(result.getBody()).toBeInstanceOf(Object);
@@ -296,7 +297,7 @@ describe('post office use cases', () => {
 
     it('can send to an interceptor and expect a result', async () => {
       const cid = 'abc001';
-      const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': '120', 'my_trace_path': 'TEST /demo/interceptor'});
+      const po = new PostOffice(new Sender('unit.test', '120', 'TEST /demo/interceptor'));
       const req = new EventEnvelope().setTo(HELLO_INTERCEPTOR_SERVICE).setBody(TEST_MESSAGE).setCorrelationId(cid);
       const result = await po.request(req, 3000);
       expect(result.getBody()).toBe(TEST_MESSAGE);
@@ -306,7 +307,7 @@ describe('post office use cases', () => {
     it('can catch exception from RPC', async () => {
         const req = new EventEnvelope().setTo(HELLO_WORLD_SERVICE).setHeader(TYPE, ERROR);
         // Send a call to trigger an exception
-        const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': '200', 'my_trace_path': 'TEST /demo/exception'});
+        const po = new PostOffice(new Sender('unit.test', '200', 'TEST /demo/exception'));
         await expect(po.request(req, 3000)).rejects.toEqual(new Error(DEMO_EXCEPTION));
         // Check the exact exception status and message with the try-await-catch pattern
         let ex = null;
@@ -316,13 +317,13 @@ describe('post office use cases', () => {
           ex = e;
         }
         expect(ex).toBeInstanceOf(AppException);
-        expect(String(ex)).toBe('AppException: (400) demo exception');        
+        expect(String(ex)).toBe('Error: demo exception');        
     });
 
     it('can catch timeout from RPC', async () => {
         const req = new EventEnvelope().setTo(HELLO_WORLD_SERVICE).setHeader(TYPE, TIMEOUT);
         // Send a call to trigger an exception
-        const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': '300', 'my_trace_path': 'TEST /demo/timeout'});
+        const po = new PostOffice(new Sender('unit.test', '300', 'TEST /demo/timeout'));
         await expect(po.request(req, 100)).rejects.toEqual(new Error("Route hello.world timeout for 100 ms"));
         // Check the exact exception status and message with the try-await-catch pattern
         let normal = false;
@@ -388,7 +389,7 @@ describe('post office use cases', () => {
     it('can reply to a callback', async () => {
         const callback = new MyCallBackOne();
         platform.register(MyCallBackOne.name, callback);
-        const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': '333', 'my_trace_path': 'TEST /demo/callback'});
+        const po = new PostOffice(new Sender('unit.test', '333', 'TEST /demo/callback'));
         // send a request to hello.world and set the replyTo address as my.callback
         const request = new EventEnvelope().setTo(HELLO_WORLD_SERVICE).setBody(TEST_MESSAGE).setReplyTo(MyCallBackOne.name);
         po.send(request);
@@ -407,8 +408,7 @@ describe('post office use cases', () => {
     it('can catch all traces with a distributed trace forwarder', async () => {
         const forwarder = new TraceForwarder();
         platform.register(DISTRIBUTED_TRACE_FORWARDER, forwarder);
-        const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': TraceForwarder.traceId, 
-                                    'my_trace_path': TraceForwarder.tracePath});
+        const po = new PostOffice(new Sender('unit.test', TraceForwarder.traceId, TraceForwarder.tracePath));
         const request = new EventEnvelope().setTo(HELLO_WORLD_SERVICE).setBody(TEST_MESSAGE);
         const result = await po.request(request, 3000);      
         expect(result.getBody()).toBe(TEST_MESSAGE);
@@ -433,7 +433,7 @@ describe('post office use cases', () => {
     it('can deliver events orderly', async () => {
         const callback = new MyCallBackTwo();
         platform.register(MyCallBackTwo.name, callback);
-        const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': 123, 'my_trace_path': '/test/queuing'});
+        const po = new PostOffice(new Sender('unit.test', '123', '/test/queuing'));
         // send a request to hello.world and set the replyTo address as my.callback        
         for (let i=1; i <= TEST_CYCLES; i++) {
           const request = new EventEnvelope().setTo(HELLO_WORLD_SERVICE).setBody(TEST_MESSAGE+' '+i).setReplyTo(MyCallBackTwo.name);
@@ -465,7 +465,7 @@ describe('post office use cases', () => {
     });
 
     it('can make a RPC call using Event API', async () => {
-      const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': 'A10000', 'my_trace_path': 'TEST /api/event/test'});
+      const po = new PostOffice(new Sender('unit.test', 'A10000', 'TEST /api/event/test'));
       const event = new EventEnvelope().setTo(HELLO_WORLD_SERVICE).setBody("test").setHeader("x", "y");
       const result = await po.remoteRequest(event, endApiUrl, {'authorization': 'demo'});
       expect(result).toBeTruthy();
@@ -478,7 +478,7 @@ describe('post office use cases', () => {
     });
 
     it('can reject a RPC call with HTTP-401 using Event API', async () => {
-      const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': 'B10000', 'my_trace_path': 'TEST /api/event/test'});
+      const po = new PostOffice(new Sender('unit.test', 'B10000', 'TEST /api/event/test'));
       const event = new EventEnvelope().setTo(HELLO_WORLD_SERVICE).setBody("test").setHeader("x", "y");
       const result = await po.remoteRequest(event, endApiUrl, {'authorization': 'anyone'});
       expect(result).toBeTruthy();
@@ -487,7 +487,7 @@ describe('post office use cases', () => {
     });    
 
     it('can make a drop-n-forget call using Event API', async () => {
-      const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': '10001', 'my_trace_path': 'TEST /api/event/test'});
+      const po = new PostOffice(new Sender('unit.test', '10001', 'TEST /api/event/test'));
       const event = new EventEnvelope().setTo(HELLO_WORLD_SERVICE).setBody("test").setHeader("x", "y");
       const result = await po.remoteRequest(event, endApiUrl, {'authorization': 'demo'}, false);
       expect(result).toBeTruthy();
@@ -499,7 +499,7 @@ describe('post office use cases', () => {
     });
 
     it('will throw exception when the remote service is private', async () => {
-      const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': '10003', 'my_trace_path': 'TEST /api/event/test'});
+      const po = new PostOffice(new Sender('unit.test', '10003', 'TEST /api/event/test'));
       const event = new EventEnvelope().setTo(HELLO_PRIVATE_SERVICE).setBody("test");
       const result = await po.remoteRequest(event, endApiUrl, {'authorization': 'demo'});
       expect(result).toBeTruthy();
@@ -508,7 +508,7 @@ describe('post office use cases', () => {
     });    
 
     it('will throw exception when the remote service does not exist', async () => {
-      const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': '10004', 'my_trace_path': 'TEST /api/event/test'});
+      const po = new PostOffice(new Sender('unit.test', '10004', 'TEST /api/event/test'));
       const event = new EventEnvelope().setTo("no.such.service").setBody("test");
       const result = await po.remoteRequest(event, endApiUrl, {'authorization': 'demo'});
       expect(result).toBeTruthy();
@@ -519,7 +519,7 @@ describe('post office use cases', () => {
     it('can validate the class instance in a registry', async () => {
       const exists = registry.exists(DEMO_LIBRARY_FUNCTION);
       expect(exists).toBe(true);
-      const f = registry.getFunction(DEMO_LIBRARY_FUNCTION);
+      const f = registry.get(DEMO_LIBRARY_FUNCTION);
       expect(f).toBeInstanceOf(Function);
       const cls = registry.getClass(DEMO_LIBRARY_FUNCTION);
       expect(cls).toBeInstanceOf(HelloWorld);
@@ -553,7 +553,7 @@ describe('post office use cases', () => {
       platform.register(member1, new DemoInterceptor(), 1, true, true);
       platform.register(member2, new DemoInterceptor(), 1, true, true);
       const cid = 'x201';
-      const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': '222', 'my_trace_path': 'TEST /demo/pubsub'});
+      const po = new PostOffice(new Sender('unit.test', '222', 'TEST /demo/pubsub'));
       const req = new EventEnvelope().setTo(topic).setBody(TEST_MESSAGE).setCorrelationId(cid);
       // Pub/sub will broadcast to all members of a topic
       po.send(req);
@@ -592,7 +592,7 @@ describe('post office use cases', () => {
       const map = new MultiLevelMap(result.getBody() as object);
       expect(map.getElement('app.name')).toBe('platform-core');
       expect(map.getElement('origin')).toBe(platform.getOriginId());
-      expect(map.getElement('app.version')).toBe('4.1.1');
+      expect(map.getElement('app.version')).toBe('4.1.5');
     });   
     
     it('can get response from /health endpoint', async () => {
@@ -758,13 +758,13 @@ describe('post office use cases', () => {
     it('can retrieve a function from the registry and use it', async () => {
       const exists = registry.exists(DEMO_LIBRARY_FUNCTION);
       expect(exists).toBe(true);
-      const functionList = registry.getFunctions();
+      const functionList = registry.getFunctionList();
       expect(functionList.includes(DEMO_LIBRARY_FUNCTION)).toBe(true);
       const demoClass = registry.getClass(DEMO_LIBRARY_FUNCTION);
       expect(demoClass).toBeInstanceOf(HelloWorld);
       expect('signature' in demoClass).toBeTruthy();
       expect(demoClass['signature']).toBe(helloWorldSignature);
-      const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': '400', 'my_trace_path': 'TEST /library/rpc'});
+      const po = new PostOffice(new Sender('unit.test', '400', 'TEST /library/rpc'));
       const req = new EventEnvelope().setTo(DEMO_LIBRARY_FUNCTION).setBody(TEST_MESSAGE);
       const result = await po.request(req, 3000);
       expect(result.getBody()).toBe(TEST_MESSAGE);
@@ -1009,7 +1009,7 @@ describe('post office use cases', () => {
         outStream.write(text+i+'\n');
       }
       outStream.write('end');
-      outStream.close();
+      await outStream.close();
       const request = new AsyncHttpRequest().setMethod('POST').setBody(text)
                             .setTargetHost(baseUrl)
                             .setUrl('/api/hello/upload')
@@ -1038,12 +1038,15 @@ describe('post office use cases', () => {
                           .setUrl('/api/invalid/hello/world')
                           .setTimeoutSeconds(10);
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(request.toMap());
-      const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': '1200', 'my_trace_path': 'TEST /not/reachable'});
+      const po = new PostOffice(new Sender('unit.test', '1200', 'TEST /not/reachable'));
       const result = await po.request(reqEvent, 3000);
+      expect(result.getHeader('content-type')).toBe('application/json');
       expect(result.getStatus()).toBe(500);
-      expect(typeof result.getBody()).toBe('string');
-      const message = result.getBody() as string;
-      expect(message).toBe('Connection refused - 127.0.0.1:60800');
+      expect(result.getBody() instanceof Object).toBeTruthy();
+      const map = new MultiLevelMap(result.getBody() as object);
+      expect(map.getElement('type')).toBe('error');
+      expect(map.getElement('status')).toBe(500);
+      expect(map.getElement('message')).toBe('Connection refused - 127.0.0.1:60800');
     });  
 
     it('can download data from /api/hello/download', async () => {
@@ -1052,7 +1055,7 @@ describe('post office use cases', () => {
                           .setUrl('/api/hello/download')
                           .setTimeoutSeconds(10);
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(request.toMap());
-      const po = new PostOffice({'my_route': 'unit.test', 'my_trace_id': '2500', 'my_trace_path': 'TEST /download/stream'});
+      const po = new PostOffice(new Sender('unit.test', '2500', 'TEST /download/stream'));
       const result = await po.request(reqEvent, 3000);
       expect(result.getStatus()).toBe(200);
       expect(result.getBody()).toBe(null);

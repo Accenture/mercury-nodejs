@@ -1,5 +1,5 @@
 export class AppException extends Error {
-
+    
     private status: number;
 
     constructor(status: number, message: string) {
@@ -25,14 +25,4 @@ export class AppException extends Error {
     getMessage(): string {
         return this.message;
     }
-
-    /**
-     * Encode composite error message for easy validation in unit tests
-     * 
-     * @returns composite error message
-     */
-    toString(): string {
-        return `AppException: (${this.status}) ${this.message}`;
-    }
-
 }

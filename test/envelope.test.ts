@@ -1,4 +1,5 @@
 import { EventEnvelope } from '../src/models/event-envelope';
+import { AppException } from '../src/models/app-exception';
 
 describe('event envelope functional tests', () => {
       
@@ -25,7 +26,6 @@ describe('event envelope functional tests', () => {
         before.setFrom("unit.test").setCorrelationId("123");
         before.setTraceId("100").setTracePath("GET /api/hello/world");
         before.addTag("rpc", timeout);
-        before.setException(true);
         before.setReplyTo(replyTo);
         before.setExecTime(execTime);
         before.setRoundTrip(roundTrip);
@@ -34,7 +34,6 @@ describe('event envelope functional tests', () => {
         expect(after).toEqual(before);
         after.removeTag("rpc");
         expect(after.getTag("rpc")).toBeNull();
-        after.setException(false);
         expect(after.isException()).toBeFalsy();
         expect(after.getRoundTrip()).toBe(roundTrip);
     });  
@@ -51,7 +50,6 @@ describe('event envelope functional tests', () => {
         before.setFrom("unit.test").setCorrelationId("123");
         before.setTraceId("100").setTracePath("GET /api/hello/world");
         before.addTag("rpc", timeout);
-        before.setException(true);
         before.setReplyTo(replyTo);
         before.setExecTime(execTime);
         before.setRoundTrip(roundTrip);
@@ -60,11 +58,40 @@ describe('event envelope functional tests', () => {
         expect(after).toEqual(before);
         after.removeTag("rpc");
         expect(after.getTag("rpc")).toBeNull();
-        after.setException(false);
         expect(after.isException()).toBeFalsy();
         expect(after.getRoundTrip()).toBe(roundTrip);
         expect(after.getCorrelationId()).toBe("123");
         expect(after.getId()).toBe("abcde");
-    });  
+    }); 
+
+    it('can transport exception', () => {
+        const target = "hello.world";
+        const text = "hello";
+        const replyTo = "my.callback";
+        const timeout = "1000";
+        const execTime = 3.123;
+        const roundTrip = 3.234;
+        const before = new EventEnvelope().setTo(target).setBody(text);
+        before.setId("abcde");
+        before.setFrom("unit.test").setCorrelationId("123");
+        before.setTraceId("100").setTracePath("GET /api/hello/world");
+        before.addTag("rpc", timeout);
+        before.setReplyTo(replyTo);
+        before.setExecTime(execTime);
+        before.setRoundTrip(roundTrip);
+        before.setException(new AppException(400, 'hello world'));
+        const binaryData = before.toBytes();
+        const after = new EventEnvelope(binaryData);
+        expect(after).toEqual(before);
+        expect(after.getTag("rpc")).toBe(timeout);
+        expect(after.isException()).toBeTruthy();
+        expect(after.getRoundTrip()).toBe(roundTrip);
+        expect(after.getCorrelationId()).toBe("123");
+        expect(after.getId()).toBe("abcde");
+        const stackTrace = after.getStackTrace();
+        expect(stackTrace.startsWith('Error: hello world\n')).toBeTruthy();
+        expect(after.getTraceId()).toBe("100");
+        expect(after.getTracePath()).toBe("GET /api/hello/world");
+    }); 
 
 });

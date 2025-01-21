@@ -2,20 +2,28 @@
 
 Mercury version 3 is a toolkit for writing composable applications.
 
-[Chapter 1 - Introduction](CHAPTER-1.md)
+[Methodology](METHODOLOGY.md)
 
-[Chapter 2 - Hello World application](CHAPTER-2.md)
+[Chapter 1 - Getting Started](CHAPTER-1.md)
 
-[Chapter 3 - REST automation](CHAPTER-3.md)
+[Chapter 2 - Function Execution Strategies](CHAPTER-2.md)
 
-[Chapter 4 - Event orchestration](CHAPTER-4.md)
+[Chapter 3 - REST Automation](CHAPTER-3.md)
 
-[Chapter 5 - Event over HTTP](CHAPTER-5.md)
+[Chapter 4 - Event Script Syntax](CHAPTER-4.md)
 
-[Chapter 6 - API overview](CHAPTER-6.md)
+[Chapter 5 - Build, Test and Deploy](CHAPTER-5.md)
 
-[Chapter 7 - Functional tests](CHAPTER-7.md)
+[Chapter 6 - Spring Boot](CHAPTER-6.md)
 
-[Appendix I - Application config](APPENDIX-I.md)
+[Chapter 7 - Event over HTTP](CHAPTER-7.md)
 
-[Appendix II - Async HTTP Client](APPENDIX-II.md)
+[Chapter 8 - Minimalist Service Mesh](CHAPTER-8.md)
+
+[Chapter 9 - API Overview](CHAPTER-9.md)
+
+[Appendix I - application.properties](APPENDIX-I.md)
+
+[Appendix II - Reserved names and headers](APPENDIX-II.md)
+
+[Appendix III - Actuators, HTTP client and More](APPENDIX-III.md)

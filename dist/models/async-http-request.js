@@ -242,7 +242,7 @@ export class AsyncHttpRequest {
      */
     getTimeoutSeconds() {
         const v = this.getHeader("x-ttl");
-        const timeout = v == null ? 1 : util.str2int(v);
+        const timeout = v ? util.str2int(v) : 1;
         return Math.max(1, timeout);
     }
     /**
@@ -253,9 +253,8 @@ export class AsyncHttpRequest {
      */
     setTimeoutSeconds(timeoutSeconds) {
         if (timeoutSeconds) {
-            const integerValue = util.str2int(String(timeoutSeconds));
-            const v = Math.max(1, integerValue);
-            this.setHeader("x-ttl", v + '');
+            const v = util.str2int(String(timeoutSeconds));
+            this.setHeader("x-ttl", String(Math.max(1, v)));
         }
         return this;
     }

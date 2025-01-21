@@ -1,177 +1,404 @@
-# Functional tests
+# API overview
 
-The example project is pre-configured with "esLint" for TypeScript syntax validation and Jest testing framework.
+## Main application
 
-Composable application is designed to be Test Driven Development (TDD) friendly.
-
-There are two test suites under the "examples/test" folder. One for unit tests and one for end-to-end tests.
-
-## Running tests
-
-Before running the tests, please build your application first. The E2E tests run against the build from the
-dist folder. Also make sure no apps are running on the configured port already.
-
-```sh
-npm run build # if you have not run yet
-npm test
-```
-
-## Unit tests
-
-Since each user function is written in the first principle "input-process-output", you can write unit tests
-to validate the interface contract of each function directly.
-
-For the unit tests, the setup and tear down steps are as follows:
+Each application has an entry point. You may implement the main entry point like this:
 
 ```javascript
-    beforeAll(async () => {         
-        ComposableLoader.initialize();
-        platform = Platform.getInstance();
-        platform.runForever();
-    });
+import { Logger, Platform, RestAutomation } from 'mercury-composable';
+import { ComposableLoader } from './preload/preload.js'; 
 
-    afterAll(async () => {
-        await platform.stop();
-        // give console.log a moment to finish
-        await util.sleep(1000);
-        log.info("Service tests completed");
-    });
-```
+const log = Logger.getInstance();
 
-In the setup step, it tells the system to load the user functions into the event loop using
-`ComposableLoader.initialize()` and setupo configuration management.
-
-In the tear down step, it instructs the system to stop gracefully.
-
-A typical example for unit test is to use RPC method to send a request to a route served by a specific user function.
-
-```javascript
-it('can do health check', async () => {
-    const po = new PostOffice();
-    const req = new EventEnvelope().setTo('demo.health').setHeader('type', 'health');
-    const result = await po.request(req, 2000);
-    expect(result).toBeTruthy();
-    expect(result.getBody()).toEqual({"status": "demo.service is running fine"});
-});
-```
-
-## End-to-end tests
-
-For end-to-end test, you can import and start your main application in the unit test like this:
-
-```javascript
-import '../src/hello-world.js';
-```
-
-The setup and tear down steps are shown below:
-
-```javascript
-beforeAll(async () => {
+async function main() {
+    // Load composable functions into memory and initialize configuration management
+    ComposableLoader.initialize();
     const platform = Platform.getInstance();
-    const config = platform.getConfig();
-    const port = config.get('server.port');
-    targetHost = `http://127.0.0.1:${port}`;
-    log.info('Begin end-to-end tests');
-}); 
+    platform.runForever();
+    log.info('Composable application started');
+}
 
-afterAll(async () => {
-    const platform = Platform.getInstance();
-    await platform.stop();
-    // Give console.log a moment to finish
-    await util.sleep(1000);
-    log.info("End-to-end tests completed");
-});
+// run the application
+main();
 ```
 
-Since your main application ("hello world") has been loaded into the same memory space, it is served by the
-platform singleton object. You can obtain the parameter "server.port" from the base configuration so that 
-your tests can make HTTP calls to the REST endpoints of the hello world application.
+In this example, the `ComposableLoader` will initialize the configuration management system, the REST
+automation system, and register user composable functions into the event system. The default location
+of the system files is the "src/resources" folder.
 
-Let's examine the following test to make a HTTP GET request to the "/api/hello/world" REST endpoint.
+| File / bundle   | Purpose                                                                            |
+|:----------------|:-----------------------------------------------------------------------------------|
+| application.yml | Base configuration file is assumed to be under the "src/resources" folder          |
+| rest.yaml       | REST endpoint configuration file is assumed to be under the "src/resources" folder |
+| HTML bundle     | HTML/CSS/JS files, if any, can be placed under the "src/resources/public" folder   |
+
+To tell the system to use a different application.yml, you can use this following statement before
+running the `ComposableLoader.initialize()` command.
 
 ```javascript
-it('can do HTTP-GET to /api/hello/world', async () => {
-    const po = new PostOffice();
-    const httpRequest = new AsyncHttpRequest().setMethod('GET');
-    httpRequest.setTargetHost(targetHost).setUrl('/api/hello/world');
-    httpRequest.setQueryParameter('x', 'y');
-    const req = new EventEnvelope().setTo('async.http.request').setBody(httpRequest.toMap());
-    const result = await po.request(req, 2000);   
-    expect(result).toBeTruthy();
-    expect(result.getBody()).toBeInstanceOf(Object);
-    const map = new MultiLevelMap(result.getBody() as object);
-    expect(map.getElement('headers.user-agent')).toBe('async-http-client');
-    expect(map.getElement('method')).toBe('GET');
-    expect(map.getElement('ip')).toBe('127.0.0.1');
-    expect(map.getElement('url')).toBe('/api/hello/world');
-    expect(map.getElement('parameters.query.x')).toBe('y');
-}); 
+// resourcePath should be a fully qualified file path to the application's "resources" folder.
+const appConfig = AppConfig.getInstance(resourcePath);
+log.info(`Base configuration ${appConfig.getId()}`); 
 ```
 
-The system has a built-in AsyncHttpClient with the route name "async.http.request".
+You may override the file path for REST endpoint configuration and HTML bundle with the following:
 
-The above example code creates an AsyncHttpRequest object and passes it to the AsyncHttpClient that
-will in turn submit the HTTP GET request to the "/api/hello/world" endpoint.
+```yaml
+yaml.rest.automation: 'classpath:/rest.yaml'
+static.html.folder: 'classpath:/public'
+```
 
-The MultiLevelMap is a convenient utility to retrieve key-values using the dot-bracket format.
+The application can be stopped with Control-C in interactive mode or the Kill command at the kernel level
+by a container management system such as Kubernetes.
 
-## User facing vs internal services
+## Event envelope
 
-The "hello world" application is a user facing application. It exposes the user functions through REST endpoints
-defined in the "rest.yaml" configuration file. When a function receives input from a REST endpoint, the payload
-in the incoming "event envelope" is an AsyncHttpRequest object. The user function can examine HTTP headers, 
-cookies, method, URL and request body, if any.
+A composable application is a collection of functions that communicate with each other in events.
+Each event is transported by an event envelope. Let's examine the envelope.
 
-A user function can also be internal. For example, it may be an algorithm doing calculation for a sales order.
-The function would receive its input from a user facing function like this:
+There are 3 elements in an event envelope:
 
-> REST endpoint -> user facing function -> internal functions -> database function
+| Element | Type     | Purpose                                                                                                           |
+|:-------:|:---------|:------------------------------------------------------------------------------------------------------------------|
+|    1    | metadata | Includes unique ID, target function name, reply address<br/> correlation ID, status, exception, trace ID and path |
+|    2    | headers  | User defined key-value pairs                                                                                      |
+|    3    | body     | Event payload (primitive or JSON object)                                                                          |
 
-Please refer to [Chapter 4](CHAPTER-4.md) for some typical event patterns.
+Headers and body are optional, but you must provide at least one of them.
 
-1. RPC `“Request-response”, best for interactivity`
-2. Asynchronous `e.g. Drop-n-forget`
-3. Callback `e.g. Progressive rendering`
-4. Pipeline `e.g. Work-flow application`
-5. Streaming `e.g. File transfer`
+## Custom exception using AppException
 
-## Mocking
+To reject an incoming request, you can throw an AppException like this:
 
-In a composable application, user functions are written in a self-contained manner without dependencies to other
-user functions.
+```java
+throw new AppException(400, "My custom error message");
+```
 
-You can imagine that a transaction may pass through multiple functions (aka `services`) because of event
-driven design. You can mock any user function by re-registering the "route name" with a mock function that you
-provide in a unit test.
+As a best practice, we recommend using error codes that are compatible with HTTP status codes.
 
-We advocate encapsulation of external dependencies. For example, database connection and query language 
-should be fully encapsulated within a data adapter function and other user functions should communicate with the 
-data adapter function using an agreed interface contract. This removes the tight coupling of user functions
-with the underlying infrastructure, allowing us to upgrade infrastructure technology without heavy refactoring 
-at the application level.
+## Defining a user function in TypeScript
 
-For a user function that encapsulates a database or an external system, you may mock the underlying dependencies
-in the same fashion as you mock traditional code.
+You can write a function like this:
 
-## Standalone command line application examples
+```javascript
+import { preload, Composable, EventEnvelope, AsyncHttpRequest, Logger } from 'mercury-composable';
 
-You can apply the "Composable" methodology to write standalone command line applications. Please refer to the
-"extra" folder for some simple examples.
+const log = Logger.getInstance();
 
-| Example | Name                     | Purpose                                                  |
-|:-------:|:-------------------------|:---------------------------------------------------------|
-|    1    | rpc.ts                   | Demonstrate making RPC calls to a function               |
-|    2    | rpc-to-service.ts        | Demo program to make "event over HTTP" call to a service |
-|    3    | async.ts                 | Drop-n-forget async calls                                |
-|    4    | callback.ts              | Make async call and ask the service to callback          |
-|    5    | nested-rpc.ts            | Making nested RPC calls chaining 2 functions             |
-|    6    | nested-rpc-with-trace.ts | Same as (5) with distributed tracing turned on           |
+export class DemoAuth implements Composable {
 
-The command line applications are test programs. They are not covered by unit tests in the example project.
+    @preload('v1.api.auth', 5)
+    initialize(): Composable {
+        return this;
+    }
 
+    async handleEvent(evt: EventEnvelope) {
+        const req = new AsyncHttpRequest(evt.getBody() as object);
+        const method = req.getMethod();
+        const url = req.getUrl();
+        log.info(`${method} ${url} authenticated`);
+        // this is a demo so we approve all requests
+        return true;
+    }
+}
+```
+
+You can define route name, instances, isPublic and isInterceptor in the `preload` annotation.
+The default values are instances=1, isPublic=false and isInterceptor=false. In the example, 
+the number of instances is set to 5. You can set the number of instances from 1 to 500.
+
+The above example is a demo "API authentication" function. The event body is an AsyncHttpRequest object
+from the user because the "rest.yaml" routes the HTTP request to the function via its unique "route name".
+
+## Inspect event metadata
+
+There are some reserved metadata for route name ("my_route"), trace ID ("my_trace_id") and trace path ("my_trace_path")
+in the event's headers. They do not exist in the incoming event envelope. The system automatically
+insert them as read-only metadata.
+
+You may inspect other event metadata such as the replyTo address and correlation ID.
+
+Note that the "replyTo" address is optional. It only exists when the caller is making an RPC request or callback to
+your function. If the caller sends an asynchronous drop-n-forget request, the "replyTo" value is null.
+
+## Platform API
+
+You can obtain a singleton instance of the Platform object to do the following:
+
+### Register a function
+
+We recommend using the ComposableLoader to search and load your functions.
+
+In some use cases where you want to create and destroy functions on demand, you can register them programmatically.
+
+### What is a public function?
+
+A public function is visible by any application instances in the same network. When a function is declared as
+"public", the function is reachable through the Event-over-HTTP API REST endpoint.
+
+A private function is invisible outside the memory space of the application instance that it resides.
+This allows application to encapsulate business logic according to domain boundary. You can assemble closely
+related functions as a composable application that can be deployed independently.
+
+### Release a function
+
+In some use cases, you want to release a function on-demand when it is no longer required.
+
+```javascript
+platform.release("another.function");
+```
+
+The above API will unload the function from memory and release it from the "event loop".
+
+### Obtain the unique application instance ID
+
+When an application instance starts, a unique ID is generated.
+
+```javascritp
+const originId = po.getId();
+```
+
+## PostOffice API
+
+You can obtain an instance of the PostOffice from the input "headers" parameters in the input
+arguments of your function.
+
+```javascript
+const po = new PostOffice(evt.getHeaders());
+```
+
+The PostOffice is the event emitter that you can use to send asynchronous events or to make RPC requests.
+The constructor uses the metadata in the "headers" argument to create a trackable instance of the event emitter.
+
+### Check if a function is available
+
+You can check if a function with the named route has been deployed.
+
+```javascript
+if (po.exists("another.function")) {
+    // do something
+}
+```
+
+### Obtain the class instance of a function
+
+Since a composable function is executed as an anonymous function, the `this` reference is `undefined` inside the
+functional scope and thus no longer relevant to the class scope.
+
+To invoke other methods in the same class holding the composable function, the "getMyClass()" API can be used.
+
+```javascript
+async handleEvent(evt: EventEnvelope) {
+    const po = new PostOffice(evt.getHeaders());
+    const self = po.getMyClass() as HelloWorldService;
+    // business logic here
+    const len = await self.downloadFile(request.getStreamRoute(), request.getFileName());
+}
+```
+
+In the above example, `HelloWorldService` is the Composable class and the `downloadFile` is a non-static method
+in the same class. Note that you must use the event headers to instantiate the PostOffice object.
+
+### Retrieve routing metadata of my function
+
+The following code segment demonstrates that you can retrieve the function's route name, worker number,
+optional traceId and tracePath.
+
+```javascript
+async handleEvent(evt: EventEnvelope) {
+    const po = new PostOffice(evt.getHeaders());
+    const route = po.getMyRoute();
+    const workerNumber = po.getMyInstance();
+    const traceId = po.getMyTraceId();
+    const tracePath = po.getMyTracePath();
+    // processing logic here
+}
+```
+
+### Send an asynchronous event to a function
+
+You can send an asynchronous event like this.
+
+```javascript
+// example-1
+const event = new EventEnvelope().setTo('hello.world').setBody('test message');
+po.send(event);
+
+// example-2
+po.sendLater(event, 5000);
+```
+
+1. Example-1 sends the text string "test message" to the target service named "hello.world".
+2. Example-2 schedules an event to be delivered 5 seconds later.
+
+### Make a RPC call
+
+You can make RPC call like this:
+
+```javascript
+// example-1
+const event = new EventEnvelope().setTo('hello.world').setBody('test message');
+const result = await po.request(event, 5000);
+
+// example-2
+const result = await po.remoteRequest(event, 'http://peer/api/event');
+
+// API signatures
+request(event: EventEnvelope, timeout = 60000): Promise<EventEnvelope>
+remoteRequest(event: EventEnvelope, endpoint: string, 
+              securityHeaders: object = {}, rpc=true, timeout = 60000): Promise<EventEnvelope>
+```
+
+1. Example-1 makes a RPC call with a 5-second timeout to "hello.world".
+2. Example-2 makes an "event over HTTP" RPC call to "hello.world" in another application instance called "peer".
+
+"Event over HTTP" is an important topic. Please refer to [Chapter 6](CHAPTER-6.md) for more details.
+
+### Retrieve trace ID and path
+
+If you want to know the route name and optional trace ID and path, you can inspect the incoming event headers.
+
+```javascript
+const po = new PostOffice(evt.getHeaders());
+const myRoute = po.getMyRoute();
+const traceId = po.getMyTraceId();
+const tracePath = po.getMyTracePath();
+const myInstance = po.getMyInstance();
+```
+
+## Configuration API
+
+Your function can access the main application configuration management system like this:
+
+```javascript
+const config = AppConfig.getInstance();
+// the value can be string, a primitive or a JSON object
+const value = config.get('my.parameter');
+// the value can be read as a string
+const text = config.getProperty('my.parameter');
+```
+
+The system uses the standard dot-bracket format for a parameter name.
+
+> e.g. "hello.world", "some.key[2]"
+
+You can also override the main application configuration using the `set` method.
+
+Additional configuration files can be added with the `ConfigReader` API like this:
+
+```javascript
+const myConfig = new ConfigReader(filePath);
+```
+
+where filePath can use the `classpath:/` or `file:/` prefix.
+
+The configuration system supports environment variable or reference to the main application configuration
+using the dollar-bracket syntax `${reference:default_value}`.
+
+> e.g. "some.key=${MY_ENV_VARIABLE}", "some.key=${my.key}"
+
+## Override configuration parameters at run-time
+
+You can override any configuration parameter from the command line when starting your application.
+
+```shell
+node my-app.js -Dsome.key=some_value -Danother.key=another_value
+```
+
+You can point your application to use a different base configuration file like this:
+
+```shell
+node my-app.js -C/opt/config/application.yml
+```
+
+The `-C` command line argument tells the system to use the configuration file in "/opt/config/application.yml".
+
+> Exercise: try this command "node hello-world.js -Dlog.format=json" to start the demo app
+
+This will tell the Logger system to use JSON format instead of plain text output. The log output may look like this:
+
+```text
+{
+  "time": "2023-06-10 09:51:20.884",
+  "level": "INFO",
+  "message": "Event system started - 9f5c99c4d21a42cfb0115cfbaf533820",
+  "module": "platform.js:441"
+}
+{
+  "time": "2023-06-10 09:51:21.037",
+  "level": "INFO",
+  "message": "REST automation service started on port 8085",
+  "module": "rest-automation.js:226"
+}
+```
+
+## Logger
+
+The system includes a built-in logger that can log in either text or json format.
+
+The default log format is "text". You can override the value in the "src/resources/application.yml" config file.
+The following example sets the log format to "json".
+
+```yaml
+log.format: json
+```
+
+Alternatively you can also override it at run-time using the "-D" parameter like this:
+
+```shell
+node my-app.js -Dlog.format=json
+```
+
+The logger supports line-numbering. When you run your executable javascript main program, the line number for each
+log message is derived from the ".js" file.
+
+If you want to show the line number in the source ".ts" file for easy debug, you can run your application using
+"nodemon". This is illustrated in the "npm start" command in the package.json file.
+
+For simplicity, the logger is implemented without any additional library dependencies.
+
+## Minimalist API design for event orchestration
+
+As a best practice, we advocate a minimalist approach in API integration.
+To build powerful composable applications, the above set of APIs is sufficient to perform
+"event orchestration" where you write code to coordinate how the various functions work together as a
+single "executable". Please refer to [Chapter-4](CHAPTER-4.md) for more details about event orchestration.
+
+Since Mercury is used in production installations, we will exercise the best effort to keep the core API stable.
+
+Other APIs in the toolkits are used internally to build the engine itself, and they may change from time to time.
+They are mostly convenient methods and utilities. The engine is fully encapsulated and any internal API changes
+are not likely to impact your applications.
+
+## Optional Event Scripting
+
+To further reduce coding effort, you can perform "event orchestration" by configuration using "Event Script".
+
+## Co-existence with other development frameworks
+
+Mercury libraries are designed to co-exist with your favorite frameworks and tools. Inside a class implementing
+a composable function, you can use any coding style and frameworks as you like, including sequential, object-oriented
+and reactive programming styles.
+
+Mercury has a built-in lightweight non-blocking HTTP server based on Express, but you can also use other
+application server framework with it.
+
+## Template application for quick start
+
+You can use the `composable-example` project as a template to start writing your own applications.
+
+## Source code update frequency
+
+This project is licensed under the Apache 2.0 open sources license. We will update the public codebase after
+it passes regression tests and meets stability and performance benchmarks in our production systems.
+
+The source code is provided as is, meaning that breaking API changes may be introduced from time to time.
+
+## Technical support
+
+For enterprise clients, technical support is available. Please contact your Accenture representative for details.
 <br/>
 
-
-|          Chapter-6           |                   Home                    |             Appendix-I              |
-|:----------------------------:|:-----------------------------------------:|:-----------------------------------:|
-| [API overview](CHAPTER-6.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Application config](APPENDIX-I.md) |
+|            Chapter-5            |                   Home                    |         Appendix-I          |
+|:-------------------------------:|:-----------------------------------------:|:---------------------------:|
+| [Event over HTTP](CHAPTER-5.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Appendix-I](APPENDIX-I.md) |

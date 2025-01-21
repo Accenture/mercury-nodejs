@@ -3,6 +3,10 @@ import { Logger } from '../util/logger.js';
 
 const log = Logger.getInstance();
 
+/**
+ * This is reserved for system use.
+ * DO NOT use this directly in your application code.
+ */
 export class FunctionRegistry {
     private static singleton: FunctionRegistry;
     private registry: SimpleRegistry;
@@ -27,14 +31,14 @@ export class FunctionRegistry {
      * @param isPrivate is false if function is visible thru event-over-http
      * @param isInterceptor is true if function is an event interceptor
      */
-    saveFunction(route: string, 
+    save(route: string, 
                  that: object, instances: number, isPrivate: boolean, isInterceptor: boolean): void {
         // save only when it does not exist to guarantee idempotent property
         if (!this.exists(route)) {
             if ('initialize' in that && 'handleEvent' in that && 
                 that.initialize instanceof Function && that.handleEvent instanceof Function) {
                     log.info(`Loading ${that.constructor.name} as ${route}`);
-                    this.registry.saveFunction(route, that, instances, isPrivate, isInterceptor);
+                    this.registry.save(route, that, instances, isPrivate, isInterceptor);
             } else {
                 log.error(`Unable to load ${this.constructor.name} because it does not implement Composable`);
             }
@@ -46,8 +50,8 @@ export class FunctionRegistry {
      * 
      * @param name of the function
      */
-    removeFunction(name: string): void {
-        this.registry.removeFunction(name);
+    remove(name: string): void {
+        this.registry.remove(name);
     }
 
     /**
@@ -68,8 +72,8 @@ export class FunctionRegistry {
      * @param name of the function
      * @returns the function that was previously saved by a library
      */
-    getFunction(name: string): (evt: EventEnvelope) => void  {
-        return this.registry.getFunction(name);
+    get(name: string): (evt: EventEnvelope) => void  {
+        return this.registry.get(name);
     }
 
     /**
@@ -98,8 +102,8 @@ export class FunctionRegistry {
      * 
      * @returns list of function names
      */
-    getFunctions(): Array<string> {
-        return this.registry.getFunctions();
+    getFunctionList(): Array<string> {
+        return this.registry.getFunctionList();
     }
 }
 
@@ -107,7 +111,7 @@ class SimpleRegistry {
     private registry = new Map<string, object>();
     private metadata = new Map<string, object>();
 
-    saveFunction(route: string, that: object, instances: number, isPrivate: boolean, isInterceptor: boolean): void {
+    save(route: string, that: object, instances: number, isPrivate: boolean, isInterceptor: boolean): void {
         if (route && 'initialize' in that && 'handleEvent' in that 
                     && that['initialize'] instanceof Function && that['handleEvent'] instanceof Function) {             
             this.registry.set(route, that);
@@ -117,7 +121,7 @@ class SimpleRegistry {
         }
     }
 
-    removeFunction(name: string): void {
+    remove(name: string): void {
         if (this.exists(name)) {
             this.registry.delete(name);
             this.metadata.delete(name);
@@ -128,7 +132,7 @@ class SimpleRegistry {
         return this.metadata.get(name);
     }
 
-    getFunction(name: string): (evt: EventEnvelope) => void {
+    get(name: string): (evt: EventEnvelope) => void {
         const cls = this.registry.get(name);
         if (cls && 'handleEvent' in cls) {
             return cls['handleEvent'] as (evt: EventEnvelope) => void;
@@ -143,10 +147,10 @@ class SimpleRegistry {
     }
 
     exists(name: string): boolean {
-        return this.getFunction(name) != null;
+        return this.get(name) != null;
     }
 
-    getFunctions(): Array<string> {
+    getFunctionList(): Array<string> {
         return Array.from(this.registry.keys());
     }
 }

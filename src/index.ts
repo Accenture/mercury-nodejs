@@ -1,8 +1,9 @@
 export { Logger } from './util/logger.js';
 export { Platform } from './system/platform.js';
-export { PostOffice } from './system/post-office.js';
+export { PostOffice, Sender } from './system/post-office.js';
 export { FunctionRegistry } from './system/function-registry.js';
 export { RestAutomation } from './system/rest-automation.js';
+export { EventScriptEngine } from './automation/event-script-manager.js';
 export { Utility } from './util/utility.js';
 export { MultiLevelMap } from './util/multi-level-map.js';
 export { EventEnvelope } from './models/event-envelope.js';
@@ -12,3 +13,4 @@ export { Composable, preload } from './models/composable.js';
 export { ObjectStreamIO, ObjectStreamWriter, ObjectStreamReader } from './system/object-stream.js';
 export { AppConfig, ConfigReader } from './util/config-reader.js';
 export { TemplateLoader } from './util/template-loader.js';
+export { CryptoApi } from './util/crypto-api.js';

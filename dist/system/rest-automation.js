@@ -19,6 +19,7 @@ import fs from 'fs';
 const log = Logger.getInstance();
 const util = new Utility();
 const po = new PostOffice();
+const httpContext = {};
 const TYPE = 'type';
 const INFO = 'info';
 const HEALTH = 'health';
@@ -44,6 +45,7 @@ const OPTIONS_METHOD = 'OPTIONS';
 const HTML_START = '<html><body><pre>\n';
 const HTML_END = '\n</pre></body></html>';
 const REST_AUTOMATION_MANAGER = "rest.automation.manager";
+const ASYNC_HTTP_RESPONSE = "async.http.response";
 const STREAM_CONTENT = 'x-stream-id';
 const DEFAULT_SERVER_PORT = 8086;
 let server = null;
@@ -81,7 +83,7 @@ export class RestAutomation {
      *
      * IMPORTANT: This API is provided for backward compatibility with existing code
      * that uses Express plugins. In a composable application, you can achieve the same
-     * functionality by declaring your user function as an "interceptor" in "preload.yaml".
+     * functionality by declaring your user function as an "interceptor".
      *
      * User defined middleware has input arguments (req: Request, res: Response, next: NextFunction).
      * It must call the "next()" method at the end of processing to pass the request and response
@@ -113,6 +115,157 @@ class HouseKeeper {
         return null;
     }
 }
+class AsyncHttpResponse {
+    initialize() {
+        return this;
+    }
+    async handleEvent(serviceResponse) {
+        const cid = serviceResponse.getCorrelationId();
+        const context = cid ? httpContext[cid] : null;
+        if (context) {
+            const req = context['req'];
+            const res = context['res'];
+            const httpReq = context['http'];
+            const route = context['route'];
+            const router = context['router'];
+            const traceHeaderLabel = context['label'];
+            const watcher = context['watcher'];
+            // immediate clear context after retrieval
+            clearTimeout(watcher);
+            delete context[cid];
+            // handle response
+            const traceId = serviceResponse.getTraceId();
+            let resBody = serviceResponse.getBody();
+            const httpHead = 'HEAD' == httpReq.getMethod();
+            let resContentType = httpHead ? '?' : null;
+            let streamId = null;
+            let streamTimeout = null;
+            let resHeaders = {};
+            for (const h in serviceResponse.getHeaders()) {
+                const key = h.toLowerCase();
+                const value = serviceResponse.getHeader(h);
+                if (key == STREAM_CONTENT && value.startsWith('stream.') && value.endsWith('.in')) {
+                    streamId = value;
+                }
+                else if (key == 'timeout') {
+                    streamTimeout = value;
+                }
+                else if (key == LOWERCASE_CONTENT_TYPE) {
+                    if (!httpHead) {
+                        resContentType = value.toLowerCase();
+                        resHeaders[CONTENT_TYPE] = resContentType;
+                    }
+                }
+                else {
+                    resHeaders[key] = value;
+                }
+            }
+            if (resContentType == null) {
+                const accept = req.header('accept');
+                if (accept) {
+                    if (accept.includes(TEXT_HTML)) {
+                        resContentType = TEXT_HTML;
+                        resHeaders[CONTENT_TYPE] = TEXT_HTML;
+                    }
+                    else if (accept.includes(APPLICATION_JSON) || accept.includes('*/*')) {
+                        resContentType = APPLICATION_JSON;
+                        resHeaders[CONTENT_TYPE] = APPLICATION_JSON;
+                    }
+                    else if (accept.includes(APPLICATION_XML)) {
+                        resContentType = APPLICATION_XML;
+                        resHeaders[CONTENT_TYPE] = APPLICATION_XML;
+                    }
+                    else if (accept.includes(APPLICATION_OCTET_STREAM)) {
+                        resContentType = APPLICATION_OCTET_STREAM;
+                        resHeaders[CONTENT_TYPE] = APPLICATION_OCTET_STREAM;
+                    }
+                    else {
+                        resContentType = TEXT_PLAIN;
+                        resHeaders[CONTENT_TYPE] = TEXT_PLAIN;
+                    }
+                }
+                else {
+                    resContentType = '?';
+                }
+            }
+            if (traceId && traceHeaderLabel) {
+                resHeaders[traceHeaderLabel] = traceId;
+            }
+            if (route.info.responseTransformId != null) {
+                resHeaders = self.filterHeaders(router.getResponseHeaderInfo(route.info.responseTransformId), resHeaders);
+            }
+            for (const h in resHeaders) {
+                if (h == 'set-cookie') {
+                    const cookieList = String(resHeaders[h]).split('|').filter(v => v.length > 0);
+                    for (const c of cookieList) {
+                        res.setHeader(self.getHeaderCase(h), c);
+                    }
+                }
+                else {
+                    res.setHeader(self.getHeaderCase(h), resHeaders[h]);
+                }
+            }
+            if (resBody) {
+                if (typeof resBody == 'string' && serviceResponse.getStatus() >= 400 && resContentType && resContentType.includes('json') && !resBody.startsWith('{')) {
+                    resBody = { 'type': 'error', 'status': serviceResponse.getStatus(), 'message': resBody };
+                }
+                let b = null;
+                if (resBody instanceof Buffer) {
+                    b = resBody;
+                }
+                else if (resBody instanceof Object) {
+                    if (TEXT_HTML == resContentType) {
+                        b = Buffer.from(HTML_START + JSON.stringify(resBody, null, 2) + HTML_END);
+                    }
+                    else {
+                        b = Buffer.from(JSON.stringify(resBody, null, 2));
+                    }
+                }
+                else {
+                    b = Buffer.from(String(resBody));
+                }
+                res.setHeader(CONTENT_LENGTH, b.length);
+                res.statusCode = serviceResponse.getStatus();
+                res.write(b);
+            }
+            else {
+                res.statusCode = serviceResponse.getStatus();
+                if (streamId) {
+                    const timeout = self.getReadTimeout(streamTimeout, route.info.timeoutSeconds * 1000);
+                    let done = false;
+                    const stream = new ObjectStreamReader(streamId, timeout);
+                    while (!done) {
+                        try {
+                            const block = await stream.read();
+                            if (block) {
+                                if (block instanceof Buffer) {
+                                    res.write(block);
+                                }
+                                else if (typeof (block) == 'string') {
+                                    const b = Buffer.from(block);
+                                    res.write(b);
+                                }
+                            }
+                            else {
+                                done = true;
+                            }
+                        }
+                        catch (e) {
+                            const status = e instanceof AppException ? e.getStatus() : 500;
+                            log.error(`Exception - rc=${status}, message=${e.message}`);
+                            done = true;
+                        }
+                    }
+                }
+            }
+            res.end();
+        }
+        else {
+            log.error(`Async HTTP Context ${cid} expired`);
+        }
+        return null;
+    }
+}
 class RestEngine {
     loaded = false;
     plugins = new Array;
@@ -121,7 +274,7 @@ class RestEngine {
     mimeTypes = new Map();
     connections = new Map();
     constructor() {
-        const config = AppConfig.getInstance().getReader();
+        const config = AppConfig.getInstance();
         this.traceIdLabels = config.getProperty('trace.http.header', 'x-trace-id')
             .split(',').filter(v => v.length > 0).map(v => v.toLowerCase());
         if (!this.traceIdLabels.includes('x-trace-id')) {
@@ -136,8 +289,9 @@ class RestEngine {
             // preload Actuator and Event-over-HTTP services
             platform.register(ActuatorServices.name, new ActuatorServices(), 10);
             platform.register(EventApiService.name, new EventApiService(), 200);
+            platform.register(ASYNC_HTTP_RESPONSE, new AsyncHttpResponse(), 200);
             platform.register(REST_AUTOMATION_MANAGER, new HouseKeeper());
-            const config = AppConfig.getInstance().getReader();
+            const config = AppConfig.getInstance();
             const router = new RoutingEntry();
             // initialize router and load configuration
             const restYamlPath = config.getProperty('yaml.rest.automation', 'classpath:/rest.yaml');
@@ -253,7 +407,6 @@ class RestEngine {
                         }
                         else {
                             this.rejectRequest(res, 405, 'Method not allowed');
-                            log.info(`HTTP-405 ${method} ${path}`);
                         }
                         found = true;
                     }
@@ -280,7 +433,6 @@ class RestEngine {
                         }
                     }
                     this.rejectRequest(res, 404, 'Resource not found');
-                    log.info(`HTTP-404 ${method} ${path}`);
                 }
             });
             // for security reason, hide server identification
@@ -489,7 +641,7 @@ class RestEngine {
                     httpReq.setQueryParameter(name, value);
                 });
                 bb.on('close', () => {
-                    this.relayRequest(authService, traceId, tracePath, traceHeaderLabel, httpReq, req, res, route, router)
+                    this.relay(authService, traceId, tracePath, traceHeaderLabel, httpReq, req, res, route, router)
                         .catch(e => {
                         const rc = e instanceof AppException ? e.getStatus() : 500;
                         this.rejectRequest(res, rc, e.message);
@@ -513,9 +665,9 @@ class RestEngine {
                 }
             }
         }
-        await this.relayRequest(authService, traceId, tracePath, traceHeaderLabel, httpReq, req, res, route, router);
+        await this.relay(authService, traceId, tracePath, traceHeaderLabel, httpReq, req, res, route, router);
     }
-    async relayRequest(authService, traceId, tracePath, traceHeaderLabel, httpReq, req, res, route, router) {
+    async relay(authService, traceId, tracePath, traceHeaderLabel, httpReq, req, res, route, router) {
         if (authService) {
             const authRequest = new EventEnvelope().setTo(authService).setFrom('http.request').setBody(httpReq.toMap());
             if (traceId) {
@@ -546,137 +698,25 @@ class RestEngine {
                     secondary.setTracePath(tracePath);
                 }
                 try {
-                    po.send(secondary);
+                    await po.send(secondary);
                 }
                 catch (e) {
                     log.warn(`Unable to copy event to ${target} - ${e.message}`);
                 }
             }
         }
-        const serviceResponse = await po.request(serviceRequest, route.info.timeoutSeconds * 1000);
-        const resBody = serviceResponse.getBody();
-        const httpHead = 'HEAD' == httpReq.getMethod();
-        let resContentType = httpHead ? '?' : null;
-        let streamId = null;
-        let streamTimeout = null;
-        let resHeaders = {};
-        for (const h in serviceResponse.getHeaders()) {
-            const key = h.toLowerCase();
-            const value = serviceResponse.getHeader(h);
-            if (key == STREAM_CONTENT && value.startsWith('stream.') && value.endsWith('.in')) {
-                streamId = value;
-            }
-            else if (key == 'timeout') {
-                streamTimeout = value;
-            }
-            else if (key == LOWERCASE_CONTENT_TYPE) {
-                if (!httpHead) {
-                    resContentType = value.toLowerCase();
-                    resHeaders[CONTENT_TYPE] = resContentType;
-                }
-            }
-            else {
-                resHeaders[key] = value;
-            }
-        }
-        if (resContentType == null) {
-            const accept = req.header('accept');
-            if (accept) {
-                if (accept.includes(TEXT_HTML)) {
-                    resContentType = TEXT_HTML;
-                    resHeaders[CONTENT_TYPE] = TEXT_HTML;
-                }
-                else if (accept.includes(APPLICATION_JSON) || accept.includes('*/*')) {
-                    resContentType = APPLICATION_JSON;
-                    resHeaders[CONTENT_TYPE] = APPLICATION_JSON;
-                }
-                else if (accept.includes(APPLICATION_XML)) {
-                    resContentType = APPLICATION_XML;
-                    resHeaders[CONTENT_TYPE] = APPLICATION_XML;
-                }
-                else if (accept.includes(APPLICATION_OCTET_STREAM)) {
-                    resContentType = APPLICATION_OCTET_STREAM;
-                    resHeaders[CONTENT_TYPE] = APPLICATION_OCTET_STREAM;
-                }
-                else {
-                    resContentType = TEXT_PLAIN;
-                    resHeaders[CONTENT_TYPE] = TEXT_PLAIN;
-                }
-            }
-            else {
-                resContentType = '?';
-            }
-        }
-        if (traceId && traceHeaderLabel) {
-            resHeaders[traceHeaderLabel] = traceId;
-        }
-        if (route.info.responseTransformId != null) {
-            resHeaders = this.filterHeaders(router.getResponseHeaderInfo(route.info.responseTransformId), resHeaders);
-        }
-        for (const h in resHeaders) {
-            if (h == 'set-cookie') {
-                const cookieList = String(resHeaders[h]).split('|').filter(v => v.length > 0);
-                for (const c of cookieList) {
-                    res.setHeader(this.getHeaderCase(h), c);
-                }
-            }
-            else {
-                res.setHeader(this.getHeaderCase(h), resHeaders[h]);
-            }
-        }
-        if (resBody) {
-            let b = null;
-            if (typeof resBody == 'string') {
-                b = Buffer.from(resBody);
-            }
-            else if (resBody instanceof Buffer) {
-                b = resBody;
-            }
-            else {
-                if (TEXT_HTML == resContentType) {
-                    b = Buffer.from(HTML_START + JSON.stringify(resBody, null, 2) + HTML_END);
-                }
-                else {
-                    b = Buffer.from(JSON.stringify(resBody, null, 2));
-                }
-            }
-            res.setHeader(CONTENT_LENGTH, b.length);
-            res.statusCode = serviceResponse.getStatus();
-            res.write(b);
-        }
-        else {
-            res.statusCode = serviceResponse.getStatus();
-            if (streamId) {
-                const timeout = this.getReadTimeout(streamTimeout, route.info.timeoutSeconds * 1000);
-                let done = false;
-                const stream = new ObjectStreamReader(streamId, timeout);
-                while (!done) {
-                    try {
-                        const block = await stream.read();
-                        if (block) {
-                            if (block instanceof Buffer) {
-                                res.write(block);
-                            }
-                            else if (typeof (block) == 'string') {
-                                const b = Buffer.from(block);
-                                res.write(b);
-                            }
-                        }
-                        else {
-                            done = true;
-                        }
-                    }
-                    catch (e) {
-                        const status = e instanceof AppException ? e.getStatus() : 500;
-                        log.error(`Exception - rc=${status}, message=${e.message}`);
-                        done = true;
-                    }
-                }
-            }
-        }
-        res.end();
-        const qs = httpReq.getQueryString() ? '?' + httpReq.getQueryString() : '';
-        log.info(`HTTP-${serviceResponse.getStatus()} ${httpReq.getMethod()} ${httpReq.getUrl()}${qs}`);
+        // send request to target service with async.http.response as callback
+        const contextId = util.getUuid();
+        const timeoutMs = route.info.timeoutSeconds * 1000;
+        const timeoutEvent = new EventEnvelope().setTo(ASYNC_HTTP_RESPONSE).setCorrelationId(contextId)
+            .setStatus(408).setBody(`Timeout for ${route.info.timeoutSeconds} seconds`);
+        // install future event to catch timeout of the target service
+        const watcher = po.sendLater(timeoutEvent, timeoutMs);
+        httpContext[contextId] = { 'req': req, 'res': res, 'http': httpReq,
+            'route': route, 'router': router, 'label': traceHeaderLabel,
+            'watcher': watcher };
+        serviceRequest.setCorrelationId(contextId).setReplyTo(ASYNC_HTTP_RESPONSE);
+        await po.send(serviceRequest);
     }
     getReadTimeout(timeoutOverride, contextTimeout) {
         if (timeoutOverride == null) {
@@ -754,8 +794,8 @@ class RestEngine {
         return result;
     }
     rejectRequest(res, rc, message) {
-        const result = { 'status': rc, 'type': 'error', 'message': message };
-        const b = Buffer.from(JSON.stringify(result));
+        const result = { 'type': 'error', 'status': rc, 'message': message };
+        const b = Buffer.from(JSON.stringify(result, null, 2));
         res.writeHead(rc, {
             'Content-Type': APPLICATION_JSON,
             'Content-Length': String(b.length)

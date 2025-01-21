@@ -23,7 +23,7 @@ function removeDirectory(folder) {
             } else {
                 fs.rmSync(path);
             }
-        })
+        });
         fs.rmdirSync(folder);
     }
 }

@@ -51,10 +51,10 @@ export class Utility {
     str2int(s) {
         if (s) {
             const v = parseInt(s);
-            return isNaN(v) ? 0 : v;
+            return isNaN(v) ? -1 : v;
         }
         else {
-            return 0;
+            return -1;
         }
     }
     /**
@@ -66,11 +66,17 @@ export class Utility {
     str2float(s) {
         if (s) {
             const v = parseFloat(s);
-            return isNaN(v) ? 0 : v;
+            return isNaN(v) ? -1 : v;
         }
         else {
-            return 0;
+            return -1;
         }
+    }
+    bytesToBase64(b) {
+        return b.toString('base64');
+    }
+    base64ToBytes(b64Text) {
+        return Buffer.from(b64Text, 'base64');
     }
     /**
      * Test if the text string contains only digits
@@ -85,6 +91,17 @@ export class Utility {
             return false;
         }
         return true;
+    }
+    isNumeric(text) {
+        if (!text) {
+            return false;
+        }
+        if (text.length > 1 && text.startsWith("-")) {
+            return this.isDigits(text.substring(1));
+        }
+        else {
+            return this.isDigits(text);
+        }
     }
     /**
      * Check if the given route name is in valid format
@@ -166,7 +183,7 @@ export class Utility {
         let multiplier = 1;
         let n;
         if (duration.endsWith("s") || duration.endsWith("m") || duration.endsWith("h") || duration.endsWith("d")) {
-            n = this.str2int(duration.substring(0, duration.length - 1));
+            n = this.str2int(duration.substring(0, duration.length - 1).trim());
             if (duration.endsWith("m")) {
                 multiplier = ONE_MINUTE;
             }
@@ -209,7 +226,9 @@ export class Utility {
      * @returns normalized file path in Unix format
      */
     normalizeFilePath(filePath) {
-        return filePath.includes('\\') ? filePath.replaceAll('\\', '/') : filePath;
+        const path = filePath.includes('\\') ? filePath.replaceAll('\\', '/') : filePath;
+        const colon = path.indexOf(':');
+        return colon == 1 ? path.substring(colon + 1) : path;
     }
     /**
      * Create a directory if not exists
@@ -226,7 +245,6 @@ export class Utility {
                     folder += ('/' + p);
                     if (!fs.existsSync(folder)) {
                         fs.mkdirSync(folder);
-                        console.log("Created " + folder);
                     }
                     else {
                         const file = fs.statSync(folder);
@@ -237,6 +255,43 @@ export class Utility {
                 }
             }
         }
+    }
+    /**
+     * Check if a file path is a directory
+     *
+     * @param filePath to the directory
+     * @returns true if the directory exists
+     */
+    isDirectory(filePath) {
+        try {
+            const stats = fs.statSync(filePath);
+            return stats.isDirectory();
+        }
+        catch (_e) {
+            return false;
+        }
+    }
+    async file2bytes(filePath) {
+        if (fs.existsSync(filePath) && !this.isDirectory(filePath)) {
+            return await fs.promises.readFile(filePath);
+        }
+        else {
+            return Buffer.from('');
+        }
+    }
+    async bytes2file(filePath, b) {
+        await fs.promises.writeFile(filePath, b);
+    }
+    async file2str(filePath) {
+        if (fs.existsSync(filePath) && !this.isDirectory(filePath)) {
+            return await fs.promises.readFile(filePath, { encoding: 'utf-8', flag: 'r' });
+        }
+        else {
+            return '';
+        }
+    }
+    async str2file(filePath, text) {
+        await fs.promises.writeFile(filePath, text);
     }
     /**
      * Split a text string into an array of elements

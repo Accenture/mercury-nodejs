@@ -1,12 +1,9 @@
 import { MultiLevelMap } from './multi-level-map.js';
 export declare class AppConfig {
     private static singleton;
-    private reader;
-    private id;
+    private static reader;
     private constructor();
-    static getInstance(resourcePath?: string): AppConfig;
-    getId(): string;
-    getReader(): ConfigReader;
+    static getInstance(resourcePath?: string): ConfigReader;
 }
 export declare class ConfigReader {
     private static self;
@@ -14,10 +11,15 @@ export declare class ConfigReader {
     private loopDetection;
     private resolved;
     private id;
-    constructor(configFileOrMap?: string | object, isBaseConfig?: boolean);
+    /**
+     * Create an instance of a ConfigReader
+     *
+     * @param configResource is a config file path or a key-value JSON object
+     * @param isBaseConfig is true when this ConfigReader is the base AppReader
+     */
+    constructor(configResource?: string | object, isBaseConfig?: boolean);
     getId(): string;
     resolveFilePath(configFile: string): string;
-    resolveEnvVars(): void;
     getMap(): object;
     exists(key: string): boolean;
     isEmpty(): boolean;
@@ -33,8 +35,6 @@ export declare class ConfigReader {
      * @returns value of the item
      */
     get(key: string, defaultValue?: any, loop?: string): any;
-    extractSegments(original: string): EnvVarSegment[];
-    performEnvVarSubstitution(key: string, text: string, defaultValue?: any, loop?: string): string;
     /**
      * Retrieve a key-value where value is enforced as a string
      *
@@ -52,18 +52,12 @@ export declare class ConfigReader {
      */
     set(key: string, value: any): ConfigReader;
     /**
-     * Reserved for internal use
-     * -------------------------
-     *
      * Reload configuration parameters with a given map
      *
      * @returns this ConfigReader
      */
     reload(map: MultiLevelMap): ConfigReader;
+    private resolveEnvVars;
+    private extractSegments;
+    private performEnvVarSubstitution;
 }
-declare class EnvVarSegment {
-    start: number;
-    end: number;
-    constructor(start: number, end: number);
-}
-export {};

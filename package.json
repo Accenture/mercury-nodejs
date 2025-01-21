@@ -1,6 +1,6 @@
 {
-  "name": "mercury",
-  "version": "4.1.1",
+  "name": "mercury-composable",
+  "version": "4.2.0",
   "description": "Composable foundation SDK",
   "type": "module",
   "engines": {
@@ -12,10 +12,10 @@
   "scripts": {
     "clean": "node clean.js",
     "prebuild": "npm run lint",
-    "build": "tsc -p tsconfig.json && node copy-static-files.js",
+    "build": "tsc -p tsconfig.json && node copy-resource-files.js",
     "build:watch": "tsc -w -p tsconfig.json",
     "lint": "eslint . --fix",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --detectOpenHandles",
     "test:watch": "jest --watch"
   },
   "dependencies": {

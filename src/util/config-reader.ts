@@ -7,59 +7,69 @@ const log = Logger.getInstance();
 const util = new Utility();
 
 function resolveResource(configFile: string): string {
-    if (configFile.startsWith("classpath:/")) {
-        const resourcePath = AppConfig.getInstance().getReader().get('resource.path');
-        return resourcePath + configFile.substring("classpath:".length);
-    } else if (configFile.startsWith("file:/")) {
-        return configFile.substring("file:".length);        
+    let path: string;
+    if (configFile.startsWith("classpath:")) {
+        const resourcePath = AppConfig.getInstance().get('resource.path');
+        path = resourcePath + configFile.substring("classpath:".length);
+    } else if (configFile.startsWith("file:")) {
+        path = configFile.substring("file:".length);        
     } else {
-        return configFile;
+        path = configFile;
     }
+    return util.normalizeFilePath(path);
+}
+
+function getConfigFilePath(filePath: string): string {    
+    if (filePath.endsWith('.yaml') || filePath.endsWith('.yml')) {
+        if (fs.existsSync(filePath)) {
+            return filePath;
+        }
+        // try alternative extension
+        const name = filePath.substring(0, filePath.lastIndexOf('.'));
+        if (name) {
+            const alternative = filePath.endsWith('.yaml')? `${name}.yml` : `${name}.yaml`;
+            if (fs.existsSync(alternative)) {
+                return alternative;
+            }
+        } 
+        // config file not found
+        return null;
+    } else {
+        throw new Error('Config file must use .yml or .yaml extension');
+    }    
 }
 
 export class AppConfig {
     private static singleton: AppConfig;
-    private reader: ConfigReader;
-    private id = util.getUuid();
+    private static reader: ConfigReader;
 
     private constructor(resourcePath?: string) { 
-        if (!this.reader) {
+        if (!AppConfig.reader) {
             if (typeof resourcePath == 'string') {
-                const filePath = resolveResource(resourcePath);
-                if (!fs.existsSync(filePath)) {
+                if (!fs.existsSync(resourcePath)) {
                     throw new Error(`Missing resources folder - ${resourcePath}`);
                 }
-                const stats = fs.statSync(filePath);
-                if (!stats.isDirectory()) {
+                if (!util.isDirectory(resourcePath)) {
                     throw new Error(`Not a resources folder - ${resourcePath}`);
                 }
-                this.reader = new ConfigReader(filePath + '/application.yml', true);
-                this.reader.resolveEnvVars();
+                AppConfig.reader = new ConfigReader(resourcePath + '/application.yml', true);
                 // save file path
-                this.reader.set('resource.path', filePath);
+                AppConfig.reader.set('resource.path', resourcePath);
             } else {
                 if (resourcePath) {
-                    throw new Error('Not a resources folder path');
+                    throw new Error(`Not a resources folder - ${resourcePath}`);
                 } else {
-                    throw new Error('Missing resources folder path');
+                    throw new Error('Unable to start configuration management. Did you forget to provide a resource folder path?');
                 }                
             }            
         }
     }
 
-    static getInstance(resourcePath?: string): AppConfig {
+    static getInstance(resourcePath?: string): ConfigReader {
         if (!AppConfig.singleton) {
             AppConfig.singleton = new AppConfig(resourcePath);            
         }        
-        return AppConfig.singleton;
-    }
-
-    getId(): string {
-        return this.id;
-    }
-
-    getReader(): ConfigReader {
-        return this.reader;
+        return AppConfig.reader;
     }
 }
 
@@ -70,7 +80,13 @@ export class ConfigReader {
     private resolved = false;
     private id: string;
 
-    constructor(configFileOrMap?: string | object, isBaseConfig = false) {
+    /**
+     * Create an instance of a ConfigReader
+     * 
+     * @param configResource is a config file path or a key-value JSON object
+     * @param isBaseConfig is true when this ConfigReader is the base AppReader
+     */
+    constructor(configResource?: string | object, isBaseConfig = false) {
         if (isBaseConfig) {
             if (ConfigReader.self == null) {
                 ConfigReader.self = this;
@@ -84,32 +100,35 @@ export class ConfigReader {
             }
             this.id = util.getUuid();
         }
-        if (configFileOrMap) {
-            if (configFileOrMap && configFileOrMap.constructor == Object) {
+        if (configResource) {
+            if (configResource && configResource.constructor == Object) {
                 if (isBaseConfig) {
                     throw new Error('Base configuration must be a resource file');
                 } else {
-                    this.config = new MultiLevelMap(configFileOrMap as object).normalizeMap();
+                    this.config = new MultiLevelMap(configResource as object).normalizeMap();
                 }                
-            } else if (typeof configFileOrMap == 'string') {
+            } else if (typeof configResource == 'string') {
+                let filePath: string;
                 if (isBaseConfig) {
-                    const configFile = util.normalizeFilePath(configFileOrMap);
-                    const fileExists = configFile && fs.existsSync(configFile);
-                    if (fileExists) {
-                        log.info(`Loading base configuration from ${configFile}`);
-                        this.config = util.loadYamlFile(configFile);
-                    } else {
-                        throw new Error(`Base configuration file not found - ${configFile}`);
-                    }
+                    filePath = getConfigFilePath(configResource);
+                    log.info(`Loading base configuration from ${filePath}`);
                 } else {
-                    this.config = util.loadYamlFile(resolveResource(configFileOrMap));
-                }                
+                    filePath = getConfigFilePath(resolveResource(configResource));
+                }
+                if (!filePath) {
+                    throw new Error(`${configResource} not found`);
+                }
+                if (util.isDirectory(filePath)) {
+                    throw new Error('Config file must not be a directory');
+                }
+                this.config = util.loadYamlFile(filePath);
             } else {
-                log.error(`Configuration not loaded because input '${typeof(configFileOrMap)}' is not a file path or a JSON object`);
+                log.error(`Configuration not loaded because config resource is not a file path or a JSON object`);
                 this.config = new MultiLevelMap();
             }
+            this.resolveEnvVars();
         } else {
-            throw new Error(`Input must be a file path or a JSON object`);
+            throw new Error('Missing config resource');
         }
     }
 
@@ -119,39 +138,6 @@ export class ConfigReader {
 
     resolveFilePath(configFile: string): string {
         return resolveResource(configFile);
-    }
-
-    resolveEnvVars(): void {
-        if (this.id == "base") {
-            if (!this.resolved) {
-                this.resolved = true;
-                // Resolve environment variables and references to system properties
-                const flatMap: object = this.config.getFlatMap();
-                let n = 0;
-                for (const k in flatMap) {
-                    const v = this.config.getElement(k);
-                    if (typeof v == 'string') {
-                        const start = v.indexOf("${");
-                        const end = v.indexOf('}');
-                        if (start != -1 && end != -1 && end > start) {
-                            n++;
-                        }
-                    }
-                }
-                // if found, reload configuration
-                if (n > 0) {
-                    const mm = new MultiLevelMap();
-                    for (const k in flatMap) {
-                        mm.setElement(k, ConfigReader.self.get(k));
-                    }
-                    const s = n == 1? "" : "s";
-                    log.info(`Resolved ${n} key-value${s} from system properties and environment variables`);
-                    this.config = mm;
-                }   
-            }
-        } else {
-            throw new Error('This is not a base configuration');
-        }
     }
 
     getMap(): object {
@@ -214,7 +200,77 @@ export class ConfigReader {
         return result;
     }
 
-    extractSegments(original: string): EnvVarSegment[] {
+    /**
+     * Retrieve a key-value where value is enforced as a string
+     * 
+     * @param key of the item
+     * @param defaultValue if item does not exist
+     * @returns value of the item
+     */
+    getProperty(key: string, defaultValue?: string): string {
+        const result = this.get(key, defaultValue);
+        // make sure empty space is returned as is
+        return result == null || result == undefined? null : String(result);
+    }
+
+    /**
+     * Set a key-value
+     * 
+     * @param key of the item
+     * @param value of the item
+     * @returns this ConfigReader
+     */
+    set(key: string, value): ConfigReader {
+        this.config.setElement(key, value);
+        return this;
+    }
+
+    /**
+     * Reload configuration parameters with a given map
+     * 
+     * @returns this ConfigReader
+     */
+    reload(map: MultiLevelMap): ConfigReader {
+        this.config.reload(map);
+        return this;
+    }
+
+    private resolveEnvVars(): void {
+        if (!this.resolved) {
+            this.resolved = true;
+            // normalize the dataset first            
+            const flat: object = this.config.getFlatMap();
+            const keys = Object.keys(flat).sort();
+            const dataset = new MultiLevelMap();
+            keys.forEach(k => {
+                dataset.setElement(k, flat[k]);
+            });
+            this.config.reload(dataset.getMap());
+            // Resolve environment variables and references to system properties
+            let found = false;
+            for (const k of keys) {
+                const v = flat[k];
+                if (typeof v == 'string') {
+                    const start = v.indexOf("${");
+                    const end = v.indexOf('}');
+                    if (start != -1 && end != -1 && end > start) {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            // if found, reload configuration
+            if (found) {
+                const mm = new MultiLevelMap();
+                for (const k of keys) {
+                    mm.setElement(k, this.get(k));
+                }
+                this.reload(mm);
+            }   
+        }
+    }
+
+    private extractSegments(original: string): EnvVarSegment[] {
         const result = [];
         let text = original;
         while (true) {
@@ -232,7 +288,7 @@ export class ConfigReader {
         return result;
     }
 
-    performEnvVarSubstitution(key: string, text: string, defaultValue = null, loop?: string): string {
+    private performEnvVarSubstitution(key: string, text: string, defaultValue = null, loop?: string): string {
         if (text) {
             let middleDefault = null;
             const loopId = String(loop? loop : util.getUuid());
@@ -261,44 +317,6 @@ export class ConfigReader {
         } else {
             return defaultValue? String(defaultValue) : null;
         }
-    }
-
-    /**
-     * Retrieve a key-value where value is enforced as a string
-     * 
-     * @param key of the item
-     * @param defaultValue if item does not exist
-     * @returns value of the item
-     */
-    getProperty(key: string, defaultValue?: string): string {
-        const result = this.get(key, defaultValue);
-        // make sure empty space is returned as is
-        return result == null || result == undefined? null : String(result);
-    }
-
-    /**
-     * Set a key-value
-     * 
-     * @param key of the item
-     * @param value of the item
-     * @returns this ConfigReader
-     */
-    set(key: string, value): ConfigReader {
-        this.config.setElement(key, value);
-        return this;
-    }
-
-    /**
-     * Reserved for internal use
-     * -------------------------
-     * 
-     * Reload configuration parameters with a given map
-     * 
-     * @returns this ConfigReader
-     */
-    reload(map: MultiLevelMap): ConfigReader {
-        this.config = map;
-        return this;
     }
 }
 

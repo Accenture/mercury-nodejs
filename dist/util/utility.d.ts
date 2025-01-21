@@ -35,6 +35,8 @@ export declare class Utility {
      * @returns floating point number
      */
     str2float(s: string): number;
+    bytesToBase64(b: Buffer): string;
+    base64ToBytes(b64Text: string): Buffer;
     /**
      * Test if the text string contains only digits
      *
@@ -42,6 +44,7 @@ export declare class Utility {
      * @returns true if numbers
      */
     isDigits(text: string): boolean;
+    isNumeric(text: string): boolean;
     /**
      * Check if the given route name is in valid format
      *
@@ -90,6 +93,17 @@ export declare class Utility {
      * @param path of directory to create
      */
     mkdirsIfNotExist(path: string): void;
+    /**
+     * Check if a file path is a directory
+     *
+     * @param filePath to the directory
+     * @returns true if the directory exists
+     */
+    isDirectory(filePath: string): boolean;
+    file2bytes(filePath: string): Promise<Buffer<ArrayBufferLike>>;
+    bytes2file(filePath: string, b: Buffer): Promise<void>;
+    file2str(filePath: string): Promise<string>;
+    str2file(filePath: string, text: string): Promise<void>;
     /**
      * Split a text string into an array of elements
      *

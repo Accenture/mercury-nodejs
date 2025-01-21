@@ -35,6 +35,10 @@ const OPTIONS_METHOD = 'OPTIONS';
 
 let self: RestEntry = null;
 
+/**
+ * This is reserved for system use.
+ * DO NOT use this directly in your application code.
+ */
 export class RoutingEntry {
 
     constructor() {

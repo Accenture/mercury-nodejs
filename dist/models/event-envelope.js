@@ -1,11 +1,14 @@
 import { unpack, pack } from 'msgpackr';
 import { Utility } from '../util/utility.js';
+import { AppException } from './app-exception.js';
 const util = new Utility();
 // constants for binary serialization
 const ID_FLAG = "0";
 const EXECUTION_FLAG = "1";
 const ROUND_TRIP_FLAG = "2";
 const EXTRA_FLAG = "3";
+// EXCEPTION_FLAG ("4") is reserved for Java exception
+const STACK_FLAG = "5";
 const TO_FLAG = "T";
 const REPLY_TO_FLAG = "R";
 const FROM_FLAG = "F";
@@ -56,6 +59,7 @@ export class EventEnvelope {
     sender;
     replyTo;
     extra;
+    stackTrace;
     correlationId;
     traceId;
     tracePath;
@@ -267,7 +271,7 @@ export class EventEnvelope {
      * @param value - tag value
      * @returns this
      */
-    addTag(key, value = '*') {
+    addTag(key, value = '_') {
         if (key && key.length > 0) {
             const map = extraToKeyValues(this.extra);
             map[key] = String(value);
@@ -373,27 +377,49 @@ export class EventEnvelope {
         return this.tracePath ? this.tracePath : null;
     }
     /**
-     * You can indicate that an event contains an exception message in the body
+     * Set exception status and message
      *
-     * @param exception indicator
+     * @param status code
+     * @param error message
      * @returns this
      */
-    setException(exception = true) {
-        if (exception) {
-            this.addTag('exception');
+    setException(error) {
+        this.setStatus(error instanceof AppException ? error.getStatus() : 500);
+        if (error instanceof Error) {
+            // user function must throw AppException or Error object
+            // where AppException extends Error.
+            this.setBody(error.message);
+            const text = error.stack ? error.stack : error.message;
+            // limit the depth of stack trace to 10 lines
+            let result = '';
+            const lines = util.split(text, '\r\n').map(k => k.trim());
+            for (let i = 0; i < 10 && i < lines.length; i++) {
+                result += lines[i];
+                result += '\n';
+            }
+            if (lines.length > 10) {
+                result += `...(${lines.length})\n`;
+            }
+            this.stackTrace = result;
         }
         else {
-            this.removeTag('exception');
+            // in case the user function throws something other than an Error object
+            const message = String(error);
+            this.setBody(message);
+            this.stackTrace = message;
         }
         return this;
     }
+    getStackTrace() {
+        return this.stackTrace;
+    }
     /**
-     * Check if this event contains an exception message in the body
+     * Check if this event contains an exception
      *
      * @returns true or false
      */
     isException() {
-        return this.getTag('exception') ? true : false;
+        return this.stackTrace ? true : false;
     }
     /**
      * This method is reserved by the system. DO NOT call this directly.
@@ -411,7 +437,7 @@ export class EventEnvelope {
      * @returns performance metrics
      */
     getExecTime() {
-        return this.execTime;
+        return this.execTime ? this.execTime : 0;
     }
     /**
      * This method is reserved by the system. DO NOT call this directly.
@@ -551,19 +577,22 @@ export class EventEnvelope {
             result[BODY_FLAG] = this.body;
         }
         if (this.replyTo) {
-            result[REPLY_TO_FLAG] = String(this.replyTo);
+            result[REPLY_TO_FLAG] = this.replyTo;
         }
         if (this.extra) {
-            result[EXTRA_FLAG] = String(this.extra);
+            result[EXTRA_FLAG] = this.extra;
+        }
+        if (this.stackTrace) {
+            result[STACK_FLAG] = this.stackTrace;
         }
         if (this.correlationId) {
-            result[CID_FLAG] = String(this.correlationId);
+            result[CID_FLAG] = this.correlationId;
         }
         if (this.traceId) {
-            result[TRACE_ID_FLAG] = String(this.traceId);
+            result[TRACE_ID_FLAG] = this.traceId;
         }
         if (this.tracePath) {
-            result[TRACE_PATH_FLAG] = String(this.tracePath);
+            result[TRACE_PATH_FLAG] = this.tracePath;
         }
         result[STATUS_FLAG] = this.getStatus();
         if (this.execTime) {
@@ -609,6 +638,9 @@ export class EventEnvelope {
             }
             if (EXTRA_FLAG in map) {
                 this.extra = String(map[EXTRA_FLAG]);
+            }
+            if (STACK_FLAG in map) {
+                this.stackTrace = String(map[STACK_FLAG]);
             }
             if (CID_FLAG in map) {
                 this.correlationId = String(map[CID_FLAG]);

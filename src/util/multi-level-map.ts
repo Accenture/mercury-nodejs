@@ -41,7 +41,11 @@ function getFlattenList(prefix: string, src, target: object): void {
     }
 }
 
-function setMapElement(pathname: string, value, map: object): void {
+function removeMapElement(pathname: string, map: object): void {
+    setMapElement(pathname, null, map, true);
+}
+
+function setMapElement(pathname: string, value, map: object, remove = false): void {
     validateCompositePathSyntax(pathname);
     const nullValue = value == null || value == undefined;
     // ignore null value
@@ -101,7 +105,11 @@ function setMapElement(pathname: string, value, map: object): void {
                 }
             } else {
                 if (n == len) {
-                    current[p] = value;
+                    if (nullValue && remove) {
+                        delete current[p];                        
+                    } else {
+                        current[p] = value;
+                    }                    
                     break;
                 } else {
                     const next = current[p];
@@ -341,6 +349,12 @@ export class MultiLevelMap {
         return this.multiLevels;
     }
 
+    reload(kv?: object): void {
+        if (kv && kv.constructor == Object) {
+            this.multiLevels = kv;
+        }
+    }
+
     /**
      * Check if the map is empty
      * 
@@ -385,9 +399,7 @@ export class MultiLevelMap {
     }
 
     /**
-     * Set value using a composite key
-     * 
-     * e.g.
+     * Set value using a composite key. e.g.
      * const m = {'hello': 'world', 'x': {'y': [1, [10, 20, 30], {'a': 'b'}]}}
      * const mm = new MultiLevelMap(m);
      * const result = mm.getElement('x.y[1][1]'))
@@ -399,6 +411,17 @@ export class MultiLevelMap {
      */
     setElement(compositePath: string, value): MultiLevelMap {
         setMapElement(compositePath, value, this.multiLevels);
+        return this;
+    }
+
+    /**
+     * Remove an element using a composite key
+     * 
+     * @param compositePath in dot-bracket convention
+     * @returns this
+     */
+    removeElement(compositePath: string): MultiLevelMap {
+        removeMapElement(compositePath, this.multiLevels);
         return this;
     }
 

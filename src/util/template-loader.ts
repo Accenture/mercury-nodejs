@@ -3,6 +3,10 @@ import { Utility } from '../util/utility.js';
 
 const util = new Utility();
 
+/**
+ * This is reserved for system use.
+ * DO NOT use this directly in your application code.
+ */
 export class TemplateLoader {
 
     private templateFolder: string;

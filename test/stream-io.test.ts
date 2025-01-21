@@ -1,8 +1,8 @@
-import { Logger } from '../src/util/logger.js';
-import { Utility } from '../src/util/utility.js';
-import { PostOffice } from '../src/system/post-office.js';
-import { AppConfig } from '../src/util/config-reader.js';
-import { ObjectStreamIO, ObjectStreamWriter, ObjectStreamReader } from '../src/system/object-stream.js';
+import { Logger } from '../src/util/logger';
+import { Utility } from '../src/util/utility';
+import { PostOffice } from '../src/system/post-office';
+import { AppConfig } from '../src/util/config-reader';
+import { ObjectStreamIO, ObjectStreamWriter, ObjectStreamReader } from '../src/system/object-stream';
 import { fileURLToPath } from "url";
 
 const log = Logger.getInstance();
@@ -21,8 +21,8 @@ describe('object stream I/O tests', () => {
 
     beforeAll(async () => {
         const resourcePath = getRootFolder() + 'test/resources';
-        // AppConfig should be initialized with base configuration parameter when the Platform object is loaded
-        const config = AppConfig.getInstance(resourcePath).getReader();
+        // AppConfig should be initialized with base configuration parameter before everything else
+        const config = AppConfig.getInstance(resourcePath);
         log.info(`Using base configuration - ${config.getId()}`);
     });
     
@@ -88,7 +88,9 @@ describe('object stream I/O tests', () => {
         // close input stream
         const status = await streamIn.close();
         expect(status).toBe(true);
-        // check if stream has been released
+        // give a little bit of time to let the I/O streams to be closed
+        // because of asynchronous processing
+        await util.sleep(100);
         expect(po.exists(stream.getInputStreamId())).toBe(false);
         expect(po.exists(stream.getOutputStreamId())).toBe(false);
     });     

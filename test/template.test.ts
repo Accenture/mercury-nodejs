@@ -1,5 +1,5 @@
-import { Logger } from '../src/util/logger.js';
-import { TemplateLoader } from '../src/util/template-loader.js';
+import { Logger } from '../src/util/logger';
+import { TemplateLoader } from '../src/util/template-loader';
 
 const log = Logger.getInstance();
 

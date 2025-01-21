@@ -1,28 +1,40 @@
 # application configuration
 
-application.name: 'example-app'
+application.name: 'composable-example'
 info.app:
-  version: '4.1.1'
+  version: '4.1.5'
   description: 'Composable application example'
-
+#
 # server port for Event API REST endpoint
+#
 server.port: 8086
-
-# log.format can be 'text' or 'json'
+#
+# log.format = text | compact | json
+# text and json are for human readers
+# compact is json without pretty print. It is designed for log analytics consumption.
+#
 log:
-  format: 'text'
+  format: text
   level: INFO
-
+#
 # You can add optional health checks that point to your custom health check functions
 # (the dependency list is a comma separated list) 
+#
 health.dependencies: 'demo.health'
-
 #
 # To scan libraries for composable functions, use a comma separated text string
 # for a list of library dependencies.
 #
-web.component.scan: 'mercury'
-
+web.component.scan: 'mercury-composable'
+#
+# Enable REST automation
+#
+rest.automation: true
+yaml.rest.automation: classpath:/rest.yaml
+#
+# Event flow configuration
+#
+yaml.flow.automation: classpath:/flows.yaml
 #
 # Extension to MIME type mapping for static content
 #

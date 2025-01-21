@@ -14,7 +14,7 @@ files using the `ConfigReader` API.
 | yaml.rest.automation | Default value is classpath:/rest.yaml | Optional |
 | yaml.mime.types      | Optional config file                  | Optional |
 | mime.types           | Map of file extensions to MIME types  | Optional |
-| log.format           | text or json                          | Optional |
+| log.format           | text, compact or json. default=text   | Optional |
 | log.level            | default 'info'                        | Optional |
 | health.dependencies  | e.g. 'database.health'                | Optional |
 
@@ -61,7 +61,7 @@ The following route names are reserved by the system.
 
 <br/>
 
-|                Chapter-7                |                   Home                    |             Appendix-II             |
-|:---------------------------------------:|:-----------------------------------------:|:-----------------------------------:|
-| [Test Driven Development](CHAPTER-7.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Async HTTP client](APPENDIX-II.md) |
+|          Chapter-7           |                   Home                    |             Appendix-II             |
+|:----------------------------:|:-----------------------------------------:|:-----------------------------------:|
+| [API overview](CHAPTER-7.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Async HTTP client](APPENDIX-II.md) |
 

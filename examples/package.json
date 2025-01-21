@@ -1,6 +1,6 @@
 {
   "name": "examples",
-  "version": "4.1.1",
+  "version": "4.2.0",
   "description": "Composable application example",
   "type": "module",
   "engines": {
@@ -9,14 +9,14 @@
   "author": "Eric Law <eric.law@accenture.com>",
   "license": "Apache-2.0",
   "scripts": {
-    "clean": "node clean.js && node generate-placeholder.js",
+    "clean": "node clean.js && node placeholder.js",
     "pull": "npm uninstall mercury && npm install https://github.com/Accenture/mercury-nodejs",
-    "preload": "node generate-preloader.js",
+    "preload": "node preloader.js",
     "prebuild": "npm run lint",
-    "build": "npm run preload && tsc -p tsconfig.json && node copy-static-files.js",
+    "build": "npm run preload && tsc -p tsconfig.json && node copy-resource-files.js",
     "build:watch": "tsc -w -p tsconfig.json",
     "lint": "eslint . --fix",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --detectOpenHandles",
     "test:watch": "jest --watch"
   },
   "devDependencies": {
@@ -58,6 +58,6 @@
     }
   },
   "dependencies": {
-    "mercury": "github:Accenture/mercury-nodejs"
+    "mercury-composable": "https://github.com/Accenture/mercury-nodejs"
   }
 }

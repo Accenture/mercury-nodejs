@@ -23,7 +23,7 @@ export declare class RestAutomation {
      *
      * IMPORTANT: This API is provided for backward compatibility with existing code
      * that uses Express plugins. In a composable application, you can achieve the same
-     * functionality by declaring your user function as an "interceptor" in "preload.yaml".
+     * functionality by declaring your user function as an "interceptor".
      *
      * User defined middleware has input arguments (req: Request, res: Response, next: NextFunction).
      * It must call the "next()" method at the end of processing to pass the request and response

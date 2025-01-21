@@ -16,6 +16,7 @@ export declare class MultiLevelMap {
      * @returns map
      */
     getMap(): object;
+    reload(kv?: object): void;
     /**
      * Check if the map is empty
      *
@@ -45,9 +46,7 @@ export declare class MultiLevelMap {
      */
     getElement(compositePath: string, defaultValue?: any): any;
     /**
-     * Set value using a composite key
-     *
-     * e.g.
+     * Set value using a composite key. e.g.
      * const m = {'hello': 'world', 'x': {'y': [1, [10, 20, 30], {'a': 'b'}]}}
      * const mm = new MultiLevelMap(m);
      * const result = mm.getElement('x.y[1][1]'))
@@ -58,6 +57,13 @@ export declare class MultiLevelMap {
      * @returns this
      */
     setElement(compositePath: string, value: any): MultiLevelMap;
+    /**
+     * Remove an element using a composite key
+     *
+     * @param compositePath in dot-bracket convention
+     * @returns this
+     */
+    removeElement(compositePath: string): MultiLevelMap;
     /**
      * Flatten key-values in a single layer
      *

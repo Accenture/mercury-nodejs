@@ -66,13 +66,13 @@ async function fetchNextBlock(replyTo, stream, timeout) {
                     const block = new EventEnvelope(data);
                     if (DATA == block.getHeader(TYPE)) {
                         stream.touch();
-                        po.send(new EventEnvelope().setTo(replyTo).setHeader(TYPE, DATA).setBody(block.getBody()));
+                        await po.send(new EventEnvelope().setTo(replyTo).setHeader(TYPE, DATA).setBody(block.getBody()));
                         return;
                     }
                     else if (END_OF_STREAM == block.getHeader(TYPE)) {
                         // EOF detected
                         stream.eof_read = true;
-                        po.send(new EventEnvelope().setTo(replyTo).setHeader(TYPE, END_OF_STREAM));
+                        await po.send(new EventEnvelope().setTo(replyTo).setHeader(TYPE, END_OF_STREAM));
                         return;
                     }
                 }
@@ -286,7 +286,7 @@ class StreamConsumer {
             if (stream) {
                 if (READ == evt.getHeader(TYPE)) {
                     if (stream.eof_read) {
-                        po.send(new EventEnvelope().setTo(replyTo).setHeader(TYPE, END_OF_STREAM));
+                        await po.send(new EventEnvelope().setTo(replyTo).setHeader(TYPE, END_OF_STREAM));
                     }
                     else {
                         await fetchNextBlock(replyTo, stream, readTimeout);
@@ -294,10 +294,10 @@ class StreamConsumer {
                 }
                 if (CLOSE == evt.getHeader(TYPE)) {
                     if (stream.closed) {
-                        po.send(new EventEnvelope().setTo(replyTo).setBody(false));
+                        await po.send(new EventEnvelope().setTo(replyTo).setBody(false));
                     }
                     else {
-                        po.send(new EventEnvelope().setTo(replyTo).setBody(true));
+                        await po.send(new EventEnvelope().setTo(replyTo).setBody(true));
                         stream.close();
                     }
                 }

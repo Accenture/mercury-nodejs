@@ -11,7 +11,7 @@ const util = new Utility();
 const topics = new Map<string, Array<string>>();
 
 class LocalPublisher implements Composable{
-    initialize(): LocalPublisher { 
+    initialize(): Composable { 
         return this;
     }
 

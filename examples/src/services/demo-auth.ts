@@ -1,11 +1,11 @@
-import { preload, Composable, EventEnvelope, AsyncHttpRequest, Logger } from 'mercury';
+import { preload, Composable, EventEnvelope, AsyncHttpRequest, Logger } from 'mercury-composable';
 
 const log = Logger.getInstance();
 
 export class DemoAuth implements Composable {
 
     @preload('v1.api.auth')
-    initialize(): DemoAuth {
+    initialize(): Composable {
         return this;
     }
 

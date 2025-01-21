@@ -2,15 +2,19 @@
 
 application.name: 'platform-core'
 info.app:
-  version: '4.1.1'
+  version: '4.1.5'
   description: 'Composable application core library'
 
 # server port for Event API REST endpoint
 server.port: 8300
 
-# log.format can be 'text' or 'json'
+#
+# log.format = text | compact | json
+# text and json are for human readers
+# compact is json without pretty print. It is for log analytics consumption.
+#
 log:
-  format: 'text'
+  format: text
   level: INFO
 
 # You can add optional health checks that point to your custom health check functions
@@ -20,6 +24,20 @@ log:
 #
 # Static HTML folder location - default to "resources/public" of the mercury library if not given.
 # static.html.folder: '/opt/html'
+
+#
+# event flow configuration
+#
+yaml.flow.automation: 'classpath:/not-found.yaml, classpath:/flows.yaml, classpath:/more-flows.yaml'
+#
+# event over http
+#
+yaml.event.over.http: 'classpath:/event-over-http.yaml'
+
+#
+# application ID for external state machine in event flow unit tests
+#
+app.id: A12
 
 # Two levels of loops
 looping.test.1: ${looping.test.2}
@@ -36,3 +54,10 @@ recursive:
 env.var.1: ${PATH}
 
 env.var.2: 'first ${server.port} second ${PATH} third ${invalid.format'
+
+test.map: 
+  hello: world
+  nice: day
+
+test.map3.wonderful: story
+test.map3.world: class

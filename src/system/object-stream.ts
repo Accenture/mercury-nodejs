@@ -26,7 +26,7 @@ const OBJECT_STREAM_MANAGER = "object.stream.manager";
 const RPC = "rpc";
 
 class HouseKeeper implements Composable {
-    initialize(): HouseKeeper { 
+    initialize(): Composable { 
         return this;
     }
 
@@ -74,12 +74,12 @@ async function fetchNextBlock(replyTo: string, stream: StreamInfo, timeout: numb
                     const block = new EventEnvelope(data);
                     if (DATA == block.getHeader(TYPE)) {
                         stream.touch();
-                        po.send(new EventEnvelope().setTo(replyTo).setHeader(TYPE, DATA).setBody(block.getBody()));
+                        await po.send(new EventEnvelope().setTo(replyTo).setHeader(TYPE, DATA).setBody(block.getBody()));
                         return;
                     } else if (END_OF_STREAM == block.getHeader(TYPE)) {
                         // EOF detected
                         stream.eof_read = true;
-                        po.send(new EventEnvelope().setTo(replyTo).setHeader(TYPE, END_OF_STREAM));
+                        await po.send(new EventEnvelope().setTo(replyTo).setHeader(TYPE, END_OF_STREAM));
                         return;
                     }
                 }
@@ -262,7 +262,7 @@ export class ObjectStreamReader {
 }
 
 class StreamPublisher implements Composable {
-    initialize(): StreamPublisher { 
+    initialize(): Composable { 
         return this;
     }
 
@@ -295,7 +295,7 @@ class StreamPublisher implements Composable {
 }
 
 class StreamConsumer implements Composable {
-    initialize(): StreamConsumer { 
+    initialize(): Composable { 
         return this;
     }
     
@@ -309,16 +309,16 @@ class StreamConsumer implements Composable {
             if (stream) {
                 if (READ == evt.getHeader(TYPE)) {
                     if (stream.eof_read) {
-                        po.send(new EventEnvelope().setTo(replyTo).setHeader(TYPE, END_OF_STREAM));
+                        await po.send(new EventEnvelope().setTo(replyTo).setHeader(TYPE, END_OF_STREAM));
                     } else {
                         await fetchNextBlock(replyTo, stream, readTimeout);
                     }
                 }
                 if (CLOSE == evt.getHeader(TYPE)) {
                     if (stream.closed) {
-                        po.send(new EventEnvelope().setTo(replyTo).setBody(false));
+                        await po.send(new EventEnvelope().setTo(replyTo).setBody(false));
                     } else {
-                        po.send(new EventEnvelope().setTo(replyTo).setBody(true));
+                        await po.send(new EventEnvelope().setTo(replyTo).setBody(true));
                         stream.close();
                     }                                            
                 }

@@ -317,7 +317,7 @@ export class AsyncHttpClient {
             // this happens only when HTTP connection fails
             const error = new EventEnvelope().setTo(evt.getReplyTo()).setCorrelationId(evt.getCorrelationId());
             error.setStatus(500).setBody(normalizeTextResponse(500, ex.message));
-            po.send(error);
+            await po.send(error);
         }
         return null;
     }

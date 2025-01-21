@@ -30,6 +30,10 @@ const ASYNC_HTTP_REQUEST = "async.http.request";
 const VALID_METHODS = ['GET', 'PUT', 'POST', 'DELETE', 'HEAD', 'PATCH', 'OPTIONS'];
 const OPTIONS_METHOD = 'OPTIONS';
 let self = null;
+/**
+ * This is reserved for system use.
+ * DO NOT use this directly in your application code.
+ */
 export class RoutingEntry {
     constructor() {
         if (self == null) {

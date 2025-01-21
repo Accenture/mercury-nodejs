@@ -1,4 +1,8 @@
 import { ConfigReader } from './config-reader.js';
+/**
+ * This is reserved for system use.
+ * DO NOT use this directly in your application code.
+ */
 export declare class RoutingEntry {
     constructor();
     load(config: ConfigReader): void;

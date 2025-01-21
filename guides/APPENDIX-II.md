@@ -35,7 +35,7 @@ Your custom health service must respond to the following requests:
 A sample health service is available in the `health-check.ts` class of the hello world project as follows:
 
 ```javascript
-import { preload, Composable, EventEnvelope, AppException } from 'mercury';
+import { preload, Composable, EventEnvelope, AppException } from 'mercury-composable';
 
 const TYPE = 'type';
 const INFO = 'info';
@@ -44,7 +44,7 @@ const HEALTH = 'health';
 export class DemoHealthCheck implements Composable {
 
     @preload('demo.health')
-    initialize(): DemoHealthCheck {
+    initialize(): Composable {
         return this;
     }
 
@@ -93,7 +93,7 @@ For most cases, you can just set a JSON object into the request body and specify
 
 Example code may look like this:
 
-```java
+```javascript
 const req = new AsyncHttpRequest();
 req.setMethod("POST");
 req.setHeader("accept", "application/json");
@@ -162,7 +162,7 @@ static async downloadFile(streamId: string, filename: string) {
 
 ## Content length for HTTP request
 
-IMPORTANT: Do not set the "content-length" HTTP header because the system will automatically compute the
+*IMPORTANT*: Do not set the "content-length" HTTP header because the system will automatically compute the
 correct content-length for small payload. For large payload, it will use the chunking method.
 
 <br/>

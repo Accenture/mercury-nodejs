@@ -45,7 +45,6 @@ export class ComposableLoader {
                 }
                 // initialize base configuration
                 const config = AppConfig.getInstance(resourcePath);
-                log.info(`Base configuration ${config.getId()}`);  
                 // initialize composable functions
                 new NoOp().initialize();
                 new DemoAuth().initialize();

@@ -35,7 +35,6 @@ export class ComposableLoader {
                 }
                 // initialize base configuration
                 const config = AppConfig.getInstance(resourcePath);
-                log.info(`Base configuration ${config.getId()}`);  
                 // initialize composable functions
                 ${service-list}
                 // register the functions into the event system

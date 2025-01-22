@@ -25,12 +25,6 @@ let startTime: Date;
 let appName: string;
 let self: EventSystem;
 
-const LOG_FORMAT = {
-    TEXT: 0,
-    COMPACT: 1,
-    JSON: 2
-};
-
 function subscribe(route: string, listener: (evt: EventEnvelope) => void): void {
     if (!route) {
         throw new Error('Missing route');
@@ -436,59 +430,6 @@ class EventSystem {
 
     constructor() {
         const config = AppConfig.getInstance();
-        let levelInEnv = false;
-        let reloaded = false;
-        let reloadFile: string = null;
-        let errorInReload: string = null;
-        if (process) {
-            if (process.env.LOG_LEVEL) {
-                levelInEnv = true;
-            }
-            // reload configuration from a file given in command line argument "-C{filename}"
-            const replaceConfig = process.argv.filter(k => k.startsWith('-C'));
-            if (replaceConfig.length > 0) {
-                reloadFile = replaceConfig[0].substring(2);
-                try {
-                    const map = util.loadYamlFile(reloadFile);
-                    if (map.isEmpty()) {
-                        errorInReload = `Configuration file ${reloadFile} is empty`;
-                    } else {
-                        config.reload(map);
-                        reloaded = true;
-                    }
-                } catch (e) {
-                    errorInReload = e.message;
-                }
-            }
-            // override application parameters from command line arguments
-            const parameters = process.argv.filter(k => k.startsWith('-D') && k.substring(2).includes('='));
-            for (let i=0; i < parameters.length; i++) {
-                const p = parameters[i].substring(2);
-                const sep = p.indexOf('=');
-                const k = p.substring(0, sep);
-                const v = p.substring(sep+1);
-                if (k && v) {
-                    config.set(k, v);
-                }
-            }
-        }
-        if (!levelInEnv) {
-            log.setLevel(config.getProperty('log.level', 'info'));
-        }
-        const logFormat = config.getProperty('log.format', 'text');
-        if (logFormat) {
-            const format = logFormat.toLowerCase();
-            if ('json' == format) {
-                log.setLogFormat(LOG_FORMAT.JSON);
-            } else if ('compact' == format) {
-                log.setLogFormat(LOG_FORMAT.COMPACT);
-            } 
-        }
-        if (reloaded) {
-            log.info(`Configuration reloaded from ${reloadFile}`);
-        } else if (errorInReload) {
-            log.error(`Unable to load configuration from ${reloadFile} - ${errorInReload}`);
-        }
         if (process) {
             // monitor shutdown signals
             process.on('SIGTERM', () => {

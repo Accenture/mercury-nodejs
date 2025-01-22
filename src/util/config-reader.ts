@@ -6,6 +6,12 @@ import { Utility } from '../util/utility.js';
 const log = Logger.getInstance();
 const util = new Utility();
 
+const LOG_FORMAT = {
+    TEXT: 0,
+    COMPACT: 1,
+    JSON: 2
+};
+
 function resolveResource(configFile: string): string {
     let path: string;
     if (configFile.startsWith("classpath:")) {
@@ -56,18 +62,65 @@ export class AppConfig {
                 // save file path
                 AppConfig.reader.set('resource.path', resourcePath);
             } else {
-                if (resourcePath) {
-                    throw new Error(`Not a resources folder - ${resourcePath}`);
-                } else {
-                    throw new Error('Unable to start configuration management. Did you forget to provide a resource folder path?');
-                }                
+                throw new Error('Unable to start configuration management. Did you forget to provide a resource folder path?');
             }            
         }
     }
 
     static getInstance(resourcePath?: string): ConfigReader {
         if (!AppConfig.singleton) {
-            AppConfig.singleton = new AppConfig(resourcePath);            
+            AppConfig.singleton = new AppConfig(resourcePath);
+            // check command line arguments for overrides
+            let reloaded = false;
+            let reloadFile: string = null;
+            let errorInReload: string = null;
+            if (process) {
+                // reload configuration from a file given in command line argument "-C{filename}"
+                const replaceConfig = process.argv.filter(k => k.startsWith('-C'));
+                if (replaceConfig.length > 0) {
+                    reloadFile = replaceConfig[0].substring(2);
+                    try {
+                        const map = util.loadYamlFile(reloadFile);
+                        if (map.isEmpty()) {
+                            errorInReload = `Configuration file ${reloadFile} is empty`;
+                        } else {
+                            AppConfig.reader.reload(map);
+                            reloaded = true;
+                        }
+                    } catch (e) {
+                        errorInReload = e.message;
+                    }
+                }
+                // override application parameters from command line arguments
+                const parameters = process.argv.filter(k => k.startsWith('-D') && k.substring(2).includes('='));
+                for (let i=0; i < parameters.length; i++) {
+                    const p = parameters[i].substring(2);
+                    const sep = p.indexOf('=');
+                    const k = p.substring(0, sep);
+                    const v = p.substring(sep+1);
+                    if (k && v) {
+                        AppConfig.reader.set(k, v);
+                    }
+                }
+            }
+            log.setLevel(AppConfig.reader.getProperty('log.level', 'info'));
+            // set log format: text, json, compact
+            const logFormat = AppConfig.reader.getProperty('log.format', 'text');
+            if (logFormat) {
+                const format = logFormat.toLowerCase();
+                if ('json' == format) {
+                    log.setLogFormat(LOG_FORMAT.JSON);
+                } else if ('compact' == format) {
+                    log.setLogFormat(LOG_FORMAT.COMPACT);
+                } 
+            }
+            if (reloaded) {
+                log.info(`Configuration reloaded from ${reloadFile}`);
+            } else if (errorInReload) {
+                log.error(`Unable to load configuration from ${reloadFile} - ${errorInReload}`);
+            } else {
+                log.info(`Configuration loaded from ${resourcePath}`);
+            }
         }        
         return AppConfig.reader;
     }
@@ -111,7 +164,6 @@ export class ConfigReader {
                 let filePath: string;
                 if (isBaseConfig) {
                     filePath = getConfigFilePath(configResource);
-                    log.info(`Loading base configuration from ${filePath}`);
                 } else {
                     filePath = getConfigFilePath(resolveResource(configResource));
                 }

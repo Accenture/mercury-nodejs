@@ -26,7 +26,7 @@ function getLineNumber() {
 function getText(message) {
     if (message) {
         if (message instanceof Object) {
-            return JSON.stringify(message, null, 2);
+            return JSON.stringify(message);
         }
         else {
             return String(message);

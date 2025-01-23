@@ -165,6 +165,36 @@ static async downloadFile(streamId: string, filename: string) {
 *IMPORTANT*: Do not set the "content-length" HTTP header because the system will automatically compute the
 correct content-length for small payload. For large payload, it will use the chunking method.
 
+## Application log format
+
+The system supports 3 types of log formats. You can set "log.format" parameter in application.yml to
+change the log format or override it at runtime using the `-D` argument. e.g.
+
+```shell
+node myapp.js -Dlog.format=json
+```
+
+| Format  | Description                                                                   | 
+|:--------|:------------------------------------------------------------------------------|
+| text    | this is the default log format                                                |
+| json    | application log will be printed in JSON format with line feed and indentation |
+| compact | JSON format without line feed and indentation                                 |
+
+text and json formats are for human readers and compact format is designed for log analytics system.
+
+## Externalize the application.yml
+
+If you want to externalize the application.yml configuration file, please keep a default application.yml
+in the "src/resources" folder. You can use command line to ask the system to reload a new base configuration
+file like this:
+
+```shell
+node myapp.js -Dlog.format=json -C/tmp/config/application.yml
+```
+
+> *Note*: The `-C` command argument should point to a fully qualified file path. Use relative path
+  if you know exactly the resolved path in a deployed container. You can have multiple "-D" parameter
+  but you can only configure a single "-C" argument.
 <br/>
 
 |             Appendix-I              |                   Home                    | 

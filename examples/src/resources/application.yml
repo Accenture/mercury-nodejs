@@ -15,7 +15,7 @@ server.port: 8086
 #
 log:
   format: text
-  level: INFO
+  level: ${LOG_LEVEL:INFO}
 #
 # You can add optional health checks that point to your custom health check functions
 # (the dependency list is a comma separated list) 

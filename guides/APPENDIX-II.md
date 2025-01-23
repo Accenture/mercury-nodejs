@@ -193,7 +193,7 @@ node myapp.js -Dlog.format=json -C/tmp/config/application.yml
 ```
 
 > *Note*: The `-C` command argument should point to a fully qualified file path. Use relative path
-  if you know exactly the resolved path in a deployed container. You can have multiple "-D" parameter
+  if you know exactly the resolved path in a deployed container. You can have multiple "-D" parameters
   but you can only configure a single "-C" argument.
 <br/>
 

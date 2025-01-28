@@ -1,5 +1,5 @@
-site_name: Mercury
-site_url: https://github.com/accenture/mercury
+site_name: Composable for Node.js
+site_url: https://github.com/accenture/mercury-nodejs
 nav:
     - Home: README.md
     - Contents: guides/TABLE-OF-CONTENTS.md

@@ -21,6 +21,7 @@ const FLOW_PROTOCOL = "flow://";
 const INPUT_NAMESPACE = "input.";
 const OUTPUT_NAMESPACE = "output.";
 const MODEL_NAMESPACE = "model.";
+const NEGATE_MODEL = "!model.";
 const RESULT_NAMESPACE = "result.";
 const HEADER_NAMESPACE = "header.";
 const HEADER = "header";
@@ -95,7 +96,7 @@ export class CompileFlows {
                 }
             }
             catch (err) {
-                log.error(`Unable to load Event Scripts from ${p} - ${err.message}`);
+                log.warn(`Unable to load Event Scripts from ${p} - ${err.message}`);
             }
             const flows = Flows.getAllFlows().sort();
             for (const f of flows) {
@@ -552,8 +553,16 @@ export class CompileFlows {
         if (sep == -1) {
             return mapping;
         }
-        const lhs = text.substring(0, sep).trim();
-        const rhs = text.substring(sep + 2).trim();
+        let lhs = text.substring(0, sep).trim();
+        let rhs = text.substring(sep + 2).trim();
+        // Detect and reformat "negate" of a model value in LHS and RHS
+        // !model.key becomes model.key:! for consistent processing by TaskExecutor
+        if (lhs.startsWith(NEGATE_MODEL)) {
+            lhs = lhs.substring(1).trim() + ":!";
+        }
+        if (rhs.startsWith(NEGATE_MODEL)) {
+            rhs = rhs.substring(1).trim() + ":!";
+        }
         return lhs + " " + MAP_TO + " " + rhs;
     }
     validInput(input) {

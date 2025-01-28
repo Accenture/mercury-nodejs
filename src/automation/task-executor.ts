@@ -76,6 +76,7 @@ const LONG_SUFFIX = "long";
 const FLOAT_SUFFIX = "float";
 const DOUBLE_SUFFIX = "double";
 const BOOLEAN_SUFFIX = "boolean";
+const NEGATE_SUFFIX = "!";
 const SUBSTRING_TYPE = "substring(";
 const AND_TYPE = "and(";
 const OR_TYPE = "or(";
@@ -881,6 +882,9 @@ export class TaskExecutor implements Composable {
             }
             if (BOOLEAN_SUFFIX == type) {
                 return "true" == String(value).toLowerCase();
+            }
+            if (NEGATE_SUFFIX == type) {
+                return !("true" == String(value).toLowerCase());
             }
             if (INTEGER_SUFFIX == type || LONG_SUFFIX == type) {
                 return util.str2int(String(value));

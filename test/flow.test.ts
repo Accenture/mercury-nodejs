@@ -695,6 +695,8 @@ describe('event flow use cases', () => {
     expect(map.getElement('original.double_number')).toBe(12.345);
     expect(map.getElement('original.double_number')).toBe(12.345);
     expect(map.getElement('original.boolean_value')).toBe(true);
+    expect(map.getElement('original.negate_value')).toBe(false);
+    expect(map.getElement('original.also_negate_value')).toBe(false);
     expect(map.getElement('demo1')).toBe("ok");
     expect(map.getElement('demo2')).toBe(testUser);
     expect(map.getElement('demo3')).toBe("greetings");

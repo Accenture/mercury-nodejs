@@ -117,7 +117,7 @@ export class AppConfig {
             if (reloaded) {
                 log.info(`Configuration reloaded from ${reloadFile}`);
             } else if (errorInReload) {
-                log.error(`Unable to load configuration from ${reloadFile} - ${errorInReload}`);
+                log.warn(`Unable to load configuration from ${reloadFile} - ${errorInReload}`);
             } else {
                 log.info(`Configuration loaded from ${resourcePath}`);
             }

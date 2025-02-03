@@ -490,9 +490,9 @@ For simplicity of syntax, each type matching command is a single operation. For 
 operation such as multiple AND, OR and NEGATE operators, you can configure multiple steps of
 operation.
 
+An interesting use case is a simple decision task using the built-in no-op function.
 For boolean with value matching, you can test if the key-value in the left-hand-side is a null
-value. An interesting use case is a simple decision task using the built-in no-op function.
-For example, when a control file for the application is not available, your application will
+value. For example, when a control file for the application is not available, your application will
 switch to run in dev mode.
 
 A sample task may look like this:
@@ -511,6 +511,46 @@ tasks:
     - 'start.in.dev.mode'
     - 'start.in.cloud'
 ```
+
+Another use case is type conversion for HTTP path parameter which is always a text string.
+If your composable function requires a path parameter to be accepted as an integer, you can do this:
+
+```yaml
+- input:
+    - 'input.path_parameter.userid -> model.userid:int'
+    - 'model.userid -> userid'
+```
+
+The above input data mapping example illustrates the use of a model variable to convert a text parameter
+into an integer. Note that if the path parameter is not numeric, the converted value will be -1.
+
+### Convenient data mapping using model variable
+
+To address the common use case of using a model variable as an intermediate value, the system supports the following
+formats for input data mapping and output data mapping.
+
+```text
+// 2-part data mapping format
+LHS -> RHS
+// 3-part data mapping format
+LHS -> model.variable -> RHS
+```
+
+For the 2-part data mapping format, there are left-hand-side and right-hand-side where the value retrieved
+from the left-hand-side variable is mapped to the right-hand-side.
+
+The 3-part data mapping allows us to use a model variable as an intermediate for simple type matching.
+
+In the previous example, it uses two entries to convert a HTTP path parameter from a text string to a number and
+set the number as input argument. The configuration syntax can be simplified as follows:
+
+```yaml
+- input:
+    - 'input.path_parameter.userid -> model.userid:int -> userid'
+```
+
+The above 3-part data mapping entry will be expanded into two entries internally. This extra processing is done
+at the "CompileFlows" step and thus there is no impact to the task execution speed.
 
 ### Metadata for each flow instance
 

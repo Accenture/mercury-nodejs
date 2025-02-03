@@ -82,5 +82,4 @@ export class Task {
     setWhileModelKey(whileModelKey: string) {
         this.whileModelKey = whileModelKey;
     }
-
 }

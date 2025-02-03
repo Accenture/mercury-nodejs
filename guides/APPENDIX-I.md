@@ -45,8 +45,9 @@ The following route names are reserved by the system.
 
 | Route               | Purpose                                          | Modules         |
 |:--------------------|:-------------------------------------------------|:----------------|
-| distributed.tracing | Distributed tracing logger                       | core engine     |
-| async.http.request  | HTTP response event handler                      | core engine     |
+| distributed.tracing | Distributed tracing logger                       | platform-core   |
+| async.http.request  | HTTP response event handler                      | platform-core   |
+| temporary.inbox     | Event listener for RPC                           | platform-core   |
 | event.api.service   | Event API handler                                | REST automation |
 | actuator.services   | admin endpoints (/info, /health, /livenessprobe) | REST automation |
 

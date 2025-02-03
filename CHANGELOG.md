@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 4.2.5, 2/2/2025
+
+### Added
+
+Add 3-part syntax for Event Script's data mapping processing.
+
+Supports the following data mapping syntax:
+
+1. LHS -> RHS
+2. LHS -> model.variable -> RHS
+
+### Removed
+
+N/A
+
+### Changed
+
+Make input event immutable to PostOffice's send and request API
+
+---
 ## Version 4.2.3, 1/28/2025
 
 ### Added

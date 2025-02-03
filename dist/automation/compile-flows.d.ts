@@ -12,7 +12,10 @@ export declare class CompileFlows {
     private getForPart2;
     private getForPart3;
     private validForStatement;
+    private filterDataMapping;
     private filterMapping;
+    private normalizedTypeMapping;
+    private removeNegate;
     private validInput;
     private validKeyValues;
     private validOutput;

@@ -295,11 +295,11 @@ export declare class EventEnvelope {
      */
     fromBytes(b: Buffer): EventEnvelope;
     /**
-     * Clone from an event
+     * Copy from an event into this
      *
      * @param event input
      * @returns this
      */
-    clone(event: EventEnvelope): EventEnvelope;
+    copy(event: EventEnvelope): EventEnvelope;
     toString(): string;
 }

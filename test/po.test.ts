@@ -203,7 +203,7 @@ class TraceForwarder implements Composable {
   }
 
   async handleEvent(evt: EventEnvelope) {
-    const payload = evt.getBody() as object;
+    const payload = evt.getBody() as object;    
     if ('trace' in payload) {
       const metrics = payload['trace'] as object;
       // ignore trace metrics from other unit tests

@@ -21,10 +21,10 @@ async function createEncryptionKey() {
 }
 
 async function main() {
-    // Load composable functions into memory and initialize configuration management
-    ComposableLoader.initialize();
     // create a master encryption key if not exists
     createEncryptionKey();
+    // Load composable functions into memory and initialize configuration management
+    ComposableLoader.initialize();
     // keep the server running
     const platform = Platform.getInstance();
     platform.runForever();

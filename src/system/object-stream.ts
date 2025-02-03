@@ -58,7 +58,7 @@ function getIdFromRoute(route: string): string {
     return null;
 }
 
-async function fetchNextBlock(replyTo: string, stream: StreamInfo, timeout: number) {
+async function fetchNextBlock(replyTo: string, cid: string, stream: StreamInfo, timeout: number) {
     const begin = new Date().getTime();
     let now = begin;
     let n = 0;
@@ -68,18 +68,19 @@ async function fetchNextBlock(replyTo: string, stream: StreamInfo, timeout: numb
             const exists = fs.existsSync(filename);
             if (exists) {
                 const data = await fs.promises.readFile(filename);
-                if (data) {                            
+                if (data) {                          
                     stream.read_count++;                                               
                     fs.promises.unlink(filename);
                     const block = new EventEnvelope(data);
+                    const event = new EventEnvelope().setTo(replyTo).setCorrelationId(cid);
                     if (DATA == block.getHeader(TYPE)) {
                         stream.touch();
-                        await po.send(new EventEnvelope().setTo(replyTo).setHeader(TYPE, DATA).setBody(block.getBody()));
+                        await po.send(event.setHeader(TYPE, DATA).setBody(block.getBody()));
                         return;
                     } else if (END_OF_STREAM == block.getHeader(TYPE)) {
                         // EOF detected
                         stream.eof_read = true;
-                        await po.send(new EventEnvelope().setTo(replyTo).setHeader(TYPE, END_OF_STREAM));
+                        await po.send(event.setHeader(TYPE, END_OF_STREAM));
                         return;
                     }
                 }
@@ -120,7 +121,7 @@ export class ObjectStreamIO {
         const id = util.getUuid();
         const platform = Platform.getInstance();
         util.mkdirsIfNotExist(TEMP_DIR);
-        platform.register(OBJECT_STREAM_MANAGER, new HouseKeeper());               
+        platform.register(OBJECT_STREAM_MANAGER, new HouseKeeper());
         this.streamIn = STREAM_PREFIX + id + IN;
         this.streamOut = STREAM_PREFIX + id + OUT;
         platform.register(this.streamIn, new StreamConsumer(), 1, true, true);
@@ -301,24 +302,26 @@ class StreamConsumer implements Composable {
     
     async handleEvent(evt: EventEnvelope) {
         const rpcTag = evt.getTag(RPC);
+        const cid = evt.getCorrelationId();
         const readTimeout = rpcTag? util.str2int(rpcTag) : 1000;
         const replyTo = evt.getReplyTo();
         if (replyTo) {   
             const id = getIdFromRoute(evt.getHeader('my_route'));
             const stream = streams.get(id);
             if (stream) {
+                const response = new EventEnvelope().setTo(replyTo).setCorrelationId(cid);
                 if (READ == evt.getHeader(TYPE)) {
                     if (stream.eof_read) {
-                        await po.send(new EventEnvelope().setTo(replyTo).setHeader(TYPE, END_OF_STREAM));
+                        await po.send(response.setHeader(TYPE, END_OF_STREAM));
                     } else {
-                        await fetchNextBlock(replyTo, stream, readTimeout);
+                        await fetchNextBlock(replyTo, cid, stream, readTimeout);
                     }
                 }
-                if (CLOSE == evt.getHeader(TYPE)) {
+                if (CLOSE == evt.getHeader(TYPE)) {                    
                     if (stream.closed) {
-                        await po.send(new EventEnvelope().setTo(replyTo).setBody(false));
+                        await po.send(response.setBody(false));
                     } else {
-                        await po.send(new EventEnvelope().setTo(replyTo).setBody(true));
+                        await po.send(response.setBody(true));
                         stream.close();
                     }                                            
                 }

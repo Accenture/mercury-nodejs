@@ -76,7 +76,7 @@ export class EventEnvelope {
         this.status = 200;
         if (event) {
             if (event.constructor == EventEnvelope) {
-                this.clone(event);
+                this.copy(event);
             }
             if (event.constructor == Object) {
                 this.fromMap(event);
@@ -319,7 +319,9 @@ export class EventEnvelope {
      * @returns this
      */
     setCorrelationId(correlationId) {
-        this.correlationId = correlationId;
+        if (correlationId) {
+            this.correlationId = correlationId;
+        }
         return this;
     }
     /**
@@ -664,13 +666,14 @@ export class EventEnvelope {
         return this;
     }
     /**
-     * Clone from an event
+     * Copy from an event into this
      *
      * @param event input
      * @returns this
      */
-    clone(event) {
+    copy(event) {
         this.to = event.to;
+        this.id = event.id;
         this.sender = event.sender;
         this.headers = event.headers;
         Object.keys(event.headers).forEach(k => {
@@ -688,6 +691,7 @@ export class EventEnvelope {
         this.status = event.status;
         this.execTime = event.execTime;
         this.roundTrip = event.roundTrip;
+        this.stackTrace = event.stackTrace;
         return this;
     }
     toString() {

@@ -50,7 +50,7 @@ function getIdFromRoute(route) {
     }
     return null;
 }
-async function fetchNextBlock(replyTo, stream, timeout) {
+async function fetchNextBlock(replyTo, cid, stream, timeout) {
     const begin = new Date().getTime();
     let now = begin;
     let n = 0;
@@ -64,15 +64,16 @@ async function fetchNextBlock(replyTo, stream, timeout) {
                     stream.read_count++;
                     fs.promises.unlink(filename);
                     const block = new EventEnvelope(data);
+                    const event = new EventEnvelope().setTo(replyTo).setCorrelationId(cid);
                     if (DATA == block.getHeader(TYPE)) {
                         stream.touch();
-                        await po.send(new EventEnvelope().setTo(replyTo).setHeader(TYPE, DATA).setBody(block.getBody()));
+                        await po.send(event.setHeader(TYPE, DATA).setBody(block.getBody()));
                         return;
                     }
                     else if (END_OF_STREAM == block.getHeader(TYPE)) {
                         // EOF detected
                         stream.eof_read = true;
-                        await po.send(new EventEnvelope().setTo(replyTo).setHeader(TYPE, END_OF_STREAM));
+                        await po.send(event.setHeader(TYPE, END_OF_STREAM));
                         return;
                     }
                 }
@@ -278,26 +279,28 @@ class StreamConsumer {
     }
     async handleEvent(evt) {
         const rpcTag = evt.getTag(RPC);
+        const cid = evt.getCorrelationId();
         const readTimeout = rpcTag ? util.str2int(rpcTag) : 1000;
         const replyTo = evt.getReplyTo();
         if (replyTo) {
             const id = getIdFromRoute(evt.getHeader('my_route'));
             const stream = streams.get(id);
             if (stream) {
+                const response = new EventEnvelope().setTo(replyTo).setCorrelationId(cid);
                 if (READ == evt.getHeader(TYPE)) {
                     if (stream.eof_read) {
-                        await po.send(new EventEnvelope().setTo(replyTo).setHeader(TYPE, END_OF_STREAM));
+                        await po.send(response.setHeader(TYPE, END_OF_STREAM));
                     }
                     else {
-                        await fetchNextBlock(replyTo, stream, readTimeout);
+                        await fetchNextBlock(replyTo, cid, stream, readTimeout);
                     }
                 }
                 if (CLOSE == evt.getHeader(TYPE)) {
                     if (stream.closed) {
-                        await po.send(new EventEnvelope().setTo(replyTo).setBody(false));
+                        await po.send(response.setBody(false));
                     }
                     else {
-                        await po.send(new EventEnvelope().setTo(replyTo).setBody(true));
+                        await po.send(response.setBody(true));
                         stream.close();
                     }
                 }

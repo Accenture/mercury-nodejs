@@ -263,6 +263,9 @@ export class Utility {
      * @returns true if the directory exists
      */
     isDirectory(filePath) {
+        if (!fs.existsSync(filePath)) {
+            return false;
+        }
         try {
             const stats = fs.statSync(filePath);
             return stats.isDirectory();

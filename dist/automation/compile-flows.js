@@ -352,31 +352,37 @@ export class CompileFlows {
                             }
                         }
                     }
+                    const inputList = [];
                     for (let j = 0; j < input.length; j++) {
-                        const line = flow.getProperty(TASKS + "[" + i + "]." + INPUT + "[" + j + "]");
-                        const filtered = this.filterMapping(line);
-                        if (this.validInput(filtered)) {
-                            const sep = filtered.indexOf(MAP_TO);
-                            const rhs = filtered.substring(sep + 2).trim();
+                        inputList.push(flow.getProperty(TASKS + "[" + i + "]." + INPUT + "[" + j + "]"));
+                    }
+                    const filteredInputMapping = this.filterDataMapping(inputList);
+                    for (const line of filteredInputMapping) {
+                        if (this.validInput(line)) {
+                            const sep = line.indexOf(MAP_TO);
+                            const rhs = line.substring(sep + 2).trim();
                             if (rhs.startsWith(INPUT_NAMESPACE) || rhs == INPUT) {
-                                log.warn(`Task ${uniqueTaskName} in ${name} uses input namespace in right-hand-side ${line}`);
+                                log.warn(`Task ${uniqueTaskName} in ${name} uses input namespace in right-hand-side - ${line}`);
                             }
-                            task.input.push(filtered);
+                            task.input.push(line);
                         }
                         else {
-                            log.error(`Skip invalid task ${uniqueTaskName} in ${name} that has invalid input mapping ${line}`);
+                            log.error(`Skip invalid task ${uniqueTaskName} in ${name} that has invalid input mapping - ${line}`);
                             validTask = false;
                         }
                     }
                     const isDecisionTask = DECISION == execution;
+                    const outputList = [];
                     for (let j = 0; j < output.length; j++) {
-                        const line = flow.getProperty(TASKS + "[" + i + "]." + OUTPUT + "[" + j + "]");
-                        const filtered = this.filterMapping(line);
-                        if (this.validOutput(filtered, isDecisionTask)) {
-                            task.output.push(filtered);
+                        outputList.push(flow.getProperty(TASKS + "[" + i + "]." + OUTPUT + "[" + j + "]"));
+                    }
+                    const filteredOutputMapping = this.filterDataMapping(outputList);
+                    for (const line of filteredOutputMapping) {
+                        if (this.validOutput(line, isDecisionTask)) {
+                            task.output.push(line);
                         }
                         else {
-                            log.error(`Skip invalid task ${uniqueTaskName} in ${name} that has invalid output mapping ${line}`);
+                            log.error(`Skip invalid task ${uniqueTaskName} in ${name} that has invalid output mapping - ${line}`);
                             validTask = false;
                         }
                     }
@@ -547,6 +553,36 @@ export class CompileFlows {
         }
         return found;
     }
+    filterDataMapping(entries) {
+        const result = [];
+        for (const line of entries) {
+            const parts = [];
+            let entry = line;
+            while (entry.includes(MAP_TO)) {
+                const sep = entry.indexOf(MAP_TO);
+                const first = entry.substring(0, sep).trim();
+                parts.push(first);
+                entry = entry.substring(sep + 2).trim();
+            }
+            parts.push(entry);
+            if (parts.length == 2) {
+                result.push(this.filterMapping(parts[0] + " " + MAP_TO + " " + parts[1]));
+            }
+            else if (parts.length == 3) {
+                if (parts[1].startsWith(MODEL_NAMESPACE) || parts[1].startsWith(NEGATE_MODEL)) {
+                    result.push(this.filterMapping(parts[0] + " " + MAP_TO + " " + parts[1]));
+                    result.push(this.removeNegate(parts[1]) + " " + MAP_TO + " " + parts[2]);
+                }
+                else {
+                    result.push("3-part data mapping must have model variable as the middle part");
+                }
+            }
+            else {
+                result.push("Syntax must be (LHS -> RHS) or (LHS -> model.variable -> RHS)");
+            }
+        }
+        return result;
+    }
     filterMapping(mapping) {
         const text = mapping.trim();
         const sep = text.indexOf(MAP_TO);
@@ -558,12 +594,19 @@ export class CompileFlows {
         // Detect and reformat "negate" of a model value in LHS and RHS
         // !model.key becomes model.key:! for consistent processing by TaskExecutor
         if (lhs.startsWith(NEGATE_MODEL)) {
-            lhs = lhs.substring(1).trim() + ":!";
+            lhs = this.normalizedTypeMapping(lhs);
         }
         if (rhs.startsWith(NEGATE_MODEL)) {
-            rhs = rhs.substring(1).trim() + ":!";
+            rhs = this.normalizedTypeMapping(rhs);
         }
         return lhs + " " + MAP_TO + " " + rhs;
+    }
+    normalizedTypeMapping(negate) {
+        return (negate.includes(":") ? negate.substring(1, negate.indexOf(':')) : negate.substring(1)) + ":!";
+    }
+    removeNegate(negate) {
+        const step1 = negate.startsWith("!") ? negate.substring(1) : negate;
+        return step1.includes(":") ? step1.substring(0, step1.indexOf(':')) : step1;
     }
     validInput(input) {
         const sep = input.indexOf(MAP_TO);

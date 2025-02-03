@@ -8,6 +8,8 @@ import { AsyncHttpClient } from '../services/async-http-client.js';
 import { EventEnvelope } from '../models/event-envelope.js';
 import { AppException } from '../models/app-exception.js';
 import { AppConfig, ConfigReader } from '../util/config-reader.js';
+import { TemporaryInbox } from '../services/temporary-inbox.js';
+import fs from 'fs';
 
 const log = Logger.getInstance();
 const registry = FunctionRegistry.getInstance();
@@ -20,6 +22,7 @@ const DISTRIBUTED_TRACING = 'distributed.tracing';
 const RPC = "rpc";
 const OBJECT_STREAM_MANAGER = "object.stream.manager";
 const REST_AUTOMATION_MANAGER = "rest.automation.manager";
+const TEMP_DIR = "/tmp/node/streams";
 
 let startTime: Date;
 let appName: string;
@@ -58,6 +61,23 @@ function unsubscribe(route: string): void {
         emitter.removeListener(route, service);
         handlers.delete(route);
         log.debug(`${route} unregistered`);
+    }
+}
+
+async function checkExpiredStreams() {
+    if (util.isDirectory(TEMP_DIR)) {
+        const thirtyMinutes = 30 * 60 * 1000;
+        const now = new Date().getTime();
+        const files = await fs.promises.readdir(TEMP_DIR);
+        for (const f of files) {
+            const path = `${TEMP_DIR}/${f}`
+            const stats = await fs.promises.stat(path);
+            const diff = now - stats.mtime.getTime();
+            if (diff > thirtyMinutes) {
+                await fs.promises.unlink(path);
+                log.info(`Expired ${path} deleted`);
+            }
+        }
     }
 }
 
@@ -452,11 +472,17 @@ class EventSystem {
         if (yamlFile) {
             po.loadHttpRoutes(yamlFile, new ConfigReader(yamlFile));
         }
-        // load distributed trace and HTTP client functions
+        // load essential services
         const tracer = new DistributedTrace().initialize();
         const httpClient = new AsyncHttpClient().initialize();
+        const tempInbox = new TemporaryInbox().initialize();
         this.register(DistributedTrace.name, tracer.handleEvent, 1, true, true);
         this.register(AsyncHttpClient.name, httpClient.handleEvent, 200, true, true);
+        this.register(TemporaryInbox.name, tempInbox.handleEvent, 200, true, true);
+        // clean up expired streams that are left over in previous execution
+        setTimeout(() => {
+            checkExpiredStreams();
+        }, 2000);       
     }
 
     getOriginId(): string {

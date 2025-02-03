@@ -678,7 +678,7 @@ describe('event flow use cases', () => {
   });
 
   it('can do greeting test', async () => {
-    const testUser = 'test-user';
+    const testUser = '24680';
     const po = new PostOffice();
     const req = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl(`/api/greetings/${testUser}`);
     const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
@@ -689,14 +689,16 @@ describe('event flow use cases', () => {
     const map = new MultiLevelMap(result.getBody() as object);
     expect(map.getElement('user')).toBe(testUser);
     expect(map.getElement('greeting')).toBe('hello world');
+    expect(map.getElement('positive')).toBe(true);
     expect(map.getElement('original')).toBeTruthy();
+    expect(map.getElement('original.user_number')).toBe(24680);
     expect(map.getElement('original.long_number')).toBe(12345);
     expect(map.getElement('original.float_number')).toBe(12.345);
     expect(map.getElement('original.double_number')).toBe(12.345);
     expect(map.getElement('original.double_number')).toBe(12.345);
     expect(map.getElement('original.boolean_value')).toBe(true);
     expect(map.getElement('original.negate_value')).toBe(false);
-    expect(map.getElement('original.also_negate_value')).toBe(false);
+    expect(map.getElement('original.double_negate_value')).toBe(true);
     expect(map.getElement('demo1')).toBe("ok");
     expect(map.getElement('demo2')).toBe(testUser);
     expect(map.getElement('demo3')).toBe("greetings");

@@ -8,6 +8,7 @@ import { AsyncHttpRequest } from '../models/async-http-request.js';
 import { FunctionRegistry } from './function-registry.js';
 import { Composable } from '../models/composable.js';
 import { ConfigReader } from '../util/config-reader.js';
+import { TemporaryInbox } from '../services/temporary-inbox.js';
 
 const log = Logger.getInstance();
 const util = new Utility();
@@ -19,7 +20,6 @@ const eventHttpHeaders = {};
 let self: PO = null;
 const EVENT_MANAGER = "event.script.manager";
 const TASK_EXECUTOR = "task.executor";
-const DISTRIBUTED_TRACING = 'distributed.tracing';
 const ASYNC_HTTP_CLIENT = 'async.http.request';
 const APPLICATION_OCTET_STREAM = "application/octet-stream";
 const RPC = "rpc";
@@ -281,39 +281,25 @@ class PO {
         }        
     }
 
-    subscribeInbox(route: string, listener: (payload: Buffer) => void): void {
-        // no need for input validation because this method is used internally by the request method
-        handlers.set(route, listener);
-        emitter.on(route, listener);
-        log.debug(`Inbox ${route} registered`);
-    }
-
-    unsubscribeInbox(route: string): void {
-        if (handlers.has(route)) {
-            const service = handlers.get(route);
-            emitter.removeListener(route, service);
-            handlers.delete(route);
-            log.debug(`Inbox ${route} unregistered`);
-        }
-    }
-
     async send(event: EventEnvelope) {
-        const route = event.getTo();
+        // clone the event to guarantee the original content is immutable
+        const input = new EventEnvelope().copy(event);
+        const route = input.getTo();
         if (route) {
-            const targetHttp = event.getHeader(X_EVENT_API)? null : eventHttpTargets[route];
+            const targetHttp = input.getHeader(X_EVENT_API)? null : eventHttpTargets[route];
             const headers = eventHttpHeaders[route];
             if (targetHttp) {
-                const callback = event.getReplyTo();
+                const callback = input.getReplyTo();
                 const rpc = callback? true : false;
                 const eventApiType = rpc? "callback" : "async";
-                event.setReplyTo(null);
-                const forwardEvent = new EventEnvelope(event.toMap()).setHeader(X_EVENT_API, eventApiType);
+                input.setReplyTo(null);
+                const forwardEvent = new EventEnvelope(input.toMap()).setHeader(X_EVENT_API, eventApiType);
                 const evt = await this.remoteRequest(forwardEvent, targetHttp, headers, rpc);
                 if (rpc) {
                     // Send the RPC response from the remote target service to the callback
                     evt.setTo(callback).setReplyTo(null).setFrom(route)
-                        .setTraceId(event.getTraceId()).setTracePath(event.getTracePath())
-                        .setCorrelationId(event.getCorrelationId());
+                        .setTraceId(input.getTraceId()).setTracePath(input.getTracePath())
+                        .setCorrelationId(input.getCorrelationId());
                     try {
                         await this.send(evt);
                     } catch (e) {
@@ -332,17 +318,17 @@ class PO {
                     // because they are considered to be part of the event system.
                     setImmediate(() => {
                         const f = registry.getClass(route) as Composable;
-                        f.handleEvent(event.setHeader('my_route', route));
+                        f.handleEvent(input.setHeader('my_route', route));
                     });
                 } else {
                     // serialize event envelope for immutability
-                    emitter.emit(route, event.toBytes());
+                    emitter.emit(route, input.toBytes());
                 }
             } else {
                 throw new Error(`Route ${route} not found`);                
             }
         } else {
-            log.warn(`Event ${event.getId()} dropped because there is no target service route`);
+            log.warn(`Event ${input.getId()} dropped because there is no target service route`);
         }
     }
 
@@ -359,86 +345,51 @@ class PO {
 
     request(event: EventEnvelope, timeout = 60000): Promise<EventEnvelope> {
         return new Promise((resolve, reject) => {
+            // clone the event to guarantee the original content is immutable
+            const input = new EventEnvelope().copy(event);
             const utc = new Date().toISOString();
             const start = performance.now();
-            const route = event.getTo();
+            const route = input.getTo();
             if (route) {
-                const targetHttp = event.getHeader(X_EVENT_API)? null : eventHttpTargets[route];
+                const targetHttp = input.getHeader(X_EVENT_API)? null : eventHttpTargets[route];
                 const headers = eventHttpHeaders[route];
                 if (targetHttp) {
-                    const callback = event.getReplyTo();
+                    const callback = input.getReplyTo();
                     const rpc = callback? true : false;
                     const eventApiType = rpc? "callback" : "async";
-                    event.setReplyTo(null);
-                    const forwardEvent = new EventEnvelope(event.toMap()).setHeader(X_EVENT_API, eventApiType);
+                    input.setReplyTo(null);
+                    const forwardEvent = new EventEnvelope(input.toMap()).setHeader(X_EVENT_API, eventApiType);
                     this.remoteRequest(forwardEvent, targetHttp, headers, rpc).then(res => {
                         resolve(res);
                     }).catch(e => {
                         reject(e);
                     });
-                }
-                if (handlers.has(route)) {
-                    const callback = 'r.'+util.getUuid();
+                } else if (handlers.has(route)) {
+                    const cid = util.getUuid();
                     const timer = setTimeout(() => {
-                        this.unsubscribeInbox(callback);
-                        reject(new AppException(408, `Route ${event.getTo()} timeout for ${timeout} ms`));
-                    }, Math.max(10, timeout));                               
-                    this.subscribeInbox(callback, (payload: Buffer) => {
-                        const response = new EventEnvelope(payload);                   
-                        clearTimeout(timer);
-                        this.unsubscribeInbox(callback);
-                        if (response.isException()) {
-                            reject(new AppException(response.getStatus(), String(response.getBody())));
-                        } else {
-                            // remove some metadata
-                            response.removeTag(RPC).setTo(null).setReplyTo(null).setTraceId(null).setTracePath(null);
-                            const diff = parseFloat((performance.now() - start).toFixed(3));
-                            response.setRoundTrip(diff);
-                            // send tracing information if needed
-                            if (event.getTraceId() && event.getTracePath()) {
-                                const metrics = {'origin': this.getId(), 'id': event.getTraceId(), 'path': event.getTracePath(), 
-                                                'service': event.getTo(), 'start': utc, 'success': true, 
-                                                'exec_time': response.getExecTime(), 'round_trip': diff};
-                                if (event.getFrom()) {
-                                    metrics['from'] = event.getFrom();
-                                }
-                                if (response.getStatus() >= 400) {
-                                    metrics['success'] = false;
-                                    metrics['status'] = response.getStatus();
-                                    const error = response.getBody();
-                                    if (typeof error == 'string') {
-                                        metrics['exception'] = error;
-                                    } else if (error instanceof Object) {
-                                        if ('message' in error) {
-                                            metrics['exception'] = error['message'];
-                                        } else {
-                                            metrics['exception'] = error;
-                                        }
-                                    } else {
-                                        metrics['exception'] = error? error : 'null';
-                                    }  
-                                }
-                                const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACING).setBody({'trace': metrics});
-                                this.send(trace);
-                            }
-                            resolve(response);
-                        }
-                    });
-                    event.setReplyTo(callback);
-                    event.addTag(RPC, String(timeout));
+                        TemporaryInbox.clearPromise(cid);
+                        reject(new AppException(408, `Route ${input.getTo()} timeout for ${timeout} ms`));
+                    }, Math.max(10, timeout));
+                    const map = {'resolve': resolve, 'reject': reject, 'utc': utc, 'start': start, 'timer': timer, 
+                                 'traceId': input.getTraceId(), 'tracePath': input.getTracePath(),
+                                 'oid': input.getCorrelationId(), 'route': route, 'from': input.getFrom()};
+                    TemporaryInbox.setPromise(cid, map);                                                                
+                    input.setReplyTo(TemporaryInbox.name).addTag(RPC, String(timeout));
+                    input.setCorrelationId(cid);
                     // serialize event envelope for immutability
-                    emitter.emit(route, event.toBytes());                    
+                    emitter.emit(route, input.toBytes());                    
                 } else {
-                    reject(new AppException(404, `Event ${event.getId()} dropped because ${route} not found`));
+                    reject(new AppException(404, `Event ${input.getId()} dropped because ${route} not found`));
                 }
             } else {
-                reject(new AppException(400, `Event ${event.getId()} dropped because there is no target service route`));
+                reject(new AppException(400, `Event ${input.getId()} dropped because there is no target service route`));
             }
         });
     }
 
     remoteRequest(event: EventEnvelope, endpoint: string, securityHeaders: object = {}, rpc=true, timeout = 60000): Promise<EventEnvelope> {
         return new Promise((resolve, reject) => {
+            // input event is serialized into bytes so it is READ only here, thus its content is immutable.
             const bytes = event.toBytes();
             const req = new AsyncHttpRequest().setMethod('POST');
             req.setHeader('Content-Type', APPLICATION_OCTET_STREAM).setHeader('X-TTL', String(timeout)).setBody(bytes);

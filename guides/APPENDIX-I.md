@@ -37,7 +37,7 @@ Alternatively, you can create a mime-types.yml file and point it using the "yaml
 
 ## Transient data store
 
-The system uses a temp folder in "/tmp/node/streams" to hold temporary data blocks for streaming I/O.
+The system uses a temp folder in "/tmp/composable/node/temp-streams" to hold temporary data blocks for streaming I/O.
 
 ## Reserved route names
 

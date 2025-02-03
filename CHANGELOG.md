@@ -23,7 +23,8 @@ N/A
 
 ### Changed
 
-Make input event immutable to PostOffice's send and request API
+1. Make input event immutable to PostOffice's send and request API
+2. Consistent temporary stream folder name for Java and Node.js under /tmp/composable
 
 ---
 ## Version 4.2.3, 1/28/2025

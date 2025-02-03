@@ -12,7 +12,7 @@ const po = new PostOffice();
 
 const streams = new Map<string, StreamInfo>();
 
-const TEMP_DIR = "/tmp/node/streams";
+const TEMP_DIR = "/tmp/composable/node/temp-streams";
 const STREAM_PREFIX = "stream.";
 const IN = ".in";
 const OUT = ".out";

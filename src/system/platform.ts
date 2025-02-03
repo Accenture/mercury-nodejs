@@ -22,7 +22,7 @@ const DISTRIBUTED_TRACING = 'distributed.tracing';
 const RPC = "rpc";
 const OBJECT_STREAM_MANAGER = "object.stream.manager";
 const REST_AUTOMATION_MANAGER = "rest.automation.manager";
-const TEMP_DIR = "/tmp/node/streams";
+const TEMP_DIR = "/tmp/composable/node/temp-streams";
 
 let startTime: Date;
 let appName: string;

@@ -29,7 +29,7 @@ pattern and parallel processing easily.
 It integrates natively with the standard Node.js stream library. For higher digital decoupling, the system
 provides a set of ObjectStream I/O API so that producer can write to a stream before a consumer is ready.
 
-To reduce memory footprint, the system uses the temporary local file system at "/tmp/node/streams" to hold
+To reduce memory footprint, the system uses the temporary local file system at "/tmp/composable/node/temp-streams" to hold
 data blocks of a stream. The temporary data blocks are cleared automatically when a stream is read or closed.
 
 ## Configuration management

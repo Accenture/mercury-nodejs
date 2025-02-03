@@ -119,7 +119,7 @@ req.setStreamRoute(stream.getInputStreamId());
 ```
 
 The AsyncHttpClient service (route name `async.http.request`) uses native Node.js streams to integrate
-with the underlying Axios HTTP client. It uses the temporary local file system (folder `/tmp/node/streams`)
+with the underlying Axios HTTP client. It uses the temporary local file system (folder `/tmp/composable/node/temp-streams`)
 to reduce memory footprint. This makes the producer and consumer of a stream asynchronous. i.e. The producer
 can write data blocks into a stream before a consumer is available.
 

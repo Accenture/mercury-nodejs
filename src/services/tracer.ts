@@ -8,6 +8,7 @@ const po = new PostOffice();
 const DISTRIBUTED_TRACING = 'distributed.tracing';
 const DISTRIBUTED_TRACE_FORWARDER = 'distributed.trace.forwarder';
 const TRACE = 'trace';
+const ANNOTATIONS = "annotations";
 const SERVICE = 'service';
 
 /**
@@ -35,10 +36,14 @@ export class DistributedTrace implements Composable {
                 const routeName = metrics[SERVICE];
                 // ignore tracing for "distributed.tracing" and "distributed.trace.forwarder"
                 if (DISTRIBUTED_TRACING != routeName && DISTRIBUTED_TRACE_FORWARDER != routeName) {
-                    log.always(payload);
+                    const dataset = {};
+                    dataset[TRACE] = metrics;
+                    if (ANNOTATIONS in payload) {
+                        dataset[ANNOTATIONS] = payload[ANNOTATIONS];
+                    }                
+                    log.always(dataset);
                     if (po.exists(DISTRIBUTED_TRACE_FORWARDER)) {
-                        const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACE_FORWARDER).setBody(payload);
-                        await po.send(trace);
+                        await po.send(new EventEnvelope().setTo(DISTRIBUTED_TRACE_FORWARDER).setBody(dataset));
                     }
                 }
             }

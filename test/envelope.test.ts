@@ -94,4 +94,29 @@ describe('event envelope functional tests', () => {
         expect(after.getTracePath()).toBe("GET /api/hello/world");
     }); 
 
+    it('can transport JSON object', () => {
+        var o = {'hello': 'world'};
+        const before = new EventEnvelope().setBody(o);
+        const binaryData = before.toBytes();
+        const after = new EventEnvelope(binaryData);
+        expect(after.getBody()).toEqual(o);
+    }); 
+
+    it('can transport list of JSON object', () => {
+        const list = new Array();
+        var o = {'hello': 'world'};
+        list.push(o);
+        const before = new EventEnvelope().setBody(list);
+        const binaryData = before.toBytes();
+        const after = new EventEnvelope(binaryData);
+        expect(after.getBody()).toEqual(list);
+    }); 
+
+    it('can transport primitive', () => {
+        const n = 123.4;
+        const before = new EventEnvelope().setBody(n);
+        const binaryData = before.toBytes();
+        const after = new EventEnvelope(binaryData);
+        expect(after.getBody()).toBe(n);
+    });
 });

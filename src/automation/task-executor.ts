@@ -1019,13 +1019,29 @@ export class TaskExecutor implements Composable {
         const formatted = util.getElapsedTime(diff);
         const totalExecutions = flowInstance.tasks.length;
         const s = totalExecutions == 1? "" : "s";
-        const message = {};
-        message['flow'] = flowInstance.getFlow().id;
-        message['id'] = traceId? traceId : flowInstance.id;
-        message['status'] = normal? "completed" : "aborted";
-        message['execution'] = `Run ${totalExecutions} task${s} in ${formatted}`;
-        message['tasks'] = flowInstance.tasks;
-        log.always(message);
+        const logId = traceId? traceId : flowInstance.id;
+        const po = new PostOffice();
+        const payload = {};
+        const metrics = {};
+        const annotations = {};
+        payload["trace"] = metrics;
+        payload["annotations"] = annotations;
+        metrics["origin"] = po.getId();
+        metrics["id"] = logId;
+        metrics["service"] = "task.executor";
+        metrics["from"] = "event.script.manager";
+        metrics["exec_time"] = diff;
+        metrics["start"] = new Date(flowInstance.getStartMillis()).toISOString();
+        metrics["path"] = flowInstance.getTracePath();
+        metrics["status"] = normal? 200 : 400;
+        metrics["success"] = normal;
+        if (!normal) {
+            metrics["exception"] = "Flow aborted";
+        }
+        annotations["execution"] = `Run ${totalExecutions} task${s} in ${formatted}`;
+        annotations["tasks"] = flowInstance.tasks;
+        annotations["flow"] = flowInstance.getFlow().id;
+        po.send(new EventEnvelope().setTo("distributed.tracing").setBody(payload));
     }
 }
 

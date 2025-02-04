@@ -349,7 +349,9 @@ export class EventEnvelope {
     setCorrelationId(correlationId: string): EventEnvelope {
         if (correlationId) {
             this.correlationId = correlationId;
-        }        
+        } else {
+            this.correlationId = null;
+        }
         return this;
     }
 

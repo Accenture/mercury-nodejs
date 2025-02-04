@@ -30,7 +30,7 @@ export class DistributedTrace {
                 const routeName = metrics[SERVICE];
                 // ignore tracing for "distributed.tracing" and "distributed.trace.forwarder"
                 if (DISTRIBUTED_TRACING != routeName && DISTRIBUTED_TRACE_FORWARDER != routeName) {
-                    log.info(payload);
+                    log.always(payload);
                     if (po.exists(DISTRIBUTED_TRACE_FORWARDER)) {
                         const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACE_FORWARDER).setBody(payload);
                         await po.send(trace);

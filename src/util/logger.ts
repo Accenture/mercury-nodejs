@@ -112,6 +112,19 @@ export class Logger {
     }
 
     /**
+     * Log a message in info level with the "always" attribute.
+     * This means it will always log no matter what log level is.
+     * (This method is reserved for distributed trace.
+     *  Please do not use this at application level)
+     * 
+     * @param message as text or JSON object
+     * @param e optional exception object
+     */
+    always(message: string | object, e?: Error): void {
+        this.logger.info(getLineNumber(), message, e);
+    }
+
+    /**
      * Log a message in info level
      * 
      * @param message as text or JSON object

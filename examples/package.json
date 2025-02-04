@@ -1,6 +1,6 @@
 {
   "name": "examples",
-  "version": "4.2.5",
+  "version": "4.2.6",
   "description": "Composable application example",
   "type": "module",
   "engines": {
@@ -58,6 +58,6 @@
     }
   },
   "dependencies": {
-    "mercury-composable": "github:Accenture/mercury-nodejs"
+    "mercury-composable": "file:.."
   }
 }

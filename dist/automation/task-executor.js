@@ -1052,7 +1052,7 @@ export class TaskExecutor {
         message['status'] = normal ? "completed" : "aborted";
         message['execution'] = `Run ${totalExecutions} task${s} in ${formatted}`;
         message['tasks'] = flowInstance.tasks;
-        log.info(message);
+        log.always(message);
     }
 }
 class TaskReference {

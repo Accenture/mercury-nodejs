@@ -21,7 +21,11 @@ export class Utility {
      * @returns unique ID
      */
     getUuid(): string {
-        return uuid4().replace(new RegExp('-', 'g'), '');
+        return uuid4().replaceAll('-', '');
+    }
+
+    getUuid4(): string {
+        return uuid4();
     }
 
     /**

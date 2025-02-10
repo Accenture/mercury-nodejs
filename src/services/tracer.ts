@@ -40,7 +40,7 @@ export class DistributedTrace implements Composable {
                     dataset[TRACE] = metrics;
                     if (ANNOTATIONS in payload) {
                         dataset[ANNOTATIONS] = payload[ANNOTATIONS];
-                    }                
+                    }
                     log.always(dataset);
                     if (po.exists(DISTRIBUTED_TRACE_FORWARDER)) {
                         await po.send(new EventEnvelope().setTo(DISTRIBUTED_TRACE_FORWARDER).setBody(dataset));

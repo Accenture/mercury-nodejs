@@ -9,6 +9,7 @@ export declare class TaskExecutor implements Composable {
     initialize(): Composable;
     handleEvent(event: EventEnvelope): Promise<any>;
     private executeTask;
+    private getValueFromNonExistModel;
     private handleCallback;
     private resolveCondition;
     private handleResponseTask;

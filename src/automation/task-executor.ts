@@ -54,6 +54,8 @@ const MAP_TO = "->";
 const ALL = "*";
 const END = "end";
 const TRUE = "true";
+const FALSE = "false";
+const NULL = "null";
 const RESPONSE = "response";
 const SEQUENTIAL = "sequential";
 const PARALLEL = "parallel";
@@ -77,6 +79,7 @@ const FLOAT_SUFFIX = "float";
 const DOUBLE_SUFFIX = "double";
 const BOOLEAN_SUFFIX = "boolean";
 const NEGATE_SUFFIX = "!";
+const UUID_SUFFIX = "uuid";
 const SUBSTRING_TYPE = "substring(";
 const AND_TYPE = "and(";
 const OR_TYPE = "or(";
@@ -250,7 +253,11 @@ export class TaskExecutor implements Composable {
                     }
                 }  else if (isInput || lhs.startsWith(MODEL_NAMESPACE) || lhs.startsWith(ERROR_NAMESPACE)) {
                     // normal case to input argument
-                    const value = this.getLhsElement(lhs, source);
+                    let value = this.getLhsElement(lhs, source);
+                    // special cases for simple type matching for a non-exist model variable
+                    if (value == null && lhs.startsWith(MODEL_NAMESPACE)) {
+                        value = this.getValueFromNonExistModel(lhs);
+                    }
                     if (value != null) {
                         let valid = true;
                         if (ALL == rhs) {
@@ -353,6 +360,27 @@ export class TaskExecutor implements Composable {
                 await po.send(event);
             }
         }
+    }
+
+    private getValueFromNonExistModel(lhs: string) {
+        const colon = lhs.lastIndexOf(':');
+        if (colon > 0) {
+            const qualifier = lhs.substring(colon+1).trim();
+            if (UUID_SUFFIX == qualifier) {
+                return util.getUuid4();
+            } else {
+                const parts = util.split(qualifier, "(= )");
+                if (parts.length == 3 && BOOLEAN_SUFFIX == parts[0] && NULL == parts[1]) {
+                    if (TRUE == parts[2]) {
+                        return true;
+                    }
+                    if (FALSE == parts[2]) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private async handleCallback(from: string, flowInstance: FlowInstance, task: Task, event: EventEnvelope, seq: number) {
@@ -891,6 +919,9 @@ export class TaskExecutor implements Composable {
             }
             if (FLOAT_SUFFIX == type || DOUBLE_SUFFIX == type) {
                 return util.str2float(String(value));
+            }
+            if (UUID_SUFFIX == type) {
+                return util.getUuid4();
             }
             if (B64_SUFFIX == type) {
                 if (value instanceof Buffer) {

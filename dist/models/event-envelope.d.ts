@@ -1,12 +1,13 @@
 export declare class EventEnvelope {
     private id;
     private headers;
+    private tags;
+    private annotations;
     private body;
     private status;
     private to;
     private sender;
     private replyTo;
-    private extra;
     private stackTrace;
     private correlationId;
     private traceId;
@@ -134,13 +135,6 @@ export declare class EventEnvelope {
      */
     getReplyTo(): string;
     /**
-     * This method is reserved by the system. DO NOT call this directly.
-     *
-     * @param extra is used for tagging an event
-     * @returns this
-     */
-    setExtra(extra: string): EventEnvelope;
-    /**
      * Add a tag to an event. The language pack uses tags for routing purpose.
      *
      * This tagging system is designed for a small number of tags (less than 10).
@@ -151,6 +145,13 @@ export declare class EventEnvelope {
      * @returns this
      */
     addTag(key: string, value?: string): EventEnvelope;
+    /**
+     * Set tags
+     *
+     * @param tags of key-values
+     * @returns this
+     */
+    setTags(tags: object): EventEnvelope;
     /**
      * Remove a tag from an evvent
      *
@@ -166,12 +167,38 @@ export declare class EventEnvelope {
      */
     getTag(key: string): string;
     /**
-     * Retrieve the string representation of all tags.
-     * Each tag is separated by the vertical bar character '|'.
+     * Retrieve all tags
      *
-     * @returns all tags
+     * @returns tags
      */
-    getExtra(): string;
+    getTags(): object;
+    /**
+     * Annotate the event to propagate to a trace
+     *
+     * @param key of an annotation
+     * @param value of an annotation
+     * @returns
+     */
+    annotate(key: string, value: string | object): EventEnvelope;
+    /**
+     * Retrieve all annotations
+     *
+     * @returns annotations
+     */
+    getAnnotations(): object;
+    /**
+     * Set annotations
+     *
+     * @param annotations to set
+     * @returns this
+     */
+    setAnnotations(annotations: object): EventEnvelope;
+    /**
+     * Clear annotations
+     *
+     * @returns this
+     */
+    clearAnnotations(): EventEnvelope;
     /**
      * You may set a unique ID for tracking RPC or callback.
      *

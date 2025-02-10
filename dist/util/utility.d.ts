@@ -6,6 +6,7 @@ export declare class Utility {
      * @returns unique ID
      */
     getUuid(): string;
+    getUuid4(): string;
     /**
      * sleep for a short time in a non-blocking fashion
      *

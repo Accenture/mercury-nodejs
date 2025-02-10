@@ -238,6 +238,10 @@ class ServiceManager {
                 }            
                 const utc = new Date().toISOString();
                 const start = performance.now();
+                // filter out annotation except for temporary inbox
+                if ('temporary.inbox' != route) {
+                    evt.clearAnnotations();
+                }
                 const result = listener(evt);
                 // The listener must implement Composable interface.
                 // Anything else will be ignored.
@@ -319,8 +323,11 @@ class ServiceManager {
                     if (evt.getTraceId() && evt.getTracePath()) {
                         result.setTraceId(evt.getTraceId()).setTracePath(evt.getTracePath());
                     }
-                    if (evt.getExtra()) {
-                        result.setExtra(evt.getExtra());
+                    result.setTags(evt.getTags());
+                    if ('temporary.inbox' == replyTo) {
+                        result.setAnnotations(evt.getAnnotations());
+                    } else {
+                        result.clearAnnotations();
                     }
                     po.send(result);
                 } else {
@@ -343,12 +350,16 @@ class ServiceManager {
             }
         }
         // send tracing information if needed
-        const tag = evt.getTag(RPC);
-        if (!traced && !tag && evt.getTraceId() && evt.getTracePath()) {
+        const isRequestResponse = evt.getTag(RPC)? true : false;
+        if (!traced && !isRequestResponse && evt.getTraceId() && evt.getTracePath()) {
             const metrics = {'origin': self.getOriginId(), 'id': evt.getTraceId(), 'path': evt.getTracePath(), 
                             'service': this.route, 'start': utc, 'success': true, 'exec_time': diff};
             if (evt.getFrom()) {
                 metrics['from'] = evt.getFrom();
+            }
+            const annotations = evt.getAnnotations();
+            if (Object.keys(annotations).length > 0) {
+                metrics['annotations'] = annotations;
             }
             if (evt.getStatus() >= 400) {
                 metrics['success'] = false;
@@ -391,9 +402,7 @@ class ServiceManager {
                     if (evt.getTraceId() && evt.getTracePath()) {
                         result.setTraceId(evt.getTraceId()).setTracePath(evt.getTracePath());
                     }
-                    if (evt.getExtra()) {
-                        result.setExtra(evt.getExtra());
-                    }
+                    result.setTags(evt.getTags());
                     if (e instanceof AppException) {
                         errorCode = e.getStatus();
                     }

@@ -24,6 +24,9 @@ export class HelloWorld implements Composable {
 
     async handleEvent(evt: EventEnvelope) {
         const po = new PostOffice(evt.getHeaders());
+        // demonstrate event annotation to propagate to distributed trace
+        evt.annotate("hello", "world");
+        // business logic here
         if (METADATA == evt.getHeader(TYPE)) {
             return {'route': po.getMyRoute(), 'trace_id': po.getMyTraceId(), 'trace_path': po.getMyTracePath()};
         } else if (TIMEOUT == evt.getHeader(TYPE)) {
@@ -33,22 +36,24 @@ export class HelloWorld implements Composable {
             return TIMEOUT;
         } else if (ERROR == evt.getHeader(TYPE)) {
             throw new AppException(400, DEMO_EXCEPTION);
-        } else {
+        } else {            
             if ('my_instance' in evt.getHeaders()) {
+                // read protected metadata 'my_instance'.
+                // this is the same as po.getMyInstance()
                 evt.setHeader(HELLO_INSTANCE, evt.getHeader('my_instance'));
             }
             const body = evt.getBody();
             if (typeof body == 'object') {
                 const request = new AsyncHttpRequest(evt.getBody() as object);
                 if ('PUT' == request.getMethod()) {
-                const reqBody = request.getBody();
-                if (reqBody instanceof Buffer) {
-                    // convert byte array into base64 before returning to user
-                    request.setBody(reqBody.toString('base64'));
-                    const result = new EventEnvelope(evt);
-                    result.setBody(request.toMap());
-                    return result;
-                }
+                    const reqBody = request.getBody();
+                    if (reqBody instanceof Buffer) {
+                        // convert byte array into base64 before returning to user
+                        request.setBody(reqBody.toString('base64'));
+                        const result = new EventEnvelope(evt);
+                        result.setBody(request.toMap());
+                        return result;
+                    }
                 }
             }
             return new EventEnvelope(evt);

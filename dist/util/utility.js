@@ -17,7 +17,10 @@ export class Utility {
      * @returns unique ID
      */
     getUuid() {
-        return uuid4().replace(new RegExp('-', 'g'), '');
+        return uuid4().replaceAll('-', '');
+    }
+    getUuid4() {
+        return uuid4();
     }
     /**
      * sleep for a short time in a non-blocking fashion

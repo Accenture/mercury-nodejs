@@ -56,6 +56,9 @@ export class TemporaryInbox {
                         if (from) {
                             metrics['from'] = from;
                         }
+                        if (Object.keys(response.getAnnotations()).length > 0) {
+                            metrics['annotations'] = response.getAnnotations();
+                        }
                         if (response.getStatus() >= 400) {
                             metrics['success'] = false;
                             metrics['status'] = response.getStatus();
@@ -78,7 +81,17 @@ export class TemporaryInbox {
                         const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACING).setBody({ 'trace': metrics });
                         po.send(trace);
                     }
-                    // restore original correlation ID and send response with promise's resolve function
+                    // filter out protected metadata
+                    const headers = {};
+                    for (const h in response.getHeaders()) {
+                        if (h != 'my_route' && h != 'my_instance' && h != 'my_trace_id' && h != 'my_trace_path') {
+                            headers[h] = response.getHeader(h);
+                        }
+                    }
+                    response.setHeaders(headers);
+                    // remove annotations if any because annotations are used for tracing only
+                    response.clearAnnotations();
+                    // restore original correlation ID and send response with promise's resolve function                    
                     resolve(response.setCorrelationId(oid));
                 }
             }

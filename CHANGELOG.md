@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+> *Note*: Some version numbers may be skipped to align feature set with the Java version.
+
+---
+## Version 4.2.9, 2/9/2025
+
+### Added
+
+1. uuid v4 generator in the "simple type matching" feature
+2. event annotation feature
+3. tagging feature in the EventEnvelope
+
+### Removed
+
+The "extra" field has been retired from EventEnvelope
+
+### Changed
+
+Filter out protected metadata from RPC response to user functions
+(my_route, my_instance, my_trace_id, my_trace_path)
+
 ---
 ## Version 4.2.7, 2/4/2025
 

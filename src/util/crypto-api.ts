@@ -4,6 +4,7 @@ const IV_LENGTH = 12;
 const AUTH_TAG_LENGTH = 16;
 const AES_KEY_LENGTH = 32;
 const MIN_CIPHERTEXT = IV_LENGTH + AUTH_TAG_LENGTH;
+const AES_256_GCM = "aes-256-gcm";
 
 export class CryptoApi {
 
@@ -25,7 +26,7 @@ export class CryptoApi {
      */
     aesEncrypt(clearText: Buffer, key: Buffer): Buffer {
         const iv = crypto.randomBytes(IV_LENGTH);
-        const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+        const cipher = crypto.createCipheriv(AES_256_GCM, key, iv);
         const first = cipher.update(clearText);  
         const last = cipher.final();
         const encrypted = Buffer.concat([first, last]);
@@ -46,7 +47,7 @@ export class CryptoApi {
             const offset = cipherText.length - AUTH_TAG_LENGTH;
             const data = cipherText.subarray(IV_LENGTH, offset);
             const tag = cipherText.subarray(offset);    
-            const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+            const decipher = crypto.createDecipheriv(AES_256_GCM, key, iv);
             decipher.setAuthTag(tag);
             const first = decipher.update(data);
             const last = decipher.final();

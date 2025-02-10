@@ -274,7 +274,7 @@ describe('post office use cases', () => {
       await util.sleep(1000);
     });
 
-    it('can make a RPC call', async () => {
+    it('can make a RPC request', async () => {
       const po = new PostOffice(new Sender('unit.test', '100', 'TEST /demo/rpc'));
       const req = new EventEnvelope().setTo(HELLO_WORLD_SERVICE).setBody(TEST_MESSAGE);
       const result = await po.request(req, 3000);
@@ -477,7 +477,7 @@ describe('post office use cases', () => {
       log.info(result.toMap());
     });
 
-    it('can reject a RPC call with HTTP-401 using Event API', async () => {
+    it('can reject a RPC call with HTTP-401 using Event-over-HTTP API', async () => {
       const po = new PostOffice(new Sender('unit.test', 'B10000', 'TEST /api/event/test'));
       const event = new EventEnvelope().setTo(HELLO_WORLD_SERVICE).setBody("test").setHeader("x", "y");
       const result = await po.remoteRequest(event, endApiUrl, {'authorization': 'anyone'});
@@ -486,9 +486,13 @@ describe('post office use cases', () => {
       expect(result.getBody()).toBe("Unauthorized");
     });    
 
-    it('can make a drop-n-forget call using Event API', async () => {
-      const po = new PostOffice(new Sender('unit.test', '10001', 'TEST /api/event/test'));
+    it('can make a drop-n-forget call using Event-over-HTTP API', async () => {
+      const po1 = new PostOffice(new Sender('unit.test', '10001a', 'TEST /api/event/test'));
       const event = new EventEnvelope().setTo(HELLO_WORLD_SERVICE).setBody("test").setHeader("x", "y");
+      // send a drop-n-forget call
+      await po1.send(event);
+      // send a drop-n-forget call using Event-over-HTTP
+      const po = new PostOffice(new Sender('unit.test', '10001b', 'TEST /api/event/test'));
       const result = await po.remoteRequest(event, endApiUrl, {'authorization': 'demo'}, false);
       expect(result).toBeTruthy();
       expect(result.getBody()).toBeInstanceOf(Object);

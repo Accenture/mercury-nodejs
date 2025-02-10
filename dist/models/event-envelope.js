@@ -6,9 +6,11 @@ const util = new Utility();
 const ID_FLAG = "0";
 const EXECUTION_FLAG = "1";
 const ROUND_TRIP_FLAG = "2";
-const EXTRA_FLAG = "3";
-// EXCEPTION_FLAG ("4") is reserved for Java exception
+// extra flag "3" has been retired
+// exception flag "4" is reserved for Java exception
 const STACK_FLAG = "5";
+const ANNOTATION_FLAG = "6";
+const TAG_FLAG = "7";
 const TO_FLAG = "T";
 const REPLY_TO_FLAG = "R";
 const FROM_FLAG = "F";
@@ -18,47 +20,16 @@ const BODY_FLAG = "B";
 const TRACE_ID_FLAG = "t";
 const TRACE_PATH_FLAG = "p";
 const CID_FLAG = "X";
-function extraToKeyValues(extra) {
-    const map = {};
-    if (extra && extra.length > 0) {
-        const list = extra.split('|').filter(v => v.length > 0);
-        for (const kv of list) {
-            const sep = kv.indexOf('=');
-            if (sep != -1) {
-                map[kv.substring(0, sep)] = kv.substring(sep + 1);
-            }
-            else {
-                map[kv] = '';
-            }
-        }
-    }
-    return map;
-}
-function mapToString(map) {
-    const keys = Object.keys(map);
-    if (keys.length == 0) {
-        return '';
-    }
-    let result = '';
-    for (const k of keys) {
-        result += k;
-        const v = map[k];
-        if (v && v.length > 0) {
-            result += ('=' + v);
-        }
-        result += '|';
-    }
-    return result.substring(0, result.length - 1);
-}
 export class EventEnvelope {
     id;
     headers = {};
+    tags = {};
+    annotations = {};
     body;
     status;
     to;
     sender;
     replyTo;
-    extra;
     stackTrace;
     correlationId;
     traceId;
@@ -252,16 +223,6 @@ export class EventEnvelope {
         return this.replyTo ? this.replyTo : null;
     }
     /**
-     * This method is reserved by the system. DO NOT call this directly.
-     *
-     * @param extra is used for tagging an event
-     * @returns this
-     */
-    setExtra(extra) {
-        this.extra = extra;
-        return this;
-    }
-    /**
      * Add a tag to an event. The language pack uses tags for routing purpose.
      *
      * This tagging system is designed for a small number of tags (less than 10).
@@ -271,12 +232,20 @@ export class EventEnvelope {
      * @param value - tag value
      * @returns this
      */
-    addTag(key, value = '_') {
+    addTag(key, value = 'true') {
         if (key && key.length > 0) {
-            const map = extraToKeyValues(this.extra);
-            map[key] = String(value);
-            this.extra = mapToString(map);
+            this.tags[key] = String(value);
         }
+        return this;
+    }
+    /**
+     * Set tags
+     *
+     * @param tags of key-values
+     * @returns this
+     */
+    setTags(tags) {
+        this.tags = tags;
         return this;
     }
     /**
@@ -287,9 +256,7 @@ export class EventEnvelope {
      */
     removeTag(key) {
         if (key && key.length > 0) {
-            const map = extraToKeyValues(this.extra);
-            delete map[key];
-            this.extra = mapToString(map);
+            delete this.tags[key];
         }
         return this;
     }
@@ -300,17 +267,55 @@ export class EventEnvelope {
      * @returns this
      */
     getTag(key) {
-        const result = key && key.length > 0 ? extraToKeyValues(this.extra)[key] : null;
-        return result ? result : null;
+        return key && key.length > 0 && this.tags[key] ? this.tags[key] : null;
     }
     /**
-     * Retrieve the string representation of all tags.
-     * Each tag is separated by the vertical bar character '|'.
+     * Retrieve all tags
      *
-     * @returns all tags
+     * @returns tags
      */
-    getExtra() {
-        return this.extra ? this.extra : '';
+    getTags() {
+        return this.tags;
+    }
+    /**
+     * Annotate the event to propagate to a trace
+     *
+     * @param key of an annotation
+     * @param value of an annotation
+     * @returns
+     */
+    annotate(key, value) {
+        if (key && value) {
+            this.annotations[key] = value;
+        }
+        return this;
+    }
+    /**
+     * Retrieve all annotations
+     *
+     * @returns annotations
+     */
+    getAnnotations() {
+        return this.annotations;
+    }
+    /**
+     * Set annotations
+     *
+     * @param annotations to set
+     * @returns this
+     */
+    setAnnotations(annotations) {
+        this.annotations = annotations;
+        return this;
+    }
+    /**
+     * Clear annotations
+     *
+     * @returns this
+     */
+    clearAnnotations() {
+        this.annotations = {};
+        return this;
     }
     /**
      * You may set a unique ID for tracking RPC or callback.
@@ -479,14 +484,17 @@ export class EventEnvelope {
             result['from'] = String(this.sender);
         }
         result['headers'] = this.headers;
+        if (Object.keys(this.tags).length > 0) {
+            result['tags'] = this.tags;
+        }
+        if (Object.keys(this.annotations).length > 0) {
+            result['annotations'] = this.annotations;
+        }
         if (this.body) {
             result['body'] = this.body;
         }
         if (this.replyTo) {
             result['reply_to'] = String(this.replyTo);
-        }
-        if (this.extra) {
-            result['extra'] = String(this.extra);
         }
         if (this.correlationId) {
             result['cid'] = String(this.correlationId);
@@ -536,8 +544,11 @@ export class EventEnvelope {
         if ('reply_to' in map) {
             this.replyTo = String(map['reply_to']);
         }
-        if ('extra' in map) {
-            this.extra = String(map['extra']);
+        if ('tags' in map) {
+            this.tags = map['tags'];
+        }
+        if ('annotations' in map) {
+            this.annotations = map['annotations'];
         }
         if ('cid' in map) {
             this.correlationId = String(map['cid']);
@@ -578,14 +589,17 @@ export class EventEnvelope {
             result[FROM_FLAG] = String(this.sender);
         }
         result[HEADERS_FLAG] = this.headers;
+        if (Object.keys(this.tags).length > 0) {
+            result[TAG_FLAG] = this.tags;
+        }
+        if (Object.keys(this.annotations).length > 0) {
+            result[ANNOTATION_FLAG] = this.annotations;
+        }
         if (this.body) {
             result[BODY_FLAG] = this.body;
         }
         if (this.replyTo) {
             result[REPLY_TO_FLAG] = this.replyTo;
-        }
-        if (this.extra) {
-            result[EXTRA_FLAG] = this.extra;
         }
         if (this.stackTrace) {
             result[STACK_FLAG] = this.stackTrace;
@@ -641,8 +655,11 @@ export class EventEnvelope {
             if (REPLY_TO_FLAG in map) {
                 this.replyTo = String(map[REPLY_TO_FLAG]);
             }
-            if (EXTRA_FLAG in map) {
-                this.extra = String(map[EXTRA_FLAG]);
+            if (TAG_FLAG in map) {
+                this.tags = map[TAG_FLAG];
+            }
+            if (ANNOTATION_FLAG in map) {
+                this.annotations = map[ANNOTATION_FLAG];
             }
             if (STACK_FLAG in map) {
                 this.stackTrace = String(map[STACK_FLAG]);
@@ -687,7 +704,8 @@ export class EventEnvelope {
         });
         this.body = event.body;
         this.replyTo = event.replyTo;
-        this.extra = event.extra;
+        this.tags = event.tags;
+        this.annotations = event.annotations;
         this.correlationId = event.correlationId;
         this.traceId = event.traceId;
         this.tracePath = event.tracePath;

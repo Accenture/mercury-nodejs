@@ -263,13 +263,14 @@ remoteRequest(event: EventEnvelope, endpoint: string,
 ```
 
 1. Example-1 makes a RPC call with a 5-second timeout to "hello.world".
-2. Example-2 makes an "event over HTTP" RPC call to "hello.world" in another application instance called "peer".
+2. Example-2 makes an "event over HTTP" RPC call to "hello.world" in another application instance.
 
 "Event over HTTP" is an important topic. Please refer to [Chapter 6](CHAPTER-6.md) for more details.
 
 ### Retrieve trace ID and path
 
-If you want to know the route name and optional trace ID and path, you can inspect the incoming event headers.
+If you want to know the route name and optional trace ID and path, you can inspect the incoming
+event headers.
 
 ```javascript
 const po = new PostOffice(evt.getHeaders());
@@ -278,6 +279,32 @@ const traceId = po.getMyTraceId();
 const tracePath = po.getMyTracePath();
 const myInstance = po.getMyInstance();
 ```
+
+## Trace annotation
+
+You can add a *small number of annotations* if the event to your function has tracing enabled.
+Annotated value can be a text string, a JSON object of key-values or a list of text strings.
+
+```javascript
+async handleEvent(evt: EventEnvelope) {
+    // business logic to handle the incoming event
+    // ...
+    // annotate the event
+    evt.annotate("hello", "world");
+```
+
+Annotations of key-values, if any, will be recorded in the trace and they are not accessible by
+another function.
+
+The annotated key-values will be shown in the trace like this:
+
+```json
+"annotations": {"hello": "world"}
+```
+
+> *Note*: Don't annotate sensitive information or secrets such as PII, PHI, PCI data because 
+          the trace is visible in the application log. It may also be forwarded to a centralized
+          telemetry dashboard for visualization and analytics.
 
 ## Configuration API
 
@@ -328,7 +355,8 @@ The `-C` command line argument tells the system to use the configuration file in
 
 > Exercise: try this command "node hello-world.js -Dlog.format=json" to start the demo app
 
-This will tell the Logger system to use JSON format instead of plain text output. The log output may look like this:
+This will tell the Logger system to use JSON format instead of plain text output. The log output may
+look like this:
 
 ```text
 {
@@ -349,8 +377,8 @@ This will tell the Logger system to use JSON format instead of plain text output
 
 The system includes a built-in logger that can log in either text or json format.
 
-The default log format is "text". You can override the value in the "src/resources/application.yml" config file.
-The following example sets the log format to "json".
+The default log format is "text". You can override the value in the "src/resources/application.yml"
+config file. The following example sets the log format to "json".
 
 ```yaml
 log.format: json
@@ -362,30 +390,23 @@ Alternatively you can also override it at run-time using the "-D" parameter like
 node my-app.js -Dlog.format=json
 ```
 
-The logger supports line-numbering. When you run your executable javascript main program, the line number for each
-log message is derived from the ".js" file.
+The logger supports line-numbering. When you run your executable javascript main program, the line number
+for each log message is derived from the ".js" file compiled from the ".ts" files.
 
-If you want to show the line number in the source ".ts" file for easy debug, you can run your application using
-"nodemon". This is illustrated in the "npm start" command in the package.json file.
+If you want to show the line number in the source ".ts" file for easy debug, you may test your application
+using "nodemon".
 
 For simplicity, the logger is implemented without any additional library dependencies.
 
-## Minimalist API design for event orchestration
+## Minimalist API design
 
-As a best practice, we advocate a minimalist approach in API integration.
-To build powerful composable applications, the above set of APIs is sufficient to perform
-"event orchestration" where you write code to coordinate how the various functions work together as a
-single "executable". Please refer to [Chapter-4](CHAPTER-4.md) for more details about event orchestration.
+For configuration based Event Choreography, please refer to [Chapter-4](CHAPTER-4.md) for more details.
 
-Since Mercury is used in production installations, we will exercise the best effort to keep the core API stable.
+You can build powerful composable application without a lot of APIs. "Less" is always better in
+composable methodology.
 
-Other APIs in the toolkits are used internally to build the engine itself, and they may change from time to time.
-They are mostly convenient methods and utilities. The engine is fully encapsulated and any internal API changes
-are not likely to impact your applications.
-
-## Optional Event Scripting
-
-To further reduce coding effort, you can perform "event orchestration" by configuration using "Event Script".
+We do not recommend "event orchestration by code" because it would lead to tight coupling of software
+modules.
 
 ## Co-existence with other development frameworks
 
@@ -405,7 +426,11 @@ You can use the `composable-example` project as a template to start writing your
 This project is licensed under the Apache 2.0 open sources license. We will update the public codebase after
 it passes regression tests and meets stability and performance benchmarks in our production systems.
 
-The source code is provided as is, meaning that breaking API changes may be introduced from time to time.
+Mercury Composable is developed as an engine for you to build the latest cloud native applications.
+
+Composable technology is evolving rapidly. We would exercise best effort to keep the essential internals
+and core APIs stable. Please browse the latest Developer Guide, release notes and Javadoc for any breaking
+API changes.
 
 ## Technical support
 

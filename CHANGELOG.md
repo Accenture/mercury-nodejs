@@ -21,7 +21,7 @@ N/A
 ### Changed
 
 Update Actuator function and REST automation's static HTML file handler
-to address 2 security vulnerabilities reported by a Synk scan.
+to address 2 security vulnerabilities reported by a Snyk scan.
 
 ---
 ## Version 4.2.9, 2/9/2025

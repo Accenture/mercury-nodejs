@@ -585,18 +585,19 @@ describe('post office use cases', () => {
       // topic should disappear when checking topic list again
       const topicsAgain = ps.getTopics();
       expect(topicsAgain.includes(topic)).toBe(false);
-    });   
+    });    
     
     it('can get response from /info endpoint', async () => {
       const po = new PostOffice();
       const req = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/info');
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
       const result = await po.request(reqEvent);
+      expect(result.getHeader('content-type')).toBe('application/json');
       expect(result.getBody() instanceof Object);
       const map = new MultiLevelMap(result.getBody() as object);
       expect(map.getElement('app.name')).toBe('platform-core');
       expect(map.getElement('origin')).toBe(platform.getOriginId());
-      expect(map.getElement('app.version')).toBe('4.1.5');
+      expect(map.getElement('app.version')).toBe('4.2.10');
     });   
     
     it('can get response from /health endpoint', async () => {
@@ -604,6 +605,7 @@ describe('post office use cases', () => {
       const req = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/health');
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
       const result = await po.request(reqEvent);
+      expect(result.getHeader('content-type')).toBe('application/json');
       expect(result.getBody() instanceof Object);
       const map = new MultiLevelMap(result.getBody() as object);
       expect(map.getElement('name')).toBe('platform-core');
@@ -621,6 +623,7 @@ describe('post office use cases', () => {
       const req = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/livenessprobe');
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
       const result = await po.request(reqEvent);
+      expect(result.getHeader('content-type')).toBe('text/plain');
       expect(typeof result.getBody()).toBe('string');
       expect(result.getBody()).toBe('OK');
     }); 

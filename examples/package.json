@@ -1,6 +1,6 @@
 {
   "name": "examples",
-  "version": "4.2.9",
+  "version": "4.2.10",
   "description": "Composable application example",
   "type": "module",
   "engines": {
@@ -45,19 +45,19 @@
   },
   "overrides": {
     "@jest/reporters": {
-      "glob": "^11.0.0"
+      "glob": "^11.0.1"
     },
     "jest-config": {
-      "glob": "^11.0.0"
+      "glob": "^11.0.1"
     },
     "jest-runtime": {
-      "glob": "^11.0.0"
+      "glob": "^11.0.1"
     },
     "test-exclude": {
-      "glob": "^11.0.0"
+      "glob": "^11.0.1"
     }
   },
   "dependencies": {
-    "mercury-composable": "github:Accenture/mercury-nodejs"
+    "mercury-composable": "file:.."
   }
 }

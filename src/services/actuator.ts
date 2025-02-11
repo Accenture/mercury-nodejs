@@ -80,8 +80,7 @@ export class ActuatorServices implements Composable {
         result.setElement('time.current', util.getLocalTimestamp(new Date().getTime()));
         result.setElement('time.start', startTime);
         result.setElement('uptime', util.getElapsedTime(process.uptime() * 1000));
-        const json = JSON.stringify(result.getMap(), null, 2);
-        return new EventEnvelope().setHeader(CONTENT_TYPE, APPLICATION_JSON).setBody(json);
+        return new EventEnvelope().setHeader(CONTENT_TYPE, APPLICATION_JSON).setBody(result.getMap());
     }
 
     static async doHealthChecks() {
@@ -122,7 +121,6 @@ export class ActuatorServices implements Composable {
         if (upstream.length == 0) {
             result['message'] = 'Did you forget to define health.dependencies in application configuration?';
         }
-        const json = JSON.stringify(result, null, 2);
-        return new EventEnvelope().setStatus(status).setHeader(CONTENT_TYPE, APPLICATION_JSON).setBody(json);
+        return new EventEnvelope().setStatus(status).setHeader(CONTENT_TYPE, APPLICATION_JSON).setBody(result);
     }
 }

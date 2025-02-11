@@ -413,7 +413,8 @@ class RestEngine {
                 }
                 // send HTTP-404 when page is not found
                 if (!found) {
-                    if ('GET' == method) {
+                    // detect path traversal
+                    if ('GET' == method && !path.includes('..')) {
                         // handle static file download request
                         const file = await this.getStaticFile(path);
                         if (file) {
@@ -475,8 +476,16 @@ class RestEngine {
             if (ct) {
                 res.setHeader(CONTENT_TYPE, ct);
             }
-            if (typeof (result.getBody()) == 'string') {
-                const b = Buffer.from(result.getBody());
+            if (TEXT_PLAIN == ct && 'OK' == result.getBody()) {
+                // LIVENESS_PROBE endpoint
+                const b = Buffer.from('OK');
+                res.setHeader(CONTENT_LENGTH, b.length);
+                res.write(b);
+            }
+            if (APPLICATION_JSON == ct && result.getBody() instanceof Object) {
+                // INFO or HEALTH endpoint
+                const text = JSON.stringify(result.getBody(), null, 2);
+                const b = Buffer.from(text);
                 res.setHeader(CONTENT_LENGTH, b.length);
                 res.write(b);
             }

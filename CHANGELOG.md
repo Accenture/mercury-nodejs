@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > *Note*: Some version numbers may be skipped to align feature set with the Java version.
 
 ---
+## Version 4.2.10, 2/11/2025
+
+### Added
+
+N/A
+
+### Removed
+
+N/A
+
+### Changed
+
+Update Actuator function and REST automation's static HTML file handler
+to address 2 security vulnerabilities reported by a Synk scan.
+
+---
 ## Version 4.2.9, 2/9/2025
 
 ### Added

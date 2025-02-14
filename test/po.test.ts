@@ -607,10 +607,6 @@ describe('post office use cases', () => {
       const result = await po.request(reqEvent);
       expect(result.getHeader('content-type')).toBe('application/json');
       expect(result.getBody() instanceof Object);
-
-      console.log("1----------");
-      console.log(JSON.stringify(result.getBody(), null, 2));
-
       const map = new MultiLevelMap(result.getBody() as object);
       expect(map.getElement('name')).toBe('platform-core');
       expect(map.getElement('up')).toBe(true);

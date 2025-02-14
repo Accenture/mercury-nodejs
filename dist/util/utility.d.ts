@@ -22,6 +22,7 @@ export declare class Utility {
      * @returns formatted floating point number
      */
     getFloat(n: number, decimalPoint?: number): number;
+    htmlEscape(text: string): string;
     /**
      * Convert a text string into a number
      *
@@ -88,6 +89,7 @@ export declare class Utility {
      * @returns normalized file path in Unix format
      */
     normalizeFilePath(filePath: string): string;
+    getSafeFilePath(baseDir: string, filePath: string): string;
     /**
      * Create a directory if not exists
      *

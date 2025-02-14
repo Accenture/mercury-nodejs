@@ -20,10 +20,6 @@ const log = Logger.getInstance();
 const util = new Utility();
 const po = new PostOffice();
 const httpContext = {};
-const TYPE = 'type';
-const INFO = 'info';
-const HEALTH = 'health';
-const LIVENESS_PROBE = 'livenessprobe';
 const ETAG = "ETag";
 const IF_NONE_MATCH = "If-None-Match";
 const CONTENT_TYPE = "Content-Type";
@@ -366,18 +362,6 @@ class RestEngine {
             app.use(textParser);
             // binaryParser must be the last parser to catch all other content types
             app.use(binaryParser);
-            app.get('/info', async (_req, res) => {
-                const request = new EventEnvelope().setTo(ActuatorServices.name).setHeader(TYPE, INFO);
-                await this.sendActuatorResponse(await po.request(request), res);
-            });
-            app.get('/health', async (_req, res) => {
-                const request = new EventEnvelope().setTo(ActuatorServices.name).setHeader(TYPE, HEALTH);
-                await this.sendActuatorResponse(await po.request(request), res);
-            });
-            app.get('/livenessprobe', async (_req, res) => {
-                const request = new EventEnvelope().setTo(ActuatorServices.name).setHeader(TYPE, LIVENESS_PROBE);
-                await this.sendActuatorResponse(await po.request(request), res);
-            });
             // User provided middleware must call the "next()" as the last statement
             // to release control to the rest-automation engine
             let pluginCount = 0;
@@ -391,14 +375,14 @@ class RestEngine {
             // the last middleware is the rest-automation request handler            
             app.use(async (req, res) => {
                 const method = req.method;
-                const path = decodeURI(req.path);
+                const uriPath = decodeURI(req.path);
                 let found = false;
                 if (restEnabled) {
-                    const assigned = router.getRouteInfo(method, path);
+                    const assigned = router.getRouteInfo(method, uriPath);
                     if (assigned) {
                         if (assigned.info) {
                             try {
-                                await this.processRequest(path, req, res, assigned, router);
+                                await this.processRequest(uriPath, req, res, assigned, router);
                             }
                             catch (e) {
                                 const rc = e instanceof AppException ? e.getStatus() : 500;
@@ -414,9 +398,9 @@ class RestEngine {
                 // send HTTP-404 when page is not found
                 if (!found) {
                     // detect path traversal
-                    if ('GET' == method && !path.includes('..')) {
+                    if ('GET' == method) {
                         // handle static file download request
-                        const file = await this.getStaticFile(path);
+                        const file = await this.getStaticFile(uriPath);
                         if (file) {
                             res.setHeader(CONTENT_TYPE, this.getFileContentType(file.name));
                             const ifNoneMatch = req.header(IF_NONE_MATCH);
@@ -812,36 +796,33 @@ class RestEngine {
         res.write(b);
         res.end();
     }
-    async getStaticFile(path) {
-        let filePath = util.normalizeFilePath(path);
-        const parts = filePath.split('/').filter(v => v.trim().length > 0).map(v => v.trim());
-        // For security, reject path that tries to read parent folder or hidden file.
-        for (const p of parts) {
-            if (p.startsWith(".")) {
-                return null;
+    async getStaticFile(uriPath) {
+        try {
+            let filePath = util.getSafeFilePath(this.htmlFolder, uriPath);
+            let fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
+            // assume HTML if file name does not have extension
+            if (!uriPath.endsWith('/') && !fileName.includes('.')) {
+                filePath += ".html";
+                fileName += '.html';
+            }
+            if (fs.existsSync(filePath)) {
+                if (util.isDirectory(filePath)) {
+                    filePath += '/index.html';
+                    fileName = 'index.html';
+                }
+                const content = await fs.promises.readFile(filePath);
+                if (content) {
+                    const sha1 = crypto.createHash('sha256');
+                    sha1.update(content);
+                    const hash = sha1.digest('hex');
+                    const result = new EtagFile(hash, content);
+                    result.name = fileName;
+                    return result;
+                }
             }
         }
-        // assume ".html" if filename does not have a file extension
-        let filename = parts.length == 0 ? 'index.html' : parts[parts.length - 1];
-        if (filePath.endsWith('/')) {
-            filePath += 'index.html';
-            filename = 'index.html';
-        }
-        else if (!filename.includes('.')) {
-            filePath += ".html";
-            filename += ".html";
-        }
-        filePath = this.htmlFolder + filePath;
-        if (fs.existsSync(filePath)) {
-            const content = await fs.promises.readFile(filePath);
-            if (content) {
-                const sha1 = crypto.createHash('sha1');
-                sha1.update(content);
-                const hash = sha1.digest('hex');
-                const result = new EtagFile(hash, content);
-                result.name = filename;
-                return result;
-            }
+        catch (e) {
+            log.error(`Unable to read static file ${uriPath} - ${e.message}`);
         }
         return null;
     }

@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > *Note*: Some version numbers may be skipped to align feature set with the Java version.
 
 ---
+## Version 4.2.13, 2/13/2025
+
+### Added
+
+Actuator REST endpoints are now configurable in rest.yaml
+
+### Removed
+
+N/A
+
+### Changed
+
+Update acturator services to serve REST requests directly
+
+---
 ## Version 4.2.10, 2/11/2025
 
 ### Added

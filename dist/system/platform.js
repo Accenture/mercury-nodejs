@@ -5,6 +5,7 @@ import { FunctionRegistry } from "./function-registry.js";
 import { PostOffice } from '../system/post-office.js';
 import { DistributedTrace } from '../services/tracer.js';
 import { AsyncHttpClient } from '../services/async-http-client.js';
+import { ActuatorServices } from '../services/actuator.js';
 import { EventEnvelope } from '../models/event-envelope.js';
 import { AppException } from '../models/app-exception.js';
 import { AppConfig, ConfigReader } from '../util/config-reader.js';
@@ -477,9 +478,11 @@ class EventSystem {
         const tracer = new DistributedTrace().initialize();
         const httpClient = new AsyncHttpClient().initialize();
         const tempInbox = new TemporaryInbox().initialize();
+        const actuator = new ActuatorServices().initialize();
         this.register(DistributedTrace.name, tracer.handleEvent, 1, true, true);
         this.register(AsyncHttpClient.name, httpClient.handleEvent, 200, true, true);
         this.register(TemporaryInbox.name, tempInbox.handleEvent, 200, true, true);
+        this.register(ActuatorServices.name, actuator.handleEvent, 10);
         // clean up expired streams that are left over in previous execution
         setTimeout(() => {
             checkExpiredStreams();

@@ -2,7 +2,7 @@
 
 application.name: 'platform-core'
 info.app:
-  version: '4.2.10'
+  version: '4.2.13'
   description: 'Composable application core library'
 
 # server port for Event API REST endpoint
@@ -19,7 +19,7 @@ log:
 
 # You can add optional health checks that point to your custom health check functions
 # (the dependency list is a comma separated list) 
-# health.dependencies: 'demo.health'
+health.dependencies: 'demo.health'
 
 #
 # Static HTML folder location - default to "resources/public" of the mercury library if not given.

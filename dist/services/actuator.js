@@ -6,6 +6,7 @@ import { Utility } from '../util/utility.js';
 import { EventEnvelope } from '../models/event-envelope.js';
 import { MultiLevelMap } from '../util/multi-level-map.js';
 import { AppException } from '../models/app-exception.js';
+import { AsyncHttpRequest } from '../models/async-http-request.js';
 const po = new PostOffice();
 const ACTUATOR_SERVICES = 'actuator.services';
 const CONTENT_TYPE = "Content-Type";
@@ -14,7 +15,6 @@ const TEXT_PLAIN = "text/plain";
 const TYPE = 'type';
 const INFO = 'info';
 const HEALTH = 'health';
-const LIVENESS_PROBE = 'livenessprobe';
 let loaded = false;
 let appName;
 let appVersion;
@@ -46,14 +46,21 @@ export class ActuatorServices {
         return this;
     }
     async handleEvent(evt) {
-        if (INFO == evt.getHeader(TYPE)) {
-            return await ActuatorServices.doInfo();
-        }
-        if (HEALTH == evt.getHeader(TYPE)) {
-            return await ActuatorServices.doHealthChecks();
-        }
-        if (LIVENESS_PROBE == evt.getHeader(TYPE)) {
-            return new EventEnvelope().setHeader(CONTENT_TYPE, TEXT_PLAIN).setBody('OK');
+        const payload = evt.getBody();
+        if (payload && payload instanceof Object) {
+            // interpret the incoming HTTP request
+            const request = new AsyncHttpRequest(payload);
+            if (request) {
+                if ('/info' == request.getUrl()) {
+                    return await ActuatorServices.doInfo();
+                }
+                if ('/health' == request.getUrl()) {
+                    return await ActuatorServices.doHealthChecks();
+                }
+                if ('/livenessprobe' == request.getUrl()) {
+                    return new EventEnvelope().setHeader(CONTENT_TYPE, TEXT_PLAIN).setBody('OK');
+                }
+            }
         }
         return null;
     }

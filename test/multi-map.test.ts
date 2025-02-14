@@ -1,4 +1,7 @@
 import { MultiLevelMap } from '../src/util/multi-level-map';
+import { Utility } from '../src/util/utility';
+
+const util = new Utility();
 
 describe('multi-level map use cases', () => {
       
@@ -34,6 +37,12 @@ describe('multi-level map use cases', () => {
         expect(mm.getElement('a.b.c[4].test2')).toBe('message2');    
         expect(mm.exists('test.boolean')).toBe(true);
         expect(mm.getElement('test.boolean')).toBe(false);
-    });      
+    }); 
+    
+    it('can detect path traversal', () => {
+        expect(() => {
+            util.getSafeFilePath('/tmp', '../hello');
+        }).toThrow('Access denied because file path is outside the base directory'); 
+    });  
 
 });

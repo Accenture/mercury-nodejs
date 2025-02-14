@@ -1,4 +1,5 @@
 import fs from 'fs';
+import path from 'path';
 import { fileURLToPath } from "url";
 import { v4 as uuid4 } from 'uuid';
 import { parse as parseYaml } from 'yaml';
@@ -51,6 +52,11 @@ export class Utility {
      */
     getFloat(n: number, decimalPoint = 3): number {
         return n && n.constructor == Number? parseFloat(n.toFixed(decimalPoint)) : 0.0;
+    }
+
+    htmlEscape(text: string): string {
+        return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+                    .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
     }
 
     /**
@@ -237,9 +243,18 @@ export class Utility {
      * @returns normalized file path in Unix format
      */
     normalizeFilePath(filePath: string): string {
-        const path = filePath.includes('\\')? filePath.replaceAll('\\', '/') : filePath;
-        const colon = path.indexOf(':');
-        return colon == 1? path.substring(colon+1) : path;
+        const fPath = filePath.includes('\\')? filePath.replaceAll('\\', '/') : filePath;
+        const colon = fPath.indexOf(':');
+        return colon == 1? fPath.substring(colon+1) : fPath;
+    }
+
+    getSafeFilePath(baseDir: string, filePath: string): string {
+        const inputPath = this.normalizeFilePath(filePath);
+        const resolvedPath = path.resolve(baseDir, inputPath.startsWith('/') ? '.' + inputPath : inputPath);
+        if (!resolvedPath.startsWith(baseDir)) {
+            throw new Error('Access denied because file path is outside the base directory');
+        }
+        return resolvedPath;
     }
 
     /**
@@ -275,13 +290,11 @@ export class Utility {
      * @returns true if the directory exists
      */
     isDirectory(filePath: string): boolean {
-        if (!fs.existsSync(filePath)) {
-            return false;
-        }
         try {
             const stats = fs.statSync(filePath);
             return stats.isDirectory();
         } catch (_e) {
+            // file not found
             return false;
         }
     }
@@ -359,8 +372,8 @@ export class Utility {
     getFolder(relativePath: string): string {
         const folder = fileURLToPath(new URL(relativePath, import.meta.url));
         // for windows OS, convert backslash to regular slash and drop drive letter from path
-        const path = folder.includes('\\')? folder.replaceAll('\\', '/') : folder;
-        const colon = path.indexOf(':');
-        return colon == 1? path.substring(colon+1) : path;
+        const fPath = folder.includes('\\')? folder.replaceAll('\\', '/') : folder;
+        const colon = fPath.indexOf(':');
+        return colon == 1? fPath.substring(colon+1) : fPath;
     }
 }

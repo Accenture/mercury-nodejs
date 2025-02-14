@@ -16,6 +16,28 @@ GET /livenessprobe
 | /health        | Application health check endpoint                                                   |
 | /livenessprobe | Check if application is running normally                                            |
 
+When REST automation is turned on, you can configure the administrative endpoints with the following
+entries in the "rest.yaml" configuration file.
+
+```yaml
+rest:
+  - service: "actuator.services"
+    methods: ['GET']
+    url: "/info"
+    timeout: 10s
+
+  - service: "actuator.services"
+    methods: ['GET']
+    url: "/health"
+    timeout: 10s
+
+  - service: "actuator.services"
+    methods: ['GET']
+    url: "/livenessprobe"
+    timeout: 10s
+```
+
+Therefore, you can selectively enable all or some of these endpoints.
 
 ## Custom health services
 

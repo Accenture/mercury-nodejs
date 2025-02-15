@@ -34,7 +34,7 @@ export class PostOffice {
 
     constructor(headers?: Sender | object) {
         if (self == null) {
-            self = new PO();
+            self = PO.getInstance();
         }
         if (headers && headers instanceof Sender) {
             this.trackable = true;
@@ -267,7 +267,19 @@ export class Sender {
 }
 
 class PO {
-    private id: string = util.getUuid();
+    private static instance: PO;
+    private id: string;
+
+    private constructor() { 
+        this.id = util.getUuid();
+    }
+
+    static getInstance() {
+        if (PO.instance === undefined) {
+            PO.instance = new PO();
+        }
+        return PO.instance;
+    }
 
     getId(): string {
         return this.id;
@@ -374,7 +386,7 @@ class PO {
                                  'traceId': input.getTraceId(), 'tracePath': input.getTracePath(),
                                  'oid': input.getCorrelationId(), 'route': route, 'from': input.getFrom()};
                     TemporaryInbox.setPromise(cid, map);                                                                
-                    input.setReplyTo(TemporaryInbox.name).addTag(RPC, String(timeout));
+                    input.setReplyTo(TemporaryInbox.routeName).addTag(RPC, String(timeout));
                     input.setCorrelationId(cid);
                     // serialize event envelope for immutability
                     emitter.emit(route, input.toBytes());                    

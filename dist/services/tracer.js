@@ -13,7 +13,7 @@ const SERVICE = 'service';
  * DO NOT use this directly in your application code.
  */
 export class DistributedTrace {
-    static name = DISTRIBUTED_TRACING;
+    static routeName = DISTRIBUTED_TRACING;
     initialize() {
         return this;
     }

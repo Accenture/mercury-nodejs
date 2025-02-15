@@ -41,7 +41,7 @@ const USER_AGENT = "user-agent";
 const ECONNREFUSED = 'ECONNREFUSED';
 
 export class AsyncHttpClient implements Composable {
-    static name = HTTP_CLIENT_SERVICE;
+    static routeName = HTTP_CLIENT_SERVICE;
 
     initialize(): Composable { 
         return this;
@@ -76,7 +76,8 @@ export class AsyncHttpClient implements Composable {
         } else {
             throw new AppException(400, "Protocol must be http or https");
         }
-        if (!targetUrl.hostname) {
+        const validHost = targetUrl.hostname? true : false;
+        if (!validHost) {
             throw new AppException(400, "Unable to resolve target host as domain or IP address");
         }
         if (targetUrl.pathname && targetUrl.pathname != '/') {

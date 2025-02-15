@@ -11,7 +11,7 @@ let po;
  * DO NOT use this directly in your application code.
  */
 export class TemporaryInbox {
-    static name = TEMPORARY_INBOX;
+    static routeName = TEMPORARY_INBOX;
     initialize() {
         po = new PostOffice();
         return this;

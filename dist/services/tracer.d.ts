@@ -5,7 +5,7 @@ import { EventEnvelope } from '../models/event-envelope.js';
  * DO NOT use this directly in your application code.
  */
 export declare class DistributedTrace implements Composable {
-    static name: string;
+    static routeName: string;
     initialize(): Composable;
     handleEvent(evt: EventEnvelope): Promise<any>;
 }

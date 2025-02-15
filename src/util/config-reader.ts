@@ -68,7 +68,7 @@ export class AppConfig {
     }
 
     static getInstance(resourcePath?: string): ConfigReader {
-        if (!AppConfig.singleton) {
+        if (AppConfig.singleton === undefined) {
             AppConfig.singleton = new AppConfig(resourcePath);
             // check command line arguments for overrides
             let reloaded = false;
@@ -141,15 +141,15 @@ export class ConfigReader {
      */
     constructor(configResource?: string | object, isBaseConfig = false) {
         if (isBaseConfig) {
-            if (ConfigReader.self == null) {
+            if (ConfigReader.self === undefined) {
                 ConfigReader.self = this;
                 this.id = "base";
             } else {
                 throw new Error('Base configuration is already loaded');
             }
         } else {
-            if (!ConfigReader.self) {
-                throw new Error('Cannot user configuration because base configuration is not defined');
+            if (ConfigReader.self === undefined) {
+                throw new Error('Cannot do user configuration because base configuration is not defined');
             }
             this.id = util.getUuid();
         }
@@ -216,7 +216,8 @@ export class ConfigReader {
      * @returns value of the item
      */
     get(key: string, defaultValue = null, loop?: string) {
-        if (!key) {
+        const hasKey = key? true : false;
+        if (!hasKey) {
             return null;
         }
         if (process && key in process.env) {

@@ -4,7 +4,7 @@ import { Logger } from '../util/logger.js';
 import { EventEnvelope } from '../models/event-envelope.js';
 import { Utility } from '../util/utility.js';
 const log = Logger.getInstance();
-let platform = null;
+let platform;
 const util = new Utility();
 const topics = new Map();
 class LocalPublisher {
@@ -27,7 +27,7 @@ class LocalPublisher {
 }
 export class LocalPubSub {
     constructor() {
-        if (!platform) {
+        if (platform === undefined) {
             platform = Platform.getInstance();
         }
     }

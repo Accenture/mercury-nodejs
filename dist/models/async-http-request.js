@@ -47,7 +47,7 @@ export class AsyncHttpRequest {
      * @returns HTTP method
      */
     getMethod() {
-        return this.method;
+        return this.method ? this.method : null;
     }
     /**
      * Set the HTTP method if this is an outgoing HTTP request

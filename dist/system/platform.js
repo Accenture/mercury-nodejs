@@ -6,10 +6,11 @@ import { PostOffice } from '../system/post-office.js';
 import { DistributedTrace } from '../services/tracer.js';
 import { AsyncHttpClient } from '../services/async-http-client.js';
 import { ActuatorServices } from '../services/actuator.js';
+import { EventApiService } from '../services/event-api.js';
+import { TemporaryInbox } from '../services/temporary-inbox.js';
 import { EventEnvelope } from '../models/event-envelope.js';
 import { AppException } from '../models/app-exception.js';
 import { AppConfig, ConfigReader } from '../util/config-reader.js';
-import { TemporaryInbox } from '../services/temporary-inbox.js';
 import fs from 'fs';
 const log = Logger.getInstance();
 const registry = FunctionRegistry.getInstance();
@@ -21,13 +22,14 @@ const SIGNATURE = util.getUuid() + '/';
 const DISTRIBUTED_TRACING = 'distributed.tracing';
 const RPC = "rpc";
 const OBJECT_STREAM_MANAGER = "object.stream.manager";
-const REST_AUTOMATION_MANAGER = "rest.automation.manager";
+const REST_AUTOMATION_HOUSEKEEPER = "rest.automation.housekeeper";
 const TEMP_DIR = "/tmp/composable/node/temp-streams";
 let startTime;
 let appName;
 let self;
 function subscribe(route, listener) {
-    if (!route) {
+    const hasRoute = route ? true : false;
+    if (!hasRoute) {
         throw new Error('Missing route');
     }
     const hash = route.indexOf('#');
@@ -39,7 +41,8 @@ function subscribe(route, listener) {
     if (worker != null && (worker.length == 0 || !util.isDigits(worker))) {
         throw new Error('Invalid route worker suffix');
     }
-    if (!listener) {
+    const hasListener = listener ? true : false;
+    if (!hasListener) {
         throw new Error('Missing listener');
     }
     if (!(listener instanceof Function)) {
@@ -79,13 +82,11 @@ async function checkExpiredStreams() {
 export class Platform {
     static singleton;
     constructor() {
-        if (!self) {
-            self = new EventSystem();
-            startTime = new Date();
-        }
+        self = new EventSystem();
+        startTime = new Date();
     }
     static getInstance() {
-        if (!Platform.singleton) {
+        if (Platform.singleton === undefined) {
             Platform.singleton = new Platform();
         }
         return Platform.singleton;
@@ -99,7 +100,7 @@ export class Platform {
         return self.getOriginId();
     }
     getName() {
-        if (!appName) {
+        if (appName === undefined) {
             const config = AppConfig.getInstance();
             appName = config.getProperty('application.name', 'untitled');
         }
@@ -188,10 +189,12 @@ class ServiceManager {
     eventQueue = [];
     workers = [];
     constructor(route, listener, instances = 1, isPrivate = false, interceptor = false) {
-        if (!route) {
+        const hasRoute = route ? true : false;
+        const hasListener = listener ? true : false;
+        if (!hasRoute) {
             throw new Error('Missing route');
         }
-        if (!listener) {
+        if (!hasListener) {
             throw new Error('Missing listener');
         }
         if (!(listener instanceof Function)) {
@@ -447,46 +450,54 @@ class ServiceManager {
     }
 }
 class EventSystem {
+    static instance;
     registered = new Map();
     forever = false;
     stopping = false;
     constructor() {
-        const config = AppConfig.getInstance();
-        if (process) {
-            // monitor shutdown signals
-            process.on('SIGTERM', () => {
-                if (self && !self.isStopping()) {
-                    self.stop();
-                    log.info('Kill signal detected');
-                }
-            });
-            process.on('SIGINT', () => {
-                if (self && !self.isStopping()) {
-                    self.stop();
-                    log.info('Control-C detected');
-                }
-            });
+        if (EventSystem.instance === undefined) {
+            EventSystem.instance = this;
+            const config = AppConfig.getInstance();
+            if (process) {
+                // monitor shutdown signals
+                process.on('SIGTERM', () => {
+                    if (self && !self.isStopping()) {
+                        self.stop();
+                        log.info('Kill signal detected');
+                    }
+                });
+                process.on('SIGINT', () => {
+                    if (self && !self.isStopping()) {
+                        self.stop();
+                        log.info('Control-C detected');
+                    }
+                });
+            }
+            // Event system ready
+            log.info(`Event system started - ${po.getId()}`);
+            // load event-over-http.yaml if present
+            const yamlFile = config.getProperty('yaml.event.over.http');
+            if (yamlFile) {
+                po.loadHttpRoutes(yamlFile, new ConfigReader(yamlFile));
+            }
+            // load essential services
+            const tracer = new DistributedTrace().initialize();
+            const httpClient = new AsyncHttpClient().initialize();
+            const tempInbox = new TemporaryInbox().initialize();
+            const actuator = new ActuatorServices().initialize();
+            const eventApi = new EventApiService().initialize();
+            this.register(DistributedTrace.routeName, tracer.handleEvent, 1, true, true);
+            this.register(AsyncHttpClient.routeName, httpClient.handleEvent, 200, true, true);
+            this.register(TemporaryInbox.routeName, tempInbox.handleEvent, 200, true, true);
+            this.register(ActuatorServices.infoService, actuator.handleEvent, 10);
+            this.register(ActuatorServices.healthService, actuator.handleEvent, 10);
+            this.register(ActuatorServices.livenessService, actuator.handleEvent, 10);
+            this.register(EventApiService.routeName, eventApi.handleEvent, 200);
+            // clean up expired streams that are left over in previous execution
+            setTimeout(() => {
+                checkExpiredStreams();
+            }, 2000);
         }
-        // Event system ready
-        log.info(`Event system started - ${po.getId()}`);
-        // load event-over-http.yaml if present
-        const yamlFile = config.getProperty('yaml.event.over.http');
-        if (yamlFile) {
-            po.loadHttpRoutes(yamlFile, new ConfigReader(yamlFile));
-        }
-        // load essential services
-        const tracer = new DistributedTrace().initialize();
-        const httpClient = new AsyncHttpClient().initialize();
-        const tempInbox = new TemporaryInbox().initialize();
-        const actuator = new ActuatorServices().initialize();
-        this.register(DistributedTrace.name, tracer.handleEvent, 1, true, true);
-        this.register(AsyncHttpClient.name, httpClient.handleEvent, 200, true, true);
-        this.register(TemporaryInbox.name, tempInbox.handleEvent, 200, true, true);
-        this.register(ActuatorServices.name, actuator.handleEvent, 10);
-        // clean up expired streams that are left over in previous execution
-        setTimeout(() => {
-            checkExpiredStreams();
-        }, 2000);
     }
     getOriginId() {
         return po.getId();
@@ -539,8 +550,8 @@ class EventSystem {
     async stop() {
         if (!this.stopping) {
             this.stopping = true;
-            if (po.exists(REST_AUTOMATION_MANAGER)) {
-                await po.request(new EventEnvelope().setTo(REST_AUTOMATION_MANAGER).setHeader('type', 'close'));
+            if (po.exists(REST_AUTOMATION_HOUSEKEEPER)) {
+                await po.request(new EventEnvelope().setTo(REST_AUTOMATION_HOUSEKEEPER).setHeader('type', 'close'));
             }
             if (po.exists(OBJECT_STREAM_MANAGER)) {
                 await po.request(new EventEnvelope().setTo(OBJECT_STREAM_MANAGER).setHeader('type', 'close'));

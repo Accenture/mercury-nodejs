@@ -8,8 +8,6 @@ import { AppException } from '../models/app-exception.js';
 import { AsyncHttpRequest } from '../models/async-http-request.js';
 import { RoutingEntry } from '../util/routing.js';
 import { AppConfig, ConfigReader } from '../util/config-reader.js';
-import { EventApiService } from '../services/event-api.js';
-import { ActuatorServices } from '../services/actuator.js';
 import express from 'express';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
@@ -40,7 +38,7 @@ const PROTOCOL = "x-forwarded-proto";
 const OPTIONS_METHOD = 'OPTIONS';
 const HTML_START = '<html><body><pre>\n';
 const HTML_END = '\n</pre></body></html>';
-const REST_AUTOMATION_MANAGER = "rest.automation.manager";
+const REST_AUTOMATION_HOUSEKEEPER = "rest.automation.housekeeper";
 const ASYNC_HTTP_RESPONSE = "async.http.response";
 const STREAM_CONTENT = 'x-stream-id';
 const DEFAULT_SERVER_PORT = 8086;
@@ -282,11 +280,9 @@ class RestEngine {
             this.loaded = true;
             let restEnabled = false;
             const platform = Platform.getInstance();
-            // preload Actuator and Event-over-HTTP services
-            platform.register(ActuatorServices.name, new ActuatorServices(), 10);
-            platform.register(EventApiService.name, new EventApiService(), 200);
+            // register async.http.response and rest.automation.manager
             platform.register(ASYNC_HTTP_RESPONSE, new AsyncHttpResponse(), 200);
-            platform.register(REST_AUTOMATION_MANAGER, new HouseKeeper());
+            platform.register(REST_AUTOMATION_HOUSEKEEPER, new HouseKeeper());
             const config = AppConfig.getInstance();
             const router = new RoutingEntry();
             // initialize router and load configuration
@@ -425,7 +421,10 @@ class RestEngine {
             // start HTTP server
             server = app.listen(port, '0.0.0.0', () => {
                 running = true;
-                log.info(`REST automation service started on port ${port}`);
+                const now = new Date();
+                const diff = now.getTime() - platform.getStartTime().getTime();
+                log.info(`Modules loaded in ${diff} ms`);
+                log.info(`Reactive HTTP server running on port ${port}`);
             });
             // set server side socket timeout
             server.setTimeout(60000);

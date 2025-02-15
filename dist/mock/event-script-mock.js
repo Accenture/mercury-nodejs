@@ -5,39 +5,51 @@ const log = Logger.getInstance();
 export class EventScriptMock {
     flow;
     constructor(flowId) {
-        if (!flowId) {
-            throw new AppException(400, 'Missing flow ID');
+        if (flowId) {
+            this.flow = Flows.getFlow(flowId);
+            if (!this.flow) {
+                throw new AppException(400, `Flow ${String(flowId)} does not exist`);
+            }
         }
-        this.flow = Flows.getFlow(flowId);
-        if (!this.flow) {
-            throw new AppException(400, `Flow ${String(flowId)} does not exist`);
+        else {
+            throw new AppException(400, 'Missing flow ID');
         }
     }
     getFunctionRoute(taskName) {
-        if (!taskName) {
+        if (taskName) {
+            const task = this.flow.tasks[taskName];
+            if (task) {
+                return task.functionRoute;
+            }
+            else {
+                throw new AppException(400, `Task ${taskName} does not exist`);
+            }
+        }
+        else {
             throw new AppException(400, 'Missing task name');
         }
-        const task = this.flow.tasks[taskName];
-        if (!task) {
-            throw new AppException(400, `Task ${taskName} does not exist`);
-        }
-        return task.functionRoute;
     }
     assignFunctionRoute(taskName, mockFunction) {
-        if (!taskName) {
+        if (taskName) {
+            if (mockFunction) {
+                const task = this.flow.tasks[taskName];
+                if (task) {
+                    const previous = task.functionRoute;
+                    task.reAssign(mockFunction);
+                    log.info(`Reassigned '${mockFunction}' to task(${taskName}}) of flow(${this.flow.id}), previous function '${previous}'`);
+                    return this;
+                }
+                else {
+                    throw new AppException(400, `Task ${taskName} does not exist`);
+                }
+            }
+            else {
+                throw new AppException(400, "Missing mock function route");
+            }
+        }
+        else {
             throw new AppException(400, 'Missing task name');
         }
-        if (!mockFunction) {
-            throw new AppException(400, "Missing mock function route");
-        }
-        const task = this.flow.tasks[taskName];
-        if (!task) {
-            throw new AppException(400, `Task ${taskName} does not exist`);
-        }
-        const previous = task.functionRoute;
-        task.reAssign(mockFunction);
-        log.info(`Reassigned '${mockFunction}' to task(${taskName}}) of flow(${this.flow.id}), previous function '${previous}'`);
-        return this;
     }
 }
 //# sourceMappingURL=event-script-mock.js.map

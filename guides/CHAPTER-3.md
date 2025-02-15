@@ -209,10 +209,6 @@ headers:
 
 ## Feature variation from the Java version
 
-To support multipart upload, a REST endpoint entry must have the parameter `upload: true`. The is not required
-in the Java version because automatic switching to multipart rendering is supported in the underlying Netty
-HTTP server.
-
 In the Node.js version, the underlying HTTP server is Express. We have configured the bodyParser to render
 HTTP request body in this order:
 

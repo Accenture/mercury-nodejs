@@ -1,5 +1,5 @@
 export declare class Logger {
-    private static singleton;
+    private static instance;
     private logger;
     private constructor();
     static getInstance(): Logger;

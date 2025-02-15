@@ -8,14 +8,12 @@ import { MultiLevelMap } from '../util/multi-level-map.js';
 import { AppException } from '../models/app-exception.js';
 import { AsyncHttpRequest } from '../models/async-http-request.js';
 const po = new PostOffice();
-const ACTUATOR_SERVICES = 'actuator.services';
 const CONTENT_TYPE = "Content-Type";
 const APPLICATION_JSON = "application/json";
 const TEXT_PLAIN = "text/plain";
 const TYPE = 'type';
 const INFO = 'info';
 const HEALTH = 'health';
-let loaded = false;
 let appName;
 let appVersion;
 let appDesc;
@@ -29,10 +27,13 @@ const numberFormatter = new Intl.NumberFormat('en-us');
  * DO NOT use this directly in your application code.
  */
 export class ActuatorServices {
-    static name = ACTUATOR_SERVICES;
+    static loaded = false;
+    static infoService = "info.actuator.service";
+    static healthService = "health.actuator.service";
+    static livenessService = "liveness.actuator.service";
     initialize() {
-        if (!loaded) {
-            loaded = true;
+        if (!ActuatorServices.loaded) {
+            ActuatorServices.loaded = true;
             const platform = Platform.getInstance();
             const config = AppConfig.getInstance();
             appName = platform.getName();
@@ -48,21 +49,22 @@ export class ActuatorServices {
     async handleEvent(evt) {
         const payload = evt.getBody();
         if (payload && payload instanceof Object) {
+            const myRoute = evt.getHeader('my_route');
             // interpret the incoming HTTP request
             const request = new AsyncHttpRequest(payload);
-            if (request) {
-                if ('/info' == request.getUrl()) {
+            if (request && Object.keys(request.getHeaders()).length > 0) {
+                if (ActuatorServices.infoService == myRoute) {
                     return await ActuatorServices.doInfo();
                 }
-                if ('/health' == request.getUrl()) {
+                if (ActuatorServices.healthService == myRoute) {
                     return await ActuatorServices.doHealthChecks();
                 }
-                if ('/livenessprobe' == request.getUrl()) {
+                if (ActuatorServices.livenessService == myRoute) {
                     return new EventEnvelope().setHeader(CONTENT_TYPE, TEXT_PLAIN).setBody('OK');
                 }
             }
         }
-        return null;
+        throw new AppException(404, 'Resource not found');
     }
     static async doInfo() {
         const result = new MultiLevelMap();

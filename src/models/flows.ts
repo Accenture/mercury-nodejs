@@ -10,7 +10,8 @@ export class Flows {
     static flowInstances = {};
 
     static getFlow(id: string): Flow {
-        return Flows.allFlows[id];
+        const result = Flows.allFlows[id];
+        return result? result : null;
     }
 
     static getAllFlows(): string[] {
@@ -18,7 +19,8 @@ export class Flows {
     }
 
     static getFlowInstance(id?: string) {
-        return id? Flows.flowInstances[id] : null;
+        const result = id? Flows.flowInstances[id] : null;
+        return result? result : null;
     }
 
     static flowExists(id: string): boolean {

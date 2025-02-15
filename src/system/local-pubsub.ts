@@ -6,7 +6,7 @@ import { EventEnvelope } from '../models/event-envelope.js';
 import { Utility } from '../util/utility.js';
 
 const log = Logger.getInstance();
-let platform: Platform = null;
+let platform: Platform;
 const util = new Utility();
 const topics = new Map<string, Array<string>>();
 
@@ -33,7 +33,7 @@ class LocalPublisher implements Composable{
 export class LocalPubSub {
 
     constructor() {
-        if (!platform) {
+        if (platform === undefined) {
             platform = Platform.getInstance();
         }
     }

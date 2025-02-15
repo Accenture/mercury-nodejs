@@ -101,14 +101,16 @@ export class Utility {
         return true;
     }
     isNumeric(text) {
-        if (!text) {
-            return false;
-        }
-        if (text.length > 1 && text.startsWith("-")) {
-            return this.isDigits(text.substring(1));
+        if (text) {
+            if (text.length > 1 && text.startsWith("-")) {
+                return this.isDigits(text.substring(1));
+            }
+            else {
+                return this.isDigits(text);
+            }
         }
         else {
-            return this.isDigits(text);
+            return false;
         }
     }
     /**
@@ -118,22 +120,24 @@ export class Utility {
      * @returns true if valid
      */
     validRouteName(route) {
-        if (route == null || route.length == 0)
-            return false;
-        if (route.startsWith(".") || route.startsWith("_") || route.startsWith("-")
-            || route.includes("..")
-            || route.endsWith(".") || route.endsWith("_") || route.endsWith("-"))
-            return false;
-        for (let i = 0; i < route.length; i++) {
-            if (route.charAt(i) >= '0' && route.charAt(i) <= '9')
-                continue;
-            if (route.charAt(i) >= 'a' && route.charAt(i) <= 'z')
-                continue;
-            if (route.charAt(i) == '.' || route.charAt(i) == '_' || route.charAt(i) == '-')
-                continue;
+        if (route) {
+            if (route.startsWith(".") || route.startsWith("_") || route.startsWith("-") || route.includes("..") ||
+                route.endsWith(".") || route.endsWith("_") || route.endsWith("-"))
+                return false;
+            for (let i = 0; i < route.length; i++) {
+                if (route.charAt(i) >= '0' && route.charAt(i) <= '9')
+                    continue;
+                if (route.charAt(i) >= 'a' && route.charAt(i) <= 'z')
+                    continue;
+                if (route.charAt(i) == '.' || route.charAt(i) == '_' || route.charAt(i) == '-')
+                    continue;
+                return false;
+            }
+            return route.includes('.');
+        }
+        else {
             return false;
         }
-        return route.includes('.');
     }
     /**
      * Convert milliseconds into a statement describing the elapsed time

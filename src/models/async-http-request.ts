@@ -50,7 +50,7 @@ export class AsyncHttpRequest {
      * @returns HTTP method
      */
     getMethod(): string {
-        return this.method;
+        return this.method? this.method : null;
     }
 
     /**

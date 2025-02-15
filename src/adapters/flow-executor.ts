@@ -13,7 +13,7 @@ export class FlowExecutor {
     private constructor() {}
 
     static getInstance(): FlowExecutor {
-        if (!FlowExecutor.singleton) {
+        if (FlowExecutor.singleton === undefined) {
             FlowExecutor.singleton = new FlowExecutor();
         }
         return FlowExecutor.singleton;

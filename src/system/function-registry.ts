@@ -12,11 +12,11 @@ export class FunctionRegistry {
     private registry: SimpleRegistry;
 
     private constructor() {
-        this.registry = new SimpleRegistry();        
+        this.registry = SimpleRegistry.getInstance();        
     }
 
     static getInstance(): FunctionRegistry {
-        if (!FunctionRegistry.singleton) {
+        if (FunctionRegistry.singleton === undefined) {
             FunctionRegistry.singleton = new FunctionRegistry();
         }
         return FunctionRegistry.singleton;
@@ -108,8 +108,18 @@ export class FunctionRegistry {
 }
 
 class SimpleRegistry {
+    private static instance: SimpleRegistry;
     private registry = new Map<string, object>();
     private metadata = new Map<string, object>();
+
+    private constructor() { }
+
+    static getInstance() {
+        if (SimpleRegistry.instance === undefined) {
+            SimpleRegistry.instance = new SimpleRegistry();
+        }
+        return SimpleRegistry.instance;
+    }
 
     save(route: string, that: object, instances: number, isPrivate: boolean, isInterceptor: boolean): void {
         if (route && 'initialize' in that && 'handleEvent' in that 

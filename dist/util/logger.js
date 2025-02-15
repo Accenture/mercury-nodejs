@@ -69,16 +69,16 @@ function printLog(format, lineNumber, label, message, e) {
     }
 }
 export class Logger {
-    static singleton;
+    static instance;
     logger;
     constructor() {
-        this.logger = new SimpleLogger();
+        this.logger = SimpleLogger.getInstance();
     }
     static getInstance() {
-        if (!Logger.singleton) {
-            Logger.singleton = new Logger();
+        if (Logger.instance === undefined) {
+            Logger.instance = new Logger();
         }
-        return Logger.singleton;
+        return Logger.instance;
     }
     /**
      * This method is reserved by the platform.
@@ -162,6 +162,7 @@ export class Logger {
     }
 }
 class SimpleLogger {
+    static instance;
     logLevel = 'info';
     logFormat = 0;
     constructor() {
@@ -171,6 +172,12 @@ class SimpleLogger {
                 this.setLevel(level);
             }
         }
+    }
+    static getInstance() {
+        if (SimpleLogger.instance === undefined) {
+            SimpleLogger.instance = new SimpleLogger();
+        }
+        return SimpleLogger.instance;
     }
     /**
      * Set log format

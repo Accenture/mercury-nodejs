@@ -21,17 +21,17 @@ entries in the "rest.yaml" configuration file.
 
 ```yaml
 rest:
-  - service: "actuator.services"
+  - service: "info.actuator.service"
     methods: ['GET']
     url: "/info"
     timeout: 10s
 
-  - service: "actuator.services"
+  - service: "health.actuator.service"
     methods: ['GET']
     url: "/health"
     timeout: 10s
 
-  - service: "actuator.services"
+  - service: "liveness.actuator.service"
     methods: ['GET']
     url: "/livenessprobe"
     timeout: 10s

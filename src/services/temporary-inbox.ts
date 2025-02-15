@@ -14,7 +14,7 @@ let po: PostOffice;
  * DO NOT use this directly in your application code.
  */
 export class TemporaryInbox implements Composable {
-    static name = TEMPORARY_INBOX;
+    static routeName = TEMPORARY_INBOX;
 
     initialize(): Composable {
         po = new PostOffice();

@@ -43,7 +43,7 @@ export class RoutingEntry {
 
     constructor() {
         if (self == null) {
-            self = new RestEntry();
+            self = RestEntry.getInstance();
         }
     }
 
@@ -150,12 +150,23 @@ export class HeaderInfo {
 }
 
 class RestEntry {
+    private static instance: RestEntry;
+
     private requestHeaderInfo = new Map<string, HeaderInfo>();
     private responseHeaderInfo = new Map<string, HeaderInfo>();
     private corsConfig = new Map<string, CorsInfo>();
     private exactRoutes = new Map<string, boolean>();
     private routes = new Map<string, RouteInfo>();
     private urlPaths = new Array<string>();
+
+    private constructor() {}
+
+    static getInstance() {
+        if (RestEntry.instance === undefined) {
+            RestEntry.instance = new RestEntry();
+        }
+        return RestEntry.instance;
+    }
 
     getRequestHeaderInfo(id: string): HeaderInfo {
         return this.requestHeaderInfo.get(id);

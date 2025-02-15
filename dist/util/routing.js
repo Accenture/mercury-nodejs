@@ -37,7 +37,7 @@ let self = null;
 export class RoutingEntry {
     constructor() {
         if (self == null) {
-            self = new RestEntry();
+            self = RestEntry.getInstance();
         }
     }
     load(config) {
@@ -126,12 +126,20 @@ export class HeaderInfo {
     dropHeaders = new Array();
 }
 class RestEntry {
+    static instance;
     requestHeaderInfo = new Map();
     responseHeaderInfo = new Map();
     corsConfig = new Map();
     exactRoutes = new Map();
     routes = new Map();
     urlPaths = new Array();
+    constructor() { }
+    static getInstance() {
+        if (RestEntry.instance === undefined) {
+            RestEntry.instance = new RestEntry();
+        }
+        return RestEntry.instance;
+    }
     getRequestHeaderInfo(id) {
         return this.requestHeaderInfo.get(id);
     }

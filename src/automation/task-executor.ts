@@ -158,36 +158,37 @@ export class TaskExecutor implements Composable {
                 }
                 const caller = from.includes("@")? from.substring(0, from.indexOf('@')) : from;
                 const task: Task = flowInstance.getFlow().tasks[caller];
-                if (!task) {
-                    log.error(`Unable to process callback ${flowName}:${refId} - missing task in ${caller}`);
-                    return null;
-                }
-                const statusCode = event.getStatus();
-                if (statusCode >= 400 || event.isException()) {
-                    if (seq > 0) {
-                        if (task.getExceptionTask() != null) {
-                            // Clear this specific pipeline queue when task has its own exception handler
-                            delete flowInstance.pipeMap[seq];
+                if (task) {
+                    const statusCode = event.getStatus();
+                    if (statusCode >= 400 || event.isException()) {
+                        if (seq > 0) {
+                            if (task.getExceptionTask() != null) {
+                                // Clear this specific pipeline queue when task has its own exception handler
+                                delete flowInstance.pipeMap[seq];
+                            } else {
+                                /*
+                                * Clear all pipeline queues when task does not have its own exception handler.
+                                * System will route the exception to the generic exception handler.
+                                */
+                                flowInstance.pipeMap = {};
+                            }
+                        }
+                        const handler = task.getExceptionTask() != null? task.getExceptionTask() : flowInstance.getFlow().exception;
+                        if (handler) {
+                            const error = { 'code': statusCode, 'message': String(event.getBody()) };
+                            const stackTrace = event.getStackTrace();
+                            if (stackTrace) {
+                                error['stack'] = stackTrace;
+                            }
+                            await self.executeTask(flowInstance, handler, -1, error);
                         } else {
-                            /*
-                            * Clear all pipeline queues when task does not have its own exception handler.
-                            * System will route the exception to the generic exception handler.
-                            */
-                            flowInstance.pipeMap = {};
+                            // when there are no task or flow exception handlers
+                            self.abortFlow(flowInstance, statusCode, String(event.getBody()));
                         }
+                        return null;
                     }
-                    const handler = task.getExceptionTask() != null? task.getExceptionTask() : flowInstance.getFlow().exception;
-                    if (handler) {
-                        const error = { 'code': statusCode, 'message': String(event.getBody()) };
-                        const stackTrace = event.getStackTrace();
-                        if (stackTrace) {
-                            error['stack'] = stackTrace;
-                        }
-                        await self.executeTask(flowInstance, handler, -1, error);
-                    } else {
-                        // when there are no task or flow exception handlers
-                        self.abortFlow(flowInstance, statusCode, String(event.getBody()));
-                    }
+                } else {
+                    log.error(`Unable to process callback ${flowName}:${refId} - missing task in ${caller}`);
                     return null;
                 }
                 self.handleCallback(from, flowInstance, task, event, seq);
@@ -201,7 +202,8 @@ export class TaskExecutor implements Composable {
 
     private async executeTask(flowInstance: FlowInstance, processName: string, seq = -1, error = {}) {
         const task: Task = flowInstance.getFlow().tasks[processName];
-        if (!task) {
+        const valid = task? true : false;
+        if (!valid) {
             log.error(`Unable to process flow ${flowInstance.getFlow().id}:${flowInstance.id} - missing task '${processName}'`);
             this.abortFlow(flowInstance, 500, SERVICE_AT + processName + " not defined");
             return;

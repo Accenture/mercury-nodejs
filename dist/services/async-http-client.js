@@ -37,7 +37,7 @@ const X_TRACE_ID = "x-trace-id";
 const USER_AGENT = "user-agent";
 const ECONNREFUSED = 'ECONNREFUSED';
 export class AsyncHttpClient {
-    static name = HTTP_CLIENT_SERVICE;
+    static routeName = HTTP_CLIENT_SERVICE;
     initialize() {
         return this;
     }
@@ -73,7 +73,8 @@ export class AsyncHttpClient {
         else {
             throw new AppException(400, "Protocol must be http or https");
         }
-        if (!targetUrl.hostname) {
+        const validHost = targetUrl.hostname ? true : false;
+        if (!validHost) {
             throw new AppException(400, "Unable to resolve target host as domain or IP address");
         }
         if (targetUrl.pathname && targetUrl.pathname != '/') {

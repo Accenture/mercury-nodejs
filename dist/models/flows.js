@@ -6,13 +6,15 @@ export class Flows {
     static allFlows = {};
     static flowInstances = {};
     static getFlow(id) {
-        return Flows.allFlows[id];
+        const result = Flows.allFlows[id];
+        return result ? result : null;
     }
     static getAllFlows() {
         return Object.keys(Flows.allFlows);
     }
     static getFlowInstance(id) {
-        return id ? Flows.flowInstances[id] : null;
+        const result = id ? Flows.flowInstances[id] : null;
+        return result ? result : null;
     }
     static flowExists(id) {
         return id in Flows.allFlows;

@@ -8,10 +8,10 @@ export class FunctionRegistry {
     static singleton;
     registry;
     constructor() {
-        this.registry = new SimpleRegistry();
+        this.registry = SimpleRegistry.getInstance();
     }
     static getInstance() {
-        if (!FunctionRegistry.singleton) {
+        if (FunctionRegistry.singleton === undefined) {
             FunctionRegistry.singleton = new FunctionRegistry();
         }
         return FunctionRegistry.singleton;
@@ -95,8 +95,16 @@ export class FunctionRegistry {
     }
 }
 class SimpleRegistry {
+    static instance;
     registry = new Map();
     metadata = new Map();
+    constructor() { }
+    static getInstance() {
+        if (SimpleRegistry.instance === undefined) {
+            SimpleRegistry.instance = new SimpleRegistry();
+        }
+        return SimpleRegistry.instance;
+    }
     save(route, that, instances, isPrivate, isInterceptor) {
         if (route && 'initialize' in that && 'handleEvent' in that
             && that['initialize'] instanceof Function && that['handleEvent'] instanceof Function) {

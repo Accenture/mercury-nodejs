@@ -21,7 +21,7 @@ let platform: Platform;
  * DO NOT use this directly in your application code.
  */
 export class EventApiService implements Composable { 
-    static name = EVENT_API_SERVICE;
+    static routeName = EVENT_API_SERVICE;
 
     initialize(): Composable {
         platform = Platform.getInstance();

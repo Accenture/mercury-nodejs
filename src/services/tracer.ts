@@ -16,7 +16,7 @@ const SERVICE = 'service';
  * DO NOT use this directly in your application code.
  */
 export class DistributedTrace implements Composable {
-    static name = DISTRIBUTED_TRACING;
+    static routeName = DISTRIBUTED_TRACING;
 
     initialize(): Composable {
         return this;

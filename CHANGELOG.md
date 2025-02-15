@@ -8,6 +8,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > *Note*: Some version numbers may be skipped to align feature set with the Java version.
 
 ---
+## Version 4.2.14, 2/14/2025
+
+### Added
+
+Log application initialization time
+
+### Removed
+
+N/A
+
+### Changed
+
+1. use different route names for various actuator services to avoid hardcode of URLs
+2. bugfix for Singleton pattern 
+
+---
+## Version 4.2.13, 2/13/2025
+
+### Added
+
+Actuator REST endpoints are now configurable in rest.yaml
+
+### Removed
+
+N/A
+
+### Changed
+
+Update actuator services to serve REST requests directly
+
+---
 ## Version 4.2.13, 2/13/2025
 
 ### Added

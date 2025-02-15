@@ -89,6 +89,14 @@ export declare class Utility {
      * @returns normalized file path in Unix format
      */
     normalizeFilePath(filePath: string): string;
+    /**
+     * Detect path traversal attack
+     *
+     * @param baseDir for the application
+     * @param filePath in the URI path
+     * @returns resolved path
+     * @throws error when path traversal is detected
+     */
     getSafeFilePath(baseDir: string, filePath: string): string;
     /**
      * Create a directory if not exists

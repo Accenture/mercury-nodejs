@@ -514,7 +514,7 @@ class RestEngine {
         // check if target service is available
         let authService: string = null;
         if (!po.exists(route.info.primary)) {
-            throw new AppException(503, `"Service ${route.info.primary} not reachable`);
+            throw new AppException(503, `Service ${route.info.primary} not reachable`);
         }
         if (route.info.defaultAuthService) {
             const authHeaders = route.info.authHeaders;

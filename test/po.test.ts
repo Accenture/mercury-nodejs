@@ -593,12 +593,54 @@ describe('post office use cases', () => {
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
       const result = await po.request(reqEvent);
       expect(result.getHeader('content-type')).toBe('application/json');
-      expect(result.getBody() instanceof Object);
+      expect(result.getBody() instanceof Object).toBe(true);
       const map = new MultiLevelMap(result.getBody() as object);
       expect(map.getElement('app.name')).toBe('platform-core');
       expect(map.getElement('origin')).toBe(platform.getOriginId());
       expect(map.getElement('app.version')).toBe('4.2.14');
-    });   
+    });
+
+    it('can get response from /info/routes endpoint', async () => {
+      const po = new PostOffice();
+      const req = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/info/routes');
+      const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
+      const result = await po.request(reqEvent);
+      expect(result.getHeader('content-type')).toBe('application/json');
+      expect(result.getBody() instanceof Object).toBe(true);
+      const map = new MultiLevelMap(result.getBody() as object);
+      expect(map.getElement('app.name')).toBe('platform-core');
+      expect(map.getElement('origin')).toBe(platform.getOriginId());
+      expect(map.getElement('app.version')).toBe('4.2.14');
+      const publicRoutes = map.getElement('routing.public');
+      expect(publicRoutes instanceof Object).toBe(true);
+      const r1 = publicRoutes as object;
+      expect(r1['hello.world']).toBe(5);
+      const privateRoutes = map.getElement('routing.private');
+      expect(privateRoutes instanceof Object).toBe(true);
+      const r2 = privateRoutes as object;
+      expect(r2['demo.health']).toBe(1);
+    });
+    
+    it('can get response from /env endpoint', async () => {
+      const po = new PostOffice();
+      const req = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/env');
+      const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
+      const result = await po.request(reqEvent);
+      expect(result.getHeader('content-type')).toBe('application/json');
+      expect(result.getBody() instanceof Object).toBe(true);
+      const map = new MultiLevelMap(result.getBody() as object);
+      expect(map.getElement('app.name')).toBe('platform-core');
+      expect(map.getElement('origin')).toBe(platform.getOriginId());
+      expect(map.getElement('app.version')).toBe('4.2.14');
+      const envKv = map.getElement('env.environment');
+      expect(envKv instanceof Object).toBe(true);
+      const r1 = envKv as object;
+      expect(r1['PATH']).toBe(process.env['PATH']);
+      const propKv = map.getElement('env.properties');
+      expect(propKv instanceof Object).toBe(true);
+      const r2 = propKv as object;
+      expect(r2['log.format']).toBe('text');
+    });      
     
     it('can get response from /health endpoint', async () => {
       const po = new PostOffice();
@@ -606,7 +648,7 @@ describe('post office use cases', () => {
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
       const result = await po.request(reqEvent);
       expect(result.getHeader('content-type')).toBe('application/json');
-      expect(result.getBody() instanceof Object);
+      expect(result.getBody() instanceof Object).toBe(true);
       const map = new MultiLevelMap(result.getBody() as object);
       expect(map.getElement('name')).toBe('platform-core');
       expect(map.getElement('up')).toBe(true);
@@ -634,7 +676,7 @@ describe('post office use cases', () => {
       req.setHeader('authorization', 'demo');
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
       const result = await po.request(reqEvent);
-      expect(result.getBody() instanceof Object);
+      expect(result.getBody() instanceof Object).toBe(true);
       const map = new MultiLevelMap(result.getBody() as object);
       expect(map.getElement('url')).toBe('/api/hello/world');
       expect(map.getElement('ip')).toBe('127.0.0.1');
@@ -654,7 +696,7 @@ describe('post office use cases', () => {
       req.setBody(text).setHeader('Content-Type', 'text/plain');
       const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
       const result = await po.request(reqEvent);
-      expect(result.getBody() instanceof Object);
+      expect(result.getBody() instanceof Object).toBe(true);
       const map = new MultiLevelMap(result.getBody() as object);
       expect(map.getElement('url')).toBe('/api/hello/world');
       expect(map.getElement('ip')).toBe('127.0.0.1');

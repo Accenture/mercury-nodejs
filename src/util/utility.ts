@@ -251,10 +251,19 @@ export class Utility {
         return colon == 1? fPath.substring(colon+1) : fPath;
     }
 
+    /**
+     * Detect path traversal attack
+     * 
+     * @param baseDir for the application
+     * @param filePath in the URI path
+     * @returns resolved path
+     * @throws error when path traversal is detected
+     */
     getSafeFilePath(baseDir: string, filePath: string): string {
         const inputPath = this.normalizeFilePath(filePath);
         const resolvedPath = path.resolve(baseDir, inputPath.startsWith('/') ? '.' + inputPath : inputPath);
-        if (!resolvedPath.startsWith(baseDir)) {
+        const normalizedPath = this.normalizeFilePath(resolvedPath);
+        if (!normalizedPath.startsWith(baseDir)) {
             throw new Error('Access denied because file path is outside the base directory');
         }
         return resolvedPath;

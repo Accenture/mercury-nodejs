@@ -55,3 +55,12 @@ yaml.flow.automation: classpath:/flows.yaml
 # mime.types:
 #   pdf: 'application/pdf'
 #   doc: 'application/msword'
+
+#
+# for "/env" admin endpoint,
+#
+# show environment variables or application properties (from application.yml)
+# use comma separated list to show more than one
+#
+show.env.variables: 'TMP'
+show.application.properties: 'log.format'

@@ -7,10 +7,14 @@ import { EventEnvelope } from '../models/event-envelope.js';
 export declare class ActuatorServices implements Composable {
     static loaded: boolean;
     static infoService: string;
+    static routeService: string;
     static healthService: string;
     static livenessService: string;
+    static envService: string;
     initialize(): Composable;
     handleEvent(evt: EventEnvelope): Promise<EventEnvelope>;
+    static doRoutes(): Promise<EventEnvelope>;
+    static doEnv(): Promise<EventEnvelope>;
     static doInfo(): Promise<EventEnvelope>;
     static doHealthChecks(): Promise<EventEnvelope>;
 }

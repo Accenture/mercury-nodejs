@@ -498,8 +498,10 @@ class EventSystem {
             this.register(AsyncHttpClient.routeName, httpClient.handleEvent, 200, true, true);
             this.register(TemporaryInbox.routeName, tempInbox.handleEvent, 200, true, true);
             this.register(ActuatorServices.infoService, actuator.handleEvent, 10);
+            this.register(ActuatorServices.routeService, actuator.handleEvent, 10);
             this.register(ActuatorServices.healthService, actuator.handleEvent, 10);
             this.register(ActuatorServices.livenessService, actuator.handleEvent, 10);
+            this.register(ActuatorServices.envService, actuator.handleEvent, 10);
             this.register(EventApiService.routeName,  eventApi.handleEvent, 200);
             // clean up expired streams that are left over in previous execution
             setTimeout(() => {

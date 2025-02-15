@@ -52,6 +52,8 @@ The following route names are reserved by the system.
 | async.http.request          | HTTP request event handler          | REST automation |
 | async.http.response         | HTTP response event handler         | REST automation |
 | info.actuator.service       | admin endpoint for /info            | REST automation |
+| routes.actuator.service     | admin endpoint for /info/routes     | REST automation |
+| env.actuator.service        | admin endpoint for /env             | REST automation |
 | health.actuator.service     | admin endpoint for /health          | REST automation |
 | liveness.actuator.service   | admin endpoint for /livenessprobe   | REST automation |
 | rest.automation.housekeeper | REST automation housekeeper         | REST automation |

@@ -26,6 +26,11 @@ rest:
     url: "/info"
     timeout: 10s
 
+  - service: "routes.actuator.service"
+    methods: ['GET']
+    url: "/info/routes"
+    timeout: 10s    
+
   - service: "health.actuator.service"
     methods: ['GET']
     url: "/health"
@@ -34,6 +39,11 @@ rest:
   - service: "liveness.actuator.service"
     methods: ['GET']
     url: "/livenessprobe"
+    timeout: 10s
+
+  - service: "env.actuator.service"
+    methods: ['GET']
+    url: "/env"
     timeout: 10s
 ```
 

@@ -7,6 +7,7 @@ import { EventEnvelope } from '../models/event-envelope.js';
 import { MultiLevelMap } from '../util/multi-level-map.js';
 import { AppException } from '../models/app-exception.js';
 import { AsyncHttpRequest } from '../models/async-http-request.js';
+import { FunctionRegistry } from '../system/function-registry.js';
 const po = new PostOffice();
 const CONTENT_TYPE = "Content-Type";
 const APPLICATION_JSON = "application/json";
@@ -21,6 +22,7 @@ let healthServices;
 let origin;
 let startTime;
 const util = new Utility();
+const registry = FunctionRegistry.getInstance();
 const numberFormatter = new Intl.NumberFormat('en-us');
 /**
  * This is reserved for system use.
@@ -29,8 +31,10 @@ const numberFormatter = new Intl.NumberFormat('en-us');
 export class ActuatorServices {
     static loaded = false;
     static infoService = "info.actuator.service";
+    static routeService = "routes.actuator.service";
     static healthService = "health.actuator.service";
     static livenessService = "liveness.actuator.service";
+    static envService = "env.actuator.service";
     initialize() {
         if (!ActuatorServices.loaded) {
             ActuatorServices.loaded = true;
@@ -62,9 +66,68 @@ export class ActuatorServices {
                 if (ActuatorServices.livenessService == myRoute) {
                     return new EventEnvelope().setHeader(CONTENT_TYPE, TEXT_PLAIN).setBody('OK');
                 }
+                if (ActuatorServices.envService == myRoute) {
+                    return await ActuatorServices.doEnv();
+                }
+                if (ActuatorServices.routeService == myRoute) {
+                    return await ActuatorServices.doRoutes();
+                }
             }
         }
         throw new AppException(404, 'Resource not found');
+    }
+    static async doRoutes() {
+        const result = new MultiLevelMap();
+        result.setElement('app.name', appName);
+        result.setElement('app.version', appVersion);
+        result.setElement('app.description', appDesc);
+        result.setElement('origin', origin);
+        const publicKv = {};
+        const privateKv = {};
+        const functionList = registry.getFunctionList();
+        for (const route of functionList) {
+            const md = registry.getMetadata(route);
+            const instances = md['instances'];
+            const isPrivate = md['private'];
+            if (isPrivate) {
+                privateKv[route] = instances;
+            }
+            else {
+                publicKv[route] = instances;
+            }
+        }
+        result.setElement('routing.public', publicKv);
+        result.setElement('routing.private', privateKv);
+        return new EventEnvelope().setHeader(CONTENT_TYPE, APPLICATION_JSON).setBody(result.getMap());
+    }
+    static async doEnv() {
+        const result = new MultiLevelMap();
+        result.setElement('app.name', appName);
+        result.setElement('app.version', appVersion);
+        result.setElement('app.description', appDesc);
+        result.setElement('origin', origin);
+        const config = AppConfig.getInstance();
+        const envVars = util.split(config.getProperty("show.env.variables", ""), ", ");
+        const propVars = util.split(config.getProperty("show.application.properties", ""), ", ");
+        const envKv = {};
+        if (process) {
+            for (const k of envVars) {
+                const v = process.env[k];
+                if (v) {
+                    envKv[k] = v;
+                }
+            }
+        }
+        result.setElement('env.environment', envKv);
+        const propKv = {};
+        for (const k of propVars) {
+            const v = config.get(k);
+            if (v) {
+                propKv[k] = v;
+            }
+        }
+        result.setElement('env.properties', propKv);
+        return new EventEnvelope().setHeader(CONTENT_TYPE, APPLICATION_JSON).setBody(result.getMap());
     }
     static async doInfo() {
         const result = new MultiLevelMap();

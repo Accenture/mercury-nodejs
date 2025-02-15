@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-Log application initialization time
+1. Log application initialization time
+2. Two additional actuator endpoints (/info/routes and /env)
 
 ### Removed
 

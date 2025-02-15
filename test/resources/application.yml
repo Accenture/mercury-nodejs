@@ -61,3 +61,6 @@ test.map:
 
 test.map3.wonderful: story
 test.map3.world: class
+
+show.env.variables: 'PATH'
+show.application.properties: 'log.format'

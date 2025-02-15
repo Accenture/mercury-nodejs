@@ -62,5 +62,5 @@ yaml.flow.automation: classpath:/flows.yaml
 # show environment variables or application properties (from application.yml)
 # use comma separated list to show more than one
 #
-show.env.variables: 'TMP'
+show.env.variables: 'PATH'
 show.application.properties: 'log.format'

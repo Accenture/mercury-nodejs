@@ -63,6 +63,7 @@ export class AppConfig {
                 if (fs.existsSync(versionFile)) {
                     const version = fs.readFileSync(versionFile, { encoding: 'utf-8', flag: 'r' });
                     AppConfig.reader.set('info.app.version', version);
+                    log.info(`Application version ${version}`);
                 }
             }
             else {

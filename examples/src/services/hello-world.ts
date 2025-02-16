@@ -4,10 +4,10 @@ import { preload, Composable, EventEnvelope, Logger,
 
 const log = Logger.getInstance();
 
-export class HelloWorldService implements Composable {
-    static name = 'hello.world'
+export class HelloWorld implements Composable {
+    static routeName = 'hello.world'
 
-    @preload(HelloWorldService.name, 10, false) // define as a public function so it can be reached by event-over-http
+    @preload(HelloWorld.routeName, 10, false) // define as a public function so it can be reached by event-over-http
     initialize(): Composable {
         return this;
     }
@@ -17,7 +17,7 @@ export class HelloWorldService implements Composable {
         // Composable function is executed as an anonymous function
         // You can use the PostOffice's getMyClass() method to get its class instance
         const po = new PostOffice(evt.getHeaders());
-        const self = po.getMyClass() as HelloWorldService;
+        const self = po.getMyClass() as HelloWorld;
         const myInstance = po.getMyInstance();
         // headers contain tracing metadata and body is the incoming HTTP request
         log.info(`request received by instance #${myInstance}`);
@@ -33,7 +33,7 @@ export class HelloWorldService implements Composable {
                         const len = await self.renderMultiPartFileStream(request.getStreamRoute(), request.getFileName());
                         log.info(`Received ${request.getFileName()} - ${len} bytes`);    
                         return {'filename': request.getFileName(), 'x-stream-id': request.getStreamRoute(), 
-                                'service': HelloWorldService.name,
+                                'service': HelloWorld.routeName,
                                 'type': contentType, 'size': len};
                     } else {
                         throw new AppException(400, 'Not a multipart file upload');
@@ -59,8 +59,18 @@ export class HelloWorldService implements Composable {
                 }
             }
         }
-        // just echo the request as a response
-        return new EventEnvelope(evt);
+        // just echo the request using the no.op function
+        if (po.exists('no.op')) {
+            const response = await po.request(evt.setTo('no.op'));
+            const result = {};
+            result['event'] = response.getBody();
+            result['exec_time'] = response.getExecTime();
+            result['round_trip'] = response.getRoundTrip();
+            return result;
+
+        } else {
+            return new EventEnvelope(evt);
+        }        
     } 
 
     async renderMultiPartFileStream(streamId: string, filename: string) {

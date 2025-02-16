@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > *Note*: Some version numbers may be skipped to align feature set with the Java version.
 
 ---
+## Version 4.2.15, 2/15/2025
+
+### Added
+
+1. Extract version from package.json to override info.app.version in application.yml
+2. Fork-n-Join parallel RPC request API in PostOffice
+
+### Removed
+
+N/A
+
+### Changed
+
+N/A
+
+---
 ## Version 4.2.14, 2/14/2025
 
 ### Added

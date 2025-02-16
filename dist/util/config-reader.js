@@ -58,6 +58,12 @@ export class AppConfig {
                 AppConfig.reader = new ConfigReader(resourcePath + '/application.yml', true);
                 // save file path
                 AppConfig.reader.set('resource.path', resourcePath);
+                // save version from version.txt in the "resources" folder
+                const versionFile = `${resourcePath}/version.txt`;
+                if (fs.existsSync(versionFile)) {
+                    const version = fs.readFileSync(versionFile, { encoding: 'utf-8', flag: 'r' });
+                    AppConfig.reader.set('info.app.version', version);
+                }
             }
             else {
                 throw new Error('Unable to start configuration management. Did you forget to provide a resource folder path?');

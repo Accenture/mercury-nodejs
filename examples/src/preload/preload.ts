@@ -8,7 +8,8 @@ import { Logger, AppConfig, FunctionRegistry, Platform, RestAutomation, EventScr
 import { NoOp } from '../../node_modules/mercury-composable/dist/services/no-op.js';
 import { DemoAuth } from '../services/demo-auth.js';
 import { DemoHealthCheck } from '../services/health-check.js';
-import { HelloWorldService } from '../services/hello-world-service.js';
+import { HelloConcurrent } from '../services/hello-concurrent.js';
+import { HelloWorld } from '../services/hello-world.js';
 import { CreateProfile } from '../tasks/create-profile.js';
 import { DecryptFields } from '../tasks/decrypt-fields.js';
 import { DeleteProfile } from '../tasks/delete-profile.js';
@@ -49,7 +50,8 @@ export class ComposableLoader {
                 new NoOp().initialize();
                 new DemoAuth().initialize();
                 new DemoHealthCheck().initialize();
-                new HelloWorldService().initialize();
+                new HelloConcurrent().initialize();
+                new HelloWorld().initialize();
                 new CreateProfile().initialize();
                 new DecryptFields().initialize();
                 new DeleteProfile().initialize();

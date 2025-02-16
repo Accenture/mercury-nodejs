@@ -85,5 +85,16 @@ function copyResourceFiles(src, target) {
 
 const src = getFolder('src');
 const target = getFolder('dist');
-
+// copy version from package.json
+const packageJson = getCurrentFolder() + 'package.json';
+if (fs.existsSync(packageJson)) {
+    const content = fs.readFileSync(packageJson, { encoding: 'utf-8', flag: 'r' });
+    const value = JSON.parse(content);
+    const version = value['version'];
+    if (version) {
+        const versionFile = `${src}/resources/version.txt`;
+        fs.writeFileSync(versionFile, version);
+    }
+}
+// copy the "resources" folder
 copyResourceFiles(src, target);

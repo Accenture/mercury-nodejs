@@ -1128,6 +1128,40 @@ describe('post office use cases', () => {
       expect(result.getHeader('x-content-length')).toBe(String(len));
       expect(result.getHeader('content-length')).toBe(null);
       expect(result.getHeader('transfer-encoding')).toBe('chunked');
-    });  
+    }); 
+
+    it('can do fork-n-join to /api/hello/world service', async () => {
+      const request = new AsyncHttpRequest().setMethod('GET')
+                            .setTargetHost(baseUrl)
+                            .setUrl('/api/hello/world?x=y')
+                            .setHeader('accept', 'application/json')
+                            .setHeader('authorization', 'demo');
+      const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(request.toMap());
+      // create a list of 3 parallel events
+      const requests = new Array<EventEnvelope>();
+      requests.push(reqEvent);
+      requests.push(reqEvent);
+      requests.push(reqEvent);
+      const po = new PostOffice();
+      const result = await po.parallelRequest(requests, 3000);
+      expect(result.length).toBe(3);
+      for (const response of result) {
+        expect(response.getBody()).toBeInstanceOf(Object);
+        const map = new MultiLevelMap(response.getBody() as object);
+        expect(map.getElement('url')).toBe('/api/hello/world');
+        expect(map.getElement('ip')).toBe('127.0.0.1');
+        expect(map.getElement('method')).toBe('GET');
+        expect(map.getElement('headers.x-ttl')).toBe('10');
+        expect(map.getElement('headers.x-flow-id')).toBe('hello-world');
+        expect(map.getElement('body')).toBe(null);
+        // check for CORS header insertion
+        expect(response.getHeader('Access-Control-Allow-Origin')).toBe('*');
+        // check for custom header insertion
+        expect(response.getHeader('strict-transport-security')).toBe('max-age=31536000');
+        expect(response.getHeader('expires')).toBe('Thu, 01 Jan 1970 00:00:00 GMT');
+        // confirm that the system has inserted a Trace ID
+        expect(response.getHeader('x-trace-id')).toBeTruthy();
+      }
+    });     
 
   });

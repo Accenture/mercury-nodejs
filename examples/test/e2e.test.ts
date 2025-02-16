@@ -113,12 +113,33 @@ describe('End-to-end tests', () => {
         expect(result).toBeTruthy();
         expect(result.getBody()).toBeInstanceOf(Object);
         const map = new MultiLevelMap(result.getBody() as object);
-        expect(map.getElement('headers.user-agent')).toBe('async-http-client');
-        expect(map.getElement('method')).toBe('GET');
-        expect(map.getElement('ip')).toBe('127.0.0.1');
-        expect(map.getElement('url')).toBe('/api/hello/world');
-        expect(map.getElement('parameters.query.x')).toBe('y');
+        expect(map.getElement('event.headers.user-agent')).toBe('async-http-client');
+        expect(map.getElement('event.method')).toBe('GET');
+        expect(map.getElement('event.ip')).toBe('127.0.0.1');
+        expect(map.getElement('event.url')).toBe('/api/hello/world');
+        expect(map.getElement('event.parameters.query.x')).toBe('y');
     });
+
+    it('can do HTTP-GET to /api/hello/concurrent', async () => {
+        const po = new PostOffice();
+        const httpRequest = new AsyncHttpRequest().setMethod('GET');
+        httpRequest.setTargetHost(targetHost).setUrl('/api/hello/concurrent');
+        httpRequest.setQueryParameter('x', 'y');
+        const req = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(httpRequest.toMap());
+        const result = await po.request(req, 3000);
+        expect(result).toBeTruthy();
+        expect(result.getBody()).toBeInstanceOf(Object);
+        const data = result.getBody() as object;
+        expect(Object.keys(data).length).toBe(10);
+        const map = new MultiLevelMap(data);
+        for (let i=1; i <= 10; i++) {
+            expect(map.getElement(`result-${i}.event.headers.user-agent`)).toBe('async-http-client');
+            expect(map.getElement(`result-${i}.event.method`)).toBe('GET');
+            expect(map.getElement(`result-${i}.event.ip`)).toBe('127.0.0.1');
+            expect(map.getElement(`result-${i}.event.url`)).toBe('/api/hello/concurrent');
+            expect(map.getElement(`result-${i}.event.parameters.query.x`)).toBe('y');
+        }
+    });    
 
     it('can catch HTTP-GET exception from /api/hello/world', async () => {
         const po = new PostOffice();

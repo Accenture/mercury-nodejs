@@ -92,7 +92,7 @@ export declare class PostOffice {
      *
      * @param event envelope
      * @param timeout value in milliseconds
-     * @returns a future promise of result or error
+     * @returns a future promise of result event or error
      */
     request(event: EventEnvelope, timeout?: number): Promise<EventEnvelope>;
     /**
@@ -106,6 +106,14 @@ export declare class PostOffice {
      * @returns a future promise of result or error
      */
     remoteRequest(event: EventEnvelope, endpoint: string, securityHeaders?: object, rpc?: boolean, timeout?: number): Promise<EventEnvelope>;
+    /**
+     * Make a fork-n-join RPC call to multiple services
+     *
+     * @param events in a list
+     * @param timeout value in milliseconds
+     * @returns a future promise of a list of result events or error
+     */
+    parallelRequest(events: Array<EventEnvelope>, timeout?: number): Promise<Array<EventEnvelope>>;
 }
 export declare class Sender {
     originator: string;

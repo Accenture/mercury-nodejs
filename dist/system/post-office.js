@@ -211,7 +211,7 @@ export class PostOffice {
      *
      * @param event envelope
      * @param timeout value in milliseconds
-     * @returns a future promise of result or error
+     * @returns a future promise of result event or error
      */
     request(event, timeout = 60000) {
         this.touch(event);
@@ -230,6 +230,19 @@ export class PostOffice {
     remoteRequest(event, endpoint, securityHeaders = {}, rpc = true, timeout = 60000) {
         this.touch(event);
         return self.remoteRequest(event, endpoint, securityHeaders, rpc, timeout);
+    }
+    /**
+     * Make a fork-n-join RPC call to multiple services
+     *
+     * @param events in a list
+     * @param timeout value in milliseconds
+     * @returns a future promise of a list of result events or error
+     */
+    parallelRequest(events, timeout = 60000) {
+        for (const event of events) {
+            this.touch(event);
+        }
+        return self.parallelRequest(events, timeout);
     }
 }
 export class Sender {
@@ -447,6 +460,39 @@ class PO {
                 const status = e instanceof AppException ? e.getStatus() : 500;
                 reject(new AppException(status, e.message));
             });
+        });
+    }
+    parallelRequest(events, timeout = 60000) {
+        return new Promise((resolve, reject) => {
+            // validate events
+            if (events.length == 0) {
+                reject(new AppException(400, 'Input must be not an empty list'));
+            }
+            for (const event of events) {
+                if (!(event instanceof EventEnvelope)) {
+                    reject(new AppException(400, 'Input must be a list of events'));
+                    return;
+                }
+            }
+            // process events
+            let normal = true;
+            const consolidated = new Array();
+            for (const event of events) {
+                this.request(event, timeout)
+                    .then(result => {
+                    if (normal) {
+                        consolidated.push(result);
+                        if (consolidated.length == events.length) {
+                            resolve(consolidated);
+                        }
+                    }
+                })
+                    .catch(e => {
+                    normal = false;
+                    const status = e instanceof AppException ? e.getStatus() : 500;
+                    reject(new AppException(status, e.message));
+                });
+            }
         });
     }
 }

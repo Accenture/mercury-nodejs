@@ -86,9 +86,9 @@ describe('Service tests', () => {
         const po = new PostOffice(new Sender('rpc.demo', '100', '/test/rpc'));
         const req = new EventEnvelope().setTo(HELLO_WORLD).setHeader('n', '1').setBody(TEST_MESSAGE);
         const result = await po.request(req, 2000);
-        expect(result).toBeTruthy();
-        expect(result.getBody()).toBe(TEST_MESSAGE);
-        expect(result.getHeader('n')).toBe('1');
+        expect(result.getBody() instanceof Object).toBe(true);
+        const data = result.getBody() as object;
+        expect(data['event']).toBe(TEST_MESSAGE);
     });
 
     it('can download file from hello.world', async () => {

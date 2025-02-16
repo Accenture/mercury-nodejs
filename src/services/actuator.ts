@@ -120,18 +120,14 @@ export class ActuatorServices implements Composable {
         if (process) {
             for (const k of envVars) {
                 const v = process.env[k];
-                if (v) {
-                    envKv[k] = v;
-                }
+                envKv[k] = v? v : "";
             }
         }
         result.setElement('env.environment', envKv);
         const propKv = {};
         for (const k of propVars) {
             const v = config.get(k);
-            if (v) {
-                propKv[k] = v;
-            }
+            propKv[k] = v? v : "";
         }
         result.setElement('env.properties', propKv);
         return new EventEnvelope().setHeader(CONTENT_TYPE, APPLICATION_JSON).setBody(result.getMap());

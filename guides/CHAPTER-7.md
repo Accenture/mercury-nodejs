@@ -251,6 +251,7 @@ You can make RPC call like this:
 ```javascript
 // example-1
 const event = new EventEnvelope().setTo('hello.world').setBody('test message');
+// the response is a result event
 const result = await po.request(event, 5000);
 
 // example-2
@@ -260,6 +261,27 @@ const result = await po.remoteRequest(event, 'http://peer/api/event');
 request(event: EventEnvelope, timeout = 60000): Promise<EventEnvelope>
 remoteRequest(event: EventEnvelope, endpoint: string, 
               securityHeaders: object = {}, rpc=true, timeout = 60000): Promise<EventEnvelope>
+```
+
+1. Example-1 makes a RPC call with a 5-second timeout to "hello.world".
+2. Example-2 makes an "event over HTTP" RPC call to "hello.world" in another application instance.
+
+"Event over HTTP" is an important topic. Please refer to [Chapter 6](CHAPTER-6.md) for more details.
+
+### Make a fork-n-join parallel RPC
+
+You can make fork-n-join parallel request like this:
+
+```javascript
+// example
+const event1 = new EventEnvelope().setTo('hello.world.1').setBody('test message one');
+const event2 = new EventEnvelope().setTo('hello.world.2').setBody('test message two');
+const events = [event1, event2];
+// the response is a list of result events
+const response = await po.parallelRequest(events, 5000);
+
+// API signature
+parallelRequest(events: Array<EventEnvelope>, timeout = 60000): Promise<Array<EventEnvelope>>
 ```
 
 1. Example-1 makes a RPC call with a 5-second timeout to "hello.world".

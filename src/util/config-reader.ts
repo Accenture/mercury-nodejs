@@ -65,8 +65,10 @@ export class AppConfig {
                 const versionFile = `${resourcePath}/version.txt`;
                 if (fs.existsSync(versionFile)) {
                     const version = fs.readFileSync(versionFile, { encoding: 'utf-8', flag: 'r' });
-                    AppConfig.reader.set('info.app.version', version);
-                    log.info(`Application version ${version}`);
+                    if (version) {
+                        AppConfig.reader.set('info.app.version', version.trim());
+                        log.info(`Application version ${version}`);
+                    }
                 }
             } else {
                 throw new Error('Unable to start configuration management. Did you forget to provide a resource folder path?');

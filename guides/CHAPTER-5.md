@@ -316,7 +316,7 @@ You would need to update "scripts.pull" command and the "dependencies" section a
 The "scripts.pull" command is used to pull the latest code from your enterprise artifactory and the
 "mercury-composable" entry in the "dependencies" section is an alias to your published package.
 
-Once you have updated the package.json file in the "examples" folder, you run "npm run build". This verifies
+Once you have updated the package.json file in the "examples" folder, you may run "npm run build". This verifies
 that the example application can import from the newly published mercury-composable core library in your own
 artifactory.
 <br/>

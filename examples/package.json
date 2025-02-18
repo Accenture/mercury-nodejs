@@ -10,7 +10,7 @@
   "license": "Apache-2.0",
   "scripts": {
     "clean": "node clean.js && node placeholder.js",
-    "pull": "npm uninstall mercury && npm install https://github.com/Accenture/mercury-nodejs",
+    "pull": "npm uninstall mercury-composable && npm install https://github.com/Accenture/mercury-nodejs",
     "preload": "node preloader.js",
     "prebuild": "npm run lint",
     "build": "npm run preload && tsc -p tsconfig.json && node copy-resource-files.js",

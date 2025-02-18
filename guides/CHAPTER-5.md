@@ -281,30 +281,44 @@ trace={path=/api/upload/demo, service=hello.upload, success=true,
 The system will detect if `distributed.trace.forwarder` is available. If yes, it will forward performance metrics
 from distributed trace to your custom function.
 
-## Request-response journaling
+## "npm" alias for mercury-composable core library
 
-Optionally, you may also implement a custom audit function named `transaction.journal.recorder` to monitor
-request-response payloads.
+While you may use github as a repository to test drive your applications, you would need to build and publish the
+mercury-composable library to your enterprise "npm" artifactory. Please consult your DevSecOps colleagues for
+pipeline setup procedure. It would vary from one organization to another.
 
-To enable journaling, please add this to the application.properties file.
+If you publish the mercury-composable to your own artifactory as another package name, you would add a "npm alias"
+in the package.json of your application like this:
 
-```properties
-journal.yaml=classpath:/journal.yaml
+```shell
+  "scripts": {
+    "clean": "node clean.js && node placeholder.js",
+    "pull": "npm uninstall actual-published-package-name && npm install actual-published-package-name",
+    "preload": "node preloader.js",
+    "prebuild": "npm run lint",
+    "build": "npm run preload && tsc -p tsconfig.json && node copy-resource-files.js",
+    "build:watch": "tsc -w -p tsconfig.json",
+    "lint": "eslint . --fix",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --detectOpenHandles",
+    "test:watch": "jest --watch"
+  },
+  "dependencies": {
+    "actual-published-package-name": "^4.2.15",
+    "mercury-composable": "npm:actual-published-package-name"
+  }
 ```
-and add the "journal.yaml" configuration file to the project's resources folder with content like this:
 
-```yaml
-journal:
-  - "my.test.function"
-  - "another.function"
-```
+In the above example, it assumes the actual package name that is published from mercury-composable core library
+is "actual-published-package-name", the package name "mercury-composable" becomes an alias so that you can keep
+the import statements that point to "mercury-composable" unchanged.
 
-In the above example, the "my.test.function" and "another.function" will be monitored and their request-response
-payloads will be forwarded to your custom audit function. The input to your audit function will be a HashMap
-containing the performance metrics data and a "journal" section with the request and response payloads in clear form.
+You would need to update "scripts.pull" command and the "dependencies" section accordingly.
+The "scripts.pull" command is used to pull the latest code from your enterprise artifactory and the
+"mercury-composable" entry in the "dependencies" section is an alias to your published package.
 
-> *IMPORTANT*: journaling may contain sensitive personally identifiable data and secrets. Please check
-  security compliance before storing them into access restricted audit data store.
+Once you have updated the package.json file in the "examples" folder, you run "npm run build". This verifies
+that the example application can import from the newly published mercury-composable core library in your own
+artifactory.
 <br/>
 
 |              Chapter-4              |                   Home                    |            Chapter-6            |

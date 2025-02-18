@@ -21,7 +21,8 @@ N/A
 
 ### Changed
 
-N/A
+Updated Developer Guide's Chapter 5 to describe publishing mercury-composable core
+library to enterprise npm artifactory
 
 ---
 ## Version 4.2.14, 2/14/2025

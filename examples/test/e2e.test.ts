@@ -21,6 +21,7 @@ describe('End-to-end tests', () => {
         const port = config.get('server.port');
         targetHost = `http://127.0.0.1:${port}`;
         log.info(`Begin end-to-end tests with port ${port}`);
+        await Platform.getInstance().getReady();
     });
 
     afterAll(async () => {

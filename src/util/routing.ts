@@ -1,6 +1,7 @@
 import { Logger } from './logger.js';
 import { Utility } from './utility.js';
 import { ConfigReader } from './config-reader.js';
+import { MultiLevelMap } from './multi-level-map.js';
 
 const log = Logger.getInstance();
 const util = new Utility();
@@ -33,7 +34,7 @@ const ASYNC_HTTP_REQUEST = "async.http.request";
 const VALID_METHODS = ['GET', 'PUT', 'POST', 'DELETE', 'HEAD', 'PATCH', 'OPTIONS'];
 const OPTIONS_METHOD = 'OPTIONS';
 
-let self: RestEntry = null;
+let self: RestEntry;
 
 /**
  * This is reserved for system use.
@@ -42,7 +43,7 @@ let self: RestEntry = null;
 export class RoutingEntry {
 
     constructor() {
-        if (self == null) {
+        if (self === undefined) {
             self = RestEntry.getInstance();
         }
     }
@@ -201,34 +202,29 @@ class RestEntry {
             const rest = config.get(REST);
             if (Array.isArray(rest)) {
                 this.loadRest(config, rest.length);
+                const exact = Array.from(this.exactRoutes.keys());
+                if (exact.length > 0) {
+                    log.info({'type': 'url', 'match': 'exact', 'total': exact.length, 'path': exact.sort()});
+                }
+                // sort URL for easy parsing
+                if (this.routes.size > 0) {
+                    const routeList = Array.from(this.routes.keys());
+                    routeList.forEach(r => {
+                        const colon = r.indexOf(':');
+                        if (colon > 0) {
+                            const urlOnly = r.substring(colon+1);
+                            if (!this.exactRoutes.has(urlOnly) && !this.urlPaths.includes(urlOnly)) {
+                                this.urlPaths.push(urlOnly);
+                            }
+                        }
+                    });
+                }
+                if (this.urlPaths.length > 0) {
+                    log.info({'type': 'url', 'match': 'parameters', 'total': this.urlPaths.length, 'path': this.urlPaths.sort()});
+                } 
             } else {
                 log.error("'rest' section must be a list of endpoint entries (url, service, methods, timeout...)");
-            }
-            const exact = Array.from(this.exactRoutes.keys()).sort();
-            if (exact.length > 0) {
-                const s = exact.length == 1? 's' : '';
-                const message = String(exact).replaceAll(',', ', ');
-                log.info(`Exact API path${s} [${message}]`);
-            }
-            // sort URL for easy parsing
-            if (this.routes.size > 0) {
-                const routeList = Array.from(this.routes.keys());
-                routeList.forEach(r => {
-                    const colon = r.indexOf(':');
-                    if (colon > 0) {
-                        const urlOnly = r.substring(colon+1);
-                        if (!this.exactRoutes.has(urlOnly) && !this.urlPaths.includes(urlOnly)) {
-                            this.urlPaths.push(urlOnly);
-                        }
-                    }
-                });
-            }
-            this.urlPaths.sort();
-            if (this.urlPaths.length > 0) {
-                const s = this.urlPaths.length == 1? 's' : '';
-                const message = String(this.urlPaths).replaceAll(',', ', ');
-                log.info(`Wildcard API path${s} [${message}]`);
-            }            
+            }           
         }
     } 
 
@@ -362,14 +358,34 @@ class RestEntry {
     }
 
     loadRest(config: ConfigReader, total: number): void {
+        // perform custom sort in ascending order of URL, methods and services
+        const keys = [];
         for (let i=0; i < total; i++) {
             const services = config.get(REST+"["+i+"]."+SERVICE);
             const methods = config.get(REST+"["+i+"]."+METHODS);
             const url = config.getProperty(REST+"["+i+"]."+URL_LABEL);
             if (url && Array.isArray(methods) && (typeof services == 'string' || Array.isArray(services))) {
-                this.loadRestEntry(config, i, !url.includes("{") && !url.includes("}") && !url.includes("*"));
+                keys.push(`${url}|${JSON.stringify(methods)}|${JSON.stringify(services)}|${i}`);
             } else {                
                 log.error(`Skip invalid REST entry ${config.get(REST+"["+i+"]")}`);
+            }
+        }
+        keys.sort();
+        // generate the sorted REST entries
+        const mm = new MultiLevelMap();
+        let n = 0;
+        for (const k of keys) {     
+            const idx = util.str2int(k.substring(k.lastIndexOf('|') + 1));
+            mm.setElement(REST+"["+n+"]", config.get(REST+"["+idx+"]"));
+            n++;
+        }
+        const sortedConfig = new ConfigReader(mm.getMap());
+        for (let i=0; i < total; i++) {
+            const services = sortedConfig.get(REST+"["+i+"]."+SERVICE);
+            const methods = sortedConfig.get(REST+"["+i+"]."+METHODS);
+            const url = sortedConfig.getProperty(REST+"["+i+"]."+URL_LABEL);
+            if (url && Array.isArray(methods) && (typeof services == 'string' || Array.isArray(services))) {
+                this.loadRestEntry(sortedConfig, i, !url.includes("{") && !url.includes("}") && !url.includes("*"));
             }
         }
     }
@@ -535,23 +551,23 @@ class RestEntry {
             if (nUrl) {
                 info.url = nUrl;
                 const allMethods = new Set<string>(methods);
+                // ensure OPTIONS method is supported
                 allMethods.add(OPTIONS_METHOD);
                 allMethods.forEach(m => {
                     const key = m+':'+nUrl;
                     this.routes.set(key, info);
-                    if (m == OPTIONS_METHOD) {
-                        log.info(`${m} ${nUrl} -> ${info.services}, timeout=${info.timeoutSeconds}s`);
-                    } else if (info.defaultAuthService) {
-                        log.info(`${m} ${nUrl} -> ${info.defaultAuthService} -> ${info.services}, timeout=${info.timeoutSeconds}s, tracing=${info.tracing}`);
-                    } else {
-                        log.info(`${m} ${nUrl} -> ${info.services}, timeout=${info.timeoutSeconds}s, tracing=${info.tracing}`);
+                    if (m != OPTIONS_METHOD) {
+                        const flowHint = info.flowId? `, flow=${info.flowId}` : '';
+                        if (info.defaultAuthService) {
+                            log.info(`${m} ${nUrl} -> ${info.defaultAuthService} -> ${info.services}, timeout=${info.timeoutSeconds}s, tracing=${info.tracing}${flowHint}`);
+                        } else {
+                            log.info(`${m} ${nUrl} -> ${info.services}, timeout=${info.timeoutSeconds}s, tracing=${info.tracing}${flowHint}`);
+                        }
                     }
                 });
-
             } else {
                 log.error(`Skipping invalid entry ${config.get(REST+"["+idx+"]")}`);
             }
-
         } else {
             log.error(`Skipping entry with invalid method ${config.get(REST+"["+idx+"]")}`);
         }
@@ -749,6 +765,4 @@ class RestEntry {
         }
         return true;
     }
-
 }
-

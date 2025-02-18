@@ -67,15 +67,15 @@ export class ComposableLoader {
                     const md = registry.getMetadata(name) as object;
                     const instances = md['instances'] as number;
                     const isPrivate = md['private'] as boolean;
-                    const isInterceptor = md['interceptor'] as boolean;
-                    platform.register(name, registry.getClass(name), instances, isPrivate, isInterceptor);
+                    const interceptor = md['interceptor'] as boolean;
+                    platform.register(name, registry.getClass(name), instances, isPrivate, interceptor);
                 }
+                // start Event Script system
                 const eventManager = new EventScriptEngine();
                 eventManager.start();
-                // start REST automation engine
-                const restEnabled = 'true' == config.getProperty('rest.automation');
-                if (restEnabled) {
-                    const server = new RestAutomation();
+                // start REST automation system
+                if ('true' == config.getProperty('rest.automation')) {
+                    const server = RestAutomation.getInstance();
                     server.start();
                 }
             } catch (e) {

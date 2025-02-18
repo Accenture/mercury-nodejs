@@ -17,7 +17,9 @@ export class TemporaryInbox implements Composable {
     static routeName = TEMPORARY_INBOX;
 
     initialize(): Composable {
-        po = new PostOffice();
+        if (po === undefined) {
+            po = new PostOffice();
+        }        
         return this;
     }
 

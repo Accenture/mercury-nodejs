@@ -12,6 +12,8 @@ async function main() {
     ComposableLoader.initialize();
     const platform = Platform.getInstance();
     platform.runForever();
+    // wait for platform to load essential services
+    await platform.getReady();
     log.info('Composable application started');
 }
 // run the application

@@ -272,7 +272,7 @@ export class ConfigReader {
     getProperty(key, defaultValue) {
         const result = this.get(key, defaultValue);
         // make sure empty space is returned as is
-        return result == null || result == undefined ? null : String(result);
+        return result == null || result === undefined ? null : String(result);
     }
     /**
      * Set a key-value

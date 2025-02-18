@@ -15,46 +15,59 @@ export declare class FunctionRegistry {
      * @param that is the class instance of the Composable function
      * @param instances for concurrency
      * @param isPrivate is false if function is visible thru event-over-http
-     * @param isInterceptor is true if function is an event interceptor
+     * @param interceptor is true if function is an event interceptor
      */
-    save(route: string, that: object, instances: number, isPrivate: boolean, isInterceptor: boolean): void;
+    save(route: string, that: object, instances: number, isPrivate: boolean, interceptor: boolean): void;
     /**
-     * Remove a composable function from the registry by name.
+     * Declare that this route is loaded with a composable function
      *
-     * @param name of the function
+     * @param route name of the composable function
      */
-    remove(name: string): void;
+    load(route: string): void;
+    /**
+     * Check if this route is loaded into the event system
+     *
+     * @param route name of the composable function
+     * @returns true if loaded
+     */
+    isLoaded(route: string): boolean;
+    /**
+     * Remove a composable function from the registry by route name.
+     *
+     * @param route of the function
+     */
+    remove(route: string): void;
     /**
      * Retrieve metadata for the composable function
      *
-     * @param name of the function
+     * @param route name of the function
      * @returns map of key-values
      */
-    getMetadata(name: string): object;
+    getMetadata(route: string): object;
     /**
      * Retrieve a function by name so that you can register it programmatically.
      * The "PreLoader" will also use this to find functions to register them
      * declaratively.
      *
-     * @param name of the function
+     * @param route name of the function
      * @returns the function that was previously saved by a library
      */
-    get(name: string): (evt: EventEnvelope) => void;
+    get(route: string): (evt: EventEnvelope) => void;
     /**
      * Retrieve the class instance of a function
      * (this would be used to invoke other methods in the same class)
      *
-     * @param name of the function
+     * @param route name of the function
      * @returns the Composable class holding the function
      */
-    getClass(name: string): object;
+    getClass(route: string): object;
     /**
      * Check if a function exists in registry
      *
-     * @param name of the function
+     * @param route name of the function
      * @returns true if the function exists
      */
-    exists(name?: string): boolean;
+    exists(route?: string): boolean;
     /**
      * Retrieve all function names in registry
      *

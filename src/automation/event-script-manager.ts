@@ -11,7 +11,6 @@ import { TaskExecutor } from './task-executor.js';
 import { HttpToFlow } from '../adapters/http-to-flow.js';
 
 const log = Logger.getInstance();
-
 const EVENT_MANAGER = "event.script.manager";
 const TASK_EXECUTOR = "task.executor";
 const HTTP_FLOW_ADAPTER = "http.flow.adapter";
@@ -26,14 +25,15 @@ let started = false;
  */
 export class EventScriptEngine {
 
-    start(): void {
+    async start() {
         if (!started) {
             started = true;
+            const platform = Platform.getInstance();
+            await platform.getReady();
             // compile flows
             const compileFlow = new CompileFlows();
             compileFlow.start();
             // register system functions for event flow processing
-            const platform = Platform.getInstance();
             platform.register(EVENT_MANAGER, new EventScriptManager(), 1, true, true);
             platform.register(TASK_EXECUTOR, new TaskExecutor(), 1, true, true);
             platform.register(HTTP_FLOW_ADAPTER, new HttpToFlow(), 200, true, true);
@@ -46,6 +46,7 @@ export class EventScriptManager implements Composable {
     initialize(): Composable {
         return this;
     }
+    
     async handleEvent(event: EventEnvelope) {
         const po = new PostOffice(event.getHeaders());
         const self = po.getMyClass() as EventScriptManager;

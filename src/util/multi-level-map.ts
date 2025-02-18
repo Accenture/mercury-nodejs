@@ -47,7 +47,7 @@ function removeMapElement(pathname: string, map: object): void {
 
 function setMapElement(pathname: string, value, map: object, remove = false): void {
     validateCompositePathSyntax(pathname);
-    const nullValue = value == null || value == undefined;
+    const nullValue = value == null || value === undefined;
     // ignore null value
     if (pathname && !nullValue && map.constructor == Object) {
         const list = pathname.split(/[./]+/).filter(v => v.length > 0);

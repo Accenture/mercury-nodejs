@@ -39,6 +39,7 @@ describe('Service tests', () => {
         ComposableLoader.initialize();
         platform = Platform.getInstance();
         platform.runForever();
+        await platform.getReady();
     });
 
     afterAll(async () => {

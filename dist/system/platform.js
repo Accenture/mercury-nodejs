@@ -3,6 +3,7 @@ import { Logger } from '../util/logger.js';
 import { Utility } from '../util/utility.js';
 import { FunctionRegistry } from "./function-registry.js";
 import { PostOffice } from '../system/post-office.js';
+import { RestAutomation } from '../system/rest-automation.js';
 import { DistributedTrace } from '../services/tracer.js';
 import { AsyncHttpClient } from '../services/async-http-client.js';
 import { ActuatorServices } from '../services/actuator.js';
@@ -79,12 +80,22 @@ async function checkExpiredStreams() {
         }
     }
 }
+function ready() {
+    log.info('To stop application, press Control-C');
+}
 export class Platform {
     static singleton;
     constructor() {
-        self = new EventSystem();
-        startTime = new Date();
+        if (startTime === undefined) {
+            startTime = new Date();
+            self = new EventSystem();
+        }
     }
+    /**
+     * Obtain the singleton instance of Platform
+     *
+     * @returns instance
+     */
     static getInstance() {
         if (Platform.singleton === undefined) {
             Platform.singleton = new Platform();
@@ -99,6 +110,11 @@ export class Platform {
     getOriginId() {
         return self.getOriginId();
     }
+    /**
+     * Retrieve application name
+     *
+     * @returns application name
+     */
     getName() {
         if (appName === undefined) {
             const config = AppConfig.getInstance();
@@ -106,8 +122,34 @@ export class Platform {
         }
         return appName;
     }
+    /**
+     * Retrieve the system's start time
+     *
+     * @returns start time
+     */
     getStartTime() {
         return startTime;
+    }
+    /**
+     * Wait for the platform system to load essential services
+     *
+     * @returns true
+     */
+    async getReady() {
+        // check if essential services are loaded
+        let t1 = new Date().getTime();
+        while (!po.exists(TemporaryInbox.routeName)) {
+            await util.sleep(1);
+            // The platform should be ready very quickly.
+            // If there is something that blocks it from starting up,
+            // this would print alert every two seconds.
+            const now = new Date().getTime();
+            if (now - t1 >= 2000) {
+                t1 = now;
+                log.warn('Waiting for platform to get ready');
+            }
+        }
+        return true;
     }
     /**
      * Register a composable class with a route name.
@@ -127,20 +169,10 @@ export class Platform {
      * @param composable class implementing the initialize and handleEvent methods
      * @param instances number of workers for this function
      * @param isPrivate true or false
-     * @param isInterceptor true or false
+     * @param interceptor true or false
      */
-    register(route, composable, instances = 1, isPrivate = true, isInterceptor = false) {
-        if ('initialize' in composable && 'handleEvent' in composable &&
-            composable.initialize instanceof Function && composable.handleEvent instanceof Function) {
-            if (!registry.exists(route)) {
-                registry.save(route, composable, instances, isPrivate, isInterceptor);
-                composable.initialize();
-            }
-            self.register(route, composable.handleEvent, instances, isPrivate, isInterceptor);
-        }
-        else {
-            throw new Error(`Unable to register ${route} because the given function is not a Composable`);
-        }
+    register(route, composable, instances = 1, isPrivate = true, interceptor = false) {
+        self.register(route, composable, instances, isPrivate, interceptor);
     }
     /**
      * Release a previously registered function
@@ -185,7 +217,7 @@ export class Platform {
 class ServiceManager {
     route;
     isPrivate;
-    isInterceptor;
+    interceptor;
     eventQueue = [];
     workers = [];
     constructor(route, listener, instances = 1, isPrivate = false, interceptor = false) {
@@ -202,7 +234,7 @@ class ServiceManager {
         }
         this.route = route;
         this.isPrivate = isPrivate;
-        this.isInterceptor = interceptor;
+        this.interceptor = interceptor;
         const total = Math.max(1, instances);
         //
         // Worker event listeners
@@ -296,7 +328,7 @@ class ServiceManager {
         let traced = false;
         const diff = parseFloat((performance.now() - start).toFixed(3));
         const replyTo = evt.getReplyTo();
-        if (replyTo && !this.isInterceptor) {
+        if (replyTo && !this.interceptor) {
             if (this.route == replyTo) {
                 log.error(`Response event dropped to avoid looping to ${replyTo}`);
             }
@@ -451,13 +483,12 @@ class ServiceManager {
 }
 class EventSystem {
     static instance;
-    registered = new Map();
     forever = false;
     stopping = false;
     constructor() {
         if (EventSystem.instance === undefined) {
             EventSystem.instance = this;
-            const config = AppConfig.getInstance();
+            log.info(`Starting event system - id: ${po.getId()}`);
             if (process) {
                 // monitor shutdown signals
                 process.on('SIGTERM', () => {
@@ -473,56 +504,60 @@ class EventSystem {
                     }
                 });
             }
-            // Event system ready
-            log.info(`Event system started - ${po.getId()}`);
+            this.start();
+        }
+    }
+    start() {
+        setImmediate(() => {
+            const config = AppConfig.getInstance();
             // load event-over-http.yaml if present
             const yamlFile = config.getProperty('yaml.event.over.http');
             if (yamlFile) {
                 po.loadHttpRoutes(yamlFile, new ConfigReader(yamlFile));
             }
             // load essential services
-            const tracer = new DistributedTrace().initialize();
-            const httpClient = new AsyncHttpClient().initialize();
-            const tempInbox = new TemporaryInbox().initialize();
-            const actuator = new ActuatorServices().initialize();
-            const eventApi = new EventApiService().initialize();
-            this.register(DistributedTrace.routeName, tracer.handleEvent, 1, true, true);
-            this.register(AsyncHttpClient.routeName, httpClient.handleEvent, 200, true, true);
-            this.register(TemporaryInbox.routeName, tempInbox.handleEvent, 200, true, true);
-            this.register(ActuatorServices.infoService, actuator.handleEvent, 10);
-            this.register(ActuatorServices.routeService, actuator.handleEvent, 10);
-            this.register(ActuatorServices.healthService, actuator.handleEvent, 10);
-            this.register(ActuatorServices.livenessService, actuator.handleEvent, 10);
-            this.register(ActuatorServices.envService, actuator.handleEvent, 10);
-            this.register(EventApiService.routeName, eventApi.handleEvent, 200);
+            const actuator = new ActuatorServices();
+            this.register(ActuatorServices.infoService, actuator, 10);
+            this.register(ActuatorServices.routeService, actuator, 10);
+            this.register(ActuatorServices.healthService, actuator, 10);
+            this.register(ActuatorServices.livenessService, actuator, 10);
+            this.register(ActuatorServices.envService, actuator, 10);
+            this.register(DistributedTrace.routeName, new DistributedTrace(), 1, true, true);
+            this.register(AsyncHttpClient.routeName, new AsyncHttpClient(), 200, true, true);
+            this.register(EventApiService.routeName, new EventApiService(), 200);
+            this.register(TemporaryInbox.routeName, new TemporaryInbox(), 200, true, true);
+            const diff = new Date().getTime() - startTime.getTime();
+            log.info(`Event system started in ${diff} ms`);
+        });
+        setTimeout(() => {
             // clean up expired streams that are left over in previous execution
-            setTimeout(() => {
-                checkExpiredStreams();
-            }, 2000);
-        }
+            checkExpiredStreams();
+        }, 100);
     }
     getOriginId() {
         return po.getId();
     }
-    register(route, listener, instances = 1, isPrivate = true, interceptor = false) {
-        if (route) {
-            if (!util.validRouteName(route)) {
-                throw new Error('Invalid route name - use 0-9, a-z, period, hyphen or underscore characters');
+    register(route, composable, instances = 1, isPrivate = true, interceptor = false) {
+        if (route && util.validRouteName(route)) {
+            if (registry.isLoaded(route)) {
+                log.warn(`Reloading ${route} service`);
+                this.release(route);
             }
-            if (listener instanceof Function) {
-                if (this.registered.has(route)) {
-                    log.warn(`Reloading ${route} service`);
-                    this.release(route);
+            if ('initialize' in composable && 'handleEvent' in composable &&
+                composable.initialize instanceof Function && composable.handleEvent instanceof Function) {
+                if (!registry.exists(route)) {
+                    registry.save(route, composable, instances, isPrivate, interceptor);
+                    composable.initialize();
                 }
-                new ServiceManager(route, listener, instances, isPrivate, interceptor);
-                this.registered.set(route, true);
+                new ServiceManager(route, composable.handleEvent, instances, isPrivate, interceptor);
+                registry.load(route);
             }
             else {
-                throw new Error('Not a composable function');
+                throw new Error(`Unable to register ${route} because the given function is not a Composable`);
             }
         }
         else {
-            throw new Error('Missing route');
+            throw new Error('Check route name - use 0-9, a-z, period, hyphen or underscore characters');
         }
     }
     release(route) {
@@ -536,7 +571,6 @@ class EventSystem {
                 unsubscribe(route + "#" + i);
             }
             registry.remove(route);
-            this.registered.delete(route);
             log.info((isPrivate ? 'PRIVATE ' : 'PUBLIC ') + route + ' released');
         }
     }
@@ -575,7 +609,13 @@ class EventSystem {
     async runForever() {
         if (!this.forever) {
             this.forever = true;
-            log.info('To stop application, press Control-C');
+            // print ready later
+            await Platform.getInstance().getReady();
+            const config = AppConfig.getInstance();
+            if ('true' == config.getProperty('rest.automation')) {
+                await RestAutomation.getInstance().getReady();
+            }
+            ready();
             let t1 = Date.now();
             while (!this.isStopping()) {
                 const now = Date.now();

@@ -45,23 +45,38 @@ const HTML_END = '\n</pre></body></html>';
 const REST_AUTOMATION_HOUSEKEEPER = "rest.automation.housekeeper";
 const ASYNC_HTTP_RESPONSE = "async.http.response";
 const STREAM_CONTENT = 'x-stream-id';
-
 const DEFAULT_SERVER_PORT = 8086;
 
+let loaded = false;
 let server: Server = null;
 let running = false;
+let self: RestEngine;
 
-let self: RestEngine = null;
+function ready(port: number) {
+    const now = new Date();
+    const diff = now.getTime() - Platform.getInstance().getStartTime().getTime();
+    log.info(`Modules loaded in ${diff} ms`);
+    log.info(`Reactive HTTP server running on port ${port}`);
+    loaded = true;
+}
 
 export class RestAutomation {
+    private static singleton: RestAutomation;
 
     /**
      * Enable REST automation
      */
-    constructor() {
-        if (self == null) {
+    private constructor() {
+        if (self === undefined) {
             self = new RestEngine();
         }
+    }
+
+    static getInstance(): RestAutomation {
+        if (RestAutomation.singleton === undefined) {
+            RestAutomation.singleton = new RestAutomation();
+        }
+        return RestAutomation.singleton;
     }
 
     /**
@@ -71,7 +86,9 @@ export class RestAutomation {
      * rest.yaml file to accept the configured REST endpoints.
      * Otherwise, it will skip REST automation and provide basic actuator endpoints such as /info and /health
      */
-    start(): void {
+    async start() {
+        const platform = Platform.getInstance();
+        await platform.getReady();
         self.startHttpServer();
     }
 
@@ -83,6 +100,29 @@ export class RestAutomation {
     async stop() {
         return await self.close();
     }
+
+    /**
+     * Wait for the REST automation system to be ready
+     * 
+     * @returns true
+     */
+    async getReady() {
+        // check if essential services are loaded
+        let t1 = new Date().getTime();
+        while(!loaded) {
+            await util.sleep(1);
+            // REST automation system should be ready very quickly.
+            // If there is something that blocks it from starting up,
+            // this would print alert every two seconds.
+            const now = new Date().getTime();
+            if (now - t1 >= 2000) {
+                t1 = now;
+                log.warn('Waiting for REST automation system to get ready');
+                return false;
+            }
+        }
+        return true;
+    }    
 
     /**
      * Optional: Setup additional Express middleware
@@ -269,19 +309,22 @@ class RestEngine {
     private connections = new Map<number, Socket>();
 
     constructor() {
-        const config = AppConfig.getInstance();
-        this.traceIdLabels = config.getProperty('trace.http.header', 'x-trace-id')
-                            .split(',').filter(v => v.length > 0).map(v => v.toLowerCase());
-        if (!this.traceIdLabels.includes('x-trace-id')) {
-            this.traceIdLabels.push('x-trace-id');
+        if (this.traceIdLabels === undefined) {        
+            const config = AppConfig.getInstance();
+            this.traceIdLabels = config.getProperty('trace.http.header', 'x-trace-id')
+                                .split(',').filter(v => v.length > 0).map(v => v.toLowerCase());
+            if (!this.traceIdLabels.includes('x-trace-id')) {
+                this.traceIdLabels.push('x-trace-id');
+            }
         }
     }
 
-    startHttpServer(): void {
+    async startHttpServer() {
         if (!this.loaded) {
-            this.loaded = true;
+            this.loaded = true;            
             let restEnabled = false;
             const platform = Platform.getInstance();
+            await platform.getReady();
             // register async.http.response and rest.automation.manager
             platform.register(ASYNC_HTTP_RESPONSE, new AsyncHttpResponse(), 200);
             platform.register(REST_AUTOMATION_HOUSEKEEPER, new HouseKeeper());
@@ -417,10 +460,10 @@ class RestEngine {
             // start HTTP server
             server = app.listen(port, '0.0.0.0', () => {
                 running = true;
-                const now = new Date();
-                const diff = now.getTime() - platform.getStartTime().getTime();
-                log.info(`Modules loaded in ${diff} ms`);
-                log.info(`Reactive HTTP server running on port ${port}`);
+                // yield so that this is printed after all other processes are done
+                setImmediate(() => {
+                    ready(port);
+                }); 
             });
             // set server side socket timeout
             server.setTimeout(60000);

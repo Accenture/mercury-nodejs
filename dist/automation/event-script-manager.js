@@ -19,14 +19,15 @@ let started = false;
  * DO NOT use this directly in your application code.
  */
 export class EventScriptEngine {
-    start() {
+    async start() {
         if (!started) {
             started = true;
+            const platform = Platform.getInstance();
+            await platform.getReady();
             // compile flows
             const compileFlow = new CompileFlows();
             compileFlow.start();
             // register system functions for event flow processing
-            const platform = Platform.getInstance();
             platform.register(EVENT_MANAGER, new EventScriptManager(), 1, true, true);
             platform.register(TASK_EXECUTOR, new TaskExecutor(), 1, true, true);
             platform.register(HTTP_FLOW_ADAPTER, new HttpToFlow(), 200, true, true);

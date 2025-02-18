@@ -23,15 +23,15 @@ export class FunctionRegistry {
      * @param that is the class instance of the Composable function
      * @param instances for concurrency
      * @param isPrivate is false if function is visible thru event-over-http
-     * @param isInterceptor is true if function is an event interceptor
+     * @param interceptor is true if function is an event interceptor
      */
-    save(route, that, instances, isPrivate, isInterceptor) {
+    save(route, that, instances, isPrivate, interceptor) {
         // save only when it does not exist to guarantee idempotent property
         if (!this.exists(route)) {
             if ('initialize' in that && 'handleEvent' in that &&
                 that.initialize instanceof Function && that.handleEvent instanceof Function) {
                 log.info(`Loading ${that.constructor.name} as ${route}`);
-                this.registry.save(route, that, instances, isPrivate, isInterceptor);
+                this.registry.save(route, that, instances, isPrivate, interceptor);
             }
             else {
                 log.error(`Unable to load ${this.constructor.name} because it does not implement Composable`);
@@ -39,51 +39,68 @@ export class FunctionRegistry {
         }
     }
     /**
-     * Remove a composable function from the registry by name.
+     * Declare that this route is loaded with a composable function
      *
-     * @param name of the function
+     * @param route name of the composable function
      */
-    remove(name) {
-        this.registry.remove(name);
+    load(route) {
+        this.registry.load(route);
+    }
+    /**
+     * Check if this route is loaded into the event system
+     *
+     * @param route name of the composable function
+     * @returns true if loaded
+     */
+    isLoaded(route) {
+        return this.registry.isLoaded(route);
+    }
+    /**
+     * Remove a composable function from the registry by route name.
+     *
+     * @param route of the function
+     */
+    remove(route) {
+        this.registry.remove(route);
     }
     /**
      * Retrieve metadata for the composable function
      *
-     * @param name of the function
+     * @param route name of the function
      * @returns map of key-values
      */
-    getMetadata(name) {
-        return this.registry.getMetadata(name);
+    getMetadata(route) {
+        return this.registry.getMetadata(route);
     }
     /**
      * Retrieve a function by name so that you can register it programmatically.
      * The "PreLoader" will also use this to find functions to register them
      * declaratively.
      *
-     * @param name of the function
+     * @param route name of the function
      * @returns the function that was previously saved by a library
      */
-    get(name) {
-        return this.registry.get(name);
+    get(route) {
+        return this.registry.get(route);
     }
     /**
      * Retrieve the class instance of a function
      * (this would be used to invoke other methods in the same class)
      *
-     * @param name of the function
+     * @param route name of the function
      * @returns the Composable class holding the function
      */
-    getClass(name) {
-        return this.registry.getClass(name);
+    getClass(route) {
+        return this.registry.getClass(route);
     }
     /**
      * Check if a function exists in registry
      *
-     * @param name of the function
+     * @param route name of the function
      * @returns true if the function exists
      */
-    exists(name) {
-        return name ? this.registry.exists(name) : false;
+    exists(route) {
+        return route ? this.registry.exists(route) : false;
     }
     /**
      * Retrieve all function names in registry
@@ -98,6 +115,7 @@ class SimpleRegistry {
     static instance;
     registry = new Map();
     metadata = new Map();
+    loaded = new Map();
     constructor() { }
     static getInstance() {
         if (SimpleRegistry.instance === undefined) {
@@ -105,27 +123,28 @@ class SimpleRegistry {
         }
         return SimpleRegistry.instance;
     }
-    save(route, that, instances, isPrivate, isInterceptor) {
+    save(route, that, instances, isPrivate, interceptor) {
         if (route && 'initialize' in that && 'handleEvent' in that
             && that['initialize'] instanceof Function && that['handleEvent'] instanceof Function) {
             this.registry.set(route, that);
-            this.metadata.set(route, { 'instances': instances, 'private': isPrivate, 'interceptor': isInterceptor });
+            this.metadata.set(route, { 'instances': instances, 'private': isPrivate, 'interceptor': interceptor });
         }
         else {
             throw new Error('Invalid Composable class');
         }
     }
-    remove(name) {
-        if (this.exists(name)) {
-            this.registry.delete(name);
-            this.metadata.delete(name);
+    remove(route) {
+        if (this.exists(route)) {
+            this.registry.delete(route);
+            this.metadata.delete(route);
+            this.loaded.delete(route);
         }
     }
-    getMetadata(name) {
-        return this.metadata.get(name);
+    getMetadata(route) {
+        return this.metadata.get(route);
     }
-    get(name) {
-        const cls = this.registry.get(name);
+    get(route) {
+        const cls = this.registry.get(route);
         if (cls && 'handleEvent' in cls) {
             return cls['handleEvent'];
         }
@@ -133,12 +152,19 @@ class SimpleRegistry {
             return null;
         }
     }
-    getClass(name) {
-        const cls = this.registry.get(name);
-        return cls ? cls : null;
+    getClass(route) {
+        return this.registry.has(route) ? this.registry.get(route) : null;
     }
-    exists(name) {
-        return this.get(name) != null;
+    exists(route) {
+        return this.registry.has(route);
+    }
+    load(route) {
+        if (this.exists(route)) {
+            this.loaded.set(route, true);
+        }
+    }
+    isLoaded(route) {
+        return this.loaded.has(route);
     }
     getFunctionList() {
         return Array.from(this.registry.keys());

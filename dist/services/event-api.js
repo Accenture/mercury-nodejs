@@ -17,7 +17,9 @@ let platform;
 export class EventApiService {
     static routeName = EVENT_API_SERVICE;
     initialize() {
-        platform = Platform.getInstance();
+        if (platform === undefined) {
+            platform = Platform.getInstance();
+        }
         return this;
     }
     async handleEvent(evt) {

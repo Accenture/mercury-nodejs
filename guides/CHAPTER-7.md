@@ -103,8 +103,8 @@ export class DemoAuth implements Composable {
 }
 ```
 
-You can define route name, instances, isPublic and isInterceptor in the `preload` annotation.
-The default values are instances=1, isPublic=false and isInterceptor=false. In the example, 
+You can define route name, instances, isPublic and interceptor in the `preload` annotation.
+The default values are instances=1, isPublic=false and interceptor=false. In the example, 
 the number of instances is set to 5. You can set the number of instances from 1 to 500.
 
 The above example is a demo "API authentication" function. The event body is an AsyncHttpRequest object
@@ -123,13 +123,23 @@ your function. If the caller sends an asynchronous drop-n-forget request, the "r
 
 ## Platform API
 
-You can obtain a singleton instance of the Platform object to do the following:
+You can obtain a singleton instance of the Platform object like this:
+
+```javascript
+const platform = Platform.getInstance();
+```
 
 ### Register a function
 
 We recommend using the ComposableLoader to search and load your functions.
 
 In some use cases where you want to create and destroy functions on demand, you can register them programmatically.
+For example,
+
+```javascript
+platform.register(HELLO_BFF_SERVICE, new HelloBff());
+
+```
 
 ### What is a public function?
 
@@ -180,6 +190,7 @@ to create a PostOffice with your own traceId. The "myRoute" is the caller's rout
 set it to "unit.test".
 
 ```java
+// create a PostOffice instance in a Unit Test
 const po = new PostOffice(new Sender(myRoute, traceId, tracePath));
 ```
 

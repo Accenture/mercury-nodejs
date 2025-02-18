@@ -8,7 +8,9 @@ const util = new Utility();
 export class TemplateLoader {
     templateFolder;
     constructor() {
-        this.templateFolder = util.getFolder("../resources/templates/");
+        if (this.templateFolder === undefined) {
+            this.templateFolder = util.getFolder("../resources/templates/");
+        }
     }
     getTemplate(name) {
         const template = this.templateFolder + name;

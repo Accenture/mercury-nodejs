@@ -5,7 +5,7 @@ import { Composable } from '../models/composable.js';
  * DO NOT use this directly in your application code.
  */
 export declare class EventScriptEngine {
-    start(): void;
+    start(): Promise<void>;
 }
 export declare class EventScriptManager implements Composable {
     initialize(): Composable;

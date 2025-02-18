@@ -13,7 +13,9 @@ let po;
 export class TemporaryInbox {
     static routeName = TEMPORARY_INBOX;
     initialize() {
-        po = new PostOffice();
+        if (po === undefined) {
+            po = new PostOffice();
+        }
         return this;
     }
     static setPromise(cid, map) {

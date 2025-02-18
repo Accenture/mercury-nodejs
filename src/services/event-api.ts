@@ -24,7 +24,9 @@ export class EventApiService implements Composable {
     static routeName = EVENT_API_SERVICE;
 
     initialize(): Composable {
-        platform = Platform.getInstance();
+        if (platform === undefined) {
+            platform = Platform.getInstance();
+        }        
         return this;
     }
 

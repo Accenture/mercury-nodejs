@@ -28,6 +28,7 @@ async function main() {
     // keep the server running
     const platform = Platform.getInstance();
     platform.runForever();
+    await platform.getReady();
     log.info('Composable application started');
 }
 // run the application

@@ -443,6 +443,7 @@ describe('event flow use cases', () => {
     baseUrl = `http://127.0.0.1:${port}`;
     log.info(`Flow tests will use ${baseUrl}`);
     platform = Platform.getInstance();
+    await platform.getReady();
     // register some composable functions
     platform.register(API_AUTH_SERVICE, new SimpleAuth());
     platform.register('no.op', new NoOp());
@@ -461,7 +462,7 @@ describe('event flow use cases', () => {
     platform.register('parallel.task', new ParallelTask());
     platform.register('my.mock.function', new MockFunction());
     // start the Event API HTTP server
-    server = new RestAutomation();
+    server = RestAutomation.getInstance();
     server.start();
     eventManager = new EventScriptEngine();
     eventManager.start();

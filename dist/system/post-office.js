@@ -259,7 +259,9 @@ class PO {
     static instance;
     id;
     constructor() {
-        this.id = util.getUuid();
+        if (this.id === undefined) {
+            this.id = util.getUuid();
+        }
     }
     static getInstance() {
         if (PO.instance === undefined) {
@@ -271,7 +273,7 @@ class PO {
         return this.id;
     }
     exists(route) {
-        if (route && route.length > 0) {
+        if (route) {
             return handlers.has(route);
         }
         else {

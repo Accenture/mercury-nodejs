@@ -222,6 +222,7 @@ describe('post office use cases', () => {
       // AppConfig should be initialized with base configuration parameter before everything else
       const appConfig = AppConfig.getInstance(resourcePath);
       platform = Platform.getInstance();
+      await platform.getReady();
       // save the helloWorld as DEMO_LIBRARY_FUNCTION so that it can be retrieved by name
       const helloWorld = new HelloWorld();
       helloWorldSignature = helloWorld.signature;
@@ -252,7 +253,7 @@ describe('post office use cases', () => {
       const streamOut = new ObjectStreamWriter(outputId);
       streamOut.write('hello world');
       // start the Event API HTTP server
-      server = new RestAutomation();
+      server = RestAutomation.getInstance();
       // demonstrate that we can install user defined express middleware
       server.setupMiddleWare(async function(_req: Request, _res: Response, next: NextFunction) {
           apiCount++;
@@ -539,7 +540,7 @@ describe('post office use cases', () => {
         platform.register(route, helloWorld);
         normal = true;
       } catch (e) {
-        expect(e.message).toBe('Invalid route name - use 0-9, a-z, period, hyphen or underscore characters');
+        expect(e.message).toBe('Check route name - use 0-9, a-z, period, hyphen or underscore characters');
       }    
       expect(normal).toBe(false);  
     }); 

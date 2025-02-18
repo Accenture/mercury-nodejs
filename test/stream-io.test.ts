@@ -1,5 +1,6 @@
 import { Logger } from '../src/util/logger';
 import { Utility } from '../src/util/utility';
+import { Platform } from '../src/system/platform';
 import { PostOffice } from '../src/system/post-office';
 import { AppConfig } from '../src/util/config-reader';
 import { ObjectStreamIO, ObjectStreamWriter, ObjectStreamReader } from '../src/system/object-stream';
@@ -24,6 +25,8 @@ describe('object stream I/O tests', () => {
         // AppConfig should be initialized with base configuration parameter before everything else
         const config = AppConfig.getInstance(resourcePath);
         log.info(`Using base configuration - ${config.getId()}`);
+        const platform = Platform.getInstance();
+        await platform.getReady();
     });
     
     it('can write and read string', async () => {

@@ -285,7 +285,9 @@ class PO {
     private id: string;
 
     private constructor() { 
-        this.id = util.getUuid();
+        if (this.id === undefined) {
+            this.id = util.getUuid();
+        }        
     }
 
     static getInstance() {
@@ -300,7 +302,7 @@ class PO {
     }
 
     exists(route: string): boolean {
-        if (route && route.length > 0) {
+        if (route) {
             return handlers.has(route);
         } else {
             return false;

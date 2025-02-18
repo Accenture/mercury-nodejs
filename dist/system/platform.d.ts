@@ -1,6 +1,11 @@
 export declare class Platform {
     private static singleton;
     private constructor();
+    /**
+     * Obtain the singleton instance of Platform
+     *
+     * @returns instance
+     */
     static getInstance(): Platform;
     /**
      * Retrieve unique application instance ID (i.e. "originId")
@@ -8,8 +13,24 @@ export declare class Platform {
      * @returns originId
      */
     getOriginId(): string;
+    /**
+     * Retrieve application name
+     *
+     * @returns application name
+     */
     getName(): string;
+    /**
+     * Retrieve the system's start time
+     *
+     * @returns start time
+     */
     getStartTime(): Date;
+    /**
+     * Wait for the platform system to load essential services
+     *
+     * @returns true
+     */
+    getReady(): Promise<boolean>;
     /**
      * Register a composable class with a route name.
      *
@@ -28,9 +49,9 @@ export declare class Platform {
      * @param composable class implementing the initialize and handleEvent methods
      * @param instances number of workers for this function
      * @param isPrivate true or false
-     * @param isInterceptor true or false
+     * @param interceptor true or false
      */
-    register(route: string, composable: object, instances?: number, isPrivate?: boolean, isInterceptor?: boolean): void;
+    register(route: string, composable: object, instances?: number, isPrivate?: boolean, interceptor?: boolean): void;
     /**
      * Release a previously registered function
      *

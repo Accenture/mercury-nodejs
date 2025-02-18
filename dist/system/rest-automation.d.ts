@@ -1,9 +1,11 @@
 import { RequestHandler } from 'express';
 export declare class RestAutomation {
+    private static singleton;
     /**
      * Enable REST automation
      */
-    constructor();
+    private constructor();
+    static getInstance(): RestAutomation;
     /**
      * Start the REST automation engine
      *
@@ -11,13 +13,19 @@ export declare class RestAutomation {
      * rest.yaml file to accept the configured REST endpoints.
      * Otherwise, it will skip REST automation and provide basic actuator endpoints such as /info and /health
      */
-    start(): void;
+    start(): Promise<void>;
     /**
      * Stop the REST automation engine
      *
      * @returns true when the stop command is executed.
      */
     stop(): Promise<boolean>;
+    /**
+     * Wait for the REST automation system to be ready
+     *
+     * @returns true
+     */
+    getReady(): Promise<boolean>;
     /**
      * Optional: Setup additional Express middleware
      *

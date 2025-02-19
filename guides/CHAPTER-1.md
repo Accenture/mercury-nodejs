@@ -388,7 +388,7 @@ DistributedTrace:76 - trace={path=GET /api/profile/100, service=async.http.respo
 
 Every application has an entry point. The MainApp in the example app contains the entry point like this:
 
-```java
+```javascript
 async function main() {
     // Load composable functions into memory and initialize configuration management
     ComposableLoader.initialize();
@@ -406,6 +406,17 @@ The "platform.runForever()" command will run the application as a service.
 
 Since your application is event driven, the main application does not need any additional code in the above
 example. However, this is a good place to put application initialization code if any.
+
+### Commad line application
+
+If you want to run your application as a command line application instead of a service, your application
+can close itself like this:
+
+```javascript
+await platform.getReady();
+// execute your business logic and then run the "platform.stop()" command to exit
+await platform.stop();
+```
 
 ## Dependency management
 

@@ -16,8 +16,8 @@ const INITIALIZE_TAG = 'initialize()';
 
 async function scanPackage(packageName) {
     const parent = getCurrentFolder();
-    const target = parent + 'node_modules/' + packageName + '/dist';
-    const relativePath = './node_modules/' + packageName + '/dist';
+    const target = `${parent}node_modules/${packageName}/dist`;
+    const relativePath = `./node_modules/${packageName}/dist`;
     log.info(`Scanning ${relativePath}`);
     try {
         await scanLibrary(parent, target);
@@ -34,7 +34,7 @@ async function scanPackage(packageName) {
 async function scanLibrary(parent, folder) {
     const files = await fs.promises.readdir(folder);
     for (const f of files) {
-        const path = folder + '/' +f;
+        const path = `${folder}/${f}`;
         const stat = await fs.promises.stat(path);
         if (stat.isDirectory()) {
             await scanLibrary(parent, path);
@@ -85,7 +85,7 @@ async function scanLibrary(parent, folder) {
                     }
                 }
                 if (clsList.length > 0) {
-                    const relativePath = '../../' + path.substring(parent.length);
+                    const relativePath = `../../${path.substring(parent.length)}`;
                     clsMap.set(list2str(clsList), relativePath);
                     for (const c of clsList) {
                         log.info(`Class ${c}`);
@@ -120,7 +120,7 @@ async function scanSource(parent, folder) {
             if (f.endsWith('.ts') && !f.endsWith('.d.ts')) {
                 const clsList = await getComposableSourceFile(path);
                 if (clsList.length > 0) {
-                    const relativePath = '..' + path.substring(parent.length, path.length-3) + '.js';
+                    const relativePath = `..${path.substring(parent.length, path.length-3)}.js`;
                     clsMap.set(list2str(clsList), relativePath);
                     for (const c of clsList) {
                         log.info(`Class ${c}`);

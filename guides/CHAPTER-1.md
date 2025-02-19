@@ -233,17 +233,6 @@ You can skip the build step if you have already done that earlier.
 When the application starts, you will see extract of the application log like this:
 
 ```log
-INFO Loading NoOp as no.op (FunctionRegistry.save:function-registry.js:33)
-INFO Loading DemoAuth as v1.api.auth (FunctionRegistry.save:function-registry.js:33)
-INFO Loading DemoHealthCheck as demo.health (FunctionRegistry.save:function-registry.js:33)
-INFO Loading hello.world as hello.world (FunctionRegistry.save:function-registry.js:33)
-INFO Loading CreateProfile as v1.create.profile (FunctionRegistry.save:function-registry.js:33)
-INFO Loading DecryptFields as v1.decrypt.fields (FunctionRegistry.save:function-registry.js:33)
-INFO Loading DeleteProfile as v1.delete.profile (FunctionRegistry.save:function-registry.js:33)
-INFO Loading EncryptFields as v1.encrypt.fields (FunctionRegistry.save:function-registry.js:33)
-INFO Loading GetProfile as v1.get.profile (FunctionRegistry.save:function-registry.js:33)
-INFO Loading HelloException as v1.hello.exception (FunctionRegistry.save:function-registry.js:33)
-INFO Loading SaveProfile as v1.save.profile (FunctionRegistry.save:function-registry.js:33)
 INFO Event system started - 15cda88cb4bf4f658357bb6007869296 (platform.js:503)
 INFO PRIVATE distributed.tracing registered (platform.js:259)
 INFO PRIVATE async.http.request registered with 200 instances (platform.js:262)

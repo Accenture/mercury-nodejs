@@ -741,7 +741,7 @@ export class EventEnvelope {
         this.to = event.to;
         this.id = event.id;
         this.sender = event.sender;
-        this.headers = event.headers;
+        this.headers = {};
         Object.keys(event.headers).forEach(k => {
             // drop reserved key-values
             if (k != 'my_route' && k != 'my_trace_id' && k!= 'my_trace_path' && k != 'my_instance') {

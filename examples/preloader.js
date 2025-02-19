@@ -5,6 +5,7 @@ import fs from 'fs';
 const log = Logger.getInstance();
 const util = new Utility();
 const clsMap = new Map();
+const clsParameters = new Map();
 
 const IMPORT_TAG = '${import-statements}';
 const SERVICE_TAG = '${service-list}';
@@ -40,7 +41,8 @@ async function scanLibrary(parent, folder) {
         } else {
             if (f.endsWith('.js')) {
                 const content = await fs.promises.readFile(path, 'utf-8');
-                const blocks = [];
+                const parameterBlocks = [];
+                const classBlocks = [];
                 const lines = util.split(content, '\r\n');
                 let hasDecorators = false;
                 let hasPreload = false;
@@ -52,24 +54,34 @@ async function scanLibrary(parent, folder) {
                             continue;
                         }
                         if (hasDecorators && text.startsWith('preload(')) {
+                            parameterBlocks.push(text);
                             hasPreload = true;
                             continue;               
                         }
                         if (hasPreload && text.startsWith('],')) {
-                            blocks.push(text);
+                            classBlocks.push(text);
                             hasDecorators = false;
                             hasPreload = false;
                         }
                     }
                 }
+                // const metadata = {};
                 const clsList = [];
-                for (const block of blocks) {
-                    if (block.includes('.prototype')) {
-                        const elements = util.split(block, '], ";)');                        
-                        if (elements.length > 1 && elements[1] == 'initialize' && elements[0].endsWith('.prototype')) {
-                            const clsName = elements[0].substring(0, elements[0].lastIndexOf('.'));
-                            clsList.push(clsName);
+                if (parameterBlocks.length == classBlocks.length) {
+                    for (let i=0; i < classBlocks.length; i++) {
+                        const block = classBlocks[i];
+                        const parameters = parameterBlocks[i];
+                        const preloadParams = util.split(parameters, '(, \'")');
+                        if (block.includes('.prototype') && preloadParams.length > 1) {
+                            const metadata = getMetadata(preloadParams);                            
+                            const elements = util.split(block, '], ";)');                 
+                            if (elements.length > 1 && elements[1] == 'initialize' && elements[0].endsWith('.prototype')) {
+                                const clsName = elements[0].substring(0, elements[0].lastIndexOf('.'));
+                                clsList.push(clsName);
+                                clsParameters.set(clsName, metadata);
+                            }
                         }
+
                     }
                 }
                 if (clsList.length > 0) {
@@ -82,6 +94,19 @@ async function scanLibrary(parent, folder) {
             }            
         }
     }
+}
+
+function getMetadata(params) {
+    const md = {};
+    const route = params[1];
+    const instances = params.length > 2? Math.max(1, util.str2int(params[2])) : 1;
+    const isPrivate = params.length > 3? "true" == params[3] : true;
+    const interceptor = params.length == 5? "true" == params[4] : false;
+    md['route'] = route;
+    md['instances'] = instances;
+    md['private'] = isPrivate;
+    md['interceptor'] = interceptor;
+    return md;
 }
 
 async function scanSource(parent, folder) {
@@ -110,8 +135,10 @@ async function getComposableSourceFile(path) {
     const content = await fs.promises.readFile(path, 'utf-8');
     const lines = content.split('\n').map(v => v.trim()).filter(v => v);
     const clsList = [];
+    const metadataStore = [];
     let clsName = null;
     let signature = EXPORT_TAG;
+    
     for (const line of lines) {
         if (EXPORT_TAG == signature) {
             if (line.startsWith(signature + ' ')) {
@@ -123,9 +150,17 @@ async function getComposableSourceFile(path) {
                 }
             }
         } else if (PRELOAD_TAG == signature && line.startsWith(PRELOAD_TAG) && line.includes(')')) {
-            signature = INITIALIZE_TAG;
+            const preloadParams = util.split(line, '(, \'")');
+            if (preloadParams.length > 1) {
+                metadataStore.push(getMetadata(preloadParams));
+                signature = INITIALIZE_TAG;
+            }
         } else if (INITIALIZE_TAG == signature && line.startsWith(INITIALIZE_TAG)) {
             clsList.push(clsName);
+            const metadata = metadataStore.pop();
+            if (metadata) {
+                clsParameters.set(clsName, metadata);
+            }
             signature = EXPORT_TAG;
         }
     }
@@ -156,7 +191,15 @@ async function generatePreLoader(src, lines) {
                 for (const cls of names) {
                     const composite = util.split(cls, ', ');
                     for (const c of composite) {
-                        sb += `${spaces}new ${c}().initialize();\n`;
+                        const md = clsParameters.get(c);
+                        if (md) {
+                            const route = md['route'];
+                            const normalizedRoute = util.validRouteName(route)? `'${route}'` : route;
+                            const instances = md['instances'];
+                            const isPrivate = md['private'];
+                            const interceptor = md['interceptor'];
+                            sb += `${spaces}platform.register(${normalizedRoute}, new ${c}(), ${instances}, ${isPrivate}, ${interceptor});\n`;
+                        }                        
                     }                    
                 }
                 section = 'remaining';

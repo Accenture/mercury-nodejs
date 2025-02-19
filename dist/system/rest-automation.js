@@ -152,7 +152,9 @@ class AsyncHttpResponse {
     initialize() {
         return this;
     }
-    async handleEvent(serviceResponse) {
+    async handleEvent(evt) {
+        // creating a clean copy of the event, thus preventing metadata to propagate as HTTP response headers
+        const serviceResponse = new EventEnvelope(evt);
         const cid = serviceResponse.getCorrelationId();
         const context = cid ? httpContext[cid] : null;
         if (context) {

@@ -1,5 +1,4 @@
 import { EventEnvelope } from "./event-envelope.js";
-import { FunctionRegistry } from "../system/function-registry.js";
 import { Logger } from "../util/logger.js";
 
 const log = Logger.getInstance();
@@ -47,9 +46,8 @@ export function preload(route, instances=1, isPrivate=true, interceptor=false)  
   return function (_target, propertyKey: string, descriptor: PropertyDescriptor) {
     if ('initialize' == propertyKey) {
       const method = descriptor.value;
-        descriptor.value = function (...args) {
-        const registry = FunctionRegistry.getInstance();
-        registry.save(route, this, Math.min(500, Math.max(1, instances)), isPrivate, interceptor); 
+        descriptor.value = function (...args) {        
+        log.debug(`preload ${route} with ${instances} instances, private=${isPrivate}, interceptor=${interceptor}`);
         return method.apply(this, args);
       };
     } else {

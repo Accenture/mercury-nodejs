@@ -1,4 +1,3 @@
-import { FunctionRegistry } from "../system/function-registry.js";
 import { Logger } from "../util/logger.js";
 const log = Logger.getInstance();
 /**
@@ -15,8 +14,7 @@ export function preload(route, instances = 1, isPrivate = true, interceptor = fa
         if ('initialize' == propertyKey) {
             const method = descriptor.value;
             descriptor.value = function (...args) {
-                const registry = FunctionRegistry.getInstance();
-                registry.save(route, this, Math.min(500, Math.max(1, instances)), isPrivate, interceptor);
+                log.debug(`preload ${route} with ${instances} instances, private=${isPrivate}, interceptor=${interceptor}`);
                 return method.apply(this, args);
             };
         }

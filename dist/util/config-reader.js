@@ -64,7 +64,6 @@ export class AppConfig {
                     const version = fs.readFileSync(versionFile, { encoding: 'utf-8', flag: 'r' });
                     if (version) {
                         AppConfig.reader.set('info.app.version', version.trim());
-                        log.info(`Application version ${version}`);
                     }
                 }
             }
@@ -122,6 +121,10 @@ export class AppConfig {
                 else if ('compact' == format) {
                     log.setLogFormat(LOG_FORMAT.COMPACT);
                 }
+            }
+            const version = AppConfig.reader.get('info.app.version');
+            if (version) {
+                log.info(`Application version ${version}`);
             }
             if (reloaded) {
                 log.info(`Configuration reloaded from ${reloadFile}`);

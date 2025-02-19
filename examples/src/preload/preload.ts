@@ -3,7 +3,7 @@
  */
 import fs from 'fs';
 import { fileURLToPath } from "url";
-import { Logger, AppConfig, FunctionRegistry, Platform, RestAutomation, EventScriptEngine } from 'mercury-composable';
+import { Logger, AppConfig, Platform, RestAutomation, EventScriptEngine } from 'mercury-composable';
 // import composable functions
 import { NoOp } from '../../node_modules/mercury-composable/dist/services/no-op.js';
 import { DemoAuth } from '../services/demo-auth.js';
@@ -46,30 +46,20 @@ export class ComposableLoader {
                 }
                 // initialize base configuration
                 const config = AppConfig.getInstance(resourcePath);
-                // initialize composable functions
-                new NoOp().initialize();
-                new DemoAuth().initialize();
-                new DemoHealthCheck().initialize();
-                new HelloConcurrent().initialize();
-                new HelloWorld().initialize();
-                new CreateProfile().initialize();
-                new DecryptFields().initialize();
-                new DeleteProfile().initialize();
-                new EncryptFields().initialize();
-                new GetProfile().initialize();
-                new HelloException().initialize();
-                new SaveProfile().initialize();
                 // register the functions into the event system
                 const platform = Platform.getInstance();
-                const registry = FunctionRegistry.getInstance();
-                const registered = registry.getFunctionList();
-                for (const name of registered) {
-                    const md = registry.getMetadata(name) as object;
-                    const instances = md['instances'] as number;
-                    const isPrivate = md['private'] as boolean;
-                    const interceptor = md['interceptor'] as boolean;
-                    platform.register(name, registry.getClass(name), instances, isPrivate, interceptor);
-                }
+                platform.register('no.op', new NoOp(), 10, true, false);
+                platform.register('v1.api.auth', new DemoAuth(), 1, true, false);
+                platform.register('demo.health', new DemoHealthCheck(), 1, true, false);
+                platform.register(HelloConcurrent.routeName, new HelloConcurrent(), 10, true, false);
+                platform.register(HelloWorld.routeName, new HelloWorld(), 10, false, false);
+                platform.register('v1.create.profile', new CreateProfile(), 10, true, false);
+                platform.register('v1.decrypt.fields', new DecryptFields(), 10, true, false);
+                platform.register('v1.delete.profile', new DeleteProfile(), 10, true, false);
+                platform.register('v1.encrypt.fields', new EncryptFields(), 10, true, false);
+                platform.register('v1.get.profile', new GetProfile(), 10, true, false);
+                platform.register('v1.hello.exception', new HelloException(), 10, true, false);
+                platform.register('v1.save.profile', new SaveProfile(), 10, true, false);
                 // start Event Script system
                 const eventManager = new EventScriptEngine();
                 eventManager.start();

@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > *Note*: Some version numbers may be skipped to align feature set with the Java version.
 
 ---
+## Version 4.2.16, 2/18/2025
+
+### Added
+
+N/A
+
+### Removed
+
+N/A
+
+### Changed
+
+1. Improved class scanner and loader
+2. Filter out event metadata to propagate as HTTP response headers
+
+---
 ## Version 4.2.15, 2/15/2025
 
 ### Added

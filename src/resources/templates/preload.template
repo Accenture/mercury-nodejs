@@ -3,7 +3,7 @@
  */
 import fs from 'fs';
 import { fileURLToPath } from "url";
-import { Logger, AppConfig, FunctionRegistry, Platform, RestAutomation, EventScriptEngine } from 'mercury-composable';
+import { Logger, AppConfig, Platform, RestAutomation, EventScriptEngine } from 'mercury-composable';
 // import composable functions
 ${import-statements}
 
@@ -35,19 +35,9 @@ export class ComposableLoader {
                 }
                 // initialize base configuration
                 const config = AppConfig.getInstance(resourcePath);
-                // initialize composable functions
-                ${service-list}
                 // register the functions into the event system
                 const platform = Platform.getInstance();
-                const registry = FunctionRegistry.getInstance();
-                const registered = registry.getFunctionList();
-                for (const name of registered) {
-                    const md = registry.getMetadata(name) as object;
-                    const instances = md['instances'] as number;
-                    const isPrivate = md['private'] as boolean;
-                    const interceptor = md['interceptor'] as boolean;
-                    platform.register(name, registry.getClass(name), instances, isPrivate, interceptor);
-                }
+                ${service-list}
                 // start Event Script system
                 const eventManager = new EventScriptEngine();
                 eventManager.start();

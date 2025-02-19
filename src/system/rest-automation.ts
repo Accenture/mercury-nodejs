@@ -169,7 +169,9 @@ class AsyncHttpResponse implements Composable {
         return this;
     }
 
-    async handleEvent(serviceResponse: EventEnvelope) {
+    async handleEvent(evt: EventEnvelope) {
+        // creating a clean copy of the event, thus preventing metadata to propagate as HTTP response headers
+        const serviceResponse = new EventEnvelope(evt);
         const cid = serviceResponse.getCorrelationId();
         const context = cid? httpContext[cid] : null;
         if (context) {

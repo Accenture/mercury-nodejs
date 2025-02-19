@@ -13,7 +13,7 @@ async function generatePlaceholder(src, lines) {
     for (const line of lines) {
         if (section == 'import') {
             if (line.includes(IMPORT_TAG)) {         
-                sb += '// *** nothing since this is a placeholder ***\n';
+                sb += '// *** Nothing to import ***\n';
                 section = 'service';
                 continue;
             } else {
@@ -24,7 +24,8 @@ async function generatePlaceholder(src, lines) {
             if (line.includes(SERVICE_TAG)) {
                 const idx = line.indexOf(SERVICE_TAG);
                 const spaces = line.substring(0, idx);
-                sb += `${spaces}// *** nothing since this is a placeholder ***\n`;
+                sb += `${spaces}// *** This is a placeholder for successful build ***\n`;
+                sb += `${spaces}log.info(\`Placeholder for \${platform.getName()} with \${config.getId()}\`);\n`;
                 section = 'remaining';
                 continue;
             } else {

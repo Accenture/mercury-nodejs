@@ -35,4 +35,4 @@ export interface Composable {
  * @param interceptor is true if this function is an event interceptor
  * @returns annotated function
  */
-export declare function preload(route: any, instances?: number, isPrivate?: boolean, interceptor?: boolean): (_target: any, propertyKey: string, descriptor: PropertyDescriptor) => void;
+export declare function preload(route: string, instances?: number, isPrivate?: boolean, interceptor?: boolean): (_target: any, propertyKey: string, descriptor: PropertyDescriptor) => void;

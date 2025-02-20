@@ -42,13 +42,13 @@ export interface Composable {
  * @param interceptor is true if this function is an event interceptor
  * @returns annotated function
  */
-export function preload(route, instances=1, isPrivate=true, interceptor=false)  {
+export function preload(route: string, instances=1, isPrivate=true, interceptor=false)  {
   return function (_target, propertyKey: string, descriptor: PropertyDescriptor) {
     if ('initialize' == propertyKey) {
       const method = descriptor.value;
-        descriptor.value = function (...args) {        
+        descriptor.value = function (...argv) {
         log.debug(`preload ${route} with ${instances} instances, private=${isPrivate}, interceptor=${interceptor}`);
-        return method.apply(this, args);
+        return method.apply(this, argv);
       };
     } else {
         log.error(`Please annotate the 'initialize' method in a Composable - @preload does not apply to ${propertyKey}`);

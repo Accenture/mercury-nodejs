@@ -76,11 +76,15 @@ async function checkExpiredStreams() {
         const files = await fs.promises.readdir(TEMP_DIR);
         for (const f of files) {
             const path = `${TEMP_DIR}/${f}`
-            const stats = await fs.promises.stat(path);
-            const diff = now - stats.mtime.getTime();
-            if (diff > thirtyMinutes) {
-                await fs.promises.unlink(path);
-                log.info(`Expired ${path} deleted`);
+            try {
+                const stats = await fs.promises.stat(path);
+                const diff = now - stats.mtime.getTime();
+                if (diff > thirtyMinutes) {
+                    await fs.promises.unlink(path);
+                    log.info(`Expired ${path} deleted`);
+                }
+            } catch(e) {
+                log.warn(`Unable to check expired streams - ${e.message}`);
             }
         }
     }
@@ -541,10 +545,6 @@ class EventSystem {
             const diff = new Date().getTime() - startTime.getTime();
             log.info(`Event system started in ${diff} ms`);
         });
-        setTimeout(() => {
-            // clean up expired streams that are left over in previous execution
-            checkExpiredStreams();
-        }, 100);
     }
 
     getOriginId(): string {
@@ -635,9 +635,10 @@ class EventSystem {
             let t1 = Date.now();
             while (!this.isStopping()) {
                 const now = Date.now();
+                // clean up expired streams if any
                 if (now - t1 > 60000) {
-                    t1 = now;
-                    log.debug('Running...');
+                    t1 = now;                    
+                    checkExpiredStreams();
                 }
                 await util.sleep(500);
             }

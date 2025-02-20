@@ -431,6 +431,106 @@ using "nodemon".
 
 For simplicity, the logger is implemented without any additional library dependencies.
 
+## Class scanner
+
+TypeScript supports annotations in class, method and input parameter when `experimentalDecorators` is
+turned on in tsconfig.json configuration file.
+
+Annotation features for class, method and input parameter work differently.
+
+To support automatic scanning of Composable functions in your source project and compiled code in
+library packages, the system provides class scanners "TypeScriptClassScanner" and "JavaScriptClassScanner"
+for TypeScript and compiled Javascript code respectively.
+
+You can review the "preloader.js" build script in the "examples" folder to examine how the system
+generates the PreLoader.ts source code in the "examples/src/preload" folder.
+
+The two class scanners extract annotation's parameters so that your application can do interesting
+logic based on the annotations. This is similar to concept of annotated key-values in the Java
+programming language.
+
+For example, you can do something like this to scan the "preload" annotated methods of TypeScript files
+in the source folder:
+
+```typescript
+const root = getCurrentFolder();
+const src = root + 'src';
+const scanner = new TypeScriptClassScanner(src, 'preload');
+const result = await scanner.scan();
+// extract of the result set is shown below
+{
+  "classes": {
+    "HelloConcurrent": "../services/hello-concurrent.js",
+    "HelloWorld": "../services/hello-world.js",
+  },
+  "parents": {
+    "HelloConcurrent": {
+      "extends": [],
+      "implements": [
+        "Composable"
+      ]
+    },
+    "HelloWorld": {
+      "extends": [],
+      "implements": [
+        "Composable"
+      ]
+    }
+  },
+  "parameters": {
+    "HelloConcurrent": [
+      "HelloConcurrent.routeName",
+      "10"
+    ],
+    "HelloWorld": [
+      "HelloWorld.routeName",
+      "10",
+      "false"
+    ]
+  },
+  "methods": {
+    "DemoHealthCheck": "initialize",
+    "HelloConcurrent": "initialize",
+    "HelloWorld": "initialize",
+  }
+}
+const map = new MultiLevelMap(result);
+// the MultiLevelMap allows you to retrieve key-value using the dot-bracket format.
+// e.g. if ('initialize' == map.getElement(`methods.${cls}`) && map.exists(`parameters.${cls}`)) ...
+```
+
+To scan compiled JavaScript files in library packages, configure application.yaml with
+the web.component.scan parameter. Use a comma separated list when scanning more than one package.
+
+```yaml
+web.component.scan: 'my-package-one, my-package-two'
+```
+
+You can then use the JavaScriptClassScanner like this:
+
+```typescript
+const scanner = new JavaScriptClassScanner(parent, target, 'preload');
+const result = await scanner.scan();
+// sample result set below
+{
+  "classes": {
+    "NoOp": "../node_modules/mercury-composable/dist/services/no-op.js"
+  },
+  "parameters": {
+    "NoOp": [
+      "'no.op'",
+      "10"
+    ]
+  },
+  "methods": {
+    "NoOp": "initialize"
+  }
+}
+```
+
+> *Note*: For simplicity, the scanners support method annotations only. Class and input parameter annotations
+          are not handled.
+
 ## Minimalist API design
 
 For configuration based Event Choreography, please refer to [Chapter-4](CHAPTER-4.md) for more details.

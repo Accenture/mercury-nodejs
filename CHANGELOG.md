@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > *Note*: Some version numbers may be skipped to align feature set with the Java version.
 
 ---
+## Version 4.2.17, 2/20/2025
+
+### Added
+
+Support scanning of TypeScript source file and compiled JavaScript files
+with class scanners (TypeScriptClassScanner and JavaScriptClassScanner)
+
+### Removed
+
+N/A
+
+### Changed
+
+preloader.js and developer guide updated
+
+---
 ## Version 4.2.16, 2/18/2025
 
 ### Added

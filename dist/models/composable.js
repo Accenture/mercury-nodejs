@@ -13,9 +13,9 @@ export function preload(route, instances = 1, isPrivate = true, interceptor = fa
     return function (_target, propertyKey, descriptor) {
         if ('initialize' == propertyKey) {
             const method = descriptor.value;
-            descriptor.value = function (...args) {
+            descriptor.value = function (...argv) {
                 log.debug(`preload ${route} with ${instances} instances, private=${isPrivate}, interceptor=${interceptor}`);
-                return method.apply(this, args);
+                return method.apply(this, argv);
             };
         }
         else {

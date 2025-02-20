@@ -14,3 +14,5 @@ export { ObjectStreamIO, ObjectStreamWriter, ObjectStreamReader } from './system
 export { AppConfig, ConfigReader } from './util/config-reader.js';
 export { TemplateLoader } from './util/template-loader.js';
 export { CryptoApi } from './util/crypto-api.js';
+export { TypeScriptClassScanner } from './util/ts-class-scanner.js';
+export { JavaScriptClassScanner } from './util/js-class-scanner.js';

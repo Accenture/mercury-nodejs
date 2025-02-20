@@ -48,18 +48,18 @@ export class ComposableLoader {
                 const config = AppConfig.getInstance(resourcePath);
                 // register the functions into the event system
                 const platform = Platform.getInstance();
-                platform.register('no.op', new NoOp(), 10, true, false);
-                platform.register('v1.api.auth', new DemoAuth(), 1, true, false);
-                platform.register('demo.health', new DemoHealthCheck(), 1, true, false);
-                platform.register(HelloConcurrent.routeName, new HelloConcurrent(), 10, true, false);
-                platform.register(HelloWorld.routeName, new HelloWorld(), 10, false, false);
-                platform.register('v1.create.profile', new CreateProfile(), 10, true, false);
-                platform.register('v1.decrypt.fields', new DecryptFields(), 10, true, false);
-                platform.register('v1.delete.profile', new DeleteProfile(), 10, true, false);
-                platform.register('v1.encrypt.fields', new EncryptFields(), 10, true, false);
-                platform.register('v1.get.profile', new GetProfile(), 10, true, false);
-                platform.register('v1.hello.exception', new HelloException(), 10, true, false);
-                platform.register('v1.save.profile', new SaveProfile(), 10, true, false);
+                platform.register('no.op', new NoOp(), 10);
+                platform.register('v1.api.auth', new DemoAuth());
+                platform.register('demo.health', new DemoHealthCheck());
+                platform.register(HelloConcurrent.routeName, new HelloConcurrent(), 10);
+                platform.register(HelloWorld.routeName, new HelloWorld(), 10, false);
+                platform.register('v1.create.profile', new CreateProfile(), 10);
+                platform.register('v1.decrypt.fields', new DecryptFields(), 10);
+                platform.register('v1.delete.profile', new DeleteProfile(), 10);
+                platform.register('v1.encrypt.fields', new EncryptFields(), 10);
+                platform.register('v1.get.profile', new GetProfile(), 10);
+                platform.register('v1.hello.exception', new HelloException(), 10);
+                platform.register('v1.save.profile', new SaveProfile(), 10);
                 // start Event Script system
                 const eventManager = new EventScriptEngine();
                 eventManager.start();

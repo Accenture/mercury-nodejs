@@ -434,19 +434,18 @@ For simplicity, the logger is implemented without any additional library depende
 ## Class scanner
 
 TypeScript supports annotations in class, method and input parameter when `experimentalDecorators` is
-turned on in tsconfig.json configuration file.
-
-Annotation features for class, method and input parameter work differently.
+turned on in tsconfig.json configuration file. However, annotation features for class, method and
+input parameter work differently.
 
 To support automatic scanning of Composable functions in your source project and compiled code in
-library packages, the system provides class scanners "TypeScriptClassScanner" and "JavaScriptClassScanner"
+library packages, the system provides class scanners `TypeScriptClassScanner` and `JavaScriptClassScanner`
 for TypeScript and compiled Javascript code respectively.
 
-You can review the "preloader.js" build script in the "examples" folder to examine how the system
-generates the PreLoader.ts source code in the "examples/src/preload" folder.
+You can review the "preloader.js" build script in the "examples" folder to see how the system
+generates the `ComposableLoader` (preload.ts) source code in the "examples/src/preload" folder.
 
 The two class scanners extract annotation's parameters so that your application can do interesting
-logic based on the annotations. This is similar to concept of annotated key-values in the Java
+thing based on the annotations. This is similar to the concept of annotated key-values in the Java
 programming language.
 
 For example, you can do something like this to scan the "preload" annotated methods of TypeScript files
@@ -496,7 +495,8 @@ const result = await scanner.scan();
 }
 const map = new MultiLevelMap(result);
 // the MultiLevelMap allows you to retrieve key-value using the dot-bracket format.
-// e.g. if ('initialize' == map.getElement(`methods.${cls}`) && map.exists(`parameters.${cls}`)) ...
+// e.g. you can validate the method name and parameters
+// 'initialize' == map.getElement(`methods.${cls}`) && map.exists(`parameters.${cls}`)
 ```
 
 To scan compiled JavaScript files in library packages, configure application.yaml with

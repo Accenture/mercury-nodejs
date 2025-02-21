@@ -81,6 +81,7 @@ const BOOLEAN_SUFFIX = "boolean";
 const NEGATE_SUFFIX = "!";
 const UUID_SUFFIX = "uuid";
 const SUBSTRING_TYPE = "substring(";
+const CONCAT_TYPE = "concat(";
 const AND_TYPE = "and(";
 const OR_TYPE = "or(";
 
@@ -89,7 +90,8 @@ const OPERATION = {
     SUBSTRING_COMMAND: 2,
     AND_COMMAND: 3,
     OR_COMMAND: 4,
-    BOOLEAN_COMMAND: 5
+    BOOLEAN_COMMAND: 5,
+    CONCAT_COMMAND: 6
 };
 
 /**
@@ -813,7 +815,7 @@ export class TaskExecutor implements Composable {
         const last = lhs.lastIndexOf(CLOSE_BRACKET);
         if (last > 0) {
             if (lhs.startsWith(TEXT_TYPE)) {
-                return lhs.substring(TEXT_TYPE.length, last).trim();
+                return lhs.substring(TEXT_TYPE.length, last);
             }
             if (lhs.startsWith(INTEGER_TYPE)) {
                 return util.str2int(lhs.substring(INTEGER_TYPE.length, last).trim());
@@ -964,6 +966,25 @@ export class TaskExecutor implements Composable {
                     } else {
                         error = "invalid syntax";
                     }
+                } else if (selection == OPERATION.CONCAT_COMMAND) {
+                    const parts = this.tokenizeConcatParameters(command);
+                    if (parts.length == 0) {
+                        error = "parameters must be model variables and/or text constants";
+                    } else {
+                        let sb = '';
+                        const str = String(value);
+                        sb += str;
+                        for (const p of parts) {
+                            if (p.startsWith(TEXT_TYPE)) {
+                                sb += p.substring(TEXT_TYPE.length, p.length-1);
+                            }
+                            if (p.startsWith(MODEL_NAMESPACE)) {
+                                const v = String(data.getElement(p));
+                                sb += v;
+                            }
+                        }
+                        return sb.toString();
+                    }
                 } else if (selection == OPERATION.AND_COMMAND || selection == OPERATION.OR_COMMAND) {
                     if (command.startsWith(MODEL_NAMESPACE)) {
                         const v1 = "true" == String(value);
@@ -1000,6 +1021,44 @@ export class TaskExecutor implements Composable {
         return value;
     }
 
+    private tokenizeConcatParameters(text: string): Array<string> {
+        const result = new Array<string>();
+        let command = text.trim();
+        while (command) {
+            if (command.startsWith(MODEL_NAMESPACE)) {
+                const sep = command.indexOf(',');
+                if (sep == -1) {
+                    result.push(command);
+                    break;
+                } else {
+                    const token = command.substring(0, sep).trim();
+                    if (token == MODEL_NAMESPACE) {
+                        return [];
+                    } else {
+                        result.push(token);
+                        command = command.substring(sep + 1).trim();
+                    }
+                }
+            } else if (command.startsWith(TEXT_TYPE)) {
+                const close = command.indexOf(CLOSE_BRACKET);
+                if (close == 1) {
+                    return [];
+                } else {
+                    result.push(command.substring(0, close+1));
+                    const sep = command.indexOf(',', close);
+                    if (sep == -1) {
+                        break;
+                    } else {
+                        command = command.substring(sep+1).trim();
+                    }
+                }
+            } else {
+                return [];
+            }
+        }
+        return result;
+    }
+
     private getMappingType(type: string): number {
         if (type.startsWith(SUBSTRING_TYPE)) {
             return OPERATION.SUBSTRING_COMMAND;
@@ -1009,6 +1068,8 @@ export class TaskExecutor implements Composable {
             return OPERATION.OR_COMMAND;
         } else if (type.startsWith(BOOLEAN_TYPE)) {
             return OPERATION.BOOLEAN_COMMAND;
+        } else if (type.startsWith(CONCAT_TYPE)) {
+            return OPERATION.CONCAT_COMMAND;
         } else {
             return OPERATION.SIMPLE_COMMAND;
         }

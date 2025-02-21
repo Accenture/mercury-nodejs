@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > *Note*: Some version numbers may be skipped to align feature set with the Java version.
 
 ---
+## Version 4.2.18, 2/21/2025
+
+### Added
+
+simple type matching feature is extended with a new string 'concat' method
+
+### Removed
+
+N/A
+
+### Changed
+
+N/A
+---
 ## Version 4.2.17, 2/20/2025
 
 ### Added

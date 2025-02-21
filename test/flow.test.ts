@@ -704,6 +704,8 @@ describe('event flow use cases', () => {
     expect(map.getElement('original.none_is_false')).toBe(false);
     expect(map.getElement('original.unique_id1')).not.toEqual(map.getElement('original.unique_id2'));
     expect(map.getElement('original.unique_id2')).toEqual(map.getElement('original.unique_id3'));
+    // demonstrate string concatenation
+    expect(map.getElement('original.concat_string')).toBe('a b,c');
     expect(map.getElement('demo1')).toBe("ok");
     expect(map.getElement('demo2')).toBe(testUser);
     expect(map.getElement('demo3')).toBe("greetings");

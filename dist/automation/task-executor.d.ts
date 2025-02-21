@@ -31,6 +31,7 @@ export declare class TaskExecutor implements Composable {
     private getConstantValue;
     private getLhsElement;
     private getValueByType;
+    private tokenizeConcatParameters;
     private getMappingType;
     private getModelTypeIndex;
     private abortFlow;

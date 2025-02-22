@@ -132,8 +132,8 @@ list.push("b");
 req.setQueryParameter("x2", list);
 req.setTargetHost("http://127.0.0.1:8083");
 const event = new EventEnvelope().setTo("async.http.request").setBody(req);
-const result = po.request(event, 5000).get();
-// the response is a Java Future and the result is an EventEnvelope
+const result = po.request(event, 5000);
+// the result is an EventEnvelope
 ```
 
 ### Send HTTP request body for HTTP PUT, POST and PATCH methods

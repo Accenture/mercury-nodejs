@@ -12,13 +12,13 @@ GET /health
 GET /livenessprobe
 ```
 
-| Endpoint       | Purpose                                                                             | 
-|:---------------|:------------------------------------------------------------------------------------|
-| /info          | Describe the application                                                            |
-| /info/routes   | Show public routing table                                                           |
-| /env           | List all private and public function route names and selected environment variables |
-| /health        | Application health check endpoint                                                   |
-| /livenessprobe | Check if application is running normally                                            |
+| Endpoint       | Purpose                                                        | 
+|:---------------|:---------------------------------------------------------------|
+| /info          | Describe the application                                       |
+| /info/routes   | List all private and public function route names               |
+| /env           | Show selected environment variables and application parameters |
+| /health        | Application health check endpoint                              |
+| /livenessprobe | Check if application is running normally                       |
 
 ## System provided REST endpoints
 
@@ -77,6 +77,9 @@ Your custom health service must respond to the following requests:
 1. Info request (type=info) - it should return a map that includes service name and href (protocol, hostname and port)
 2. Health check (type=health) - it should return a text string of the health check. e.g. read/write test result. 
    It can throw AppException with status code and error message if health check fails.
+
+> *Note*: The "href" entry in the health service's response should tell the operator about the target URL
+          if the dependency connects to a cloud platform service such as Kafka, Redis, etc.   
 
 A sample health service is available in the `health-check.ts` class of the hello world project as follows:
 

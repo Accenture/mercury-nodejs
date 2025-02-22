@@ -12,32 +12,7 @@ rest:
     url: "/api/event"
     timeout: 60s
     authentication: 'event.api.auth'
-    tracing: true
-
-  - service: "info.actuator.service"
-    methods: ['GET']
-    url: "/info"
-    timeout: 10s
-
-  - service: "routes.actuator.service"
-    methods: ['GET']
-    url: "/info/routes"
-    timeout: 10s    
-
-  - service: "health.actuator.service"
-    methods: ['GET']
-    url: "/health"
-    timeout: 10s
-
-  - service: "liveness.actuator.service"
-    methods: ['GET']
-    url: "/livenessprobe"
-    timeout: 10s
-
-  - service: "env.actuator.service"
-    methods: ['GET']
-    url: "/env"
-    timeout: 10s          
+    tracing: true       
 
   # service should be a target service name or a list of service names
   # If more than one service name is provided, the first one is the primary target

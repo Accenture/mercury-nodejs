@@ -173,7 +173,7 @@ class RestEntry {
         if (config.exists(REST)) {
             const rest = config.get(REST);
             if (Array.isArray(rest)) {
-                this.loadRest(config, rest.length);
+                this.loadRest(config);
                 const exact = Array.from(this.exactRoutes.keys());
                 if (exact.length > 0) {
                     log.info({ 'type': 'url', 'match': 'exact', 'total': exact.length, 'path': exact.sort() });
@@ -327,7 +327,10 @@ class RestEntry {
             return false;
         }
     }
-    loadRest(config, total) {
+    loadRest(config) {
+        this.addDefaultEndpoints(config);
+        const rest = config.get(REST);
+        const total = rest.length;
         // perform custom sort in ascending order of URL, methods and services
         const keys = [];
         for (let i = 0; i < total; i++) {
@@ -335,7 +338,7 @@ class RestEntry {
             const methods = config.get(REST + "[" + i + "]." + METHODS);
             const url = config.getProperty(REST + "[" + i + "]." + URL_LABEL);
             if (url && Array.isArray(methods) && (typeof services == 'string' || Array.isArray(services))) {
-                keys.push(`${url}|${JSON.stringify(methods)}|${JSON.stringify(services)}|${i}`);
+                keys.push(`${url} | ${JSON.stringify(methods)} |${i}`);
             }
             else {
                 log.error(`Skip invalid REST entry ${config.get(REST + "[" + i + "]")}`);
@@ -346,7 +349,7 @@ class RestEntry {
         const mm = new MultiLevelMap();
         let n = 0;
         for (const k of keys) {
-            const idx = util.str2int(k.substring(k.lastIndexOf('|') + 1));
+            const idx = k.substring(k.lastIndexOf('|') + 1);
             mm.setElement(REST + "[" + n + "]", config.get(REST + "[" + idx + "]"));
             n++;
         }
@@ -358,6 +361,43 @@ class RestEntry {
             if (url && Array.isArray(methods) && (typeof services == 'string' || Array.isArray(services))) {
                 this.loadRestEntry(sortedConfig, i, !url.includes("{") && !url.includes("}") && !url.includes("*"));
             }
+        }
+    }
+    addDefaultEndpoints(config) {
+        const defaultRest = util.loadYamlFile(util.getFolder("../resources/default-rest.yaml"));
+        const defaultRestEntries = defaultRest.getElement(REST);
+        const defaultTotal = defaultRestEntries.length;
+        const essentials = {};
+        const configured = new Array();
+        for (let i = 0; i < defaultTotal; i++) {
+            const methods = defaultRest.getElement(REST + "[" + i + "]." + METHODS);
+            const url = defaultRest.getElement(REST + "[" + i + "]." + URL_LABEL);
+            essentials[url + " " + JSON.stringify(methods)] = i;
+        }
+        const restEntries = config.get(REST);
+        let total = restEntries.length;
+        for (let i = 0; i < total; i++) {
+            const methods = config.get(REST + "[" + i + "]." + METHODS);
+            const url = config.getProperty(REST + "[" + i + "]." + URL_LABEL);
+            if (url && Array.isArray(methods)) {
+                configured.push(url + " " + JSON.stringify(methods));
+            }
+        }
+        // find out if there are missing default entries in the configured list
+        const missing = new Array();
+        for (const entry of Object.keys(essentials)) {
+            if (!configured.includes(entry)) {
+                missing.push(entry);
+            }
+        }
+        if (missing.length > 0) {
+            const map = new MultiLevelMap(config.getMap());
+            for (const entry of missing) {
+                const idx = essentials[entry];
+                map.setElement(REST + "[" + total + "]", defaultRest.getElement(REST + "[" + idx + "]"));
+                total++;
+            }
+            config.reload(map);
         }
     }
     loadRestEntry(config, idx, exact) {

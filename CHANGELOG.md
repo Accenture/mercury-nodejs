@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-simple type matching feature is extended with a new string 'concat' method
+1. simple type matching feature is extended with a new string 'concat' method
+2. default REST endpoints for /api/event and actuator services
 
 ### Removed
 
@@ -20,7 +21,8 @@ N/A
 
 ### Changed
 
-N/A
+Sort REST endpoints for orderingly loading
+
 ---
 ## Version 4.2.17, 2/20/2025
 

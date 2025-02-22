@@ -2,10 +2,12 @@
 
 ## Actuator endpoints
 
-The following admin endpoints are available.
+The following are actuator endpoints:
 
 ```
 GET /info
+GET /info/routes
+GET /env
 GET /health
 GET /livenessprobe
 ```
@@ -13,14 +15,28 @@ GET /livenessprobe
 | Endpoint       | Purpose                                                                             | 
 |:---------------|:------------------------------------------------------------------------------------|
 | /info          | Describe the application                                                            |
+| /info/routes   | Show public routing table                                                           |
+| /env           | List all private and public function route names and selected environment variables |
 | /health        | Application health check endpoint                                                   |
 | /livenessprobe | Check if application is running normally                                            |
 
-When REST automation is turned on, you can configure the administrative endpoints with the following
-entries in the "rest.yaml" configuration file.
+## System provided REST endpoints
+
+When REST automation is turned on, the following essential REST endpoints will be provided if they are
+not configured in rest.yaml. The "POST /api/event" is used for Event-Over-HTTP protocol and the others
+are actuator endpoints.
+
+To override the default parameters such as timeout, tracing and authentication, you can configure them
+in rest.yaml.
 
 ```yaml
 rest:
+  - service: "event.api.service"
+    methods: ['POST']
+    url: "/api/event"
+    timeout: 60s
+    tracing: true
+
   - service: "info.actuator.service"
     methods: ['GET']
     url: "/info"
@@ -46,8 +62,6 @@ rest:
     url: "/env"
     timeout: 10s
 ```
-
-Therefore, you can selectively enable all or some of these endpoints.
 
 ## Custom health services
 

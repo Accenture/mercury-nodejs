@@ -7,6 +7,8 @@ const log = Logger.getInstance();
 const po = new PostOffice();
 const DISTRIBUTED_TRACING = 'distributed.tracing';
 const DISTRIBUTED_TRACE_FORWARDER = 'distributed.trace.forwarder';
+const EVENT_API_SERVICE = 'event.api.service';
+const ZERO_TRACING_FILTER = [EVENT_API_SERVICE, DISTRIBUTED_TRACING, DISTRIBUTED_TRACE_FORWARDER];
 const TRACE = 'trace';
 const ANNOTATIONS = "annotations";
 const SERVICE = 'service';
@@ -34,16 +36,17 @@ export class DistributedTrace implements Composable {
                     metrics['exception'] = '***';
                 }
                 const routeName = metrics[SERVICE];
-                // ignore tracing for "distributed.tracing" and "distributed.trace.forwarder"
-                if (DISTRIBUTED_TRACING != routeName && DISTRIBUTED_TRACE_FORWARDER != routeName) {
-                    const dataset = {};
-                    dataset[TRACE] = metrics;
-                    if (ANNOTATIONS in payload) {
-                        dataset[ANNOTATIONS] = payload[ANNOTATIONS];
-                    }
-                    log.always(dataset);
-                    if (po.exists(DISTRIBUTED_TRACE_FORWARDER)) {
-                        await po.send(new EventEnvelope().setTo(DISTRIBUTED_TRACE_FORWARDER).setBody(dataset));
+                if (routeName) {
+                    if (!ZERO_TRACING_FILTER.includes(routeName)) {
+                        const dataset = {};
+                        dataset[TRACE] = metrics;
+                        if (ANNOTATIONS in payload) {
+                            dataset[ANNOTATIONS] = payload[ANNOTATIONS];
+                        }
+                        log.always(dataset);
+                        if (po.exists(DISTRIBUTED_TRACE_FORWARDER)) {
+                            await po.send(new EventEnvelope().setTo(DISTRIBUTED_TRACE_FORWARDER).setBody(dataset));
+                        }
                     }
                 }
             }

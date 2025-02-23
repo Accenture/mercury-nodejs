@@ -3,9 +3,15 @@ import { EventEnvelope } from '../models/event-envelope.js';
 import { AppException } from '../models/app-exception.js';
 const TEMPORARY_INBOX = 'temporary.inbox';
 const DISTRIBUTED_TRACING = 'distributed.tracing';
+// update ZERO_TRACING_FILTER if there are additional routes to filter out
+const ASYNC_HTTP_CLIENT = "async.http.request";
+const ZERO_TRACING_FILTER = [ASYNC_HTTP_CLIENT];
 const RPC = "rpc";
 const promises = {};
 let po;
+function trimOrigin(route) {
+    return route.includes("@") ? route.substring(0, route.indexOf('@')) : route;
+}
 /**
  * This is reserved for system use.
  * DO NOT use this directly in your application code.
@@ -52,36 +58,39 @@ export class TemporaryInbox {
                     response.setRoundTrip(diff);
                     // send tracing information if needed
                     if (traceId && tracePath) {
-                        const metrics = { 'origin': po.getId(), 'id': traceId, 'path': tracePath,
-                            'service': route, 'start': utc, 'success': true,
-                            'exec_time': response.getExecTime(), 'round_trip': diff };
-                        if (from) {
-                            metrics['from'] = from;
-                        }
-                        if (Object.keys(response.getAnnotations()).length > 0) {
-                            metrics['annotations'] = response.getAnnotations();
-                        }
-                        if (response.getStatus() >= 400) {
-                            metrics['success'] = false;
-                            metrics['status'] = response.getStatus();
-                            const error = response.getBody();
-                            if (typeof error == 'string') {
-                                metrics['exception'] = error;
+                        const to = trimOrigin(route);
+                        if (!ZERO_TRACING_FILTER.includes(to)) {
+                            const metrics = { 'origin': po.getId(), 'id': traceId, 'path': tracePath,
+                                'service': to, 'start': utc, 'success': true,
+                                'exec_time': response.getExecTime(), 'round_trip': diff };
+                            if (from) {
+                                metrics['from'] = trimOrigin(from);
                             }
-                            else if (error instanceof Object) {
-                                if ('message' in error) {
-                                    metrics['exception'] = error['message'];
-                                }
-                                else {
+                            if (Object.keys(response.getAnnotations()).length > 0) {
+                                metrics['annotations'] = response.getAnnotations();
+                            }
+                            if (response.getStatus() >= 400) {
+                                metrics['success'] = false;
+                                metrics['status'] = response.getStatus();
+                                const error = response.getBody();
+                                if (typeof error == 'string') {
                                     metrics['exception'] = error;
                                 }
+                                else if (error instanceof Object) {
+                                    if ('message' in error) {
+                                        metrics['exception'] = error['message'];
+                                    }
+                                    else {
+                                        metrics['exception'] = error;
+                                    }
+                                }
+                                else {
+                                    metrics['exception'] = error ? error : 'null';
+                                }
                             }
-                            else {
-                                metrics['exception'] = error ? error : 'null';
-                            }
+                            const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACING).setBody({ 'trace': metrics });
+                            po.send(trace);
                         }
-                        const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACING).setBody({ 'trace': metrics });
-                        po.send(trace);
                     }
                     // filter out protected metadata
                     const headers = {};

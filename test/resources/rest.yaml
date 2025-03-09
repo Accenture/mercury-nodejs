@@ -130,6 +130,15 @@ rest:
 
   - service: "http.flow.adapter"
     methods: ['PUT']
+    url: "/api/ext/state/flow/{user}"
+    flow: 'externalize-put-key-value-flow'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: "http.flow.adapter"
+    methods: ['PUT']
     url: "/api/ext/state/{user}"
     flow: 'externalize-put-key-value'
     timeout: 10s
@@ -256,6 +265,15 @@ rest:
     methods: ['GET']
     url: "/api/delayed-response/{user}?seq=_"
     flow: 'delayed-response-test'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/fork-n-join-flows/{user}?seq=_"
+    flow: 'fork-n-join-flows'
     timeout: 10s
     cors: cors_1
     headers: header_1

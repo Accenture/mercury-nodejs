@@ -16,6 +16,7 @@ const TASK_EXECUTOR = "task.executor";
 const HTTP_FLOW_ADAPTER = "http.flow.adapter";
 const FIRST_TASK = "first_task";
 const FLOW_ID = "flow_id";
+const PARENT = "parent";
 
 let started = false;
 
@@ -51,11 +52,7 @@ export class EventScriptManager implements Composable {
         const po = new PostOffice(event.getHeaders());
         const self = po.getMyClass() as EventScriptManager;
         try {
-            const flowId = event.getHeader(FLOW_ID);
-            if (!flowId) {
-                throw new Error("Missing "+FLOW_ID);
-            }
-            await self.processRequest(event, flowId);
+            await self.processRequest(event, event.getHeader(FLOW_ID));
         } catch (e) {
             const message = e.message? e.message : 'unknown error';
             log.error(`Unable to process request - ${message}`);
@@ -70,6 +67,9 @@ export class EventScriptManager implements Composable {
     }
 
     private async processRequest(event: EventEnvelope, flowId: string) {
+        if (flowId == null || flowId.length == 0) {
+            throw new Error("Missing "+FLOW_ID);
+        }
         const po = new PostOffice(event.getHeaders());
         const flowInstance = this.getFlowInstance(event, flowId, Flows.getFlow(flowId));
         Flows.addFlowInstance(flowInstance);
@@ -93,7 +93,7 @@ export class EventScriptManager implements Composable {
         const replyTo = event.getReplyTo();
         // Save the original correlation-ID ("cid") from the calling party in a flow instance and
         // return this value to the calling party at the end of flow execution
-        const flowInstance = new FlowInstance(flowId, cid, replyTo, template);
+        const flowInstance = new FlowInstance(flowId, cid, replyTo, template, event.getHeader(PARENT));
         // Optional distributed trace
         const traceId = event.getTraceId();
         const tracePath = event.getTracePath();

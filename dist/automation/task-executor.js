@@ -13,6 +13,7 @@ const EVENT_MANAGER = "event.script.manager";
 const TASK_EXECUTOR = "task.executor";
 const FIRST_TASK = "first_task";
 const FLOW_ID = "flow_id";
+const PARENT = "parent";
 const FLOW_PROTOCOL = "flow://";
 const TYPE = "type";
 const PUT = "put";
@@ -353,6 +354,7 @@ export class TaskExecutor {
                 target.setElement(HEADER, optionalHeaders);
             }
             const forward = new EventEnvelope().setTo(EVENT_MANAGER)
+                .setHeader(PARENT, flowInstance.id)
                 .setHeader(FLOW_ID, flowId).setBody(target.getMap()).setCorrelationId(util.getUuid());
             const po = new PostOffice(new Sender(task.functionRoute, flowInstance.getTraceId(), flowInstance.getTracePath()));
             const response = await po.request(forward, subFlow.ttl);
@@ -777,15 +779,32 @@ export class TaskExecutor {
         const key = rhs.substring(EXT_NAMESPACE.length).trim();
         const externalStateMachine = flowInstance.getFlow().externalStateMachine;
         const po = new PostOffice(new Sender(task.service, flowInstance.getTraceId(), flowInstance.getTracePath()));
-        if (value) {
-            // tell external state machine to save key-value
-            po.send(new EventEnvelope()
-                .setTo(externalStateMachine).setBody(value).setHeader(TYPE, PUT).setHeader(KEY, key));
-        }
-        else {
-            // tell external state machine to remove key-value
-            po.send(new EventEnvelope()
-                .setTo(externalStateMachine).setHeader(TYPE, REMOVE).setHeader(KEY, key));
+        if (externalStateMachine) {
+            if (externalStateMachine.startsWith(FLOW_PROTOCOL)) {
+                const dataset = new MultiLevelMap();
+                dataset.setElement("header.key", key);
+                dataset.setElement("header.type", value ? PUT : REMOVE);
+                if (value != null) {
+                    dataset.setElement("body", { 'data': value });
+                }
+                const flowId = externalStateMachine.substring(FLOW_PROTOCOL.length);
+                const forward = new EventEnvelope().setTo(EVENT_MANAGER)
+                    .setHeader(PARENT, flowInstance.id)
+                    .setHeader(FLOW_ID, flowId).setBody(dataset.getMap()).setCorrelationId(util.getUuid());
+                po.send(forward);
+            }
+            else {
+                if (value) {
+                    // tell external state machine to save key-value
+                    po.send(new EventEnvelope()
+                        .setTo(externalStateMachine).setBody({ 'data': value }).setHeader(TYPE, PUT).setHeader(KEY, key));
+                }
+                else {
+                    // tell external state machine to remove key-value
+                    po.send(new EventEnvelope()
+                        .setTo(externalStateMachine).setHeader(TYPE, REMOVE).setHeader(KEY, key));
+                }
+            }
         }
     }
     removeModelElement(rhs, model) {
@@ -895,9 +914,7 @@ export class TaskExecutor {
         const value = source.getElement(selector);
         if (colon != -1) {
             const type = lhs.substring(colon + 1).trim();
-            if (value != null) {
-                return this.getValueByType(type, value, "LHS '" + lhs + "'", source);
-            }
+            return this.getValueByType(type, value, "LHS '" + lhs + "'", source);
         }
         return value;
     }

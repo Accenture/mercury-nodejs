@@ -19,7 +19,7 @@ export declare class FlowInstance {
     private tracePath;
     private responded;
     private running;
-    constructor(flowId: string, cid: string, replyTo: string, flow: Flow);
+    constructor(flowId: string, cid: string, replyTo: string, flow: Flow, parentId: string);
     setTrace(traceId: string, tracePath: string): void;
     getStartMillis(): number;
     close(): void;

@@ -17,6 +17,7 @@ export declare class CompileFlows {
     private normalizedTypeMapping;
     private removeNegate;
     private validInput;
+    private validModel;
     private validKeyValues;
     private validOutput;
     private validOutputLhs;

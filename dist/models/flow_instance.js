@@ -1,3 +1,4 @@
+import { Flows } from './flows.js';
 import { Utility } from '../util/utility.js';
 import { PostOffice } from '../system/post-office.js';
 import { EventEnvelope } from './event-envelope.js';
@@ -24,12 +25,17 @@ export class FlowInstance {
     tracePath;
     responded = false;
     running = true;
-    constructor(flowId, cid, replyTo, flow) {
+    constructor(flowId, cid, replyTo, flow, parentId) {
         this.flow = flow;
         this.cid = cid;
         this.replyTo = replyTo;
         // initialize the state machine
         const model = { 'instance': this.id, 'cid': cid, 'flow': flowId };
+        // this is a sub-flow if parent flow instance is available
+        const parent = Flows.getFlowInstance(parentId);
+        if (parent) {
+            model['parent'] = parent.dataset['model'];
+        }
         this.dataset['model'] = model;
         const timeoutTask = new EventEnvelope().setTo('task.executor');
         timeoutTask.setCorrelationId(this.id).setHeader(TIMEOUT, 'true');

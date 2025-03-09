@@ -20,6 +20,8 @@ const LOOP = "loop";
 const FLOW_PROTOCOL = "flow://";
 const INPUT_NAMESPACE = "input.";
 const OUTPUT_NAMESPACE = "output.";
+const MODEL = "model";
+const PARENT = "parent";
 const MODEL_NAMESPACE = "model.";
 const NEGATE_MODEL = "!model.";
 const RESULT_NAMESPACE = "result.";
@@ -421,7 +423,7 @@ export class CompileFlows {
                     log.error(`Unable to parse ${name} - flow is missing external.state.machine`);
                 }
                 else if (incomplete) {
-                    log.error(`Unable to parse ${name} - flow has incomplete data mappings`);
+                    log.error(`Unable to parse ${name} - flow has invalid data mappings`);
                 }
                 else {
                     Flows.addFlow(entry);
@@ -613,7 +615,7 @@ export class CompileFlows {
         if (sep > 0) {
             const lhs = input.substring(0, sep).trim();
             const rhs = input.substring(sep + 2).trim();
-            if (rhs.length > 0) {
+            if (this.validModel(lhs) && this.validModel(rhs)) {
                 if (lhs == INPUT || lhs.startsWith(INPUT_NAMESPACE) ||
                     lhs.startsWith(MODEL_NAMESPACE) || lhs.startsWith(ERROR_NAMESPACE)) {
                     return true;
@@ -631,6 +633,30 @@ export class CompileFlows {
             }
         }
         return false;
+    }
+    validModel(key) {
+        const parts = util.split(key, "!: ()");
+        if (parts.length == 0) {
+            return false;
+        }
+        else {
+            // "model" alone to access the whole model dataset is not allowed
+            if (MODEL == parts[0]) {
+                return false;
+            }
+            // model.parent... to access the whole parent namespace is not allowed
+            if (parts[0].startsWith(MODEL_NAMESPACE)) {
+                const segments = util.split(parts[0], ".");
+                let n = 1;
+                for (let i = 1; i < segments.length; i++) {
+                    if (PARENT == segments[i]) {
+                        n++;
+                    }
+                }
+                return n != segments.length;
+            }
+            return true;
+        }
     }
     validKeyValues(text) {
         const last = text.lastIndexOf(CLOSE_BRACKET);
@@ -659,7 +685,9 @@ export class CompileFlows {
         if (sep > 0) {
             const lhs = output.substring(0, sep).trim();
             const rhs = output.substring(sep + 2).trim();
-            return this.validOutputLhs(lhs) && this.validOutputRhs(rhs, isDecision);
+            if (this.validModel(lhs) && this.validModel(rhs)) {
+                return this.validOutputLhs(lhs) && this.validOutputRhs(rhs, isDecision);
+            }
         }
         return false;
     }

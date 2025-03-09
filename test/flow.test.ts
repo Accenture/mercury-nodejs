@@ -93,10 +93,13 @@ class ExtStateMachine implements Composable {
     const type = evt.getHeader(TYPE);
     const key = evt.getHeader(KEY);
     const input = evt.getBody();
-    if (PUT == type && input) {
-        log.info(`Saving ${key} to store`);
-        store[key] = input;
-        return true;
+    if (PUT == type && input instanceof Object && 'data' in input) {
+      var data = input['data'];
+      if (data) {
+          log.info(`Saving ${key} to store`);
+          store[key] = data;
+          return true;
+      }
     }
     if (GET == type) {
         const v = store[key];
@@ -495,11 +498,40 @@ describe('event flow use cases', () => {
   }); 
 
   
-  it('can use external state machine', async () => {
+  it('can use external state machine function', async () => {
     const testUser = 'test-user';
     const payload = {'hello': 'world'};
     const po = new PostOffice();
     const req1 = new AsyncHttpRequest().setMethod('PUT').setTargetHost(baseUrl).setUrl(`/api/ext/state/${testUser}`)
+                                        .setHeader('accept', 'application/json')
+                                        .setHeader('content-type', 'application/json').setBody(payload);
+    const reqEvent1 = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req1.toMap());
+    const result1 = await po.request(reqEvent1);
+    expect(result1.getBody() instanceof Object);
+    const map1 = new MultiLevelMap(result1.getBody() as object);
+    expect(map1.getElement('hello')).toBe('world');
+    /*
+      * We must assume that external state machine is eventual consistent.
+      * Therefore, result may not be immediately available.
+      *
+      * However, for unit test, we set the external state machine function to have a single worker instance
+      * so that the GET request will wait until the PUT request is done, thus returning result correctly.
+      */
+    const req2 = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl(`/api/ext/state/${testUser}`)
+                                        .setHeader('accept', 'application/json');
+    const reqEvent2 = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req2.toMap());
+    const result2 = await po.request(reqEvent2);
+    expect(result2.getBody() instanceof Object);
+    const map2 = new MultiLevelMap(result2.getBody() as object);
+    expect(map2.getElement('user')).toBe(testUser);
+    expect(map2.getElement('payload')).toEqual(payload);
+  }); 
+
+  it('can use external state machine flow', async () => {
+    const testUser = 'test-user';
+    const payload = {'hello': 'world'};
+    const po = new PostOffice();
+    const req1 = new AsyncHttpRequest().setMethod('PUT').setTargetHost(baseUrl).setUrl(`/api/ext/state/flow/${testUser}`)
                                         .setHeader('accept', 'application/json')
                                         .setHeader('content-type', 'application/json').setBody(payload);
     const reqEvent1 = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req1.toMap());
@@ -942,7 +974,25 @@ describe('event flow use cases', () => {
     expect(map.getElement("user")).toBe('test-user');
     expect(map.getElement("key1")).toBe("hello-world-one");
     expect(map.getElement("key2")).toBe("hello-world-two");
-  });   
+  });
+
+  it('can do fork-n-join-flows', async () => {
+    const po = new PostOffice();
+    const req1 = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/api/fork-n-join-flows/test-user')
+                                        .setQueryParameter('seq', '100')
+                                        .setHeader('accept', 'application/json'); 
+    // Since there are only 3 items in the next tasks, a decision value of 100 is invalid                                                 
+    const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req1.toMap());
+    const result = await po.request(reqEvent);
+    expect(result.getStatus()).toBe(200);
+    expect(result.getBody() instanceof Object);
+    const map = new MultiLevelMap(result.getBody() as object);
+    expect(result.getHeader('content-type')).toBe('application/json');
+    expect(map.getElement("sequence")).toBe(100);
+    expect(map.getElement("user")).toBe('test-user');
+    expect(map.getElement("key1")).toBe("hello-world-one");
+    expect(map.getElement("key2")).toBe("hello-world-two");
+  });  
   
   it('can do pipeline tasks', async () => {
     const po = new PostOffice();

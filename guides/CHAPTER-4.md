@@ -287,7 +287,11 @@ The above event flow configuration uses "my.first.task" as a named route for "gr
 
 ## Hierarchy of flows
 
-Inside a flow, you can run one or more sub-flows.
+As shown in Figure 1, you can run one or more sub-flows inside a primary flow.
+
+![Hierarchy of flows](./diagrams/parent-namespace.png)
+
+> Figure 1 - Hierarchy of flows
 
 To do this, you can use the flow protocol identifier (`flow://`) to indicate that the task is a flow.
 
@@ -312,6 +316,10 @@ If the sub-flow is not available, the system will throw an error stating that it
 Hierarchy of flows would reduce the complexity of a single flow configuration file. The "time-to-live (TTL)"
 value of the parent flow should be set to a value that covers the complete flow including the time used in
 the sub-flows.
+
+In the input/output data mapping sections, the configuration management system can access the parent flow
+state machine using the namespace `model.parent.`. Please keep the level of sub-flows to as few as possible.
+We would recommend using only a single level of sub-flows.
 
 > *Note*: For simplicity, the input data mapping for a sub-flow should contain only the "header" and "body" arguments.
 
@@ -338,10 +346,13 @@ To handle this level of modularity, the system provides configurable input/outpu
 | Function output status code       | `status`                     | left       | output   |
 | Decision value                    | `decision`                   | right      | output   |
 | State machine dataset             | `model.`                     | left/right | I/O      |
+| Parent state machine dataset      | `model.parent.`              | left/right | I/O      |
 | External state machine key-value  | `ext:`                       | right      | I/O      |
 
-> *Note*: The external state machine namespace uses the colon character (`:`) to indicate that the key-value
-  is external.
+For state machine (model and model.parent namespaces), the system rejects access to the whole
+namespace. You should only access specific key-values in the model or model.parent namespaces.
+
+The external state machine namespace uses the colon character (`:`) to indicate that the key-value is external.
 
 *Constants for input data mapping*
 
@@ -1068,7 +1079,7 @@ The input interface contract to the external state machine for saving a key-valu
 ```shell
 header.type = 'put'
 header.key = key
-body = value
+body.data = value
 ```
 
 Your function should save the input key-value to a persistent store.
@@ -1092,44 +1103,75 @@ event-script-engine's unit test section.
 
 ```shell
 class ExtStateMachine implements Composable {
-    @preload('v1.ext.state.machine')
-    initialize(): Composable {
-        return this;
+  initialize(): Composable {
+    return this;
+  }
+  async handleEvent(evt: EventEnvelope) {
+    if (!evt.getHeader(KEY)) {
+      throw new Error("Missing key in headers");
     }
-    async handleEvent(evt: EventEnvelope) {
-        if (!evt.getHeader(KEY)) {
-            throw new Error("Missing key in headers");
-        }
     const type = evt.getHeader(TYPE);
     const key = evt.getHeader(KEY);
     const input = evt.getBody();
-        if (PUT == type && input) {
-            log.info(`Saving ${key} to store`);
-            store[key] = input;
-            return true;
-        }
-        if (GET == type) {
-        const v = store[key];
-            if (v) {
-                log.info(`Retrieve ${key} from store`);
-                return v;
-            } else {
-                return null;
-            }
-        }
-        if (REMOVE == type) {
-            if (key in store) {
-                delete store[key];
-                log.info(`Removed ${key} from store`);
-                return true;
-            } else {
-                return false;
-            }
-        }
-        return false;
+    if (PUT == type && input instanceof Object && 'data' in input) {
+      var data = input['data'];
+      if (data) {
+          log.info(`Saving ${key} to store`);
+          store[key] = data;
+          return true;
+      }
     }
+    if (GET == type) {
+        const v = store[key];
+        if (v) {
+            log.info(`Retrieve ${key} from store`);
+            return v;
+        } else {
+            return null;
+        }
+    }
+    if (REMOVE == type) {
+        if (key in store) {
+            delete store[key];
+            log.info(`Removed ${key} from store`);
+            return true;
+        } else {
+            return false;
+        }
+    }
+    return false;
+  }  
 }
 ```
+
+For more sophisticated operation, you may also configure the external state machine as a "flow" like this:
+
+```yaml
+external.state.machine: 'flow://ext-state-machine'
+```
+
+You can then define the flow for "ext-state-machine" like this:
+
+```yaml
+flow:
+  id: 'ext-state-machine'
+  description: 'Flow to execute an external state machine'
+  ttl: 10s
+
+first.task: 'v1.ext.state.machine'
+
+tasks:
+  - input:
+      - 'input.header.key -> header.key'
+      - 'input.header.type -> header.type'
+      - 'input.body.data -> data'
+    process: 'v1.ext.state.machine'
+    output: []
+    description: 'Execute external state machine'
+    execution: end
+```
+
+> *Note*: By definition, external state machine flow is outside the scope of the calling flow.
 
 ### Future task scheduling
 

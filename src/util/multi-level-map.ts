@@ -50,7 +50,7 @@ function setMapElement(pathname: string, value, map: object, remove = false): vo
     const nullValue = value == null || value === undefined;
     // ignore null value
     if (pathname && !nullValue && map.constructor == Object) {
-        const list = pathname.split(/[./]+/).filter(v => v.length > 0);
+        const list = pathname.split('.').filter(v => v.length > 0);
         if (list.length == 0) {
             return;
         }
@@ -171,7 +171,7 @@ function expandList(indexes: Array<number>, dataset) {
 }
 
 function validateCompositePathSyntax(pathname: string): void {
-    const list = pathname.split(/[./]+/).filter(v => v.length > 0);
+    const list = pathname.split('.').filter(v => v.length > 0);
     if (list.length == 0) {
         throw new Error('composite path cannot be empty');
     }
@@ -227,7 +227,7 @@ function getMapElement(pathname: string, map: object) {
         if (!isComposite(pathname)) {
             return null;
         }
-        const list = pathname.split(/[./]+/).filter(v => v.length > 0);
+        const list = pathname.split('.').filter(v => v.length > 0);
         let current = map;
         const len = list.length;
         let n = 0;
@@ -272,7 +272,7 @@ function getMapElement(pathname: string, map: object) {
 }
 
 function isComposite(item: string): boolean {
-    return item.includes('.') || item.includes('/') || item.includes('[') || item.includes(']')
+    return item.includes('.') || item.includes('[') || item.includes(']')
 }
 
 function isListElement(item: string): boolean {

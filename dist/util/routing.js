@@ -694,7 +694,7 @@ class RestEntry {
     }
     getRouteInfo(method, url) {
         let sb = '';
-        const urlParts = url.split("/").filter(v => v.length > 0);
+        const urlParts = url.split('/').filter(v => v.length > 0);
         for (const p of urlParts) {
             sb += '/';
             sb += p;
@@ -731,7 +731,7 @@ class RestEntry {
         // "configured" is a lower case URL in the routing entry
         const key = method + ":" + configured;
         const result = new AssignedRoute(this.routes.get(key));
-        const segments = configured.split("/").filter(v => v.length > 0);
+        const segments = configured.split('/').filter(v => v.length > 0);
         if (this.matchRoute(urlParts, segments, configured.endsWith("*"))) {
             this.addArguments(result, urlParts, segments);
             return result;

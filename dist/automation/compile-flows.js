@@ -615,7 +615,7 @@ export class CompileFlows {
         if (sep > 0) {
             const lhs = input.substring(0, sep).trim();
             const rhs = input.substring(sep + 2).trim();
-            if (this.validModel(lhs) && this.validModel(rhs)) {
+            if (this.validModel(lhs) && this.validModel(rhs) && lhs != rhs) {
                 if (lhs == INPUT || lhs.startsWith(INPUT_NAMESPACE) ||
                     lhs.startsWith(MODEL_NAMESPACE) || lhs.startsWith(ERROR_NAMESPACE)) {
                     return true;
@@ -685,7 +685,7 @@ export class CompileFlows {
         if (sep > 0) {
             const lhs = output.substring(0, sep).trim();
             const rhs = output.substring(sep + 2).trim();
-            if (this.validModel(lhs) && this.validModel(rhs)) {
+            if (this.validModel(lhs) && this.validModel(rhs) && lhs != rhs) {
                 return this.validOutputLhs(lhs) && this.validOutputRhs(rhs, isDecision);
             }
         }

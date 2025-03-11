@@ -644,16 +644,10 @@ export class CompileFlows {
             if (MODEL == parts[0]) {
                 return false;
             }
-            // model.parent... to access the whole parent namespace is not allowed
+            // model.parent to access the whole parent namespace is not allowed
             if (parts[0].startsWith(MODEL_NAMESPACE)) {
                 const segments = util.split(parts[0], ".");
-                let n = 1;
-                for (let i = 1; i < segments.length; i++) {
-                    if (PARENT == segments[i]) {
-                        n++;
-                    }
-                }
-                return n != segments.length;
+                return segments.length != 1 && (segments.length != 2 || PARENT != segments[1]);
             }
             return true;
         }

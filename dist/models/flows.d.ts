@@ -9,7 +9,7 @@ export declare class Flows {
     static flowInstances: {};
     static getFlow(id: string): Flow;
     static getAllFlows(): string[];
-    static getFlowInstance(id?: string): any;
+    static getFlowInstance(id?: string): FlowInstance;
     static flowExists(id: string): boolean;
     static addFlow(flow: Flow): void;
     static addFlowInstance(instance: FlowInstance): void;

@@ -18,7 +18,7 @@ export class Flows {
         return Object.keys(Flows.allFlows);
     }
 
-    static getFlowInstance(id?: string) {
+    static getFlowInstance(id?: string): FlowInstance {
         const result = id? Flows.flowInstances[id] : null;
         return result? result : null;
     }

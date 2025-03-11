@@ -17,9 +17,11 @@ export declare class FlowInstance {
     private flow;
     private traceId;
     private tracePath;
+    private parentId;
     private responded;
     private running;
     constructor(flowId: string, cid: string, replyTo: string, flow: Flow, parentId: string);
+    private resolveParent;
     setTrace(traceId: string, tracePath: string): void;
     getStartMillis(): number;
     close(): void;

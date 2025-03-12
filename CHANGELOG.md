@@ -16,12 +16,12 @@ N/A
 
 ### Removed
 
-N/A
+Dependency for "execa" is not required
 
 ### Changed
 
 All sub-flows instantiated from a primary flow can access the same parent state machine
-using the "model.parent" namespace.
+using the "model.parent" namespace
 
 ---
 ## Version 4.2.21, 3/9/2025

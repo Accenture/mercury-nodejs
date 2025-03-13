@@ -13,6 +13,7 @@ const log = Logger.getInstance();
  */
 export class FlowInstance {
     dataset = {};
+    shared = {};
     tasks = [];
     pendingTasks = {};
     pipeCounter = 0;
@@ -38,13 +39,14 @@ export class FlowInstance {
         if (parentId) {
             const parent = this.resolveParent(parentId);
             if (parent) {
-                model['parent'] = parent.dataset['model'];
+                model['parent'] = parent.shared;
                 this.parentId = parent.id;
                 log.info(`${this.getFlow().id}:${this.id} extends ${parent.getFlow().id}:${parent.id}`);
             }
         }
         else {
             this.parentId = null;
+            model['parent'] = this.shared;
         }
         this.dataset['model'] = model;
         const timeoutTask = new EventEnvelope().setTo('task.executor');

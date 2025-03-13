@@ -5,6 +5,7 @@ import { Flow } from './flow.js';
  */
 export declare class FlowInstance {
     dataset: {};
+    shared: {};
     tasks: any[];
     pendingTasks: {};
     pipeCounter: number;

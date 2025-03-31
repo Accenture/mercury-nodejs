@@ -172,7 +172,7 @@ export class TaskExecutor {
                         }
                         const handler = task.getExceptionTask() != null ? task.getExceptionTask() : flowInstance.getFlow().exception;
                         if (handler) {
-                            const error = { 'code': statusCode, 'message': String(event.getBody()) };
+                            const error = { 'code': statusCode, 'message': event.getError() };
                             const stackTrace = event.getStackTrace();
                             if (stackTrace) {
                                 error['stack'] = stackTrace;
@@ -181,7 +181,7 @@ export class TaskExecutor {
                         }
                         else {
                             // when there are no task or flow exception handlers
-                            self.abortFlow(flowInstance, statusCode, String(event.getBody()));
+                            self.abortFlow(flowInstance, statusCode, event.getError());
                         }
                         return null;
                     }
@@ -235,7 +235,7 @@ export class TaskExecutor {
                         value = this.getLhsElement(lhs, source);
                     }
                     else {
-                        value = await this.getConstantValue(lhs, rhs);
+                        value = await this.getConstantValue(lhs);
                     }
                     this.callExternalStateMachine(flowInstance, task, rhs, value);
                 }
@@ -303,7 +303,7 @@ export class TaskExecutor {
                     // Assume left hand side is a constant
                     if (rhs.startsWith(HEADER_NAMESPACE)) {
                         const k = rhs.substring(HEADER_NAMESPACE.length);
-                        const v = await this.getConstantValue(lhs, rhs);
+                        const v = await this.getConstantValue(lhs);
                         if (k && v) {
                             optionalHeaders[k] = String(v);
                         }
@@ -428,25 +428,23 @@ export class TaskExecutor {
                     }
                 }
                 else {
-                    value = await this.getConstantValue(lhs, rhs);
+                    value = await this.getConstantValue(lhs);
                 }
-                if (value != null) {
-                    let required = true;
-                    if (rhs.startsWith(FILE_TYPE)) {
-                        required = false;
-                        const fd = new SimpleFileDescriptor(rhs);
-                        // automatically create parent folder
-                        const fileNotFound = !fs.existsSync(fd.fileName);
-                        if (fileNotFound) {
-                            const parent = this.getParentFolder(fd.fileName);
-                            if (parent) {
-                                if (this.createParentFolders(parent)) {
-                                    log.info(`Folder ${parent} created`);
-                                }
-                                ;
+                if (rhs.startsWith(FILE_TYPE)) {
+                    const fd = new SimpleFileDescriptor(rhs);
+                    // automatically create parent folder
+                    const fileFound = fs.existsSync(fd.fileName);
+                    if (!fileFound) {
+                        const parent = this.getParentFolder(fd.fileName);
+                        if (parent) {
+                            if (this.createParentFolders(parent)) {
+                                log.info(`Folder ${parent} created`);
                             }
+                            ;
                         }
-                        if (fileNotFound || !util.isDirectory(fd.fileName)) {
+                    }
+                    if (!fileFound || !util.isDirectory(fd.fileName)) {
+                        if (value) {
                             if (value instanceof Buffer) {
                                 await util.bytes2file(fd.fileName, value);
                             }
@@ -461,34 +459,40 @@ export class TaskExecutor {
                             }
                         }
                         else {
-                            log.warn(`Failed data mapping ${lhs} -> ${rhs} - Unable to save file`);
+                            if (fileFound)
+                                fs.rmSync(fd.fileName);
                         }
-                    }
-                    if (rhs == OUTPUT_STATUS) {
-                        const status = typeof value == 'number' ? value : util.str2int(String(value));
-                        if (status < 100 || status > 599) {
-                            log.error(`Invalid output mapping '${entry}' - expect: valid HTTP status code, actual: ${status}`);
-                            required = false;
-                        }
-                    }
-                    if (rhs == OUTPUT_HEADER) {
-                        if (!(value instanceof Object && !Array.isArray(value))) {
-                            const type = typeof value;
-                            log.error(`Invalid output mapping '${entry}' - expect: JSON, actual: ${type}`);
-                            required = false;
-                        }
-                    }
-                    if (rhs.startsWith(EXT_NAMESPACE)) {
-                        required = false;
-                        this.callExternalStateMachine(flowInstance, task, rhs, value);
-                    }
-                    if (required) {
-                        this.setRhsElement(value, rhs, consolidated);
                     }
                 }
                 else {
-                    if (rhs.startsWith(EXT_NAMESPACE)) {
-                        this.callExternalStateMachine(flowInstance, task, rhs, null);
+                    if (value != null) {
+                        let required = true;
+                        if (rhs == OUTPUT_STATUS) {
+                            const status = typeof value == 'number' ? value : util.str2int(String(value));
+                            if (status < 100 || status > 599) {
+                                log.error(`Invalid output mapping '${entry}' - expect: valid HTTP status code, actual: ${status}`);
+                                required = false;
+                            }
+                        }
+                        if (rhs == OUTPUT_HEADER) {
+                            if (!(value instanceof Object && !Array.isArray(value))) {
+                                const type = typeof value;
+                                log.error(`Invalid output mapping '${entry}' - expect: JSON, actual: ${type}`);
+                                required = false;
+                            }
+                        }
+                        if (rhs.startsWith(EXT_NAMESPACE)) {
+                            required = false;
+                            this.callExternalStateMachine(flowInstance, task, rhs, value);
+                        }
+                        if (required) {
+                            this.setRhsElement(value, rhs, consolidated);
+                        }
+                    }
+                    else {
+                        if (rhs.startsWith(EXT_NAMESPACE)) {
+                            this.callExternalStateMachine(flowInstance, task, rhs, null);
+                        }
                     }
                 }
             }
@@ -839,7 +843,7 @@ export class TaskExecutor {
         }
     }
     async setConstantValue(lhs, rhs, target) {
-        const value = await this.getConstantValue(lhs, rhs);
+        const value = await this.getConstantValue(lhs);
         if (value != null) {
             this.setRhsElement(value, rhs, target);
         }
@@ -847,7 +851,7 @@ export class TaskExecutor {
             this.removeModelElement(rhs, target);
         }
     }
-    async getConstantValue(lhs, rhs) {
+    async getConstantValue(lhs) {
         const last = lhs.lastIndexOf(CLOSE_BRACKET);
         if (last > 0) {
             if (lhs.startsWith(TEXT_TYPE)) {
@@ -892,17 +896,11 @@ export class TaskExecutor {
                 if (fs.existsSync(fd.fileName) && !util.isDirectory(fd.fileName)) {
                     return fd.binary ? await util.file2bytes(fd.fileName) : await util.file2str(fd.fileName);
                 }
-                else {
-                    log.warn(`Failed data mapping ${lhs} -> ${rhs} - Unable to read file`);
-                }
             }
             if (lhs.startsWith(CLASSPATH_TYPE)) {
                 const fd = new SimpleFileDescriptor(lhs);
                 if (fs.existsSync(fd.fileName) && !util.isDirectory(fd.fileName)) {
                     return fd.binary ? await util.file2bytes(fd.fileName) : await util.file2str(fd.fileName);
-                }
-                else {
-                    log.warn(`Failed data mapping ${lhs} -> ${rhs} - Unable to read classpath`);
                 }
             }
         }

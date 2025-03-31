@@ -256,6 +256,13 @@ export declare class EventEnvelope {
      * @returns this
      */
     setException(error: Error): EventEnvelope;
+    /**
+     * Convert body as an error message
+     *
+     * @returns error message
+     */
+    getError(): string;
+    setStackTrace(stackTrace: string): EventEnvelope;
     getStackTrace(): string;
     /**
      * Check if this event contains an exception

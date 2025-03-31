@@ -9,6 +9,6 @@ export class NoOp {
     }
 }
 __decorate([
-    preload('no.op', 10)
+    preload('no.op', 50)
 ], NoOp.prototype, "initialize", null);
 //# sourceMappingURL=no-op.js.map

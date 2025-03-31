@@ -420,6 +420,31 @@ export class EventEnvelope {
         }
         return this;
     }
+    /**
+     * Convert body as an error message
+     *
+     * @returns error message
+     */
+    getError() {
+        let errorMsg;
+        if (this.body instanceof Object) {
+            // extract embedded error message if any
+            if ('message' in this.body) {
+                errorMsg = String(this.body['message']);
+            }
+            else {
+                errorMsg = JSON.stringify(this.body);
+            }
+        }
+        else {
+            errorMsg = String(this.getBody());
+        }
+        return errorMsg;
+    }
+    setStackTrace(stackTrace) {
+        this.stackTrace = stackTrace;
+        return this;
+    }
     getStackTrace() {
         return this.stackTrace;
     }

@@ -79,18 +79,7 @@ export class TemporaryInbox implements Composable {
                             if (response.getStatus() >= 400) {
                                 metrics['success'] = false;
                                 metrics['status'] = response.getStatus();
-                                const error = response.getBody();
-                                if (typeof error == 'string') {
-                                    metrics['exception'] = error;
-                                } else if (error instanceof Object) {
-                                    if ('message' in error) {
-                                        metrics['exception'] = error['message'];
-                                    } else {
-                                        metrics['exception'] = error;
-                                    }
-                                } else {
-                                    metrics['exception'] = error? error : 'null';
-                                }  
+                                metrics['exception'] = response.getError();
                             }
                             const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACING).setBody({'trace': metrics});
                             po.send(trace);

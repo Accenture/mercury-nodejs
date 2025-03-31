@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > *Note*: Some version numbers may be skipped to align feature set with the Java version.
 
 ---
+## Version 4.2.27, 3/31/2025
+
+### Added
+
+1. getError() method added in EventEnvelope to return encoded error message.
+   This is required for distributed trace processing and proper error handling of subflows.
+
+2. Generic resilience handler with alternative path and backoff features
+
+### Removed
+
+N/A
+
+### Changed
+
+Delete file when mapping a null value from the LHS to the RHS that is defined as a file,
+thus allowing clearing of temporary data files in a flow.
+
+---
 ## Version 4.2.23, 3/12/2025
 
 ### Added

@@ -13,6 +13,7 @@ flows:
   - 'header-test.yml'
   - 'file-vault-test.yml'
   - 'circuit-breaker-example.yml'
+  - 'resilience-demo.yml'
   - 'parent-greetings.yml'
   - 'children/daughter-greetings.yml'
   - 'missing-sub-flow.yml'

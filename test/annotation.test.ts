@@ -23,7 +23,7 @@ describe('Method annotation scan tests', () => {
         expect(map.getElement('parents.NoOp.implements[0]')).toBe('Composable');
         expect(map.getElement('methods.NoOp')).toBe('initialize');
         expect(map.getElement('parameters.NoOp[0]')).toBe("'no.op'");
-        expect(map.getElement('parameters.NoOp[1]')).toBe('10');
+        expect(map.getElement('parameters.NoOp[1]')).toBe('50');
     });
 
     it('can scan Javascript compiled code with preload annotation', async () => {
@@ -36,6 +36,6 @@ describe('Method annotation scan tests', () => {
         expect(map.getElement('classes.NoOp')).toBe('../test/resources/annotated/no-op.js');
         expect(map.getElement('methods.NoOp')).toBe('initialize');
         expect(map.getElement('parameters.NoOp[0]')).toBe("'no.op'");
-        expect(map.getElement('parameters.NoOp[1]')).toBe('10');
+        expect(map.getElement('parameters.NoOp[1]')).toBe('50');
     });
 });    

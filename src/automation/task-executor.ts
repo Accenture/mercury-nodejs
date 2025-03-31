@@ -178,7 +178,7 @@ export class TaskExecutor implements Composable {
                         }
                         const handler = task.getExceptionTask() != null? task.getExceptionTask() : flowInstance.getFlow().exception;
                         if (handler) {
-                            const error = { 'code': statusCode, 'message': String(event.getBody()) };
+                            const error = { 'code': statusCode, 'message': event.getError() };
                             const stackTrace = event.getStackTrace();
                             if (stackTrace) {
                                 error['stack'] = stackTrace;
@@ -186,7 +186,7 @@ export class TaskExecutor implements Composable {
                             await self.executeTask(flowInstance, handler, -1, error);
                         } else {
                             // when there are no task or flow exception handlers
-                            self.abortFlow(flowInstance, statusCode, String(event.getBody()));
+                            self.abortFlow(flowInstance, statusCode, event.getError());
                         }
                         return null;
                     }
@@ -238,7 +238,7 @@ export class TaskExecutor implements Composable {
                     if (isInput || lhs.startsWith(MODEL_NAMESPACE)) {
                         value = this.getLhsElement(lhs, source);
                     } else {
-                        value = await this.getConstantValue(lhs, rhs);
+                        value = await this.getConstantValue(lhs);
                     }
                     this.callExternalStateMachine(flowInstance, task, rhs, value);
                 } else if (rhs.startsWith(MODEL_NAMESPACE)) {
@@ -296,7 +296,7 @@ export class TaskExecutor implements Composable {
                     // Assume left hand side is a constant
                     if (rhs.startsWith(HEADER_NAMESPACE)) {
                         const k = rhs.substring(HEADER_NAMESPACE.length);
-                        const v = await this.getConstantValue(lhs, rhs);
+                        const v = await this.getConstantValue(lhs);
                         if (k && v) {
                             optionalHeaders[k] = String(v);
                         }
@@ -348,8 +348,8 @@ export class TaskExecutor implements Composable {
             const po = new PostOffice(new Sender(task.functionRoute, flowInstance.getTraceId(), flowInstance.getTracePath()));
             const response = await po.request(forward, subFlow.ttl);
             const event = new EventEnvelope().setTo(TASK_EXECUTOR)
-                    .setCorrelationId(compositeCid).setStatus(response.getStatus())
-                    .setHeaders(response.getHeaders()).setBody(response.getBody());
+                                .setCorrelationId(compositeCid).setStatus(response.getStatus())
+                                .setHeaders(response.getHeaders()).setBody(response.getBody());
             await po.send(event);
         } else {
             const po = new PostOffice(new Sender(TASK_EXECUTOR, flowInstance.getTraceId(), flowInstance.getTracePath()));
@@ -415,24 +415,22 @@ export class TaskExecutor implements Composable {
                         this.removeModelElement(rhs, consolidated);
                     }
                 } else {
-                    value = await this.getConstantValue(lhs, rhs);
+                    value = await this.getConstantValue(lhs);
                 }
-                if (value != null) {
-                    let required = true;
-                    if (rhs.startsWith(FILE_TYPE)) {
-                        required = false;
-                        const fd = new SimpleFileDescriptor(rhs);
-                        // automatically create parent folder
-                        const fileNotFound = !fs.existsSync(fd.fileName);
-                        if (fileNotFound) {
-                            const parent = this.getParentFolder(fd.fileName);
-                            if (parent) {
-                               if (this.createParentFolders(parent)) {
-                                log.info(`Folder ${parent} created`);
-                               };
-                            }
+                if (rhs.startsWith(FILE_TYPE)) {
+                    const fd = new SimpleFileDescriptor(rhs);
+                    // automatically create parent folder
+                    const fileFound = fs.existsSync(fd.fileName);
+                    if (!fileFound) {
+                        const parent = this.getParentFolder(fd.fileName);
+                        if (parent) {
+                           if (this.createParentFolders(parent)) {
+                            log.info(`Folder ${parent} created`);
+                           };
                         }
-                        if (fileNotFound || !util.isDirectory(fd.fileName)) {
+                    }
+                    if (!fileFound || !util.isDirectory(fd.fileName)) {
+                        if (value) {
                             if (value instanceof Buffer) {
                                 await util.bytes2file(fd.fileName, value);
                             } else if (typeof value == 'string') {
@@ -443,33 +441,37 @@ export class TaskExecutor implements Composable {
                                 await util.str2file(fd.fileName, String(value));
                             }
                         } else {
-                            log.warn(`Failed data mapping ${lhs} -> ${rhs} - Unable to save file`);
+                            if (fileFound) fs.rmSync(fd.fileName);
                         }
-                    }
-                    if (rhs == OUTPUT_STATUS) {
-                        const status = typeof value == 'number'? value : util.str2int(String(value));
-                        if (status < 100 || status > 599) {
-                            log.error(`Invalid output mapping '${entry}' - expect: valid HTTP status code, actual: ${status}`);
-                            required = false;
-                        }
-                    }
-                    if (rhs == OUTPUT_HEADER) {
-                        if (!(value instanceof Object && !Array.isArray(value))) {
-                            const type = typeof value;
-                            log.error(`Invalid output mapping '${entry}' - expect: JSON, actual: ${type}`);
-                            required = false;
-                        }
-                    }
-                    if (rhs.startsWith(EXT_NAMESPACE)) {
-                        required = false;
-                        this.callExternalStateMachine(flowInstance, task, rhs, value);
-                    }
-                    if (required) {
-                        this.setRhsElement(value, rhs, consolidated);
                     }
                 } else {
-                    if (rhs.startsWith(EXT_NAMESPACE)) {
-                        this.callExternalStateMachine(flowInstance, task, rhs, null);
+                    if (value != null) {
+                        let required = true;
+                        if (rhs == OUTPUT_STATUS) {
+                            const status = typeof value == 'number'? value : util.str2int(String(value));
+                            if (status < 100 || status > 599) {
+                                log.error(`Invalid output mapping '${entry}' - expect: valid HTTP status code, actual: ${status}`);
+                                required = false;
+                            }
+                        }
+                        if (rhs == OUTPUT_HEADER) {
+                            if (!(value instanceof Object && !Array.isArray(value))) {
+                                const type = typeof value;
+                                log.error(`Invalid output mapping '${entry}' - expect: JSON, actual: ${type}`);
+                                required = false;
+                            }
+                        }
+                        if (rhs.startsWith(EXT_NAMESPACE)) {
+                            required = false;
+                            this.callExternalStateMachine(flowInstance, task, rhs, value);
+                        }
+                        if (required) {
+                            this.setRhsElement(value, rhs, consolidated);
+                        }
+                    } else {
+                        if (rhs.startsWith(EXT_NAMESPACE)) {
+                            this.callExternalStateMachine(flowInstance, task, rhs, null);
+                        }
                     }
                 }
             }
@@ -821,7 +823,7 @@ export class TaskExecutor implements Composable {
     }
 
     private async setConstantValue(lhs: string, rhs: string, target: MultiLevelMap) {
-        const value = await this.getConstantValue(lhs, rhs);
+        const value = await this.getConstantValue(lhs);
         if (value != null) {
             this.setRhsElement(value, rhs, target);
         } else {
@@ -829,7 +831,7 @@ export class TaskExecutor implements Composable {
         }
     }
 
-    private async getConstantValue(lhs: string, rhs: string) {
+    private async getConstantValue(lhs: string) {
         const last = lhs.lastIndexOf(CLOSE_BRACKET);
         if (last > 0) {
             if (lhs.startsWith(TEXT_TYPE)) {
@@ -872,16 +874,12 @@ export class TaskExecutor implements Composable {
                 const fd = new SimpleFileDescriptor(lhs);
                 if (fs.existsSync(fd.fileName) && !util.isDirectory(fd.fileName)) {
                     return fd.binary? await util.file2bytes(fd.fileName) : await util.file2str(fd.fileName);
-                } else {
-                    log.warn(`Failed data mapping ${lhs} -> ${rhs} - Unable to read file`);
                 }
             }
             if (lhs.startsWith(CLASSPATH_TYPE)) {
                 const fd = new SimpleFileDescriptor(lhs);
                 if (fs.existsSync(fd.fileName) && !util.isDirectory(fd.fileName)) {
                     return fd.binary? await util.file2bytes(fd.fileName) : await util.file2str(fd.fileName);
-                } else {
-                    log.warn(`Failed data mapping ${lhs} -> ${rhs} - Unable to read classpath`);
                 }
             }
         }

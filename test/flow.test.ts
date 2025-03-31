@@ -15,6 +15,7 @@ import { AppException } from '../src/models/app-exception';
 import { EventScriptMock } from '../src/mock/event-script-mock';
 import { fileURLToPath } from "url";
 import { FlowExecutor } from '../src/adapters/flow-executor';
+import { ResilienceHandler } from '../src/services/resilience-handler';
 
 const ASYNC_HTTP_CLIENT = 'async.http.request';
 const API_AUTH_SERVICE = 'event.api.auth';
@@ -163,6 +164,31 @@ class FileVault implements Composable {
     } else {
       return null;
     }
+  }
+}
+
+class ExceptionSimulator implements Composable {
+  initialize(): Composable {
+    return this;
+  }
+  async handleEvent(evt: EventEnvelope) {
+    const exception = evt.getHeader('exception');
+    if (exception) {
+      const code = util.str2int(exception);
+      throw new AppException(code == -1? 400 : code, "Simulated Exception");
+    }
+    const input = evt.getBody() as object;
+    if ('accept' in input) {
+      const accept = util.str2int(String(input['accept']));
+      const attempt = util.str2int('attempt' in input? String(input['attempt']) : '0');
+      if (attempt == accept) {
+          return {'attempt': attempt, 'message': 'Task completed successfully'};
+      } else {
+          throw new AppException(400, "Demo Exception");
+      }
+    }
+    // just echo input when there is no need to throw exception
+    return input;
   }
 }
 
@@ -453,6 +479,7 @@ describe('event flow use cases', () => {
     platform.register('v1.ext.state.machine', new ExtStateMachine());
     platform.register("file.vault", new FileVault());
     platform.register("breakable.function", new BreakableFunction());
+    platform.register("exception.simulator", new ExceptionSimulator());
     platform.register("v1.circuit.breaker", new CircuitBreaker());
     platform.register("abort.request", new AbortRequest());
     platform.register("greeting.test", new Greetings(), 5, false);
@@ -464,6 +491,7 @@ describe('event flow use cases', () => {
     platform.register('begin.parallel.test', new PrepareParallelTest());
     platform.register('parallel.task', new ParallelTask());
     platform.register('my.mock.function', new MockFunction());
+    platform.register('resilience.handler', new ResilienceHandler(), 10, true, true);
     // start the Event API HTTP server
     server = RestAutomation.getInstance();
     server.start();
@@ -678,7 +706,7 @@ describe('event flow use cases', () => {
     expect(await util.file2str(f2)).toBe(hello);
     expect(await util.file2str(f3)).toBe("true");
     expect(await util.file2str(f4)).toBe("binary");
-    fs.rmSync(f1);
+    // f1 will be deleted by the output data mapping 'model.none -> file(/tmp/temp-test-input.txt)'
     fs.rmSync(f2);
     fs.rmSync(f3);
     fs.rmSync(f4);
@@ -709,6 +737,63 @@ describe('event flow use cases', () => {
     expect(map.getElement("status")).toBe(400);
     expect(map.getElement("message")).toBe("Just a demo exception for circuit breaker to handle");
   });
+
+  it('will retry with a circuit breaker', async () => {
+    const po = new PostOffice();
+    const req = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/api/circuit/breaker/2')
+                                        .setHeader('accept', 'application/json');                                                             
+    const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
+    const result = await po.request(reqEvent);
+    expect(result.getStatus()).toBe(200);
+    expect(result.getBody() instanceof Object);
+    const map = new MultiLevelMap(result.getBody() as object);
+    expect(map.getElement("attempt")).toBe(2);
+  });
+
+  it('will handle backoff, retry and abort in resilience handler', async () => {
+    const po = new PostOffice(new Sender('unit.test', '101000', 'TEST /resilience'));
+    const req = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/api/resilience')
+                            .setQueryParameter('exception', '400').setHeader('accept', 'application/json');                                                             
+    const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
+    const result = await po.request(reqEvent);
+    expect(result.getStatus()).toBe(503);
+    expect(result.getBody() instanceof Object);
+    const map = new MultiLevelMap(result.getBody() as object);
+    expect(map.getElement("type")).toBe("error");
+    expect(map.getElement("status")).toBe(503);
+    expect(map.getElement("message")).toBe("Service temporarily not available - please try again in 2 seconds");
+    // Let the backoff period expires
+    log.info("Making request during backoff period will throw exception 503");
+    const requestDuringBackoff = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/api/resilience')
+                                    .setQueryParameter('exception', '400').setHeader('accept', 'application/json');                                                             
+    const reqBo = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(requestDuringBackoff.toMap());
+    const resultBo = await po.request(reqBo);
+    expect(resultBo.getStatus()).toBe(503);
+    expect(resultBo.getBody() instanceof Object);
+    const mapBo = new MultiLevelMap(resultBo.getBody() as object);
+    expect(mapBo.getElement("type")).toBe("error");
+    expect(mapBo.getElement("status")).toBe(503);
+    const msg = String(mapBo.getElement("message"));
+    expect(msg.startsWith('Service temporarily not available')).toBeTruthy();
+    log.info("Waiting for backoff period to expire");
+    await util.sleep(2000);
+    // Test alternative path using 'text(401, 403-404) -> reroute'
+    // Let exception simulator to throw HTTP-401
+    const request1 = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/api/resilience')
+                                    .setQueryParameter('exception', '401').setHeader('accept', 'application/json');   
+    const reqEvent1 = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(request1.toMap());
+    const result1 = await po.request(reqEvent1);
+    expect(result1.getStatus()).toBe(200);
+    expect(result1.getBody() instanceof Object);
+    expect(result1.getBody()).toEqual({'path': 'alternative'});
+    const request2 = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/api/resilience')
+                                    .setQueryParameter('exception', '404').setHeader('accept', 'application/json');   
+    const reqEvent2 = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(request2.toMap());
+    const result2 = await po.request(reqEvent2);
+    expect(result2.getStatus()).toBe(200);
+    expect(result2.getBody() instanceof Object);
+    expect(result2.getBody()).toEqual({'path': 'alternative'});
+  });  
 
   it('can do greeting test', async () => {
     const testUser = '24680';
@@ -992,6 +1077,40 @@ describe('event flow use cases', () => {
     expect(map.getElement("user")).toBe('test-user');
     expect(map.getElement("key1")).toBe("hello-world-one");
     expect(map.getElement("key2")).toBe("hello-world-two");
+  });  
+
+  it('can do fork-n-join with exception', async () => {
+    const po = new PostOffice();
+    const req1 = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/api/fork-n-join/test-user')
+                                        .setQueryParameter('seq', '100').setQueryParameter('exception', '401')
+                                        .setHeader('accept', 'application/json'); 
+    // Since there are only 3 items in the next tasks, a decision value of 100 is invalid                                                 
+    const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req1.toMap());
+    const result = await po.request(reqEvent);
+    expect(result.getStatus()).toBe(401);
+    expect(result.getBody() instanceof Object);
+    const map = new MultiLevelMap(result.getBody() as object);
+    expect(result.getHeader('content-type')).toBe('application/json');
+    expect(map.getElement("message")).toBe('Simulated Exception');
+    expect(map.getElement("type")).toBe("error");
+    expect(map.getElement("status")).toBe(401);
+  });  
+
+  it('can do fork-n-join-flows with exception', async () => {
+    const po = new PostOffice();
+    const req1 = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/api/fork-n-join-flows/test-user')
+                                        .setQueryParameter('seq', '100').setQueryParameter('exception', '401')
+                                        .setHeader('accept', 'application/json'); 
+    // Since there are only 3 items in the next tasks, a decision value of 100 is invalid                                                 
+    const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req1.toMap());
+    const result = await po.request(reqEvent);
+    expect(result.getStatus()).toBe(401);
+    expect(result.getBody() instanceof Object);
+    const map = new MultiLevelMap(result.getBody() as object);
+    expect(result.getHeader('content-type')).toBe('application/json');
+    expect(map.getElement("message")).toBe('Simulated Exception');
+    expect(map.getElement("type")).toBe("error");
+    expect(map.getElement("status")).toBe(401);
   });  
   
   it('can do pipeline tasks', async () => {

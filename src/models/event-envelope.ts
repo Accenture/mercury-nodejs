@@ -456,6 +456,31 @@ export class EventEnvelope {
         return this;
     }
 
+    /**
+     * Convert body as an error message
+     * 
+     * @returns error message
+     */
+    getError(): string {
+        let errorMsg: string;
+        if (this.body instanceof Object) {
+            // extract embedded error message if any
+            if ('message' in this.body) {
+                errorMsg = String(this.body['message']);
+            } else {
+                errorMsg = JSON.stringify(this.body);
+            }
+        } else {
+            errorMsg = String(this.getBody());
+        }
+        return errorMsg;
+    }
+
+    setStackTrace(stackTrace: string): EventEnvelope {
+        this.stackTrace = stackTrace;
+        return this;
+    }
+
     getStackTrace(): string {
         return this.stackTrace;
     }

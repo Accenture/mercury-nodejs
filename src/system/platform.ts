@@ -407,18 +407,7 @@ class ServiceManager {
             if (evt.getStatus() >= 400) {
                 metrics['success'] = false;
                 metrics['status'] = evt.getStatus();
-                const error = evt.getBody();
-                if (typeof error == 'string') {
-                    metrics['exception'] = error;
-                } else if (error instanceof Object) {
-                    if ('message' in error) {
-                        metrics['exception'] = error['message'];
-                    } else {
-                        metrics['exception'] = error;
-                    }
-                } else {
-                    metrics['exception'] = error? error : 'null';
-                }                
+                metrics['exception'] = evt.getError();              
             }
             const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACING).setBody({'trace': metrics});
             po.send(trace);

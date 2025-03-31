@@ -6,6 +6,7 @@ import { fileURLToPath } from "url";
 import { Logger, AppConfig, Platform, RestAutomation, EventScriptEngine } from 'mercury-composable';
 // import composable functions
 import { NoOp } from '../../node_modules/mercury-composable/dist/services/no-op.js';
+import { ResilienceHandler } from '../../node_modules/mercury-composable/dist/services/resilience-handler.js';
 import { DemoAuth } from '../services/demo-auth.js';
 import { DemoHealthCheck } from '../services/health-check.js';
 import { HelloConcurrent } from '../services/hello-concurrent.js';
@@ -48,7 +49,8 @@ export class ComposableLoader {
                 const config = AppConfig.getInstance(resourcePath);
                 // register the functions into the event system
                 const platform = Platform.getInstance();
-                platform.register('no.op', new NoOp(), 10);
+                platform.register('no.op', new NoOp(), 50);
+                platform.register('resilience.handler', new ResilienceHandler(), 100, true, true);
                 platform.register('v1.api.auth', new DemoAuth());
                 platform.register('demo.health', new DemoHealthCheck());
                 platform.register(HelloConcurrent.routeName, new HelloConcurrent(), 10);

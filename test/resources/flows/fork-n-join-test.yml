@@ -12,8 +12,8 @@ tasks:
       - 'input.query.seq -> sequence'
     process: 'sequential.one'
     output:
-      - 'result -> model.json'
-    description: 'Pass a JSON to another task'
+      - 'result -> model.pojo'
+    description: 'Pass a pojo to another task'
     execution: fork
     next:
       - 'my.echo.function'
@@ -23,7 +23,8 @@ tasks:
   - name: 'my.echo.function'
     input:
       - 'text(hello-world-one) -> key1'
-    process: 'no.op'
+      - 'input.query.exception -> header.exception'
+    process: 'exception.simulator'
     output:
       - 'result.key1 -> model.key1'
     description: 'Hello world'
@@ -39,12 +40,12 @@ tasks:
     execution: sink
 
   #
-  # the "*" json mapping entry must be the first one in the input mapping
-  # so that the subsequent update to the json is possible.
+  # the "*" pojo mapping entry must be the first one in the input mapping
+  # so that the subsequent update to the pojo is possible.
   #
   - name: 'join.task'
     input:
-      - 'model.json -> *'
+      - 'model.pojo -> *'
       - 'model.key1 -> key1'
       - 'model.key2 -> key2'
     process: 'no.op'

@@ -16,3 +16,4 @@ export { TemplateLoader } from './util/template-loader.js';
 export { CryptoApi } from './util/crypto-api.js';
 export { TypeScriptClassScanner } from './util/ts-class-scanner.js';
 export { JavaScriptClassScanner } from './util/js-class-scanner.js';
+export { FlowExecutor } from './adapters/flow-executor.js';

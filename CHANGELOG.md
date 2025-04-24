@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > *Note*: Some version numbers may be skipped to align feature set with the Java version.
 
+## Version 4.2.28, 4/24/2025
+
+### Added
+
+1. Exported the FlowExecutor class
+
+### Removed
+
+N/A
+
+### Changed
+
+index.ts file changed to include the export for the FlowExecutor class.
+
 ---
 ## Version 4.2.27, 3/31/2025
 

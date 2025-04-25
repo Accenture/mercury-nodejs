@@ -31,6 +31,7 @@ export declare class PipelineInfo implements PipeInfo {
     getExitTask(): string;
     getTaskName(n: number): string;
     isLastStep(n: number): boolean;
+    isSingleton(): boolean;
     resetPointer(): void;
     setCompleted(): void;
     isCompleted(): boolean;

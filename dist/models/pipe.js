@@ -41,10 +41,13 @@ export class PipelineInfo {
         return this.task.nextSteps[0];
     }
     getTaskName(n) {
-        return this.task.pipelineSteps[n];
+        return this.task.pipelineSteps[Math.min(n, this.task.pipelineSteps.length - 1)];
     }
     isLastStep(n) {
         return n >= this.task.pipelineSteps.length - 1;
+    }
+    isSingleton() {
+        return this.task.pipelineSteps.length == 1;
     }
     resetPointer() {
         this.ptr = 0;

@@ -261,7 +261,7 @@ export declare class EventEnvelope {
      *
      * @returns error message
      */
-    getError(): string;
+    getError(): string | object;
     setStackTrace(stackTrace: string): EventEnvelope;
     getStackTrace(): string;
     /**

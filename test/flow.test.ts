@@ -32,6 +32,7 @@ const TIME = "time";
 const EXCEPTION = "exception";
 const ORIGINAL = "original";
 const TIMEOUT = "timeout";
+const CUSTOM = "custom";
 const DEMO = "demo";
 const STATUS = 'status';
 const ERROR = 'error';
@@ -250,11 +251,13 @@ class Greetings implements Composable {
   }
   async handleEvent(evt: EventEnvelope) {
     const input = evt.getBody() as object;
-    const optionalException = input[EXCEPTION];
-    if (optionalException) {
-        if (TIMEOUT == optionalException) {
-            await util.sleep(2000);            
-        } else {            
+    const exceptionTag = input[EXCEPTION];
+    if (exceptionTag) {
+        if (TIMEOUT == exceptionTag) {
+            await util.sleep(2000);
+        } else if (CUSTOM == exceptionTag) {
+          return new EventEnvelope().setStatus(400).setBody({'error': 'non-standard-format'});
+        } else {
             throw new AppException(403, "just a test");
         }
     }
@@ -875,7 +878,7 @@ describe('event flow use cases', () => {
   it('can throw exception from user function', async () => {
     const po = new PostOffice();
     const req = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/api/greetings/test-user')
-                                        .setQueryParameter('ex', "true")
+                                        .setQueryParameter('ex', 'true')
                                         .setHeader('accept', 'application/json');                                                             
     const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
     const result = await po.request(reqEvent);
@@ -883,7 +886,25 @@ describe('event flow use cases', () => {
     expect(result.getBody() instanceof Object);
     const map = new MultiLevelMap(result.getBody() as object);
     expect(map.getElement("message")).toBe("just a test");
+    expect(map.getElement("status")).toBe(403);
+    expect(map.getElement("type")).toBe("error");
   });
+
+  it('can throw exception with custom error message', async () => {
+    const po = new PostOffice();
+    const req = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/api/greetings/test-user')
+                                        .setQueryParameter('ex', 'custom')
+                                        .setHeader('accept', 'application/json');                                                             
+    const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
+    const result = await po.request(reqEvent);
+    expect(result.getStatus()).toBe(400);
+    expect(result.getBody() instanceof Object);
+    const map = new MultiLevelMap(result.getBody() as object);
+    // demonstrate that custom error message object can be transported
+    expect(map.getElement("message")).toEqual({"error": "non-standard-format"});
+    expect(map.getElement("status")).toBe(400);
+    expect(map.getElement("type")).toBe("error");
+  });  
 
   it('can timeout from a flow', async () => {
     const po = new PostOffice();
@@ -1151,6 +1172,30 @@ describe('event flow use cases', () => {
     expect(map.getElement("n")).toBe(3);
     expect(iterationCount).toBe(3);
   });
+
+  it('can do for-loop with single task in pipeline', async () => {
+    const po = new PostOffice();
+    const req1 = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/api/for-loop-single/test-user')
+                                        .setQueryParameter('seq', '100')
+                                        .setHeader('accept', 'application/json'); 
+    // the iterationCount will be incremented by "my.mock.function"                                    
+    iterationCount = 0;
+    var mock = new EventScriptMock("for-loop-test-single-task");
+    var previousRoute = mock.getFunctionRoute('echo.one');
+    var currentRoute = mock.assignFunctionRoute('echo.one', 'my.mock.function').getFunctionRoute('echo.one');
+    expect(previousRoute).toBe('no.op');
+    expect(currentRoute).toBe('my.mock.function');
+    const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req1.toMap());
+    const result = await po.request(reqEvent);
+    expect(result.getStatus()).toBe(200);
+    expect(result.getBody() instanceof Object);
+    const map = new MultiLevelMap(result.getBody() as object);
+    expect(result.getHeader('content-type')).toBe('application/json');
+    expect(map.getElement("data.sequence")).toBe(100);
+    expect(map.getElement("data.user")).toBe('test-user');
+    expect(map.getElement("n")).toBe(3);
+    expect(iterationCount).toBe(3);
+  });
   
   it('can do for-loop with break in pipeline - case 1', async () => {
     const po = new PostOffice();
@@ -1184,7 +1229,24 @@ describe('event flow use cases', () => {
     expect(map.getElement("data.sequence")).toBe(100);
     expect(map.getElement("data.user")).toBe('test-user');
     expect(map.getElement("n")).toBe(2);
-  });  
+  });
+
+  it('can do for-loop with break in pipeline that has a single task - case 3', async () => {
+    const po = new PostOffice();
+    const req1 = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/api/for-loop-break-single/test-user')
+                                        .setQueryParameter('seq', '100').setQueryParameter('none', '2')
+                                        .setHeader('accept', 'application/json'); 
+    // Since there are only 3 items in the next tasks, a decision value of 100 is invalid                                                 
+    const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req1.toMap());
+    const result = await po.request(reqEvent);
+    expect(result.getStatus()).toBe(200);
+    expect(result.getBody() instanceof Object);
+    const map = new MultiLevelMap(result.getBody() as object);
+    expect(result.getHeader('content-type')).toBe('application/json');
+    expect(map.getElement("data.sequence")).toBe(100);
+    expect(map.getElement("data.user")).toBe('test-user');
+    expect(map.getElement("n")).toBe(0);
+  });
 
   it('can do for-loop with continue in pipeline', async () => {
     const po = new PostOffice();

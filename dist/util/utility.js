@@ -238,9 +238,9 @@ export class Utility {
      * @returns normalized file path in Unix format
      */
     normalizeFilePath(filePath) {
-        const fPath = filePath.includes('\\') ? filePath.replaceAll('\\', '/') : filePath;
+        const fPath = filePath.includes('\\') ? filePath.replace(/\\/g, '/') : filePath;
         const colon = fPath.indexOf(':');
-        return colon == 1 ? fPath.substring(colon + 1) : fPath;
+        return colon == 1 ? fPath.substring(2) : fPath;
     }
     /**
      * Detect path traversal attack
@@ -258,6 +258,17 @@ export class Utility {
             throw new Error('Access denied because file path is outside the base directory');
         }
         return resolvedPath;
+    }
+    getDecodedUri(uriPath) {
+        if (uriPath == null) {
+            return "/";
+        }
+        else {
+            // Decode URI escape characters
+            const uri = uriPath.includes("%") ? decodeURI(uriPath) : uriPath;
+            // Avoid "path traversal" attack
+            return uri.replace(/\\/g, '/').replace(/\.\.\//g, '');
+        }
     }
     /**
      * Create a directory if not exists

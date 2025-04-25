@@ -23,6 +23,7 @@ const HELLO_WORLD_SERVICE = 'hello.world';
 const HELLO_PRIVATE_SERVICE = 'hello.private';
 const HELLO_BFF_SERVICE = 'hello.bff';
 const HELLO_DOWNLOAD = 'hello.download';
+const HELLO_CUSTOM_CONTENT_TYPE = "hello.custom.content.type";
 const DEMO_HEALTH_SERVICE = 'demo.health';
 const HELLO_INTERCEPTOR_SERVICE = 'hello.interceptor';
 const DEMO_LIBRARY_FUNCTION = "demo.library.function";
@@ -77,6 +78,15 @@ class HelloDownload implements Composable {
     await out.close();
     return new EventEnvelope().setHeader(STREAM_CONTENT, stream.getInputStreamId())
                 .setHeader('content-type', 'application/octet-stream');
+  }
+}
+
+class CustomContentTypeSender implements Composable {
+  initialize(): Composable {
+    return this;
+  }
+  async handleEvent(evt: EventEnvelope) {
+    return new EventEnvelope().setHeader('content-type', 'application/vnd.my.org-v2.0+json; charset=utf-8').setBody(evt.getBody());
   }
 }
 
@@ -235,6 +245,7 @@ describe('post office use cases', () => {
       // you can create a service as a Promise too
       platform.register(HELLO_BFF_SERVICE, new HelloBff());
       platform.register(HELLO_DOWNLOAD, new HelloDownload());
+      platform.register(HELLO_CUSTOM_CONTENT_TYPE, new CustomContentTypeSender());
       // register a demo health check
       platform.register(DEMO_HEALTH_SERVICE, new DemoHealth());
       // register the demo interceptor function
@@ -463,6 +474,22 @@ describe('post office use cases', () => {
         }
         // the call back function is used once
         platform.release(MyCallBackTwo.name);
+    });
+
+    it('can handle custom content type mapping', async () => {
+      const po = new PostOffice();
+      const req = new AsyncHttpRequest().setMethod('POST').setTargetHost(baseUrl).setUrl('/api/hello/custom/content/type')
+                      .setHeader('content-type', 'application/json').setHeader('accept', 'application/json')
+                      .setBody({'hello': 'world'});
+      const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
+      const result = await po.request(reqEvent);
+      // custom content-type will be rendered as per configuration
+      // 'application/vnd.my.org-v2.0+json -> application/json'
+      expect(result.getHeader('content-type')).toBe('application/vnd.my.org-v2.0+json; charset=utf-8');
+      expect(result.getBody() instanceof Object).toBe(true);
+      const map = new MultiLevelMap(result.getBody() as object);
+      expect(map.getElement('headers.user-agent')).toBe('async-http-client');
+      expect(map.getElement('body')).toEqual({'hello': 'world'});
     });
 
     it('can make a RPC call using Event API', async () => {
@@ -942,6 +969,20 @@ describe('post office use cases', () => {
       expect(Buffer.from(result.getBody() as string)).toStrictEqual(content);
       expect(result.getHeader('content-type')).toBe('application/xml');
     });  
+
+    it('can download file with a custom mime type', async () => {
+      const po = new PostOffice();
+      const req = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/sample.xdoc');
+      const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
+      const result = await po.request(reqEvent);
+      expect(result.getBody() instanceof Buffer).toBeTruthy();
+      const filePath = resourcePath + "/public/sample.xdoc";
+      const content = await fs.promises.readFile(filePath);
+      expect(result.getBody()).toStrictEqual(content);
+      // the mime-types.yml in the test/resources folder contains this entry:
+      // xdoc: 'application/x-word'
+      expect(result.getHeader('content-type')).toBe('application/x-word');
+    });      
     
     it('can convert backslash to forward slash in static file download', async () => {
       const po = new PostOffice();

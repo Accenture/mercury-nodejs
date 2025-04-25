@@ -26,15 +26,15 @@ export class FlowInstance {
     cid: string;
     replyTo: string;
     private timeoutWatcher: NodeJS.Timeout;
-    private flow: Flow;
+    private template: Flow;
     private traceId: string;
     private tracePath: string;
     private parentId: string;
     private responded = false;
     private running = true;
 
-    constructor(flowId: string, cid: string, replyTo: string, flow: Flow, parentId: string) {
-        this.flow = flow;
+    constructor(flowId: string, cid: string, replyTo: string, template: Flow, parentId: string) {
+        this.template = template;
         this.cid = cid;
         this.replyTo = replyTo;
         // initialize the state machine
@@ -54,7 +54,7 @@ export class FlowInstance {
         this.dataset['model'] = model;
         const timeoutTask = new EventEnvelope().setTo('task.executor');
         timeoutTask.setCorrelationId(this.id).setHeader(TIMEOUT, 'true');
-        this.timeoutWatcher = po.sendLater(timeoutTask, flow.ttl);
+        this.timeoutWatcher = po.sendLater(timeoutTask, template.ttl);
     }
 
     private resolveParent(parentId: string): FlowInstance {
@@ -116,6 +116,6 @@ export class FlowInstance {
     }
 
     getFlow(): Flow {
-        return this.flow;
+        return this.template;
     }
 }

@@ -1,6 +1,5 @@
 import { EventEmitter } from 'events';
 import { EventEnvelope } from '../models/event-envelope.js';
-import { ConfigReader } from '../util/config-reader.js';
 export declare class PostOffice {
     private from;
     private traceId;
@@ -9,14 +8,6 @@ export declare class PostOffice {
     private trackable;
     constructor(headers?: Sender | object);
     private touch;
-    /**
-     * DO NOT use this method directly.
-     * This will be invoked at application startup by the platform class.
-     *
-     * @param file path of the config file
-     * @param config ConfigReader
-     */
-    loadHttpRoutes(file: string, config: ConfigReader): void;
     /**
      * Application instance ID
      *

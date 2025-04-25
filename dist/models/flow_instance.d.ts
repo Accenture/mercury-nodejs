@@ -15,13 +15,13 @@ export declare class FlowInstance {
     cid: string;
     replyTo: string;
     private timeoutWatcher;
-    private flow;
+    private template;
     private traceId;
     private tracePath;
     private parentId;
     private responded;
     private running;
-    constructor(flowId: string, cid: string, replyTo: string, flow: Flow, parentId: string);
+    constructor(flowId: string, cid: string, replyTo: string, template: Flow, parentId: string);
     private resolveParent;
     setTrace(traceId: string, tracePath: string): void;
     getStartMillis(): number;

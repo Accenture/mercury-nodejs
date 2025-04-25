@@ -528,7 +528,12 @@ export class TaskExecutor {
                     log.debug(`Flow ${flowInstance.getFlow().id}:${flowInstance.id} pipeline #${seq} next step-${n + 1} ${pipeline.getTaskName(n)}`);
                 }
                 if (pipelineTask.conditions.length == 0) {
-                    this.executeTask(flowInstance, pipeline.getTaskName(n), seq);
+                    if (pipeline.isCompleted() && pipeline.isSingleton()) {
+                        this.pipelineCompletion(flowInstance, pipeline, consolidated, seq);
+                    }
+                    else {
+                        this.executeTask(flowInstance, pipeline.getTaskName(n), seq);
+                    }
                 }
                 else {
                     // check loop-conditions
@@ -557,7 +562,12 @@ export class TaskExecutor {
                         this.pipelineCompletion(flowInstance, pipeline, consolidated, seq);
                     }
                     else {
-                        this.executeTask(flowInstance, pipeline.getTaskName(n), seq);
+                        if (pipeline.isCompleted() && pipeline.isSingleton()) {
+                            this.pipelineCompletion(flowInstance, pipeline, consolidated, seq);
+                        }
+                        else {
+                            this.executeTask(flowInstance, pipeline.getTaskName(n), seq);
+                        }
                     }
                 }
                 return;
@@ -615,10 +625,10 @@ export class TaskExecutor {
             decisionNumber = Math.max(1, util.str2int(String(decisionValue)));
         }
         else {
-            // decision number is null
-            decisionNumber = nextTasks.length + 1;
+            // decision number is not given
+            decisionNumber = 0;
         }
-        if (decisionNumber > nextTasks.length) {
+        if (decisionNumber < 1 || decisionNumber > nextTasks.length) {
             log.error(`Flow ${flowInstance.getFlow().id}:${flowInstance.id} ${task.service} returned invalid decision (${decisionValue})`);
             this.abortFlow(flowInstance, 500, "Task " + task.service + " returned invalid decision (" + decisionValue + ")");
         }

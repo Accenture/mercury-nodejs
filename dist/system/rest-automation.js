@@ -8,6 +8,7 @@ import { AppException } from '../models/app-exception.js';
 import { AsyncHttpRequest } from '../models/async-http-request.js';
 import { RoutingEntry } from '../util/routing.js';
 import { AppConfig, ConfigReader } from '../util/config-reader.js';
+import { ContentTypeResolver } from '../util/content-type-resolver.js';
 import express from 'express';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
@@ -17,6 +18,7 @@ import fs from 'fs';
 const log = Logger.getInstance();
 const util = new Utility();
 const po = new PostOffice();
+const resolver = ContentTypeResolver.getInstance();
 const httpContext = {};
 const ETAG = "ETag";
 const IF_NONE_MATCH = "If-None-Match";
@@ -307,6 +309,7 @@ class RestEngine {
     traceIdLabels;
     htmlFolder;
     mimeTypes = new Map();
+    customContentTypes = new Map();
     connections = new Map();
     constructor() {
         if (this.traceIdLabels === undefined) {
@@ -348,20 +351,67 @@ class RestEngine {
             // if not configured, use the library's built-in mime-types.yml
             const mimeFilePath = mtypes ? config.resolveFilePath(mtypes) : util.getFolder("../resources/mime-types.yml");
             const mimeConfig = util.loadYamlFile(mimeFilePath);
-            const mimeDefault = mimeConfig.getElement('mime.types');
-            for (const k in mimeDefault) {
-                const v = mimeDefault[k];
-                this.mimeTypes.set(k, v);
+            if (mimeConfig.exists('mime.types')) {
+                const mimeSettings = mimeConfig.getElement('mime.types');
+                if (mimeSettings instanceof Object && !Array.isArray(mimeSettings)) {
+                    for (const k in mimeSettings) {
+                        this.mimeTypes.set(k.toLowerCase(), String(mimeSettings[k]).toLowerCase());
+                    }
+                }
             }
             // check for additional MIME in application config
             const mime = config.get('mime.types');
             if (mime instanceof Object && !Array.isArray(mime)) {
                 for (const k in mime) {
-                    const v = mime[k];
-                    this.mimeTypes.set(k.toLowerCase(), String(v).toLowerCase());
+                    this.mimeTypes.set(k.toLowerCase(), String(mime[k]).toLowerCase());
                 }
             }
+            // set default mime types
+            this.mimeTypes.set('html', TEXT_HTML);
+            this.mimeTypes.set('htm', TEXT_HTML);
+            this.mimeTypes.set('txt', TEXT_PLAIN);
+            this.mimeTypes.set('js', TEXT_JAVASCRIPT);
+            this.mimeTypes.set('css', TEXT_CSS);
+            this.mimeTypes.set('json', APPLICATION_JSON);
+            this.mimeTypes.set('xml', APPLICATION_XML);
             log.info(`Loaded ${this.mimeTypes.size} mime types`);
+            const ctypes = config.getProperty('yaml.custom.content.types');
+            if (ctypes) {
+                const cFilePath = config.resolveFilePath(ctypes);
+                const cConfig = util.loadYamlFile(cFilePath);
+                if (cConfig.exists('custom.content.types')) {
+                    const cSettings = cConfig.getElement('custom.content.types');
+                    if (cSettings instanceof Object && Array.isArray(cSettings)) {
+                        for (const entry of cSettings) {
+                            const sep = entry.indexOf('->');
+                            if (sep != -1) {
+                                const k = entry.substring(0, sep).trim();
+                                const v = entry.substring(sep + 2).trim();
+                                if (k && v) {
+                                    this.customContentTypes.set(k, v.toLowerCase());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // check for additional MIME in application config
+            const ct = config.get('custom.content.types');
+            if (ct instanceof Object && Array.isArray(ct)) {
+                for (const entry of ct) {
+                    const sep = entry.indexOf('->');
+                    if (sep != -1) {
+                        const k = entry.substring(0, sep).trim();
+                        const v = entry.substring(sep + 2).trim();
+                        if (k && v) {
+                            this.customContentTypes.set(k, v.toLowerCase());
+                        }
+                    }
+                }
+            }
+            if (this.customContentTypes.size > 0) {
+                log.info(`Loaded ${this.customContentTypes.size} custom content types`);
+            }
             let port = util.str2int(config.getProperty('server.port', String(DEFAULT_SERVER_PORT)));
             if (port < 80) {
                 log.error(`Port ${port} is invalid. Reset to default port ${DEFAULT_SERVER_PORT}`);
@@ -415,7 +465,8 @@ class RestEngine {
             // the last middleware is the rest-automation request handler            
             app.use(async (req, res) => {
                 const method = req.method;
-                const uriPath = decodeURI(req.path);
+                // Avoid "path traversal" attack by filtering "../" from URI
+                const uriPath = util.getDecodedUri(req.path);
                 let found = false;
                 if (restEnabled) {
                     const assigned = router.getRouteInfo(method, uriPath);
@@ -437,7 +488,6 @@ class RestEngine {
                 }
                 // send HTTP-404 when page is not found
                 if (!found) {
-                    // detect path traversal
                     if ('GET' == method) {
                         // handle static file download request
                         const file = await this.getStaticFile(uriPath);
@@ -652,7 +702,7 @@ class RestEngine {
             }
         }
         if ('POST' == method || 'PUT' == method || 'PATCH' == method) {
-            let contentType = req.header(CONTENT_TYPE);
+            let contentType = resolver.getContentType(req.header(CONTENT_TYPE));
             if (!contentType) {
                 contentType = TEXT_PLAIN;
             }
@@ -870,23 +920,16 @@ class RestEngine {
         return null;
     }
     /**
-     * This is a very primitive way to resolve content-type for proper loading of
+     * This is a best effort to resolve content-type for proper loading of
      * HTML, CSS and Javascript contents by a browser.
      *
-     * It is not intended to be a comprehensive MIME type resolver.
+     * Please configure "mime.types" in application.yml or
+     * supply your own mime-types.yml in the resources folder.
+     * (For details, refer to Developer guide)
      */
     getFileContentType(filename) {
-        if (filename.endsWith("/") || filename.endsWith(".html") || filename.endsWith(".htm")) {
+        if (filename.endsWith("/")) {
             return TEXT_HTML;
-        }
-        else if (filename.endsWith(".txt")) {
-            return TEXT_PLAIN;
-        }
-        else if (filename.endsWith(".css")) {
-            return TEXT_CSS;
-        }
-        else if (filename.endsWith(".js")) {
-            return TEXT_JAVASCRIPT;
         }
         else {
             if (filename.includes('.') && !filename.endsWith('.')) {

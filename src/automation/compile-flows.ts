@@ -686,7 +686,7 @@ export class CompileFlows {
             return this.validKeyValues(lhs);
         } else {
             return (lhs.startsWith(TEXT_TYPE) ||
-                    lhs.startsWith(FILE_TYPE) ||
+                    lhs.startsWith(FILE_TYPE) || lhs.startsWith(CLASSPATH_TYPE) ||
                     lhs.startsWith(INTEGER_TYPE) || lhs.startsWith(LONG_TYPE) ||
                     lhs.startsWith(FLOAT_TYPE) || lhs.startsWith(DOUBLE_TYPE) ||
                     lhs.startsWith(BOOLEAN_TYPE)) && lhs.endsWith(CLOSE_BRACKET);

@@ -31,10 +31,10 @@ export class DistributedTrace implements Composable {
             if (payload && TRACE in payload) {
                 const metrics = payload[TRACE] as object;
                 const exception = metrics['exception'];
-                // for security reason, encoded binary data is removed
-                if (exception instanceof Buffer) {
-                    metrics['exception'] = '***';
-                }
+                // for privacy, encoded binary data or non-standard error message is removed
+                if (exception) {
+                    metrics['exception'] = typeof exception == 'string'? exception : '***';
+                }                
                 const routeName = metrics[SERVICE];
                 if (routeName) {
                     if (!ZERO_TRACING_FILTER.includes(routeName)) {

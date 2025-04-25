@@ -426,20 +426,24 @@ export class EventEnvelope {
      * @returns error message
      */
     getError() {
-        let errorMsg;
-        if (this.body instanceof Object) {
-            // extract embedded error message if any
-            if ('message' in this.body) {
-                errorMsg = String(this.body['message']);
+        if (this.body) {
+            if (typeof this.body == 'string' || typeof this.body == 'boolean' || typeof this.body == 'number') {
+                return String(this.body);
+            }
+            else if (this.body instanceof Buffer) {
+                return "***";
+            }
+            else if (this.body instanceof Object && !Array.isArray(this.body) &&
+                'error' == this.body['type'] && 'status' in this.body && 'message' in this.body) {
+                return String(this.body['message']);
             }
             else {
-                errorMsg = JSON.stringify(this.body);
+                return this.body;
             }
         }
         else {
-            errorMsg = String(this.getBody());
+            return "null";
         }
-        return errorMsg;
     }
     setStackTrace(stackTrace) {
         this.stackTrace = stackTrace;

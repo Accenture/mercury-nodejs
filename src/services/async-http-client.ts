@@ -5,12 +5,14 @@ import { EventEnvelope } from '../models/event-envelope.js';
 import { AsyncHttpRequest } from '../models/async-http-request.js';
 import { AppException } from '../models/app-exception.js';
 import { ObjectStreamIO, ObjectStreamWriter, ObjectStreamReader } from '../system/object-stream.js';
+import { ContentTypeResolver } from '../util/content-type-resolver.js';
 import axios, { AxiosRequestConfig } from 'axios';
 import stream from 'stream';
 import FormData from 'form-data';
 
 const log = Logger.getInstance();
 const po = new PostOffice();
+const resolver = ContentTypeResolver.getInstance();
 const HTTP_CLIENT_SERVICE = 'async.http.request';
 const GET = 'GET';
 const HEAD = 'HEAD';
@@ -23,7 +25,6 @@ const METHODS = [GET, HEAD, PUT, POST, PATCH, DELETE, OPTIONS];
 const MUST_DROP_HEADERS = [ "content-encoding", "transfer-encoding", "host", "connection",
                             "upgrade-insecure-requests", "accept-encoding", "user-agent",
                             "sec-fetch-mode", "sec-fetch-site", "sec-fetch-user" ];
-
 const MULTIPART_FORM_DATA = "multipart/form-data";
 const STREAM_CONTENT = 'x-stream-id';
 const CONTENT_TYPE = 'content-type';
@@ -88,13 +89,13 @@ export class AsyncHttpClient implements Composable {
             // when there are more than one query separator, drop the middle portion.
             const sep1 = request.getUrl().indexOf('?');
             const sep2 = request.getUrl().lastIndexOf('?');
-            uri = cleanEncodeURI(getSafeDisplayUri(request.getUrl().substring(0, sep1)));
+            uri = cleanEncodeURI(decodeURI(request.getUrl().substring(0, sep1)));
             const q = request.getUrl().substring(sep2+1).trim();
             if (q) {
                 request.setQueryString(q);
             }
         } else {
-            uri = cleanEncodeURI(getSafeDisplayUri(uri));
+            uri = cleanEncodeURI(decodeURI(uri));
         }
         // construct target URL
         let qs = request.getQueryString();
@@ -225,7 +226,7 @@ export class AsyncHttpClient implements Composable {
             for (const h in httpResponse.headers) {
                 resHeaders.set(h.toLowerCase(), String(httpResponse.headers[h]));
             }            
-            const resContentType = resHeaders.get(CONTENT_TYPE);
+            const resContentType = resolver.getContentType(resHeaders.get(CONTENT_TYPE));
             const resContentLen = resHeaders.get(CONTENT_LENGTH);
             const textContent = isTextResponse(resContentType);
             const fixedLenContent = resContentLen || textContent; 
@@ -359,19 +360,4 @@ function queryParametersToString(request: AsyncHttpRequest): string {
 function cleanEncodeURI(uri: string): string {
     const result = encodeURI(uri).replaceAll("+", "%20");
     return result.startsWith('/')? result : '/' + result;
-}
-
-function getSafeDisplayUri(uri: string): string {
-    let path = decodeURI(uri);
-    path = dropDangerousSegment(path, "://");
-    path = dropDangerousSegment(path, "%");
-    path = dropDangerousSegment(path, "<");
-    path = dropDangerousSegment(path, ">");
-    path = dropDangerousSegment(path, "&");
-    path = dropDangerousSegment(path, ";");
-    return path;
-}
-
-function dropDangerousSegment(uri: string, pattern: string) {
-    return uri.includes(pattern)? uri.substring(0, uri.indexOf(pattern)) : uri;
 }

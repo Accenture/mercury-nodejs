@@ -1,7 +1,7 @@
 import fs from 'fs';
 import { MultiLevelMap } from './multi-level-map.js';
 import { Logger } from './logger.js';
-import { Utility } from '../util/utility.js';
+import { Utility } from './utility.js';
 
 const log = Logger.getInstance();
 const util = new Utility();
@@ -78,27 +78,7 @@ export class AppConfig {
     static getInstance(resourcePath?: string): ConfigReader {
         if (AppConfig.singleton === undefined) {
             AppConfig.singleton = new AppConfig(resourcePath);
-            // check command line arguments for overrides
-            let reloaded = false;
-            let reloadFile: string = null;
-            let errorInReload: string = null;
             if (process) {
-                // reload configuration from a file given in command line argument "-C{filename}"
-                const replaceConfig = process.argv.filter(k => k.startsWith('-C'));
-                if (replaceConfig.length > 0) {
-                    reloadFile = replaceConfig[0].substring(2);
-                    try {
-                        const map = util.loadYamlFile(reloadFile);
-                        if (map.isEmpty()) {
-                            errorInReload = `Configuration file ${reloadFile} is empty`;
-                        } else {
-                            AppConfig.reader.reload(map);
-                            reloaded = true;
-                        }
-                    } catch (e) {
-                        errorInReload = e.message;
-                    }
-                }
                 // override application parameters from command line arguments
                 const parameters = process.argv.filter(k => k.startsWith('-D') && k.substring(2).includes('='));
                 for (let i=0; i < parameters.length; i++) {
@@ -125,14 +105,8 @@ export class AppConfig {
             const version = AppConfig.reader.get('info.app.version');
             if (version) {
                 log.info(`Application version ${version}`);
-            }      
-            if (reloaded) {
-                log.info(`Configuration reloaded from ${reloadFile}`);
-            } else if (errorInReload) {
-                log.warn(`Unable to load configuration from ${reloadFile} - ${errorInReload}`);
-            } else {
-                log.info(`Configuration loaded from ${resourcePath}`);
-            }
+            } 
+            log.info(`Configuration loaded from ${resourcePath}`);
         }        
         return AppConfig.reader;
     }

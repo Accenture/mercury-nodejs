@@ -1,4 +1,4 @@
-import { Utility } from '../util/utility.js';
+import { Utility } from './utility.js';
 const util = new Utility();
 let isDebug = false;
 let isInfo = true;

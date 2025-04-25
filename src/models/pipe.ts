@@ -58,11 +58,15 @@ export class PipelineInfo implements PipeInfo {
     }
 
     getTaskName(n: number): string {
-        return this.task.pipelineSteps[n];
+        return this.task.pipelineSteps[Math.min(n, this.task.pipelineSteps.length-1)];
     }
 
     isLastStep(n: number): boolean {
         return n >= this.task.pipelineSteps.length - 1;
+    }
+
+    isSingleton(): boolean {
+        return this.task.pipelineSteps.length == 1;
     }
 
     resetPointer(): void {

@@ -98,6 +98,7 @@ export declare class Utility {
      * @throws error when path traversal is detected
      */
     getSafeFilePath(baseDir: string, filePath: string): string;
+    getDecodedUri(uriPath: string): string;
     /**
      * Create a directory if not exists
      *

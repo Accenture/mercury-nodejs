@@ -7,13 +7,13 @@ import { Utility } from '../util/utility.js';
 import { AsyncHttpRequest } from '../models/async-http-request.js';
 import { FunctionRegistry } from './function-registry.js';
 import { TemporaryInbox } from '../services/temporary-inbox.js';
+import { EventHttpResolver } from '../util/event-http-resolver.js';
 const log = Logger.getInstance();
 const util = new Utility();
 const registry = FunctionRegistry.getInstance();
 const emitter = new EventEmitter();
 const handlers = new Map();
-const eventHttpTargets = {};
-const eventHttpHeaders = {};
+const resolver = EventHttpResolver.getInstance();
 let self = null;
 const EVENT_MANAGER = "event.script.manager";
 const TASK_EXECUTOR = "task.executor";
@@ -72,42 +72,6 @@ export class PostOffice {
             event.setFrom(this.from);
             event.setTraceId(this.traceId);
             event.setTracePath(this.tracePath);
-        }
-    }
-    /**
-     * DO NOT use this method directly.
-     * This will be invoked at application startup by the platform class.
-     *
-     * @param file path of the config file
-     * @param config ConfigReader
-     */
-    loadHttpRoutes(file, config) {
-        const o = config.get("event.http");
-        if (Array.isArray(o)) {
-            const eventHttpEntries = o;
-            for (let i = 0; i < eventHttpEntries.length; i++) {
-                const route = config.getProperty("event.http[" + i + "].route");
-                const target = config.getProperty("event.http[" + i + "].target");
-                if (route && target) {
-                    eventHttpTargets[route] = target;
-                    let headerCount = 0;
-                    const h = config.get("event.http[" + i + "].headers");
-                    if (h instanceof Object && !Array.isArray(h)) {
-                        const headers = {};
-                        Object.keys(h).forEach(k => {
-                            headers[String(k)] = config.getProperty("event.http[" + i + "].headers." + k);
-                            headerCount++;
-                        });
-                        eventHttpHeaders[route] = headers;
-                    }
-                    log.info(`Event-over-HTTP ${route} -> ${target} with ${headerCount} header${headerCount == 1 ? '' : 's'}`);
-                }
-            }
-            const total = Object.keys(eventHttpTargets).length;
-            log.info(`Total ${total} event-over-http target${total == 1 ? '' : 's'} configured`);
-        }
-        else {
-            log.error(`Invalid config ${file} - the event.http section should be a list of route and target`);
         }
     }
     /**
@@ -285,8 +249,8 @@ class PO {
         const input = new EventEnvelope().copy(event);
         const route = input.getTo();
         if (route) {
-            const targetHttp = input.getHeader(X_EVENT_API) ? null : eventHttpTargets[route];
-            const headers = eventHttpHeaders[route];
+            const targetHttp = input.getHeader(X_EVENT_API) ? null : resolver.getEventHttpTarget(route);
+            const headers = resolver.getEventHttpHeaders(route);
             if (targetHttp) {
                 const callback = input.getReplyTo();
                 const rpc = callback ? true : false;
@@ -352,8 +316,8 @@ class PO {
             const start = performance.now();
             const route = input.getTo();
             if (route) {
-                const targetHttp = input.getHeader(X_EVENT_API) ? null : eventHttpTargets[route];
-                const headers = eventHttpHeaders[route];
+                const targetHttp = input.getHeader(X_EVENT_API) ? null : resolver.getEventHttpTarget(route);
+                const headers = resolver.getEventHttpHeaders(route);
                 if (targetHttp) {
                     const callback = input.getReplyTo();
                     const rpc = callback ? true : false;

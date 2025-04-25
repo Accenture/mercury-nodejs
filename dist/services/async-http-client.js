@@ -4,11 +4,13 @@ import { EventEnvelope } from '../models/event-envelope.js';
 import { AsyncHttpRequest } from '../models/async-http-request.js';
 import { AppException } from '../models/app-exception.js';
 import { ObjectStreamIO, ObjectStreamWriter, ObjectStreamReader } from '../system/object-stream.js';
+import { ContentTypeResolver } from '../util/content-type-resolver.js';
 import axios from 'axios';
 import stream from 'stream';
 import FormData from 'form-data';
 const log = Logger.getInstance();
 const po = new PostOffice();
+const resolver = ContentTypeResolver.getInstance();
 const HTTP_CLIENT_SERVICE = 'async.http.request';
 const GET = 'GET';
 const HEAD = 'HEAD';
@@ -85,14 +87,14 @@ export class AsyncHttpClient {
             // when there are more than one query separator, drop the middle portion.
             const sep1 = request.getUrl().indexOf('?');
             const sep2 = request.getUrl().lastIndexOf('?');
-            uri = cleanEncodeURI(getSafeDisplayUri(request.getUrl().substring(0, sep1)));
+            uri = cleanEncodeURI(decodeURI(request.getUrl().substring(0, sep1)));
             const q = request.getUrl().substring(sep2 + 1).trim();
             if (q) {
                 request.setQueryString(q);
             }
         }
         else {
-            uri = cleanEncodeURI(getSafeDisplayUri(uri));
+            uri = cleanEncodeURI(decodeURI(uri));
         }
         // construct target URL
         let qs = request.getQueryString();
@@ -234,7 +236,7 @@ export class AsyncHttpClient {
             for (const h in httpResponse.headers) {
                 resHeaders.set(h.toLowerCase(), String(httpResponse.headers[h]));
             }
-            const resContentType = resHeaders.get(CONTENT_TYPE);
+            const resContentType = resolver.getContentType(resHeaders.get(CONTENT_TYPE));
             const resContentLen = resHeaders.get(CONTENT_LENGTH);
             const textContent = isTextResponse(resContentType);
             const fixedLenContent = resContentLen || textContent;
@@ -371,18 +373,5 @@ function queryParametersToString(request) {
 function cleanEncodeURI(uri) {
     const result = encodeURI(uri).replaceAll("+", "%20");
     return result.startsWith('/') ? result : '/' + result;
-}
-function getSafeDisplayUri(uri) {
-    let path = decodeURI(uri);
-    path = dropDangerousSegment(path, "://");
-    path = dropDangerousSegment(path, "%");
-    path = dropDangerousSegment(path, "<");
-    path = dropDangerousSegment(path, ">");
-    path = dropDangerousSegment(path, "&");
-    path = dropDangerousSegment(path, ";");
-    return path;
-}
-function dropDangerousSegment(uri, pattern) {
-    return uri.includes(pattern) ? uri.substring(0, uri.indexOf(pattern)) : uri;
 }
 //# sourceMappingURL=async-http-client.js.map

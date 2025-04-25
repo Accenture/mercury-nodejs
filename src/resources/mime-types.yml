@@ -2,7 +2,9 @@
 # Extension to MIME type mapping for static content
 #
 # By default, the system supports the following:
-# js: application/json
+# js: text/javascript
+# json: application/json
+# xml: application/xml
 # html: text/html
 # htm: text/html
 # txt: text/plain
@@ -17,8 +19,6 @@
 #
 mime.types:
   ico: 'image/vnd.microsoft.icon'
-  json: 'application/json'
-  xml: 'application/xml'
   svg: 'image/svg+xml'
   svgz: 'image/svg+xml'
   sgi: 'image/sgi'
@@ -34,4 +34,3 @@ mime.types:
   woff2: 'font/woff2'
   pdf: 'application/pdf'
   doc: 'application/msword'
-

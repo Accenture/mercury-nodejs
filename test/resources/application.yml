@@ -33,7 +33,14 @@ yaml.flow.automation: 'classpath:/not-found.yaml, classpath:/flows.yaml, classpa
 # event over http
 #
 yaml.event.over.http: 'classpath:/event-over-http.yaml'
-
+#
+# optional config file for mime-types
+#
+yaml.mime.types: 'classpath:/mime-types.yml'
+#
+# optional config file for custom content-types
+#
+yaml.custom.content.types: 'classpath:/custom-content-types.yml'
 #
 # application ID for external state machine in event flow unit tests
 #

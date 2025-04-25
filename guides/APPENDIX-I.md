@@ -4,28 +4,32 @@ The following parameters are reserved by the system. You can add your applicatio
 in the main application configuration file (`application.yml`) or apply additional configuration
 files using the `ConfigReader` API.
 
-| Key                  | Value (example)                       | Required |
-|:---------------------|:--------------------------------------|:---------|
-| application.name     | Application name                      | Yes      |
-| info.app.version     | major.minor.build (e.g. 1.0.0)        | Yes      |
-| info.app.description | Something about your application      | Yes      |
-| server.port          | e.g. 8083                             | Yes      |
-| static.html.folder   | e.g. /tmp/html                        | Yes      |
-| yaml.rest.automation | Default value is classpath:/rest.yaml | Optional |
-| yaml.mime.types      | Optional config file                  | Optional |
-| mime.types           | Map of file extensions to MIME types  | Optional |
-| log.format           | text, compact or json. default=text   | Optional |
-| log.level            | default 'info'                        | Optional |
-| health.dependencies  | e.g. 'database.health'                | Optional |
+| Key                       | Value (example)                       | Required |
+|:--------------------------|:--------------------------------------|:---------|
+| application.name          | Application name                      | Yes      |
+| info.app.version          | major.minor.build (e.g. 1.0.0)        | Yes      |
+| info.app.description      | Something about your application      | Yes      |
+| server.port               | e.g. 8083                             | Yes      |
+| static.html.folder        | e.g. /tmp/html                        | Yes      |
+| yaml.rest.automation      | Default value is classpath:/rest.yaml | Optional |
+| yaml.mime.types           | Optional config file                  | Optional |
+| mime.types                | Map of file extensions to MIME types  | Optional |
+| yaml.custom.content.types | Optional config file                  | Optional |
+| custom.content.types      | List of content type mappings         | Optional |
+| log.format                | text, compact or json. default=text   | Optional |
+| log.level                 | default 'info'                        | Optional |
+| health.dependencies       | e.g. 'database.health'                | Optional |
 
 ## Static HTML contents
 
 You can place static HTML files (e.g. the HTML bundle for a UI program) in the "resources/public" folder or
 in the local file system using the "static.html.folder" parameter.
 
-The system supports a bare minimal list of file extensions to MIME types. If your use case requires additional
-MIME type mapping, you may define them in the `application.yml` configuration file under the `mime.types`
-section like this:
+## MIME types
+
+The system supports a bare minimal list of file extensions to MIME types in the `mime-types.yml` configuration
+file in the composable foundation library's resources folder. If your use case requires additional MIME type
+mapping, you may define them in the `application.yml` configuration file under the `mime.types` section like this:
 
 ```yaml
 mime.types:
@@ -33,7 +37,40 @@ mime.types:
   doc: 'application/msword'
 ```
 
-Alternatively, you can create a mime-types.yml file and point it using the "yaml.mime.types" parameter.
+You may also provide a mime.types section in the `mime-types.yml` configuration under the resources folder
+to override the default configuration in the composable foundation library. To tell the system to load
+the new configuration file, add this entry in application.yml:
+
+```yaml
+yaml.mime.types: 'classpath:/mime-types.yml'
+```
+
+## Custom content types
+
+If you use custom content types in your application, you may add the following section in the application.yml
+configuration file. For example,
+
+```yaml
+custom.content.types:
+  - 'application/vnd.my.org-v2.0+json -> application/json'
+  - 'application/vnd.my.org-v2.1+xml -> application/xml'
+```
+
+In the "custom.content.types" section, you can configure a list of content-type mappings.
+The left-hand-side is the custom content-type and the right-hand-side is a standard content-type.
+
+The content-type mapping tells the system to treat the custom content type as if it is the standard content
+type.
+
+In the above example, the HTTP payload with the custom content type "application/vnd.my.org-v2.0+json" is
+treated as a regular JSON content.
+
+If you want to put the custom content types in a separate configuration file, please put them in a file named
+`custom-content-types.yml` under the `resources` folder and add this entry in application.yml:
+
+```yaml
+yaml.custom.content.types: 'classpath:/custom-content-types.yml'
+```
 
 ## Transient data store
 

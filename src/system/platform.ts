@@ -12,6 +12,8 @@ import { TemporaryInbox } from '../services/temporary-inbox.js';
 import { EventEnvelope } from '../models/event-envelope.js';
 import { AppException } from '../models/app-exception.js';
 import { AppConfig, ConfigReader } from '../util/config-reader.js';
+import { ContentTypeResolver } from '../util/content-type-resolver.js';
+import { EventHttpResolver } from '../util/event-http-resolver.js';
 import fs from 'fs';
 
 const log = Logger.getInstance();
@@ -518,7 +520,12 @@ class EventSystem {
             // load event-over-http.yaml if present
             const yamlFile = config.getProperty('yaml.event.over.http');
             if (yamlFile) {
-                po.loadHttpRoutes(yamlFile, new ConfigReader(yamlFile));
+                EventHttpResolver.getInstance().loadHttpRoutes(yamlFile, new ConfigReader(yamlFile));
+            }
+            // load custom-content-type.yaml if present
+            const ctFile = config.getProperty('yaml.custom.content.types');
+            if (ctFile) {
+                ContentTypeResolver.getInstance().loadCustomContentTypes(new ConfigReader(ctFile));
             }
             // load essential services
             const actuator = new ActuatorServices();

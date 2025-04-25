@@ -7,11 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > *Note*: Some version numbers may be skipped to align feature set with the Java version.
 
-## Version 4.2.28, 4/24/2025
+---
+## Version 4.2.35, 4/25/2025
 
 ### Added
 
-1. Exported the FlowExecutor class
+1. Support "matrix parameters" and "hash parameters" in HTTP request URI in platform-core
+2. Exported the FlowExecutor class in index.ts
 
 ### Removed
 
@@ -19,7 +21,25 @@ N/A
 
 ### Changed
 
-index.ts file changed to include the export for the FlowExecutor class.
+1. Bugfix for pipeline that contains only one task
+2. Rename variable 'flow' to 'template' in FlowInstance
+3. Apply path traversal avoidance using the Utility's getDecodedUri(path) method
+   to each incoming HTTP request
+
+---
+## Version 4.2.28, 4/17/2025
+
+### Added
+
+Support 'Classpath' parameter in LHS of output data mapping
+
+### Removed
+
+HTML escape characters in URI path handling in AsyncHttpClient
+
+### Changed
+
+N/A
 
 ---
 ## Version 4.2.27, 3/31/2025

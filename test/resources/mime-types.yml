@@ -1,0 +1,20 @@
+#
+# Extension to MIME type mapping for static content
+#
+# By default, the system supports the following:
+# js: text/javascript
+# json: application/json
+# xml: application/xml
+# html: text/html
+# htm: text/html
+# txt: text/plain
+# css: text/css
+#
+# Any other extensions are served as application/octet-stream
+#
+# The following mime.types configuration contains only 2 key-values.
+# This is intentional to test that this custom mime-types.yml can be loaded.
+#
+mime.types:
+  pdf: 'application/pdf'
+  xdoc: 'application/x-word'

@@ -23,7 +23,7 @@ files using the `ConfigReader` API.
 You can place static HTML files (e.g. the HTML bundle for a UI program) in the "resources/public" folder or
 in the local file system using the "static.html.folder" parameter.
 
-Static HTML contents with known MIME type mapping are served by the built-in Express static file handler.
+Static HTML contents are served by the built-in Express static file handler.
 
 ## Custom content types
 

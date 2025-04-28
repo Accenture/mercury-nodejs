@@ -13,15 +13,12 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import busboy from 'busboy';
-import crypto from 'crypto';
-import fs from 'fs';
+import path from 'path';
 const log = Logger.getInstance();
 const util = new Utility();
 const po = new PostOffice();
 const resolver = ContentTypeResolver.getInstance();
 const httpContext = {};
-const ETAG = "ETag";
-const IF_NONE_MATCH = "If-None-Match";
 const CONTENT_TYPE = "Content-Type";
 const CONTENT_LENGTH = "Content-Length";
 const LOWERCASE_CONTENT_TYPE = "content-type";
@@ -33,8 +30,6 @@ const APPLICATION_XML = "application/xml";
 const TEXT_PREFIX = 'text/';
 const TEXT_PLAIN = "text/plain";
 const TEXT_HTML = "text/html";
-const TEXT_CSS = "text/css";
-const TEXT_JAVASCRIPT = "text/javascript";
 const HTTPS = "https";
 const PROTOCOL = "x-forwarded-proto";
 const OPTIONS_METHOD = 'OPTIONS';
@@ -308,7 +303,6 @@ class RestEngine {
     plugins = new Array;
     traceIdLabels;
     htmlFolder;
-    mimeTypes = new Map();
     customContentTypes = new Map();
     connections = new Map();
     constructor() {
@@ -347,34 +341,6 @@ class RestEngine {
             }
             this.htmlFolder = config.resolveFilePath(config.getProperty('static.html.folder', 'classpath:/public'));
             log.info(`Static HTML folder: ${this.htmlFolder}`);
-            const mtypes = config.getProperty('yaml.mime.types');
-            // if not configured, use the library's built-in mime-types.yml
-            const mimeFilePath = mtypes ? config.resolveFilePath(mtypes) : util.getFolder("../resources/mime-types.yml");
-            const mimeConfig = util.loadYamlFile(mimeFilePath);
-            if (mimeConfig.exists('mime.types')) {
-                const mimeSettings = mimeConfig.getElement('mime.types');
-                if (mimeSettings instanceof Object && !Array.isArray(mimeSettings)) {
-                    for (const k in mimeSettings) {
-                        this.mimeTypes.set(k.toLowerCase(), String(mimeSettings[k]).toLowerCase());
-                    }
-                }
-            }
-            // check for additional MIME in application config
-            const mime = config.get('mime.types');
-            if (mime instanceof Object && !Array.isArray(mime)) {
-                for (const k in mime) {
-                    this.mimeTypes.set(k.toLowerCase(), String(mime[k]).toLowerCase());
-                }
-            }
-            // set default mime types
-            this.mimeTypes.set('html', TEXT_HTML);
-            this.mimeTypes.set('htm', TEXT_HTML);
-            this.mimeTypes.set('txt', TEXT_PLAIN);
-            this.mimeTypes.set('js', TEXT_JAVASCRIPT);
-            this.mimeTypes.set('css', TEXT_CSS);
-            this.mimeTypes.set('json', APPLICATION_JSON);
-            this.mimeTypes.set('xml', APPLICATION_XML);
-            log.info(`Loaded ${this.mimeTypes.size} mime types`);
             const ctypes = config.getProperty('yaml.custom.content.types');
             if (ctypes) {
                 const cFilePath = config.resolveFilePath(ctypes);
@@ -395,7 +361,7 @@ class RestEngine {
                     }
                 }
             }
-            // check for additional MIME in application config
+            // load custom content types in application config if any
             const ct = config.get('custom.content.types');
             if (ct instanceof Object && Array.isArray(ct)) {
                 for (const entry of ct) {
@@ -452,6 +418,11 @@ class RestEngine {
             app.use(textParser);
             // binaryParser must be the last parser to catch all other content types
             app.use(binaryParser);
+            // load static file hanlder
+            app.use(express.static(this.htmlFolder));
+            app.get('/', (_req, res) => {
+                res.sendFile(path.join(this.htmlFolder, 'index.html'));
+            });
             // User provided middleware must call the "next()" as the last statement
             // to release control to the rest-automation engine
             let pluginCount = 0;
@@ -488,25 +459,6 @@ class RestEngine {
                 }
                 // send HTTP-404 when page is not found
                 if (!found) {
-                    if ('GET' == method) {
-                        // handle static file download request
-                        const file = await this.getStaticFile(uriPath);
-                        if (file) {
-                            res.setHeader(CONTENT_TYPE, this.getFileContentType(file.name));
-                            const ifNoneMatch = req.header(IF_NONE_MATCH);
-                            if (file.sameTag(ifNoneMatch)) {
-                                res.statusCode = 304;
-                                res.setHeader(CONTENT_LENGTH, 0);
-                            }
-                            else {
-                                res.setHeader(ETAG, file.eTag);
-                                res.setHeader(CONTENT_LENGTH, file.content.length);
-                                res.write(file.content);
-                            }
-                            res.end();
-                            return;
-                        }
-                    }
                     this.rejectRequest(res, 404, 'Resource not found');
                 }
             });
@@ -546,34 +498,7 @@ class RestEngine {
     setupMiddleWare(handler) {
         this.plugins.push(handler);
     }
-    async sendActuatorResponse(result, res) {
-        try {
-            res.statusCode = result.getStatus();
-            const ct = result.getHeader(CONTENT_TYPE);
-            if (ct) {
-                res.setHeader(CONTENT_TYPE, ct);
-            }
-            if (TEXT_PLAIN == ct && 'OK' == result.getBody()) {
-                // LIVENESS_PROBE endpoint
-                const b = Buffer.from('OK');
-                res.setHeader(CONTENT_LENGTH, b.length);
-                res.write(b);
-            }
-            if (APPLICATION_JSON == ct && result.getBody() instanceof Object) {
-                // INFO or HEALTH endpoint
-                const text = JSON.stringify(result.getBody(), null, 2);
-                const b = Buffer.from(text);
-                res.setHeader(CONTENT_LENGTH, b.length);
-                res.write(b);
-            }
-            res.end();
-        }
-        catch (e) {
-            const rc = e instanceof AppException ? e.getStatus() : 500;
-            this.rejectRequest(res, rc, e.message);
-        }
-    }
-    async processRequest(path, req, res, route, router) {
+    async processRequest(uriPath, req, res, route, router) {
         const method = req.method;
         if (OPTIONS_METHOD == method) {
             if (route.info.corsId == null) {
@@ -649,7 +574,7 @@ class RestEngine {
         if (qs) {
             qs = qs.substring(1);
         }
-        httpReq.setUrl(this.normalizeUrl(path, route.info.urlRewrite));
+        httpReq.setUrl(this.normalizeUrl(uriPath, route.info.urlRewrite));
         httpReq.setQueryString(qs);
         if (route.info.host) {
             httpReq.setTargetHost(route.info.host);
@@ -696,7 +621,7 @@ class RestEngine {
             const traceHeader = this.getTraceId(req);
             traceHeaderLabel = traceHeader[0];
             traceId = traceHeader[1];
-            tracePath = method + " " + path;
+            tracePath = method + " " + uriPath;
             if (qs) {
                 tracePath += "?" + qs;
             }
@@ -889,59 +814,6 @@ class RestEngine {
         res.write(b);
         res.end();
     }
-    async getStaticFile(uriPath) {
-        try {
-            let filePath = util.getSafeFilePath(this.htmlFolder, uriPath);
-            let fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
-            // assume HTML if file name does not have extension
-            if (!uriPath.endsWith('/') && !fileName.includes('.')) {
-                filePath += ".html";
-                fileName += '.html';
-            }
-            if (fs.existsSync(filePath)) {
-                if (util.isDirectory(filePath)) {
-                    filePath += '/index.html';
-                    fileName = 'index.html';
-                }
-                const content = await fs.promises.readFile(filePath);
-                if (content) {
-                    const sha1 = crypto.createHash('sha256');
-                    sha1.update(content);
-                    const hash = sha1.digest('hex');
-                    const result = new EtagFile(hash, content);
-                    result.name = fileName;
-                    return result;
-                }
-            }
-        }
-        catch (e) {
-            log.error(`Unable to read static file ${uriPath} - ${e.message}`);
-        }
-        return null;
-    }
-    /**
-     * This is a best effort to resolve content-type for proper loading of
-     * HTML, CSS and Javascript contents by a browser.
-     *
-     * Please configure "mime.types" in application.yml or
-     * supply your own mime-types.yml in the resources folder.
-     * (For details, refer to Developer guide)
-     */
-    getFileContentType(filename) {
-        if (filename.endsWith("/")) {
-            return TEXT_HTML;
-        }
-        else {
-            if (filename.includes('.') && !filename.endsWith('.')) {
-                const ext = filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
-                const contentType = this.mimeTypes.get(ext);
-                if (contentType) {
-                    return contentType;
-                }
-            }
-            return APPLICATION_OCTET_STREAM;
-        }
-    }
     close() {
         return new Promise((resolve) => {
             if (running && server) {
@@ -966,31 +838,6 @@ class RestEngine {
                 resolve(false);
             }
         });
-    }
-}
-class EtagFile {
-    eTag;
-    name;
-    content;
-    constructor(eTag, content) {
-        this.eTag = `"${eTag}"`;
-        this.content = content;
-    }
-    sameTag(eTag) {
-        if (eTag) {
-            if (eTag.includes(",")) {
-                const parts = eTag.split(',').filter(v => v.trim().length > 0).map(v => v.trim());
-                for (const p of parts) {
-                    if (p == eTag) {
-                        return true;
-                    }
-                }
-            }
-            else {
-                return this.eTag == eTag;
-            }
-        }
-        return false;
     }
 }
 //# sourceMappingURL=rest-automation.js.map

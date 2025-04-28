@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > *Note*: Some version numbers may be skipped to align feature set with the Java version.
 
 ---
+## Version 4.2.36, 4/28/2025
+
+### Added
+
+Express static file handler
+
+### Removed
+
+1. REST automation static file handler
+2. Custom MIME type configuration
+
+### Changed
+
+N/A
+
+---
 ## Version 4.2.35, 4/25/2025
 
 ### Added

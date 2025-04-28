@@ -1,5 +1,4 @@
 import fs from 'fs';
-import path from 'path';
 import { fileURLToPath } from "url";
 import { v4 as uuid4 } from 'uuid';
 import { parse as parseYaml } from 'yaml';
@@ -241,23 +240,6 @@ export class Utility {
         const fPath = filePath.includes('\\') ? filePath.replace(/\\/g, '/') : filePath;
         const colon = fPath.indexOf(':');
         return colon == 1 ? fPath.substring(2) : fPath;
-    }
-    /**
-     * Detect path traversal attack
-     *
-     * @param baseDir for the application
-     * @param filePath in the URI path
-     * @returns resolved path
-     * @throws error when path traversal is detected
-     */
-    getSafeFilePath(baseDir, filePath) {
-        const inputPath = this.normalizeFilePath(filePath);
-        const resolvedPath = path.resolve(baseDir, inputPath.startsWith('/') ? '.' + inputPath : inputPath);
-        const normalizedPath = this.normalizeFilePath(resolvedPath);
-        if (!normalizedPath.startsWith(baseDir)) {
-            throw new Error('Access denied because file path is outside the base directory');
-        }
-        return resolvedPath;
     }
     getDecodedUri(uriPath) {
         if (uriPath == null) {

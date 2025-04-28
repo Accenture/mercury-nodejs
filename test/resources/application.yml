@@ -7,7 +7,7 @@ info.app:
 
 # server port for Event API REST endpoint
 server.port: 8300
-
+rest.automation: true
 #
 # log.format = text | compact | json
 # text and json are for human readers

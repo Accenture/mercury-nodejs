@@ -12,8 +12,6 @@ files using the `ConfigReader` API.
 | server.port               | e.g. 8083                             | Yes      |
 | static.html.folder        | e.g. /tmp/html                        | Yes      |
 | yaml.rest.automation      | Default value is classpath:/rest.yaml | Optional |
-| yaml.mime.types           | Optional config file                  | Optional |
-| mime.types                | Map of file extensions to MIME types  | Optional |
 | yaml.custom.content.types | Optional config file                  | Optional |
 | custom.content.types      | List of content type mappings         | Optional |
 | log.format                | text, compact or json. default=text   | Optional |
@@ -25,25 +23,7 @@ files using the `ConfigReader` API.
 You can place static HTML files (e.g. the HTML bundle for a UI program) in the "resources/public" folder or
 in the local file system using the "static.html.folder" parameter.
 
-## MIME types
-
-The system supports a bare minimal list of file extensions to MIME types in the `mime-types.yml` configuration
-file in the composable foundation library's resources folder. If your use case requires additional MIME type
-mapping, you may define them in the `application.yml` configuration file under the `mime.types` section like this:
-
-```yaml
-mime.types:
-  pdf: 'application/pdf'
-  doc: 'application/msword'
-```
-
-You may also provide a mime.types section in the `mime-types.yml` configuration under the resources folder
-to override the default configuration in the composable foundation library. To tell the system to load
-the new configuration file, add this entry in application.yml:
-
-```yaml
-yaml.mime.types: 'classpath:/mime-types.yml'
-```
+Static HTML contents with known MIME type mapping are served by the built-in Express static file handler.
 
 ## Custom content types
 

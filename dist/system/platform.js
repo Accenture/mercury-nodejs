@@ -603,13 +603,12 @@ class EventSystem {
     async runForever() {
         if (!this.forever) {
             this.forever = true;
-            // print ready later
             await Platform.getInstance().getReady();
+            ready();
             const config = AppConfig.getInstance();
             if ('true' == config.getProperty('rest.automation')) {
                 await RestAutomation.getInstance().getReady();
             }
-            ready();
             let t1 = Date.now();
             while (!this.isStopping()) {
                 const now = Date.now();

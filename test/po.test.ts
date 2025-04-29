@@ -628,7 +628,7 @@ describe('post office use cases', () => {
       const map = new MultiLevelMap(result.getBody() as object);
       expect(map.getElement('app.name')).toBe('platform-core');
       expect(map.getElement('origin')).toBe(platform.getOriginId());
-      expect(map.getElement('app.version')).toBe('4.2.14');
+      expect(map.getElement('app.version')).toBe('4.2.37');
     });
 
     it('can get response from /info/routes endpoint', async () => {
@@ -641,7 +641,7 @@ describe('post office use cases', () => {
       const map = new MultiLevelMap(result.getBody() as object);
       expect(map.getElement('app.name')).toBe('platform-core');
       expect(map.getElement('origin')).toBe(platform.getOriginId());
-      expect(map.getElement('app.version')).toBe('4.2.14');
+      expect(map.getElement('app.version')).toBe('4.2.37');
       const publicRoutes = map.getElement('routing.public');
       expect(publicRoutes instanceof Object).toBe(true);
       const r1 = publicRoutes as object;
@@ -662,7 +662,7 @@ describe('post office use cases', () => {
       const map = new MultiLevelMap(result.getBody() as object);
       expect(map.getElement('app.name')).toBe('platform-core');
       expect(map.getElement('origin')).toBe(platform.getOriginId());
-      expect(map.getElement('app.version')).toBe('4.2.14');
+      expect(map.getElement('app.version')).toBe('4.2.37');
       const envKv = map.getElement('env.environment');
       expect(envKv instanceof Object).toBe(true);
       const r1 = envKv as object;

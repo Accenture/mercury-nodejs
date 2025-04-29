@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > *Note*: Some version numbers may be skipped to align feature set with the Java version.
 
 ---
+## Version 4.2.37, 4/29/2025
+
+### Added
+
+vitest
+
+### Removed
+
+jest
+
+### Changed
+
+minor adjustment in unit tests for vitest syntax
+
+---
 ## Version 4.2.36, 4/28/2025
 
 ### Added

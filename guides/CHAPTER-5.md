@@ -299,11 +299,11 @@ in the package.json of your application like this:
     "build": "npm run preload && tsc -p tsconfig.json && node copy-resource-files.js",
     "build:watch": "tsc -w -p tsconfig.json",
     "lint": "eslint . --fix",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --detectOpenHandles",
-    "test:watch": "jest --watch"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
-    "actual-published-package-name": "^4.2.15",
+    "actual-published-package-name": "^4.2.37",
     "mercury-composable": "npm:actual-published-package-name"
   }
 ```

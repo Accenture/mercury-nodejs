@@ -320,7 +320,10 @@ describe('post office use cases', () => {
         const req = new EventEnvelope().setTo(HELLO_WORLD_SERVICE).setHeader(TYPE, ERROR);
         // Send a call to trigger an exception
         const po = new PostOffice(new Sender('unit.test', '200', 'TEST /demo/exception'));
-        await expect(po.request(req, 3000)).rejects.toEqual(new Error(DEMO_EXCEPTION));
+        await expect(po.request(req, 3000)).rejects.toMatchObject({
+          message: DEMO_EXCEPTION,
+          status: 400, // Include this if you want to check the status
+      })
         // Check the exact exception status and message with the try-await-catch pattern
         let ex = null;
         try {
@@ -336,7 +339,7 @@ describe('post office use cases', () => {
         const req = new EventEnvelope().setTo(HELLO_WORLD_SERVICE).setHeader(TYPE, TIMEOUT);
         // Send a call to trigger an exception
         const po = new PostOffice(new Sender('unit.test', '300', 'TEST /demo/timeout'));
-        await expect(po.request(req, 100)).rejects.toEqual(new Error("Route hello.world timeout for 100 ms"));
+        await expect(po.request(req, 100)).rejects.toEqual(new AppException(408, "Route hello.world timeout for 100 ms"));
         // Check the exact exception status and message with the try-await-catch pattern
         let normal = false;
         try {
@@ -395,7 +398,7 @@ describe('post office use cases', () => {
     it('can catch exception from a HTTP service', async () => {
         const req = new EventEnvelope().setTo(HELLO_BFF_SERVICE).setBody(ERROR);
         const po = new PostOffice();
-        await expect(po.request(req, 3000)).rejects.toEqual(new Error(NOT_HTTP_REQUEST));     
+        await expect(po.request(req, 3000)).rejects.toEqual(new AppException(500, NOT_HTTP_REQUEST));     
     });
 
     it('can reply to a callback', async () => {

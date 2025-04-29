@@ -15,7 +15,6 @@ import express, { RequestHandler, Request, Response } from 'express';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import busboy from 'busboy';
-import path from 'path';
 import { Socket } from 'net';
 
 const log = Logger.getInstance();
@@ -421,9 +420,6 @@ class RestEngine {
             app.use(binaryParser);
             // load static file hanlder
             app.use(express.static(this.htmlFolder));
-            app.get('/', (_req, res) => {
-                res.sendFile(path.join(this.htmlFolder, 'index.html'));
-            });
             // User provided middleware must call the "next()" as the last statement
             // to release control to the rest-automation engine
             let pluginCount = 0;

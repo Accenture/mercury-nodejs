@@ -31,7 +31,11 @@ export default defineConfig({
       ],
       // Ensures coverage report is generated even for files without tests
       all: true,
-    }
+    },
+    reporters: [
+      'default',
+      ['junit', { outputFile: 'test-results/test-js.xml' }],
+    ]
     // `transform`, `preset`, `extensionsToTreatAsEsm` are generally not needed.
     // Vitest handles TypeScript and ESM out-of-the-box via Vite.
   },

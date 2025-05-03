@@ -138,13 +138,13 @@ the distribution into your enterprise artifactory.
 
 Let's take a test drive of a composable application example in the composable-example branch:
 
-[composable-example](https://github.com/Accenture/mercury-nodejs/tree/composite-example)
+[composable-example](https://github.com/Accenture/mercury-nodejs/tree/composable-example)
 
 To build the sample app, you may do this:
 
 ```shell
 cd sandbox/mercury-nodejs
-git checkout composite-example
+git checkout composable-example
 npm install
 npm run build
 npm run test

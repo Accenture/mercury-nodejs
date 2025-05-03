@@ -24,7 +24,7 @@ You can also build and run the application from command line like this:
 
 ```shell
 cd sandbox/mercury-nodejs
-git checkout composite-example
+git checkout composable-example
 npm install
 npm run build
 npm run test

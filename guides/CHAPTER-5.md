@@ -23,8 +23,7 @@ main();
 You can also build and run the application from command line like this:
 
 ```shell
-cd sandbox/mercury-nodejs
-git checkout composable-example
+cd sandbox/composable-nodejs-example
 npm install
 npm run build
 npm run test

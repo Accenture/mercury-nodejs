@@ -26,10 +26,8 @@ A composable application is designed in 3 steps:
 To get started, please visit [Chapter 1, Developer Guide](https://accenture.github.io/mercury-nodejs/guides/CHAPTER-1/)
 and [Methodology](https://accenture.github.io/mercury-nodejs/guides/METHODOLOGY/).
 
-We will illustrate the methodology with a composable application example which is available in the
-composable-example branch:
-
-[composable-example](https://github.com/Accenture/mercury-nodejs/tree/composable-example)
+We will illustrate the methodology with a composable application example which is available in this
+composable-example repo: [composable-example](https://github.com/acn-ericlaw/composable-nodejs-example)
 
 # Conquer Complexity: Embrace Composable Design
 

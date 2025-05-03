@@ -136,15 +136,13 @@ the distribution into your enterprise artifactory.
 
 ## Composable application example
 
-Let's take a test drive of a composable application example in the composable-example branch:
+Let's take a test drive of a composable application example in this composable-example repo:
+[composable-example](https://github.com/acn-ericlaw/composable-nodejs-example)
 
-[composable-example](https://github.com/Accenture/mercury-nodejs/tree/composable-example)
-
-To build the sample app, you may do this:
+To build the sample app, please clone example repo and build the application like this:
 
 ```shell
-cd sandbox/mercury-nodejs
-git checkout composable-example
+cd sandbox/composable-nodejs-example
 npm install
 npm run build
 npm run test

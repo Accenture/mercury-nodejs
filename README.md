@@ -29,7 +29,7 @@ and [Methodology](https://accenture.github.io/mercury-nodejs/guides/METHODOLOGY/
 We will illustrate the methodology with a composable application example which is available in the
 composable-example branch:
 
-[composable-example](https://github.com/Accenture/mercury-nodejs/tree/composite-example)
+[composable-example](https://github.com/Accenture/mercury-nodejs/tree/composable-example)
 
 # Conquer Complexity: Embrace Composable Design
 

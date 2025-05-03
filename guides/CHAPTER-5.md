@@ -23,9 +23,11 @@ main();
 You can also build and run the application from command line like this:
 
 ```shell
-cd sandbox/mercury-nodejs/examples
+cd sandbox/mercury-nodejs
+git checkout composite-example
 npm install
 npm run build
+npm run test
 ```
 
 Since all functions are connected using the in-memory event bus, you can test any function by sending events
@@ -319,6 +321,11 @@ The "scripts.pull" command is used to pull the latest code from your enterprise 
 Once you have updated the package.json file in the "examples" folder, you may run "npm run build". This verifies
 that the example application can import from the newly published mercury-composable core library in your own
 artifactory.
+
+> *Note*: To publish the library to your enterprise npm artifactory, you may need to remove the package-lock.json
+          and perform a `npm install` using your enterprise npm registry. This would ensure a new package-lock.json
+          is generated based on your artifactory requirement.
+          
 <br/>
 
 |              Chapter-4              |                   Home                    |            Chapter-6            |

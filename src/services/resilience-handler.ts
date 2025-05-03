@@ -32,7 +32,7 @@ export class ResilienceHandler implements Composable {
                     result['message'] = "Service temporarily not available - please try again in "+waitPeriod;
                     result['backoff'] = lastBackoff;
                     that.sendResult(po, event.getReplyTo(), event.getCorrelationId(), result, 0);
-                    return null;
+                    return false;
                 } else {
                     // reset cumulative counter because backoff period has ended
                     cumulative = 0;
@@ -45,7 +45,7 @@ export class ResilienceHandler implements Composable {
             if (status == 200) {
                 result['decision'] = 1;
                 that.sendResult(po, event.getReplyTo(), event.getCorrelationId(), result, 0);
-                return null;
+                return true;
             }
             // Needs to trigger backoff?
             if ('backoff_trigger' in input && 'backoff_seconds' in input) {
@@ -60,7 +60,7 @@ export class ResilienceHandler implements Composable {
                     result['message'] = "Service temporarily not available - please try again in "+waitPeriod;
                     result['backoff'] = now + backoffSeconds * 1000;
                     that.sendResult(po, event.getReplyTo(), event.getCorrelationId(), result, 0);
-                    return null;
+                    return false;
                 }
             }
             let routing: AlternativePath;
@@ -95,7 +95,7 @@ export class ResilienceHandler implements Composable {
             }
             that.sendResult(po, event.getReplyTo(), event.getCorrelationId(), result, delay);
         }
-        return null;
+        return true;
     }
 
     sendResult(po: PostOffice, replyTo: string, cid: string, result, delay: number) {

@@ -18,16 +18,13 @@ export default defineConfig({
       // Equivalent to jest.collectCoverageFrom
       include: ['src/**/*.ts'],
       exclude: [
-        'src/examples/*.ts',
         'test/services/*.ts',
         'src/**/*.d.ts',
         'dist/**', // From coveragePathIgnorePatterns
         'target/**', // From coveragePathIgnorePatterns
         'node_modules/**', // From coveragePathIgnorePatterns (though often default)
-        'examples/**', // From coveragePathIgnorePatterns
         'scripts/**', // From coveragePathIgnorePatterns
-        'tools/**', // From coveragePathIgnorePatterns
-        // Add any other patterns to exclude from coverage
+        'tools/**' // From coveragePathIgnorePatterns
       ],
       // Ensures coverage report is generated even for files without tests
       all: true,

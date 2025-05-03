@@ -136,14 +136,18 @@ the distribution into your enterprise artifactory.
 
 ## Composable application example
 
-Let's take a test drive of a composable application example in the "examples" folder.
+Let's take a test drive of a composable application example in the composable-example branch:
+
+[composable-example](https://github.com/Accenture/mercury-nodejs/tree/composite-example)
 
 To build the sample app, you may do this:
 
 ```shell
-cd sandbox/mercury-nodejs/examples
+cd sandbox/mercury-nodejs
+git checkout composite-example
 npm install
 npm run build
+npm run test
 ```
 
 You will see the build log like this:
@@ -222,13 +226,8 @@ files for the three event flows, namely get-profile.yml, delete-profile.yml and 
 To run the composable-example application, you can do this:
 
 ```shell
-cd sandbox/mercury-nodejs/examples
-npm install
-npm run build
 node dist/composable-example.js
 ```
-
-You can skip the build step if you have already done that earlier.
 
 When the application starts, you will see extract of the application log like this:
 

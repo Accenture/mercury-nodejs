@@ -28,7 +28,7 @@ export class ResilienceHandler {
                     result['message'] = "Service temporarily not available - please try again in " + waitPeriod;
                     result['backoff'] = lastBackoff;
                     that.sendResult(po, event.getReplyTo(), event.getCorrelationId(), result, 0);
-                    return null;
+                    return false;
                 }
                 else {
                     // reset cumulative counter because backoff period has ended
@@ -42,7 +42,7 @@ export class ResilienceHandler {
             if (status == 200) {
                 result['decision'] = 1;
                 that.sendResult(po, event.getReplyTo(), event.getCorrelationId(), result, 0);
-                return null;
+                return true;
             }
             // Needs to trigger backoff?
             if ('backoff_trigger' in input && 'backoff_seconds' in input) {
@@ -57,7 +57,7 @@ export class ResilienceHandler {
                     result['message'] = "Service temporarily not available - please try again in " + waitPeriod;
                     result['backoff'] = now + backoffSeconds * 1000;
                     that.sendResult(po, event.getReplyTo(), event.getCorrelationId(), result, 0);
-                    return null;
+                    return false;
                 }
             }
             let routing;
@@ -94,7 +94,7 @@ export class ResilienceHandler {
             }
             that.sendResult(po, event.getReplyTo(), event.getCorrelationId(), result, delay);
         }
-        return null;
+        return true;
     }
     sendResult(po, replyTo, cid, result, delay) {
         const response = new EventEnvelope().setTo(replyTo).setCorrelationId(cid).setBody(result);

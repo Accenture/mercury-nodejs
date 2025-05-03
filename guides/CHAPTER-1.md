@@ -136,7 +136,7 @@ the distribution into your enterprise artifactory.
 
 ## Composable application example
 
-Let's take a test drive of a composable application example in this composable-example repo:
+Let's take a test drive of a composable application example in this repo:
 [composable-example](https://github.com/acn-ericlaw/composable-nodejs-example)
 
 To build the sample app, please clone example repo and build the application like this:

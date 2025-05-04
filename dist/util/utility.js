@@ -303,7 +303,10 @@ export class Utility {
         }
     }
     async bytes2file(filePath, b) {
-        await fs.promises.writeFile(filePath, b);
+        const content = await this.file2bytes(filePath);
+        if (!content.equals(b)) {
+            await fs.promises.writeFile(filePath, b);
+        }
     }
     async file2str(filePath) {
         if (fs.existsSync(filePath) && !this.isDirectory(filePath)) {
@@ -314,7 +317,10 @@ export class Utility {
         }
     }
     async str2file(filePath, text) {
-        await fs.promises.writeFile(filePath, text);
+        const content = await this.file2str(filePath);
+        if (content != text) {
+            await fs.promises.writeFile(filePath, text);
+        }
     }
     /**
      * Split a text string into an array of elements

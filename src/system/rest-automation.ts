@@ -85,7 +85,7 @@ export class RestAutomation {
     async start() {
         const platform = Platform.getInstance();
         await platform.getReady();
-        self.startHttpServer();
+        await self.startHttpServer();
     }
 
     /**
@@ -341,7 +341,6 @@ class RestEngine {
                 }
             }
             this.htmlFolder = config.resolveFilePath(config.getProperty('static.html.folder', 'classpath:/public'));
-
             log.info(`Static HTML folder: ${this.htmlFolder}`);
             const ctypes = config.getProperty('yaml.custom.content.types');
             if (ctypes) {

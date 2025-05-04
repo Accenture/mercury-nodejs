@@ -75,7 +75,7 @@ export class RestAutomation {
     async start() {
         const platform = Platform.getInstance();
         await platform.getReady();
-        self.startHttpServer();
+        await self.startHttpServer();
     }
     /**
      * Stop the REST automation engine

@@ -754,11 +754,25 @@ describe('event flow use cases', () => {
   });
 
   it('will handle backoff, retry and abort in resilience handler', async () => {
+    // remove control files before running test
+    const f1 = '/tmp/resilience/cumulative';
+    const f2 = '/tmp/resilience/backoff';
+    if (fs.existsSync(f1)) {
+      fs.rmSync(f1);
+    }
+    if (fs.existsSync(f2)) {
+      fs.rmSync(f2);
+    }
+    // run test
     const po = new PostOffice(new Sender('unit.test', '101000', 'TEST /resilience'));
     const req = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/api/resilience')
                             .setQueryParameter('exception', '400').setHeader('accept', 'application/json');                                                             
     const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
+    const first = await po.request(reqEvent);
+    // after 3 attempts, it aborts and returns error 400
+    expect(first.getStatus()).toBe(400);
     const result = await po.request(reqEvent);
+    // the system will enter into backoff mode when the cumulative attempt reaches 5
     expect(result.getStatus()).toBe(503);
     expect(result.getBody() instanceof Object);
     const map = new MultiLevelMap(result.getBody() as object);

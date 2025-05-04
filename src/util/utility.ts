@@ -312,7 +312,10 @@ export class Utility {
     }
 
     async bytes2file(filePath: string, b: Buffer) {
-        await fs.promises.writeFile(filePath, b);
+        const content = await this.file2bytes(filePath);
+        if (!content.equals(b)) {
+            await fs.promises.writeFile(filePath, b);
+        }        
     }
 
     async file2str(filePath: string) {
@@ -324,7 +327,10 @@ export class Utility {
     }
 
     async str2file(filePath: string, text: string) {
-        await fs.promises.writeFile(filePath, text);
+        const content = await this.file2str(filePath);
+        if (content != text) {
+            await fs.promises.writeFile(filePath, text);
+        }        
     }
 
     /**

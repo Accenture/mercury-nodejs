@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > *Note*: Some version numbers may be skipped to align feature set with the Java version.
 
 ---
+## Version 4.2.39, 5/3/2025
+
+### Added
+
+Automatically start main composable modules and libaries:
+When ComposableLoader initializes, it sends start commands to configured "main application"
+or "library" modules.
+
+### Removed
+
+N/A
+
+### Changed
+
+N/A
+
+---
 ## Version 4.2.38, 5/2/2025
 
 ### Added

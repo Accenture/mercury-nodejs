@@ -44,6 +44,7 @@ export class ResilienceHandler implements Composable {
             // If status code is 200, it should execute the user function immediately.
             if (status == 200) {
                 result['decision'] = 1;
+                result['cumulative'] = cumulative;
                 that.sendResult(po, event.getReplyTo(), event.getCorrelationId(), result, 0);
                 return true;
             }

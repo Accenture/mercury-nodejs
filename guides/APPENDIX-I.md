@@ -17,6 +17,7 @@ files using the `ConfigReader` API.
 | log.format                | text, compact or json. default=text   | Optional |
 | log.level                 | default 'info'                        | Optional |
 | health.dependencies       | e.g. 'database.health'                | Optional |
+| modules.autostart         | list of composable functions to start | Optional |
 
 ## Static HTML contents
 

@@ -370,28 +370,59 @@ DistributedTrace:76 - trace={path=GET /api/profile/100, service=async.http.respo
                             exec_time=0.214, from=task.executor, id=1a29105044e94cc3ac68aee002f6f429}
 ```
 
-### Main module
+### Main application entry point
 
-Every application has an entry point. The MainApp in the example app contains the entry point like this:
+Every application has an entry point. The main entry point in the example app contains the entry point like this:
 
 ```javascript
 async function main() {
-    // Load composable functions into memory and initialize configuration management
-    ComposableLoader.initialize();
-    // keep the server running
-    const platform = Platform.getInstance();
-    platform.runForever();
-    log.info('Composable application started');
+    // Load composable functions into memory and start the application modules
+    await ComposableLoader.initialize();
 }
 // run the application
 main();
 ```
 
-The "ComposableLoader.initializer()" command will load the composable functions into the event loop.
-The "platform.runForever()" command will run the application as a service.
+The "ComposableLoader.initializer()" command will load the composable functions into the event loop
+and run the application as a service.
 
-Since your application is event driven, the main application does not need any additional code in the above
-example. However, this is a good place to put application initialization code if any.
+If your application needs additional setup code, you can create a composable function like this:
+
+```javascript
+export class MainApp implements Composable {
+
+    @preload('main.app')
+    initialize(): Composable {
+        return this;
+    }
+
+    // This 'main.app' function is configured in the 'modules.autostart' parameter in application.yml
+    // It will be started automatically.
+    async handleEvent(evt: EventEnvelope) {
+      // check the signature of the start command
+      if ('start' == evt.getHeader('type')) {
+          // put business logic of any additional setup procedure here
+          log.info("Application started");
+          // release this function to guarantee that it is executed only once
+          Platform.getInstance().release('main.app');
+      }
+      // return value is ignored because start up code runs asynchronously
+      return true;
+    }
+}
+```
+
+The above composable function is labeled as `main.app`, you would need to add this to the application.yml
+as follows:
+
+```yaml
+modules.autostart:
+  - 'main.app'
+```
+
+> *Note*: You can configure more than one autostart composable functions and library modules.
+          Please review the application.yml, composable-example.ts, main-application.ts and
+          the services folder in the composable example repository.
 
 ### Commad line application
 

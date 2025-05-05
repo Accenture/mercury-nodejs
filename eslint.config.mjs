@@ -9,6 +9,7 @@ export default tseslint.config({
         "**/*.d.ts", 
         "**/*.test.ts", 
         "**/*.spec.ts", 
+        "coverage/**/*.js",        
         "dist/**/*.js",
         "test/**/*.js"
     ],

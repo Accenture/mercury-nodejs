@@ -9,6 +9,9 @@
   "main": "./dist/index.js",
   "author": "Eric Law <eric.law@accenture.com>",
   "license": "Apache-2.0",
+  "files": [
+    "dist/**/*"
+  ],
   "scripts": {
     "clean": "node clean.js",
     "prebuild": "npm run lint",

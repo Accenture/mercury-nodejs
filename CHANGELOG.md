@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > *Note*: Some version numbers may be skipped to align feature set with the Java version.
 
 ---
+## Version 4.2.40, 5/10/2025
+
+### Added
+
+1. support of "flows" in the "modules.autostart" feature
+2. "length" type matching feature
+3. pipeline for-loop handles model variable in comparator's right hand side
+
+### Removed
+
+N/A
+
+### Changed
+
+Simplified configuration management system to support using the "test/resources" folder
+to override the "src/resources" folder during unit tests.
+
+---
 ## Version 4.2.39, 5/3/2025
 
 ### Added

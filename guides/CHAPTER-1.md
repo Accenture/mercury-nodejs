@@ -399,13 +399,10 @@ export class MainApp implements Composable {
     // This 'main.app' function is configured in the 'modules.autostart' parameter in application.yml
     // It will be started automatically.
     async handleEvent(evt: EventEnvelope) {
-      // check the signature of the start command
-      if ('start' == evt.getHeader('type')) {
-          // put business logic of any additional setup procedure here
-          log.info("Application started");
-          // release this function to guarantee that it is executed only once
-          Platform.getInstance().release('main.app');
-      }
+      // put business logic of any additional setup procedure here
+      log.info("Application started");
+      // release this function to guarantee that it is executed only once
+      Platform.getInstance().release('main.app');
       // return value is ignored because start up code runs asynchronously
       return true;
     }
@@ -418,11 +415,14 @@ as follows:
 ```yaml
 modules.autostart:
   - 'main.app'
+  - 'flow://my-startup-flow'
 ```
 
-> *Note*: You can configure more than one autostart composable functions and library modules.
-          Please review the application.yml, composable-example.ts, main-application.ts and
-          the services folder in the composable example repository.
+For more complex startup procedure, you can use a flow to execute multiple tasks.
+The second item in the modules.autostart illustrates this use case.
+
+> *Note*: autostart modules or flows should assume there is no input dataset.
+          Startup modules usually take input parameters from the environment variables or a secret manager.
 
 ### Commad line application
 

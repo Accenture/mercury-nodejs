@@ -1,6 +1,6 @@
 {
   "name": "mercury-composable",
-  "version": "4.2.39",
+  "version": "4.2.40",
   "description": "Composable foundation SDK",
   "type": "module",
   "engines": {

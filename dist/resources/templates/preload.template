@@ -3,11 +3,13 @@
  */
 import fs from 'fs';
 import { fileURLToPath } from "url";
-import { Logger, AppConfig, Platform, PostOffice, RestAutomation, EventScriptEngine, EventEnvelope } from 'mercury-composable';
+import { Logger, Utility, MultiLevelMap, AppConfig, Platform, PostOffice, Sender, RestAutomation, EventScriptEngine, EventEnvelope } from 'mercury-composable';
 // import composable functions
 ${import-statements}
 
+const FLOW_PROTOCOL = 'flow://';
 const log = Logger.getInstance();
+const util = new Utility();
 
 function getRootFolder() {
     const folder = fileURLToPath(new URL("..", import.meta.url));
@@ -20,12 +22,17 @@ function getRootFolder() {
 export class ComposableLoader {
     private static loaded = false;
 
-    static async initialize() {
+    static async initialize(serverPort?: number, isUnitTest = false) {
         // execute only once
         if (!ComposableLoader.loaded) {
             ComposableLoader.loaded = true;
             try {
-                const resourcePath = getRootFolder() + "resources";
+                let resourcePath = getRootFolder() + 'resources';
+                if (isUnitTest) {
+                    const parts = util.split(getRootFolder(), '/');
+                    parts.pop();
+                    resourcePath = '/' + parts.join('/') + '/test/resources';
+                }
                 if (!fs.existsSync(resourcePath)) {
                     throw new Error('Missing resources folder');
                 }
@@ -41,6 +48,10 @@ export class ComposableLoader {
                 // start Event Script system
                 const eventManager = new EventScriptEngine();
                 await eventManager.start();
+                // override HTTP server port if running in unit test
+                if (serverPort) {
+                    config.set('server.port', parseInt(String(serverPort)));
+                }
                 // start REST automation system
                 if ('true' == config.getProperty('rest.automation')) {
                     const server = RestAutomation.getInstance();
@@ -48,20 +59,31 @@ export class ComposableLoader {
                 }
                 const mainApps = config.get('modules.autostart');
                 if (Array.isArray(mainApps)) {
-                    const po = new PostOffice();
+                    const po = new PostOffice(new Sender('modules.autostart', util.getUuid(), 'START /modules'));
                     for (let i=0; i < mainApps.length; i++) {
                         const svc = config.getProperty(`modules.autostart[${i}]`);
-                        if (svc && po.exists(svc)) {
-                            log.info(`Starting module '${svc}'`);
-                            po.send(new EventEnvelope().setTo(svc).setHeader('type', 'start'));
-                        } else {
-                            log.error(`Unable to start module '${svc}' because it does not exist`);
+                        try {
+                            log.info(`Starting module: ${svc}`);
+                            if (svc.startsWith(FLOW_PROTOCOL) && svc.length > FLOW_PROTOCOL.length) {
+                                const flowId = svc.substring(FLOW_PROTOCOL.length);
+                                var dataset = new MultiLevelMap();
+                                dataset.setElement('body.type', 'start');
+                                dataset.setElement('header.type', 'start');
+                                const flowService = new EventEnvelope();
+                                flowService.setTo('event.script.manager').setHeader('flow_id', flowId);
+                                flowService.setCorrelationId(util.getUuid()).setBody(dataset.getMap());
+                                po.send(flowService);
+                            } else {
+                                po.send(new EventEnvelope().setTo(svc).setHeader('type', 'start'));
+                            }
+                        } catch (e) {
+                            log.error(`Unable to start module '${svc}' - ${e.message}`);
                         }
                     }
-                } 
+                }
                 // keep the server running
                 platform.runForever();
-                await platform.getReady();               
+                await platform.getReady();
             } catch (e) {
                 log.error(`Unable to preload - ${e.message}`);
             }

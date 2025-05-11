@@ -6,18 +6,45 @@ The first step in writing an application is to create an entry point for your ap
 
 A minimalist main application template is shown as follows:
 
-```shell
+```javascript
+import { ComposableLoader } from './preload/preload.js'; 
+
 async function main() {
-    // Load composable functions into memory and initialize configuration management
-    ComposableLoader.initialize();
-    const platform = Platform.getInstance();
-    platform.runForever();
-    // wait for platform to load essential services
-    await platform.getReady();
-    log.info('Composable application started');
+    // Load composable functions into memory and automatically starts your application modules
+    await ComposableLoader.initialize();
 }
 // run the application
 main();
+```
+
+In your application.yml configuration file, you would configure autostart modules like this:
+
+```yaml
+modules.autostart:
+  - 'main.app'
+```
+
+In the above example, the "main.app" is defined in the main-application.ts in the composable-example project.
+It looks like this:
+
+```javascript
+export class MainApp implements Composable {
+
+    @preload('main.app')
+    initialize(): Composable {
+        return this;
+    }
+
+    async handleEvent(evt: EventEnvelope) {
+        // put your start up business logic here
+        log.info("Application started");
+        // release this function to guarantee that it is executed only once
+        Platform.getInstance().release('main.app');      
+        // return value is ignored because start up code runs asynchronously
+        return true;
+    }
+}
+
 ```
 
 You can also build and run the application from command line like this:
@@ -75,63 +102,21 @@ happy with the new version of function, you can route the endpoint directly to t
 
 ## Writing a unit test
 
-In unit test, we want to start the main application so that all the functions are ready for tests.
+In unit tests, we want to tell the system to use the "test/resources" folder to override the "src/resources" folder
+so that we can adjust the configuration to test different scenarios. 
 
-In the following example, the import statement will start the main application and we verify that the
-application is started successfully by reading the base configuration in the `BeforeAll` method. 
+This can be done by using the ComposableLoader's initialize method in the `BeforeAll` section like this:
 
 ```javascript
-// main application will automatically start when imported
-import '../src/composable-example';
-
 describe('End-to-end tests', () => {
 
     beforeAll(async () => {
-        const config = AppConfig.getInstance();
-        const port = config.get('server.port');
-        targetHost = `http://127.0.0.1:${port}`;
-        log.info(`Begin end-to-end tests with port ${port}`);
+        await ComposableLoader.initialize(8305, true);
     });
     
-    // your unit test here    
-}
-```
-
-However, if you have more than one set of unit tests starting the same application, the other set of unit tests
-must override the "server.port" so that both sets of unit tests can co-exist. Otherwise, the second set of unit
-tests cannot start the system with the same server port. The following example illustrates this technique:
-
-```javascript
-import { ComposableLoader } from '../src/preload/preload';
-
-function getRootFolder() {
-    const folder = fileURLToPath(new URL("..", import.meta.url));
-    // for windows OS, convert backslash to regular slash and drop drive letter from path
-    const path = folder.includes('\\')? folder.replaceAll('\\', '/') : folder;
-    const colon = path.indexOf(':');
-    return colon == 1? path.substring(colon+1) : path;
-}
-
-describe('Service tests', () => {
-
-    beforeAll(async () => {
-        const resourcePath = getRootFolder() + 'src/resources';
-        // AppConfig should be initialized with base configuration parameter before everything else
-        const appConfig = AppConfig.getInstance(resourcePath);
-        // You can programmatically change a configuration parameter.
-        // This emulates Java's System.setProperty behavior.
-        appConfig.set('server.port', 8303);
-        const port = appConfig.getProperty("server.port");
-        // print out the port number to confirm that it is using a different one.
-        const baseUrl = `http://127.0.0.1:${port}`;
-        log.info(`Service tests will use ${baseUrl}`);         
-        ComposableLoader.initialize();
-        platform = Platform.getInstance();
-        platform.runForever();
-    });
-    
+    // your unit test here
     afterAll(async () => {
-        await platform.stop();
+        await Platform.getInstance().stop();
         // give console.log a moment to finish
         await util.sleep(2000);
         log.info("Service tests completed");
@@ -143,20 +128,15 @@ describe('Service tests', () => {
         const result = await po.request(req, 2000);
         expect(result).toBeTruthy();
         expect(result.getBody()).toEqual({"status": "demo.service is running fine"});
-    });  
+    });      
 }
 ```
 
-In the above example, the "ComposableLoader.initialize()" command tells the system to load the composable functions.
+In the above example, we set the server port for REST automation to 8305 and set the "unit test" parameter to true.
+Please refer to the e2e.test.ts and service.test.ts test suites as examples.
 
-To override the server port, we must initialize the configuration management system first. We resolve the file path
-for application.yml and start the AppConfig class by acquiring its singleton instance. We then set the "server.port"
-parameter with another port number.
-
-The "can do health check" is a sample unit test that use the PostOffice API to send a request to the "demo.health"
-function.
-
-Please refer to the e2e.test.ts and service.test.ts as an example.
+> *Note*: You must select a unique server port number for each test class because the test engine "vitest" will
+          instantiate a new Javascript V8 engine for each test class.
 
 ### Convenient utility classes
 

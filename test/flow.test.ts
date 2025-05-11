@@ -642,6 +642,10 @@ describe('event flow use cases', () => {
       * 'model.positive:and(nothing) -> output.body.nothing'
       */
     expect(map.getElement("nothing")).toBe(true);
+    // type matching to get size of a list
+    expect(map.getElement("source.list_size")).toBe(3);
+    // type matching to get length of the number 1000
+    expect(map.getElement("source.number_length")).toBe(4);
   });
 
   it('can do body test', async () => {
@@ -1195,8 +1199,8 @@ describe('event flow use cases', () => {
     // the iterationCount will be incremented by "my.mock.function"                                    
     iterationCount = 0;
     var mock = new EventScriptMock("for-loop-test-single-task");
-    var previousRoute = mock.getFunctionRoute('echo.one');
-    var currentRoute = mock.assignFunctionRoute('echo.one', 'my.mock.function').getFunctionRoute('echo.one');
+    var previousRoute = mock.getFunctionRoute('item.picker');
+    var currentRoute = mock.assignFunctionRoute('item.picker', 'my.mock.function').getFunctionRoute('item.picker');
     expect(previousRoute).toBe('no.op');
     expect(currentRoute).toBe('my.mock.function');
     const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req1.toMap());
@@ -1209,6 +1213,7 @@ describe('event flow use cases', () => {
     expect(map.getElement("data.user")).toBe('test-user');
     expect(map.getElement("n")).toBe(3);
     expect(iterationCount).toBe(3);
+    expect(map.getElement("latest.items")).toEqual(['item1', 'item2', 'item3']);
   });
   
   it('can do for-loop with break in pipeline - case 1', async () => {

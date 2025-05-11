@@ -81,6 +81,7 @@ const DOUBLE_SUFFIX = "double";
 const BOOLEAN_SUFFIX = "boolean";
 const NEGATE_SUFFIX = "!";
 const UUID_SUFFIX = "uuid";
+const LENGTH_SUFFIX = "length";
 const SUBSTRING_TYPE = "substring(";
 const CONCAT_TYPE = "concat(";
 const AND_TYPE = "and(";
@@ -637,7 +638,7 @@ export class TaskExecutor implements Composable {
                         map.setElement(task.init[0], n);
                     }
                 }
-                valid = this.evaluateForCondition(map.getElement(task.comparator[0]), task.comparator[1], util.str2int(task.comparator[2]));
+                valid = this.evaluateForCondition(map, task.comparator[0], task.comparator[1], task.comparator[2]);
             }
             if (valid) {
                 const seq = ++flowInstance.pipeCounter;
@@ -717,8 +718,7 @@ export class TaskExecutor implements Composable {
                 consolidated.setElement(pipelineTask.sequencer[0], v - 1);
             }
             // evaluate for-condition
-            iterate = this.evaluateForCondition(consolidated.getElement(pipelineTask.comparator[0]),
-                            pipelineTask.comparator[1], util.str2int(pipelineTask.comparator[2]));
+            iterate = this.evaluateForCondition(consolidated, pipelineTask.comparator[0], pipelineTask.comparator[1], pipelineTask.comparator[2]);
         }
         if (iterate) {
             pipeline.resetPointer();
@@ -730,19 +730,22 @@ export class TaskExecutor implements Composable {
         }
     }
 
-    private evaluateForCondition(modelValue, comparator: string, value: number): boolean {
-        const v = typeof modelValue == 'number'? modelValue : util.str2int(modelValue.toString());
+    private evaluateForCondition(mm: MultiLevelMap, modelVar1: string, comparator: string, modelVar2: string): boolean {
+        const value1 = modelVar1.startsWith(MODEL_NAMESPACE)? mm.getElement(modelVar1) : modelVar1;
+        const value2 = modelVar2.startsWith(MODEL_NAMESPACE)? mm.getElement(modelVar2) : modelVar2;
+        const v1 = typeof value1 == 'number'? value1 : util.str2int(String(value1));
+        const v2 = typeof value2 == 'number'? value2 : util.str2int(String(value2));
         if (comparator == '<') {
-            return v < value;
+            return v1 < v2;
         }
         if (comparator == '<=') {
-            return v <= value;
+            return v1 <= v2;
         }
         if (comparator == '>') {
-            return v > value;
+            return v1 > v2;
         }
         if (comparator == '>=') {
-            return v >= value;
+            return v1 >= v2;
         }
         return false;
     }
@@ -948,6 +951,17 @@ export class TaskExecutor implements Composable {
             }
             if (UUID_SUFFIX == type) {
                 return util.getUuid4();
+            }
+            if (LENGTH_SUFFIX == type) {
+                if (value) {
+                    if (Array.isArray(value) || value instanceof Buffer || typeof value == 'string') {
+                        return value.length;
+                    } else {
+                        return String(value).length;
+                    } 
+                } else {
+                    return 0;
+                }
             }
             if (B64_SUFFIX == type) {
                 if (value instanceof Buffer) {

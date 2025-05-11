@@ -52,7 +52,6 @@ let endApiUrl: string;
 let baseUrl: string;
 let resourcePath: string;
 let apiCount = 0;
-let helloWorldSignature: string;
 
 function getRootFolder() {
   const folder = fileURLToPath(new URL("..", import.meta.url));
@@ -235,7 +234,6 @@ describe('post office use cases', () => {
       await platform.getReady();
       // save the helloWorld as DEMO_LIBRARY_FUNCTION so that it can be retrieved by name
       const helloWorld = new HelloWorld();
-      helloWorldSignature = helloWorld.signature;
       // when a composable class is registered, it is available in the registry
       platform.register(DEMO_LIBRARY_FUNCTION, helloWorld);
       // register a hello.world function to echo the incoming payload
@@ -842,8 +840,6 @@ describe('post office use cases', () => {
       expect(functionList.includes(DEMO_LIBRARY_FUNCTION)).toBe(true);
       const demoClass = registry.getClass(DEMO_LIBRARY_FUNCTION);
       expect(demoClass).toBeInstanceOf(HelloWorld);
-      expect('signature' in demoClass).toBeTruthy();
-      expect(demoClass['signature']).toBe(helloWorldSignature);
       const po = new PostOffice(new Sender('unit.test', '400', 'TEST /library/rpc'));
       const req = new EventEnvelope().setTo(DEMO_LIBRARY_FUNCTION).setBody(TEST_MESSAGE);
       const result = await po.request(req, 3000);

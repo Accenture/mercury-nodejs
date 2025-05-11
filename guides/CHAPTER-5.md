@@ -119,7 +119,7 @@ describe('End-to-end tests', () => {
         await Platform.getInstance().stop();
         // give console.log a moment to finish
         await util.sleep(2000);
-        log.info("Service tests completed");
+        log.info("End-to-end tests completed");
     });
     
     it('can do health check', async () => {
@@ -135,10 +135,22 @@ describe('End-to-end tests', () => {
 In the above example, we set the server port for REST automation to 8305 and set the "unit test" parameter to true.
 Please refer to the e2e.test.ts and service.test.ts test suites as examples.
 
-> *Note*: You must select a unique server port number for each test class because the test engine "vitest" will
+> *Note*: You must select a unique server port number for each test class because the test engine (vitest) will
           instantiate a new Javascript V8 engine for each test class.
 
-### Convenient utility classes
+### Unit test limitations
+
+1. The `preload` annotation is not supported in TypeScript classes in the "test" folder. Therefore, you must
+   programmatically import the Composable functions and use the `platform` API to register the functions so that
+   they can be used in your unit tests.
+
+2. Unlike its Java counterpart, the configuration management system can only use either the "dist" resources
+   or the "test" resources folder. Therefore, you must copy all the configuration files from the "src" resources
+   folder to the "test" resources as a template. Then modify the configuration in the "test" resources
+   folder to adjust to your unit tests. The `ComposableLoader.initialize(port, true)` API tells the system to use the
+   "test" resources folder in unit tests instead of the "dist" folder in runtime.
+
+## Convenient utility classes
 
 The Utility and MultiLevelMap classes are convenient tools for unit tests.
 

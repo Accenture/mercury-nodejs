@@ -27,7 +27,7 @@ To get started, please visit [Chapter 1, Developer Guide](https://accenture.gith
 and [Methodology](https://accenture.github.io/mercury-nodejs/guides/METHODOLOGY/).
 
 We will illustrate the methodology with a composable application example which is available in this
-repo: [composable-example](https://github.com/acn-ericlaw/composable-nodejs-example)
+repo: [composable-example](https://github.com/Accenture/mercury-composable-examples)
 
 # Conquer Complexity: Embrace Composable Design
 

@@ -95,7 +95,10 @@ const OPERATION = {
  */
 export class TaskExecutor {
     taskRefs = {};
+    maxModelArraySize = 10;
     initialize() {
+        const config = AppConfig.getInstance();
+        this.maxModelArraySize = util.str2int(config.getProperty("max.model.array.size", "1000"));
         return this;
     }
     async handleEvent(event) {
@@ -224,8 +227,8 @@ export class TaskExecutor {
         for (const entry of mapping) {
             const sep = entry.indexOf(MAP_TO);
             if (sep > 0) {
-                let lhs = entry.substring(0, sep).trim();
-                const rhs = entry.substring(sep + 2).trim();
+                let lhs = this.substituteDynamicIndex(entry.substring(0, sep).trim(), source, false);
+                const rhs = this.substituteDynamicIndex(entry.substring(sep + 2).trim(), source, true);
                 const isInput = lhs.startsWith(INPUT_NAMESPACE) || lhs.toLowerCase() == INPUT;
                 if (lhs.startsWith(INPUT_HEADER_NAMESPACE)) {
                     lhs = lhs.toLowerCase();
@@ -415,10 +418,10 @@ export class TaskExecutor {
         for (const entry of mapping) {
             const sep = entry.indexOf(MAP_TO);
             if (sep > 0) {
-                const lhs = entry.substring(0, sep).trim();
+                const lhs = this.substituteDynamicIndex(entry.substring(0, sep).trim(), consolidated, false);
                 const isInput = lhs.startsWith(INPUT_NAMESPACE) || lhs.toLowerCase() == INPUT;
                 let value = null;
-                const rhs = entry.substring(sep + 2).trim();
+                const rhs = this.substituteDynamicIndex(entry.substring(sep + 2).trim(), consolidated, true);
                 if (isInput || lhs.startsWith(MODEL_NAMESPACE)
                     || lhs == HEADER || lhs.startsWith(HEADER_NAMESPACE)
                     || lhs == STATUS
@@ -929,6 +932,46 @@ export class TaskExecutor {
             return this.getValueByType(type, value, "LHS '" + lhs + "'", source);
         }
         return value;
+    }
+    substituteDynamicIndex(text, source, isRhs) {
+        if (text.includes('[model.')) {
+            let sb = '';
+            let start = 0;
+            while (start < text.length) {
+                const open = text.indexOf('[', start);
+                const close = text.indexOf(']', start);
+                if (open != -1 && close > open) {
+                    sb += text.substring(start, open + 1);
+                    const idx = text.substring(open + 1, close).trim();
+                    if (idx.startsWith(MODEL_NAMESPACE)) {
+                        const ptr = util.str2int(String(source.getElement(idx)));
+                        if (isRhs) {
+                            if (ptr > this.maxModelArraySize) {
+                                throw new Error("Cannot set RHS to index > " + ptr
+                                    + " that exceeds max " + this.maxModelArraySize + " - " + text);
+                            }
+                            if (ptr < 0) {
+                                throw new Error("Cannot set RHS to negative index - " + text);
+                            }
+                        }
+                        sb += String(ptr);
+                    }
+                    else {
+                        sb += idx;
+                    }
+                    sb += ']';
+                    start = close + 1;
+                }
+                else {
+                    sb += text.substring(start);
+                    break;
+                }
+            }
+            return sb;
+        }
+        else {
+            return text;
+        }
     }
     getValueByType(type, value, path, data) {
         const selection = this.getMappingType(type);

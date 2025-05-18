@@ -1,15 +1,16 @@
 export declare class Logger {
     private static instance;
     private logger;
+    private logFormat;
     private constructor();
     static getInstance(): Logger;
     /**
      * This method is reserved by the platform.
      * Do not use this directly.
      *
-     * @param format is 0 (text), 1 (compact), 2 (json)
+     * @param format is text, compact, json
      */
-    setLogFormat(format: number): void;
+    setLogFormat(format: string): boolean;
     /**
      * Retreive the log level (info, warn, error, debug)
      * @returns log level

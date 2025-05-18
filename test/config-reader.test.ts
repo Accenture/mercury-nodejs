@@ -3,6 +3,7 @@ import { Utility } from '../src/util/utility';
 import { AppConfig, ConfigReader } from '../src/util/config-reader';
 import { RoutingEntry } from '../src/util/routing';
 import { fileURLToPath } from "url";
+import fs from 'fs';
 
 const log = Logger.getInstance();
 const util = new Utility();
@@ -98,5 +99,19 @@ describe('config reader tests', () => {
         expect(parts2.length).toBe(5);
         expect(parts2).toEqual(['hello', '', '', '', 'world']);
     });
+
+    it('can resolve a file path from a resource path hierarchy', async () => {
+        const config = AppConfig.getInstance();
+        // In case developer puts in windows bashslash as separator,
+        // the system will convert it to Unix separator
+        const filePath = config.resolveResourceFilePath('classpath:\\templates\\preload.template');
+        expect(filePath).toBeTruthy();
+        // verify that "/test/resources/" is replaced by "/src/resources/"
+        expect(filePath.includes('/src/resources/')).toBe(true);
+        const template = fs.readFileSync(filePath);
+        expect(template).toBeTruthy();
+        expect(template.includes('${import-statements}')).toBe(true);
+        expect(template.includes('${service-list}')).toBe(true);
+    });     
 
 });

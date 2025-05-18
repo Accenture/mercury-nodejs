@@ -4,30 +4,68 @@ import { Logger } from './logger.js';
 import { Utility } from './utility.js';
 const log = Logger.getInstance();
 const util = new Utility();
-const LOG_FORMAT = {
-    TEXT: 0,
-    COMPACT: 1,
-    JSON: 2
-};
+const MAIN_RESOURCES = "/src/resources";
+const TEST_RESOURCES = "/test/resources";
+const otherResources = new Array();
+let needToFindResources = true;
 function resolveResource(configFile) {
-    let path;
+    let filePath;
     if (configFile.startsWith("classpath:")) {
-        const resourcePath = AppConfig.getInstance().get('resource.path');
-        path = resourcePath + configFile.substring("classpath:".length);
+        const appConfig = AppConfig.getInstance();
+        const resourcePath = appConfig.getProperty('resource.path');
+        const cp = util.normalizeFilePath(configFile.substring("classpath:".length));
+        const classPath = cp.startsWith('/') ? cp : `/${cp}`;
+        filePath = resourcePath + classPath;
+        if (needToFindResources) {
+            needToFindResources = false;
+            if (resourcePath.endsWith(TEST_RESOURCES)) {
+                otherResources.push(resourcePath.substring(0, resourcePath.length - TEST_RESOURCES.length) + MAIN_RESOURCES);
+            }
+            const segments = util.split(resourcePath, "/");
+            if (segments.length > 2) {
+                let sb = '';
+                for (let i = 0; i < segments.length - 2; i++) {
+                    sb += '/' + segments[i];
+                }
+                const packages = appConfig.getProperty('web.component.scan');
+                if (packages) {
+                    const packageList = util.split(packages, ', ');
+                    for (const p of packageList) {
+                        otherResources.push(sb + '/node_modules/' + p + '/dist/resources');
+                    }
+                }
+            }
+        }
+        const result = getResourceFilePath(filePath);
+        if (result) {
+            return result;
+        }
+        else {
+            // try other resources
+            if (otherResources) {
+                for (const f of otherResources) {
+                    const alternative = getResourceFilePath(f + classPath);
+                    if (alternative) {
+                        log.info(`Found resource ${alternative}`);
+                        return alternative;
+                    }
+                }
+            }
+            return null;
+        }
     }
     else if (configFile.startsWith("file:")) {
-        path = configFile.substring("file:".length);
+        return getResourceFilePath(configFile.substring("file:".length));
     }
     else {
-        path = configFile;
+        return getResourceFilePath(configFile);
     }
-    return util.normalizeFilePath(path);
 }
-function getConfigFilePath(filePath) {
+function getResourceFilePath(filePath) {
+    if (fs.existsSync(filePath)) {
+        return filePath;
+    }
     if (filePath.endsWith('.yaml') || filePath.endsWith('.yml')) {
-        if (fs.existsSync(filePath)) {
-            return filePath;
-        }
         // try alternative extension
         const name = filePath.substring(0, filePath.lastIndexOf('.'));
         if (name) {
@@ -36,12 +74,9 @@ function getConfigFilePath(filePath) {
                 return alternative;
             }
         }
-        // config file not found
-        return null;
     }
-    else {
-        throw new Error('Config file must use .yml or .yaml extension');
-    }
+    // file not found
+    return null;
 }
 export class AppConfig {
     static singleton;
@@ -93,11 +128,8 @@ export class AppConfig {
             const logFormat = AppConfig.reader.getProperty('log.format', 'text');
             if (logFormat) {
                 const format = logFormat.toLowerCase();
-                if ('json' == format) {
-                    log.setLogFormat(LOG_FORMAT.JSON);
-                }
-                else if ('compact' == format) {
-                    log.setLogFormat(LOG_FORMAT.COMPACT);
+                if ('json' == format || 'compact' == format || 'text' == format) {
+                    log.setLogFormat(format);
                 }
             }
             const version = AppConfig.reader.get('info.app.version');
@@ -147,20 +179,25 @@ export class ConfigReader {
                 }
             }
             else if (typeof configResource == 'string') {
-                let filePath;
-                if (isBaseConfig) {
-                    filePath = getConfigFilePath(configResource);
+                if (configResource.endsWith('.yaml') || configResource.endsWith('.yml')) {
+                    let filePath;
+                    if (isBaseConfig) {
+                        filePath = getResourceFilePath(configResource);
+                    }
+                    else {
+                        filePath = resolveResource(configResource);
+                    }
+                    if (!filePath) {
+                        throw new Error(`${configResource} not found`);
+                    }
+                    if (util.isDirectory(filePath)) {
+                        throw new Error('Config file must not be a directory');
+                    }
+                    this.config = util.loadYamlFile(filePath);
                 }
                 else {
-                    filePath = getConfigFilePath(resolveResource(configResource));
+                    throw new Error('Config file must use .yml or .yaml extension');
                 }
-                if (!filePath) {
-                    throw new Error(`${configResource} not found`);
-                }
-                if (util.isDirectory(filePath)) {
-                    throw new Error('Config file must not be a directory');
-                }
-                this.config = util.loadYamlFile(filePath);
             }
             else {
                 log.error(`Configuration not loaded because config resource is not a file path or a JSON object`);
@@ -175,8 +212,13 @@ export class ConfigReader {
     getId() {
         return this.id;
     }
-    resolveFilePath(configFile) {
-        return resolveResource(configFile);
+    resolveResourceFilePath(configFile) {
+        if (configFile.startsWith('classpath:')) {
+            return resolveResource(configFile);
+        }
+        else {
+            throw new Error('Resource filename must be prefixed with classpath:');
+        }
     }
     getMap() {
         return this.config.getMap();

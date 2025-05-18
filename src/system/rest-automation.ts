@@ -331,7 +331,7 @@ class RestEngine {
             // initialize router and load configuration
             const restYamlPath = config.getProperty('yaml.rest.automation', 'classpath:/rest.yaml');
             if (restYamlPath) {
-                const restYaml = util.loadYamlFile(config.resolveFilePath(restYamlPath));
+                const restYaml = util.loadYamlFile(config.resolveResourceFilePath(restYamlPath));
                 try {
                     const restConfig = new ConfigReader(restYaml.getMap());
                     router.load(restConfig);
@@ -340,11 +340,11 @@ class RestEngine {
                     log.error(`Unable to initialize REST endpoints - ${e.message}`);
                 }
             }
-            this.htmlFolder = config.resolveFilePath(config.getProperty('static.html.folder', 'classpath:/public'));
+            this.htmlFolder = config.resolveResourceFilePath(config.getProperty('static.html.folder', 'classpath:/public'));
             log.info(`Static HTML folder: ${this.htmlFolder}`);
             const ctypes = config.getProperty('yaml.custom.content.types');
             if (ctypes) {
-                const cFilePath = config.resolveFilePath(ctypes);
+                const cFilePath = config.resolveResourceFilePath(ctypes);
                 const cConfig = util.loadYamlFile(cFilePath);
                 if (cConfig.exists('custom.content.types')) {
                     const cSettings = cConfig.getElement('custom.content.types');

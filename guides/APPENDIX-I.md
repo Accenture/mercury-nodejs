@@ -1,23 +1,59 @@
 # Application configuration
 
+The application base configuration can be defined in the application.yml file.
+
 The following parameters are reserved by the system. You can add your application parameters
 in the main application configuration file (`application.yml`) or apply additional configuration
 files using the `ConfigReader` API.
 
-| Key                       | Value (example)                       | Required |
-|:--------------------------|:--------------------------------------|:---------|
-| application.name          | Application name                      | Yes      |
-| info.app.version          | major.minor.build (e.g. 1.0.0)        | Yes      |
-| info.app.description      | Something about your application      | Yes      |
-| server.port               | e.g. 8083                             | Yes      |
-| static.html.folder        | e.g. /tmp/html                        | Yes      |
-| yaml.rest.automation      | Default value is classpath:/rest.yaml | Optional |
-| yaml.custom.content.types | Optional config file                  | Optional |
-| custom.content.types      | List of content type mappings         | Optional |
-| log.format                | text, compact or json. default=text   | Optional |
-| log.level                 | default 'info'                        | Optional |
-| health.dependencies       | e.g. 'database.health'                | Optional |
-| modules.autostart         | list of composable functions to start | Optional |
+| Key                       | Value (example)                               | Required |
+|:--------------------------|:----------------------------------------------|:---------|
+| application.name          | Application name                              | Yes      |
+| info.app.version          | major.minor.build (e.g. 1.0.0)                | Yes      |
+| info.app.description      | Something about your application              | Yes      |
+| server.port               | e.g. 8083                                     | Yes      |
+| static.html.folder        | e.g. /tmp/html                                | Yes      |
+| web.component.scan        | a comma separated list of composable library  | Yes      |
+| yaml.rest.automation      | Default value is classpath:/rest.yaml         | Optional |
+| yaml.custom.content.types | Optional config file                          | Optional |
+| custom.content.types      | List of content type mappings                 | Optional |
+| log.format                | text, compact or json. default=text           | Optional |
+| log.level                 | default 'info'                                | Optional |
+| health.dependencies       | e.g. 'database.health'                        | Optional |
+| modules.autostart         | list of composable functions to start         | Optional |
+| max.model.array.size      | max size of a dynamic model variable as index<br>default 1000 | Optional |
+
+## Configuration management
+
+The application.yml config file must be placed in the "src/resources" folder in your project. For unit test,
+it can be placed in the "test/resources" folder.
+
+The configuration management system will discover configuration files with the following order of precedence:
+
+```shell
+dist/resources
+test/resources
+src/resources
+(library-1)/dist/resources
+(library-2)/dist/resources
+(library-n)/dist/resources
+```
+
+For example, if a config file is not found in the test/resources folder in a unit test, it will search
+the "src/resources" folder. If still not found, it will search the list of libraries for their resources
+folders.
+
+This discovery mechanism applies to all types of files including config files.
+
+If your application needs to use a resource file, you can programmatically look up the file like this:
+
+```javascript
+const filePath = config.resolveResourceFilePath('classpath:/private/interesting.txt');
+// filePath will be resolved as a fully qualified file path
+// if not found, a null value will be returned
+```
+
+> *Note*: The resource file path must be prefixed with the keyword `classpath:`.
 
 ## Static HTML contents
 

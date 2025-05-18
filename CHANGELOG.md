@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > *Note*: Some version numbers may be skipped to align feature set with the Java version.
 
 ---
+## Version 4.2.41, 5/17/2025
+
+### Added
+
+1. dynamic model variable as index to address an array element (support LHS and RHS mapping)
+2. supports library resource file discovery in the configuration management system
+3. updated documentation of configuration management in Appendix-I of developer guide
+
+### Removed
+
+N/A
+
+### Changed
+
+N/A
+
+---
 ## Version 4.2.40, 5/10/2025
 
 ### Added

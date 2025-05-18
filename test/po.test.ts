@@ -1190,6 +1190,24 @@ describe('post office use cases', () => {
         // confirm that the system has inserted a Trace ID
         expect(response.getHeader('x-trace-id')).toBeTruthy();
       }
-    });     
+    });
+    
+    it('can do json and compact logging', async () => {
+      const success1 = log.setLogFormat('json');
+      expect(success1).toBe(true);
+      log.setLevel('debug');
+      log.info({'test1a': 'logging in JSON format'});
+      log.info('test1b', new Error('Test printing stack trace'));
+      log.debug('test1c', new Error('Test printing DEBUG log'));
+      const success2 = log.setLogFormat('compact');
+      expect(success2).toBe(true);
+      log.info({'test2': 'logging in COMPACT format'});
+      const success3 = log.setLogFormat('text');
+      expect(success3).toBe(true);
+      log.info({'test3': 'restore logging in TEXT format'});
+      const success4 = log.setLogFormat('unknown');
+      expect(success4).toBe(false);
+      log.setLevel('info');      
+    });
 
   });

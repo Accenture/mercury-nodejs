@@ -6,6 +6,7 @@ import { Composable } from '../models/composable.js';
  */
 export declare class TaskExecutor implements Composable {
     taskRefs: {};
+    maxModelArraySize: number;
     initialize(): Composable;
     handleEvent(event: EventEnvelope): Promise<any>;
     private executeTask;
@@ -30,6 +31,7 @@ export declare class TaskExecutor implements Composable {
     private setConstantValue;
     private getConstantValue;
     private getLhsElement;
+    private substituteDynamicIndex;
     private getValueByType;
     private tokenizeConcatParameters;
     private getMappingType;

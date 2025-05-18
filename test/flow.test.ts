@@ -1213,7 +1213,11 @@ describe('event flow use cases', () => {
     expect(map.getElement("data.user")).toBe('test-user');
     expect(map.getElement("n")).toBe(3);
     expect(iterationCount).toBe(3);
-    expect(map.getElement("latest.items")).toEqual(['item1', 'item2', 'item3']);
+    expect(map.getElement("items")).toEqual(['a', 'b', 'c', 'item3']);
+    expect(map.getElement("latest[0]")).toBe('x');
+    expect(map.getElement("latest[1]")).toBe('y');
+    expect(map.getElement("latest[2]")).toBe('z');
+    expect(map.getElement("latest[3].item")).toBe('item3');
   });
   
   it('can do for-loop with break in pipeline - case 1', async () => {

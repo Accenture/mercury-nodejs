@@ -71,6 +71,11 @@ function printLog(format, lineNumber, label, message, e) {
 export class Logger {
     static instance;
     logger;
+    logFormat = {
+        'text': 0,
+        'compact': 1,
+        'json': 2
+    };
     constructor() {
         this.logger = SimpleLogger.getInstance();
     }
@@ -84,10 +89,16 @@ export class Logger {
      * This method is reserved by the platform.
      * Do not use this directly.
      *
-     * @param format is 0 (text), 1 (compact), 2 (json)
+     * @param format is text, compact, json
      */
     setLogFormat(format) {
-        this.logger.setLogFormat(format);
+        if (typeof format == 'string' && format in this.logFormat) {
+            this.logger.setLogFormat(this.logFormat[format.toLowerCase()]);
+            return true;
+        }
+        else {
+            return false;
+        }
     }
     /**
      * Retreive the log level (info, warn, error, debug)

@@ -40,6 +40,7 @@ function getText(message: string | object) {
 }
 
 function printLog(format: number, lineNumber: string, label: string, message: string | object, e?: Error) {
+    
     const timestamp = util.getLocalTimestamp();
     if (format == 0) {
         const text = getText(message);
@@ -73,6 +74,12 @@ export class Logger {
     private static instance: Logger;
     private logger: SimpleLogger;
 
+    private logFormat = {
+        'text': 0,
+        'compact': 1,
+        'json': 2
+    };
+
     private constructor() { 
         this.logger = SimpleLogger.getInstance();
     }
@@ -88,10 +95,15 @@ export class Logger {
      * This method is reserved by the platform.
      * Do not use this directly.
      * 
-     * @param format is 0 (text), 1 (compact), 2 (json)
+     * @param format is text, compact, json
      */
-    setLogFormat(format: number) {
-        this.logger.setLogFormat(format);
+    setLogFormat(format: string): boolean {
+        if (typeof format == 'string' && format in this.logFormat) {
+            this.logger.setLogFormat(this.logFormat[format.toLowerCase()]);
+            return true;                
+        } else {
+            return false;
+        }        
     }
 
     /**

@@ -19,7 +19,7 @@ export declare class ConfigReader {
      */
     constructor(configResource?: string | object, isBaseConfig?: boolean);
     getId(): string;
-    resolveFilePath(configFile: string): string;
+    resolveResourceFilePath(configFile: string): string;
     getMap(): object;
     exists(key: string): boolean;
     isEmpty(): boolean;

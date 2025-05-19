@@ -739,8 +739,8 @@ export class EventEnvelope {
         this.traceId = event.traceId;
         this.tracePath = event.tracePath;
         this.status = event.status;
-        this.execTime = Math.max(0, event.execTime);
-        this.roundTrip = Math.max(0, event.roundTrip);
+        this.execTime = event.execTime;
+        this.roundTrip = event.roundTrip;
         this.stackTrace = event.stackTrace;
         return this;
     }

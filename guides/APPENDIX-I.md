@@ -6,22 +6,22 @@ The following parameters are reserved by the system. You can add your applicatio
 in the main application configuration file (`application.yml`) or apply additional configuration
 files using the `ConfigReader` API.
 
-| Key                       | Value (example)                               | Required |
-|:--------------------------|:----------------------------------------------|:---------|
-| application.name          | Application name                              | Yes      |
-| info.app.version          | major.minor.build (e.g. 1.0.0)                | Yes      |
-| info.app.description      | Something about your application              | Yes      |
-| server.port               | e.g. 8083                                     | Yes      |
-| static.html.folder        | e.g. /tmp/html                                | Yes      |
-| web.component.scan        | a comma separated list of composable library  | Yes      |
-| yaml.rest.automation      | Default value is classpath:/rest.yaml         | Optional |
-| yaml.custom.content.types | Optional config file                          | Optional |
-| custom.content.types      | List of content type mappings                 | Optional |
-| log.format                | text, compact or json. default=text           | Optional |
-| log.level                 | default 'info'                                | Optional |
-| health.dependencies       | e.g. 'database.health'                        | Optional |
-| modules.autostart         | list of composable functions to start         | Optional |
-| max.model.array.size      | max size of a dynamic model variable as index<br>default 1000 | Optional |
+| Key                       | Value (example)                                                 | Required |
+|:--------------------------|:----------------------------------------------------------------|:---------|
+| application.name          | Application name                                                | Yes      |
+| info.app.version          | major.minor.build (e.g. 1.0.0)                                  | Yes      |
+| info.app.description      | Something about your application                                | Yes      |
+| server.port               | e.g. 8083                                                       | Yes      |
+| static.html.folder        | e.g. classpath:/public or file:/tmp/html                        | Yes      |
+| web.component.scan        | a comma separated list of composable library                    | Yes      |
+| yaml.rest.automation      | Default value is classpath:/rest.yaml                           | Optional |
+| yaml.custom.content.types | Optional config file                                            | Optional |
+| custom.content.types      | List of content type mappings                                   | Optional |
+| log.format                | text, compact or json. default=text                             | Optional |
+| log.level                 | Default: 'info'                                                 | Optional |
+| health.dependencies       | e.g. 'database.health'                                          | Optional |
+| modules.autostart         | list of composable functions to start                           | Optional |
+| max.model.array.size      | max size of a dynamic model variable as index<br>(Default 1000) | Optional |
 
 ## Configuration management
 
@@ -43,6 +43,7 @@ For example, if a config file is not found in the test/resources folder in a uni
 the "src/resources" folder. If still not found, it will search the list of libraries for their resources
 folders.
 
+The resource file path must be prefixed with the keyword `classpath:`.
 This discovery mechanism applies to all types of files including config files.
 
 If your application needs to use a resource file, you can programmatically look up the file like this:
@@ -53,7 +54,9 @@ const filePath = config.resolveResourceFilePath('classpath:/private/interesting.
 // if not found, a null value will be returned
 ```
 
-> *Note*: The resource file path must be prefixed with the keyword `classpath:`.
+> *Note*: While the search order for libraries is defined by the web.component.scan parameter,
+          it is always a good idea to use unique filenames for resource files in a library
+          to avoid unintended configuration errors.
 
 ## Static HTML contents
 

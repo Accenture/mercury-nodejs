@@ -1,3 +1,4 @@
+type eventPayload = string | number | object | boolean | Buffer | Uint8Array;
 export declare class EventEnvelope {
     private id;
     private headers;
@@ -68,13 +69,13 @@ export declare class EventEnvelope {
      * @param body
      * @returns
      */
-    setBody(body: string | number | object | boolean | Buffer | Uint8Array): EventEnvelope;
+    setBody(body: eventPayload): EventEnvelope;
     /**
      * Retrieve the payload if any
      *
      * @returns body (aka payload)
      */
-    getBody(): string | number | object | boolean | Buffer | Uint8Array;
+    getBody(): eventPayload;
     /**
      * Set processing status code if you want to manually define the value.
      *
@@ -337,3 +338,4 @@ export declare class EventEnvelope {
     copy(event: EventEnvelope): EventEnvelope;
     toString(): string;
 }
+export {};

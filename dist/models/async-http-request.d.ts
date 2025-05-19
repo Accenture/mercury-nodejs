@@ -1,3 +1,4 @@
+type eventPayload = string | number | object | boolean | Buffer | Uint8Array;
 export declare class AsyncHttpRequest {
     private method;
     private queryString;
@@ -91,14 +92,14 @@ export declare class AsyncHttpRequest {
      *
      * @returns optional payload
      */
-    getBody(): string | number | object | boolean | Buffer | Uint8Array;
+    getBody(): eventPayload;
     /**
      * Set the HTTP request payload if this is an outgoing HTTP request
      *
      * @param body (aka payload)
      * @returns this
      */
-    setBody(body: string | number | object | boolean | Buffer | Uint8Array): AsyncHttpRequest;
+    setBody(body: eventPayload): AsyncHttpRequest;
     /**
      * The system will perform HTML/XML/JSON data format conversion.
      * i.e. HTML would become string, XML and JSON becomes a JSON object.
@@ -370,3 +371,4 @@ export declare class AsyncHttpRequest {
      */
     fromMap(map: object): void;
 }
+export {};

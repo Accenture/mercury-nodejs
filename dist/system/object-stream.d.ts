@@ -47,7 +47,7 @@ export declare class ObjectStreamWriter {
      *
      * @returns true when the stream is properly closed.
      */
-    close(): Promise<string | number | boolean | object>;
+    close(): Promise<string | number | boolean | object | Buffer<ArrayBufferLike> | Uint8Array<ArrayBufferLike>>;
 }
 /**
  * Use this to connect to an input object stream
@@ -69,14 +69,14 @@ export declare class ObjectStreamReader {
      * @returns data block or null when EOF
      * @throws AppException(408, 'timeout') when there is no data in the stream
      */
-    read(): Promise<string | number | boolean | object>;
+    read(): Promise<string | number | boolean | object | Buffer<ArrayBufferLike> | Uint8Array<ArrayBufferLike>>;
     /**
      * Close an input stream. This would release both input and output streams associated with an ObjectStreamIO object.
      * (Note that a stream is automatically closed when EOF is read)
      *
      * @returns true
      */
-    close(): Promise<string | number | boolean | object>;
+    close(): Promise<string | number | boolean | object | Buffer<ArrayBufferLike> | Uint8Array<ArrayBufferLike>>;
     /**
      * Check if the stream is closed.
      *

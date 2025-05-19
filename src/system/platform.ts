@@ -464,7 +464,6 @@ class ServiceManager {
                 errorCode = e.getStatus();
                 log.warn(`Unhandled exception (${evt.getTo()}), status=${errorCode}`, e);
             } else {
-                errorCode = 500;
                 log.warn(`Unhandled exception (${evt.getTo()})`, e);
             }
         }

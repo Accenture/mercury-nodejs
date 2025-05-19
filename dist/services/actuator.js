@@ -147,8 +147,7 @@ export class ActuatorServices {
         let up = true;
         let status = 200;
         const upstream = new Array();
-        for (let i = 0; i < healthServices.length; i++) {
-            const service = healthServices[i];
+        for (const service of healthServices) {
             const info = { 'route': service };
             try {
                 const infoReq = new EventEnvelope().setTo(service).setHeader(TYPE, INFO);

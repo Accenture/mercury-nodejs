@@ -107,7 +107,7 @@ export class TaskExecutor {
         const compositeCid = event.getCorrelationId();
         if (compositeCid == null) {
             log.error(`Event ${event.getId()} dropped - missing correlation ID`);
-            return null;
+            return false;
         }
         const sep = compositeCid.indexOf('#');
         let cid;
@@ -135,14 +135,14 @@ export class TaskExecutor {
         const flowInstance = Flows.getFlowInstance(refId);
         if (flowInstance == null) {
             log.warn(`Flow instance ${refId} is invalid or expired`);
-            return null;
+            return false;
         }
         const flowName = flowInstance.getFlow().id;
         const headers = event.getHeaders();
         if (TIMEOUT in headers) {
             log.warn(`Flow ${flowName}:${flowInstance.id} expired`);
             self.abortFlow(flowInstance, 408, "Flow timeout for " + flowInstance.getFlow().ttl + " ms");
-            return null;
+            return false;
         }
         try {
             const firstTask = event.getHeader(FIRST_TASK);
@@ -154,7 +154,7 @@ export class TaskExecutor {
                 const from = ref != null ? ref.processId : event.getFrom();
                 if (!from) {
                     log.error(`Unable to process callback ${flowName}:${refId} - task does not provide 'from' address`);
-                    return null;
+                    return false;
                 }
                 const caller = from.includes("@") ? from.substring(0, from.indexOf('@')) : from;
                 const task = flowInstance.getFlow().tasks[caller];
@@ -187,12 +187,12 @@ export class TaskExecutor {
                             // when there are no task or flow exception handlers
                             self.abortFlow(flowInstance, statusCode, event.getError());
                         }
-                        return null;
+                        return false;
                     }
                 }
                 else {
                     log.error(`Unable to process callback ${flowName}:${refId} - missing task in ${caller}`);
-                    return null;
+                    return false;
                 }
                 self.handleCallback(from, flowInstance, task, event, seq);
             }
@@ -200,8 +200,9 @@ export class TaskExecutor {
         catch (e) {
             log.error(`Unable to execute flow ${flowName}:${flowInstance.id} - ${e.message}`);
             self.abortFlow(flowInstance, 500, e.message);
+            return false;
         }
-        return null;
+        return true;
     }
     async executeTask(flowInstance, processName, seq = -1, error = {}) {
         const task = flowInstance.getFlow().tasks[processName];
@@ -623,7 +624,7 @@ export class TaskExecutor {
         const nextTasks = task.nextSteps;
         let decisionNumber;
         if (typeof decisionValue == 'boolean') {
-            decisionNumber = decisionValue == true ? 1 : 2;
+            decisionNumber = decisionValue ? 1 : 2;
         }
         else if (decisionValue) {
             decisionNumber = Math.max(1, util.str2int(String(decisionValue)));
@@ -657,7 +658,7 @@ export class TaskExecutor {
             let valid = true;
             if (WHILE == task.getLoopType() && task.getWhileModelKey()) {
                 const o = map.getElement(task.getWhileModelKey());
-                valid = o == true;
+                valid = typeof o == 'boolean' ? o : false;
             }
             else if (FOR == task.getLoopType()) {
                 // execute initializer if any
@@ -732,7 +733,7 @@ export class TaskExecutor {
         let iterate = false;
         if (WHILE == pipelineTask.getLoopType() && pipelineTask.getWhileModelKey()) {
             const o = consolidated.getElement(pipelineTask.getWhileModelKey());
-            iterate = o == true;
+            iterate = typeof o == 'boolean' ? o : false;
         }
         else if (FOR == pipelineTask.getLoopType()) {
             // execute sequencer in the for-statement
@@ -785,9 +786,9 @@ export class TaskExecutor {
         const parts = path.split('/');
         let s = '';
         let created = false;
-        for (let i = 0; i < parts.length; i++) {
-            if (parts[i]) {
-                s += `/${parts[i]}`;
+        for (const p of parts) {
+            if (p) {
+                s += `/${p}`;
                 if (!fs.existsSync(s)) {
                     fs.mkdirSync(s);
                     created = true;
@@ -1012,7 +1013,7 @@ export class TaskExecutor {
                 return "true" == String(value).toLowerCase();
             }
             if (NEGATE_SUFFIX == type) {
-                return !("true" == String(value).toLowerCase());
+                return "true" != String(value).toLowerCase();
             }
             if (INTEGER_SUFFIX == type || LONG_SUFFIX == type) {
                 return util.str2int(String(value));

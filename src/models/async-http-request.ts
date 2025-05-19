@@ -19,6 +19,8 @@ const CONTENT_LENGTH = "size";
 const TRUST_ALL_CERT = "trust_all_cert";
 const TARGET_HOST = "host";
 
+type eventPayload = string | number | object | boolean | Buffer | Uint8Array;
+
 export class AsyncHttpRequest {
     private method: string;
     private queryString: string;
@@ -174,7 +176,7 @@ export class AsyncHttpRequest {
      * 
      * @returns optional payload
      */
-    getBody(): string | number | object | boolean | Buffer | Uint8Array {
+    getBody(): eventPayload {
         return this.body;
     }
 
@@ -184,7 +186,7 @@ export class AsyncHttpRequest {
      * @param body (aka payload)
      * @returns this
      */
-    setBody(body: string | number | object | boolean | Buffer | Uint8Array): AsyncHttpRequest {
+    setBody(body: eventPayload): AsyncHttpRequest {
         this.body = body? body : null;
         return this;
     }
@@ -618,7 +620,7 @@ export class AsyncHttpRequest {
                 }
             }
             if (typeof value == 'string') {
-                return value as string;
+                return value;
             } else if (Array.isArray(value)) {
                 return String(value[0]);
             }

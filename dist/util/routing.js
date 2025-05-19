@@ -176,7 +176,8 @@ class RestEntry {
                 this.loadRest(config);
                 const exact = Array.from(this.exactRoutes.keys());
                 if (exact.length > 0) {
-                    log.info({ 'type': 'url', 'match': 'exact', 'total': exact.length, 'path': exact.sort() });
+                    const sortedPath = exact.sort();
+                    log.info({ 'type': 'url', 'match': 'exact', 'total': exact.length, 'path': sortedPath });
                 }
                 // sort URL for easy parsing
                 if (this.routes.size > 0) {
@@ -192,7 +193,8 @@ class RestEntry {
                     });
                 }
                 if (this.urlPaths.length > 0) {
-                    log.info({ 'type': 'url', 'match': 'parameters', 'total': this.urlPaths.length, 'path': this.urlPaths.sort() });
+                    const sortedPath = this.urlPaths.sort();
+                    log.info({ 'type': 'url', 'match': 'parameters', 'total': this.urlPaths.length, 'path': sortedPath });
                 }
             }
             else {
@@ -294,8 +296,7 @@ class RestEntry {
         }
     }
     validCorsList(list) {
-        for (let i = 0; i < list.length; i++) {
-            const entry = list[i];
+        for (const entry of list) {
             if (typeof entry == 'string') {
                 if (!this.validCorsElement(entry)) {
                     return false;
@@ -439,9 +440,9 @@ class RestEntry {
             - "default: v1.api.auth"
          */
         if (Array.isArray(authConfig)) {
-            for (let i = 0; i < authConfig.length; i++) {
+            for (const entry of authConfig) {
                 let valid = false;
-                const authEntry = String(authConfig[i]);
+                const authEntry = String(entry);
                 const parts = authEntry.split(':').filter(k => k.trim().length > 0);
                 if (parts.length == 2) {
                     const authHeader = parts[0].trim();
@@ -614,8 +615,7 @@ class RestEntry {
     getUrl(url, exact) {
         let result = '';
         const parts = url.toLowerCase().split('/').filter(v => v.length > 0);
-        for (let i = 0; i < parts.length; i++) {
-            const s = parts[i];
+        for (const s of parts) {
             result += '/';
             if (!exact) {
                 if (s.includes('{') && s.includes('}')) {
@@ -667,8 +667,8 @@ class RestEntry {
             result.push(services);
         }
         else if (Array.isArray(services)) {
-            for (let i = 0; i < services.length; i++) {
-                result.push(String(services[i]));
+            for (const svc of services) {
+                result.push(String(svc));
             }
         }
         if (result.length == 0) {
@@ -681,8 +681,7 @@ class RestEntry {
             }
             return result;
         }
-        for (let i = 0; i < result.length; i++) {
-            const item = result[i];
+        for (const item of result) {
             if (item.startsWith(HTTP) || item.startsWith(HTTPS)) {
                 throw new Error('Cannot mix HTTP and service target');
             }

@@ -85,20 +85,18 @@ export class TypeScriptClassScanner {
                             const implementsParents = [];
                             let mode = '';
                             if (inheritance.length > 0) {
-                                for (let i = 0; i < inheritance.length; i++) {
-                                    if (inheritance[i] == 'extends') {
+                                for (const item of inheritance) {
+                                    if (item == 'extends') {
                                         mode = 'extends';
-                                        continue;
                                     }
-                                    else if (inheritance[i] == 'implements') {
+                                    else if (item == 'implements') {
                                         mode = 'implements';
-                                        continue;
                                     }
                                     else if ('extends' == mode) {
-                                        extendsParents.push(inheritance[i]);
+                                        extendsParents.push(item);
                                     }
                                     else if ('implements' == mode) {
-                                        implementsParents.push(inheritance[i]);
+                                        implementsParents.push(item);
                                     }
                                 }
                             }

@@ -104,7 +104,7 @@ export class RestAutomation {
      */
     async getReady() {
         // check if essential services are loaded
-        let t1 = new Date().getTime();
+        const t1 = new Date().getTime();
         while(!loaded) {
             await util.sleep(1);
             // REST automation system should be ready very quickly.
@@ -112,7 +112,6 @@ export class RestAutomation {
             // this would print alert every two seconds.
             const now = new Date().getTime();
             if (now - t1 >= 2000) {
-                t1 = now;
                 log.warn('Waiting for REST automation system to get ready');
                 return false;
             }
@@ -680,7 +679,8 @@ class RestEngine {
                 authRequest.setTracePath(tracePath);
             }
             const authResponse = await po.request(authRequest, route.info.timeoutSeconds * 1000);
-            if (true != authResponse.getBody()) {
+            const approved = typeof authResponse.getBody() == 'boolean'? authResponse.getBody() : false;
+            if (!approved) {
                 throw new AppException(401, 'Unauthorized');
             }
             for (const k in authResponse.getHeaders()) {

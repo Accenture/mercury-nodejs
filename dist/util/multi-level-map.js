@@ -112,7 +112,7 @@ function setMapElement(pathname, value, map, remove = false) {
             }
             else {
                 if (n == len) {
-                    if (nullValue && remove) {
+                    if (remove) {
                         delete current[p];
                     }
                     else {
@@ -295,8 +295,8 @@ function isListElement(item) {
 }
 function isDigits(text) {
     if (text) {
-        for (let i = 0; i < text.length; i++) {
-            if (text[i] >= '0' && text[i] <= '9')
+        for (const c of text) {
+            if (c >= '0' && c <= '9')
                 continue;
             return false;
         }
@@ -348,9 +348,7 @@ function getListElement(indexes, data) {
 export class MultiLevelMap {
     multiLevels = {};
     constructor(kv) {
-        if (kv && kv.constructor == Object) {
-            this.multiLevels = kv;
-        }
+        this.reload(kv);
     }
     /**
      * Retrieve the underlying map

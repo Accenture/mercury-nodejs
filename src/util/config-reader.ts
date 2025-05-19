@@ -116,8 +116,8 @@ export class AppConfig {
             if (process) {
                 // override application parameters from command line arguments
                 const parameters = process.argv.filter(k => k.startsWith('-D') && k.substring(2).includes('='));
-                for (let i=0; i < parameters.length; i++) {
-                    const p = parameters[i].substring(2);
+                for (const param of parameters) {
+                    const p = param.substring(2);
                     const sep = p.indexOf('=');
                     const k = p.substring(0, sep);
                     const v = p.substring(sep+1);
@@ -173,7 +173,7 @@ export class ConfigReader {
             this.id = util.getUuid();
         }
         if (configResource) {
-            if (configResource && configResource.constructor == Object) {
+            if (configResource.constructor == Object) {
                 if (isBaseConfig) {
                     throw new Error('Base configuration must be a resource file');
                 } else {

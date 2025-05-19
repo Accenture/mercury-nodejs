@@ -23,13 +23,15 @@ const TRACE_ID_FLAG = "t";
 const TRACE_PATH_FLAG = "p";
 const CID_FLAG = "X";
 
+type eventPayload = string | number | object | boolean | Buffer | Uint8Array;
+
 export class EventEnvelope {
 
     private id: string;
     private headers: object = {};
     private tags: object = {};
     private annotations: object = {};
-    private body: string | number | object | boolean | Buffer | Uint8Array;
+    private body: eventPayload;
     private status: number;
     private to: string;
     private sender: string;
@@ -52,7 +54,7 @@ export class EventEnvelope {
         this.status = 200;
         if (event) {
             if (event.constructor == EventEnvelope) {
-                this.copy(event as EventEnvelope);
+                this.copy(event);
             }
             if (event.constructor == Object) {
                 this.fromMap(event as object);
@@ -143,7 +145,7 @@ export class EventEnvelope {
      * @param body
      * @returns 
      */
-    setBody(body: string | number | object | boolean | Buffer | Uint8Array): EventEnvelope {
+    setBody(body: eventPayload): EventEnvelope {
         this.body = body;
         return this;
     }
@@ -153,7 +155,7 @@ export class EventEnvelope {
      * 
      * @returns body (aka payload)
      */
-    getBody(): string | number | object | boolean | Buffer | Uint8Array {
+    getBody(): eventPayload {
         return this.body;
     }
 

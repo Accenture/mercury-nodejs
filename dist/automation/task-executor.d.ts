@@ -8,7 +8,7 @@ export declare class TaskExecutor implements Composable {
     taskRefs: {};
     maxModelArraySize: number;
     initialize(): Composable;
-    handleEvent(event: EventEnvelope): Promise<any>;
+    handleEvent(event: EventEnvelope): Promise<boolean>;
     private executeTask;
     private getValueFromNonExistModel;
     private handleCallback;

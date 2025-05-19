@@ -418,7 +418,7 @@ class PO {
                     const body = result.getBody();
                     if (body instanceof Buffer) {
                         try {
-                            const response = new EventEnvelope(body as Buffer);
+                            const response = new EventEnvelope(body);
                             resolve(response);
                         } catch(e) {
                             // response is not a packed EventEnvelope

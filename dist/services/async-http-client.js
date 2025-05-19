@@ -124,6 +124,7 @@ export class AsyncHttpClient {
         if (cookies.length > 0) {
             // remove the ending separator
             cookies = cookies.substring(0, cookies.length - 2);
+            consolidatedHeaders['cookie'] = traceId;
         }
         const fqUrl = (secure ? 'https://' : 'http://') + targetUrl.host + uriWithQuery;
         // minimum timeout value is 5 seconds

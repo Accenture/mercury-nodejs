@@ -912,7 +912,7 @@ export class TaskExecutor implements Composable {
     }
 
     private substituteDynamicIndex(text: string, source: MultiLevelMap, isRhs: boolean): string {
-        if (text.includes('[model.')) {
+        if (text.includes('[') && text.includes(']')) {
             let sb = '';
             let start = 0;
             while (start < text.length) {
@@ -929,11 +929,17 @@ export class TaskExecutor implements Composable {
                                         + " that exceeds max "+this.maxModelArraySize+" - "+text);
                             }
                             if (ptr < 0) {
-                                throw new Error("Cannot set RHS to negative index - " + text);
+                                throw new Error(`Cannot set RHS to negative index - ${text}`);
                             }
                         }
                         sb += String(ptr);
                     } else {
+                        if (isRhs) {
+                            const ptr = util.str2int(idx);
+                            if (ptr < 0) {
+                                throw new Error(`Cannot set RHS to negative index - ${text}`);
+                            }
+                        }
                         sb += idx;
                     }
                     sb += ']';

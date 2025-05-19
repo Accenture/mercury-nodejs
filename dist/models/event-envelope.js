@@ -467,7 +467,7 @@ export class EventEnvelope {
      * @returns this
      */
     setExecTime(execTime) {
-        this.execTime = execTime;
+        this.execTime = Math.max(0, execTime);
         return this;
     }
     /**
@@ -485,7 +485,7 @@ export class EventEnvelope {
      * @returns this
      */
     setRoundTrip(roundTrip) {
-        this.roundTrip = roundTrip;
+        this.roundTrip = Math.max(0, roundTrip);
         return this;
     }
     /**
@@ -536,10 +536,10 @@ export class EventEnvelope {
         }
         result['status'] = this.getStatus();
         if (this.execTime) {
-            result['exec_time'] = util.getFloat(this.execTime, 3);
+            result['exec_time'] = Math.max(0, util.getFloat(this.execTime, 3));
         }
         if (this.roundTrip) {
-            result['round_trip'] = util.getFloat(this.roundTrip, 3);
+            result['round_trip'] = Math.max(0, util.getFloat(this.roundTrip, 3));
         }
         return result;
     }
@@ -592,10 +592,10 @@ export class EventEnvelope {
             this.status = parseInt(String(map['status']));
         }
         if ('exec_time' in map) {
-            this.execTime = util.getFloat(parseFloat(String(map['exec_time'])), 3);
+            this.execTime = Math.max(0, util.getFloat(parseFloat(String(map['exec_time'])), 3));
         }
         if ('round_trip' in map) {
-            this.roundTrip = util.getFloat(parseFloat(String(map['round_trip'])), 3);
+            this.roundTrip = Math.max(0, util.getFloat(parseFloat(String(map['round_trip'])), 3));
         }
         return this;
     }
@@ -644,10 +644,10 @@ export class EventEnvelope {
         }
         result[STATUS_FLAG] = this.getStatus();
         if (this.execTime) {
-            result[EXECUTION_FLAG] = util.getFloat(this.execTime, 3);
+            result[EXECUTION_FLAG] = Math.max(0, util.getFloat(this.execTime, 3));
         }
         if (this.roundTrip) {
-            result[ROUND_TRIP_FLAG] = util.getFloat(this.roundTrip, 3);
+            result[ROUND_TRIP_FLAG] = Math.max(0, util.getFloat(this.roundTrip, 3));
         }
         return pack(result);
     }
@@ -706,10 +706,10 @@ export class EventEnvelope {
                 this.status = parseInt(String(map[STATUS_FLAG]));
             }
             if (EXECUTION_FLAG in map) {
-                this.execTime = util.getFloat(parseFloat(String(map[EXECUTION_FLAG])), 3);
+                this.execTime = Math.max(0, util.getFloat(parseFloat(String(map[EXECUTION_FLAG])), 3));
             }
             if (ROUND_TRIP_FLAG in map) {
-                this.roundTrip = util.getFloat(parseFloat(String(map[ROUND_TRIP_FLAG])), 3);
+                this.roundTrip = Math.max(0, util.getFloat(parseFloat(String(map[ROUND_TRIP_FLAG])), 3));
             }
         }
         return this;
@@ -739,8 +739,8 @@ export class EventEnvelope {
         this.traceId = event.traceId;
         this.tracePath = event.tracePath;
         this.status = event.status;
-        this.execTime = event.execTime;
-        this.roundTrip = event.roundTrip;
+        this.execTime = Math.max(0, event.execTime);
+        this.roundTrip = Math.max(0, event.roundTrip);
         this.stackTrace = event.stackTrace;
         return this;
     }

@@ -13,7 +13,6 @@ test-results/
 # Transpiled files
 build/
 target/
-examples/dist/
 
 # VS Code
 .vscode

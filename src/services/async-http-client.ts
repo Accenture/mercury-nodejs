@@ -259,7 +259,7 @@ export class AsyncHttpClient implements Composable {
                 for (const h of headerNames) {
                     result.setHeader(h, resHeaders.get(h));
                 }
-                if (OPTIONS == method || HEAD == method) {
+                if (OPTIONS == method || HEAD == method || !resContentType) {
                     result.setHeader(CONTENT_LENGTH, "0");
                     result.setBody('');
                 } else if (fixedLenContent) {

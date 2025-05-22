@@ -75,7 +75,7 @@ export class AsyncHttpClient {
         else {
             throw new AppException(400, "Protocol must be http or https");
         }
-        const validHost = targetUrl.hostname ? true : false;
+        const validHost = !!targetUrl.hostname;
         if (!validHost) {
             throw new AppException(400, "Unable to resolve target host as domain or IP address");
         }
@@ -124,7 +124,7 @@ export class AsyncHttpClient {
         if (cookies.length > 0) {
             // remove the ending separator
             cookies = cookies.substring(0, cookies.length - 2);
-            consolidatedHeaders['cookie'] = traceId;
+            consolidatedHeaders['cookie'] = cookies;
         }
         const fqUrl = (secure ? 'https://' : 'http://') + targetUrl.host + uriWithQuery;
         // minimum timeout value is 5 seconds
@@ -203,7 +203,7 @@ export class AsyncHttpClient {
                 uploadStream.on('end', () => {
                     log.debug(`Closing ${streamId}`);
                 });
-                if (reqContentType && reqContentType.startsWith(MULTIPART_FORM_DATA) &&
+                if (String(reqContentType).startsWith(MULTIPART_FORM_DATA) &&
                     POST == method && filename) {
                     const form = new FormData();
                     form.append('file', uploadStream, filename);
@@ -270,7 +270,7 @@ export class AsyncHttpClient {
                 for (const h of headerNames) {
                     result.setHeader(h, resHeaders.get(h));
                 }
-                if (OPTIONS == method || HEAD == method) {
+                if (OPTIONS == method || HEAD == method || !resContentType) {
                     result.setHeader(CONTENT_LENGTH, "0");
                     result.setBody('');
                 }

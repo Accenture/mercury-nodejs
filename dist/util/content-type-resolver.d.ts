@@ -2,7 +2,7 @@ import { ConfigReader } from "./config-reader.js";
 export declare class ContentTypeResolver {
     private static instance;
     private loaded;
-    private customContentTypes;
+    private readonly customContentTypes;
     private constructor();
     static getInstance(): ContentTypeResolver;
     loadCustomContentTypes(config: ConfigReader): void;

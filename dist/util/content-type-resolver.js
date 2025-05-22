@@ -7,9 +7,7 @@ export class ContentTypeResolver {
     customContentTypes = new Map();
     constructor() { }
     static getInstance() {
-        if (ContentTypeResolver.instance === undefined) {
-            ContentTypeResolver.instance = new ContentTypeResolver();
-        }
+        ContentTypeResolver.instance ??= new ContentTypeResolver();
         return ContentTypeResolver.instance;
     }
     loadCustomContentTypes(config) {
@@ -52,7 +50,7 @@ export class ContentTypeResolver {
             const sep = contentType.indexOf(';');
             const ct = sep == -1 ? contentType.trim() : contentType.substring(0, sep).trim();
             const customType = this.customContentTypes.get(ct);
-            return customType ? customType : ct;
+            return customType || ct;
         }
         else {
             return null;

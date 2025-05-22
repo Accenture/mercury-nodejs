@@ -6,14 +6,12 @@ const log = Logger.getInstance();
 export class ContentTypeResolver {
     private static instance: ContentTypeResolver;
     private loaded = false;
-    private customContentTypes = new Map<string, string>();
+    private readonly customContentTypes = new Map<string, string>();
 
     private constructor() {}
 
     static getInstance() {
-        if (ContentTypeResolver.instance === undefined) {
-            ContentTypeResolver.instance = new ContentTypeResolver();
-        }
+        ContentTypeResolver.instance ??= new ContentTypeResolver();
         return ContentTypeResolver.instance;
     }
 
@@ -58,7 +56,7 @@ export class ContentTypeResolver {
             const sep = contentType.indexOf(';');
             const ct = sep == -1? contentType.trim() : contentType.substring(0, sep).trim();
             const customType = this.customContentTypes.get(ct);
-            return customType? customType : ct;
+            return customType || ct;
         } else {
             return null;
         }

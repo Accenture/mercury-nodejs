@@ -158,7 +158,7 @@ scanner will create a "Composable class loader" during the build phase. The clas
 then load the available composable classes and register them into the event loop.
 
 Another important feature that you would find is that a composable application has a "resources"
-folder in the "src" and "test" section to hold application configuration files including event
+folder in the "src" and "test" sections to hold application configuration files including event
 flow YAML files. It supports hierarchy of configuration such that the system will search for 
 configuration files in the libraries if your application does not provide a configuration file 
 to override a default configuration file in the library. For example, your unit tests would

@@ -355,7 +355,7 @@ export class CompileFlows {
                     const filteredInputMapping = this.filterDataMapping(inputList);
                     for (const line of filteredInputMapping) {
                         if (this.validInput(line)) {
-                            const sep = line.indexOf(MAP_TO);
+                            const sep = line.lastIndexOf(MAP_TO);
                             const rhs = line.substring(sep+2).trim();
                             if (rhs.startsWith(INPUT_NAMESPACE) || rhs == INPUT) {
                                 log.warn(`Task ${uniqueTaskName} in ${name} uses input namespace in right-hand-side - ${line}`);
@@ -547,26 +547,30 @@ export class CompileFlows {
     private filterDataMapping(entries: Array<string>): Array<string> {
         const result = [];
         for (const line of entries) {
-            const parts = [];
-            let entry = line;
-            while (entry.includes(MAP_TO)) {
-                const sep = entry.indexOf(MAP_TO);
-                const first = entry.substring(0, sep).trim();
-                parts.push(first);
-                entry = entry.substring(sep+2).trim();
-            }
-            parts.push(entry);
-            if (parts.length == 2) {
-                result.push(this.filterMapping(parts[0] + " " + MAP_TO + " " + parts[1]));
-            } else if (parts.length == 3) {
-                if (parts[1].startsWith(MODEL_NAMESPACE) || parts[1].startsWith(NEGATE_MODEL)) {
-                    result.push(this.filterMapping(parts[0] + " " + MAP_TO + " " + parts[1]));
-                    result.push(this.removeNegate(parts[1]) + " " + MAP_TO + " " + parts[2]);
-                } else {
-                    result.push("3-part data mapping must have model variable as the middle part");
-                }
+            let entry = line.trim();
+            if (entry.startsWith(TEXT_TYPE)) {
+                result.push(this.filterMapping(entry));
             } else {
-                result.push("Syntax must be (LHS -> RHS) or (LHS -> model.variable -> RHS)");
+                const parts = [];
+                while (entry.includes(MAP_TO)) {
+                    const sep = entry.indexOf(MAP_TO);
+                    const first = entry.substring(0, sep).trim();
+                    parts.push(first);
+                    entry = entry.substring(sep+2).trim();
+                }
+                parts.push(entry);
+                if (parts.length == 2) {
+                    result.push(this.filterMapping(parts[0] + " " + MAP_TO + " " + parts[1]));
+                } else if (parts.length == 3) {
+                    if (parts[1].startsWith(MODEL_NAMESPACE) || parts[1].startsWith(NEGATE_MODEL)) {
+                        result.push(this.filterMapping(parts[0] + " " + MAP_TO + " " + parts[1]));
+                        result.push(this.removeNegate(parts[1]) + " " + MAP_TO + " " + parts[2]);
+                    } else {
+                        result.push("3-part data mapping must have model variable as the middle part");
+                    }
+                } else {
+                    result.push("Syntax must be (LHS -> RHS) or (LHS -> model.variable -> RHS)");
+                }
             }
         }
         return result;
@@ -574,7 +578,7 @@ export class CompileFlows {
 
     private filterMapping(mapping: string): string {
         const text = mapping.trim();
-        const sep = text.indexOf(MAP_TO);
+        const sep = text.lastIndexOf(MAP_TO);
         if (sep == -1) {
             return mapping;
         }
@@ -663,7 +667,7 @@ export class CompileFlows {
     }
 
     private validOutput(output: string, isDecision: boolean): boolean {
-        const sep = output.indexOf(MAP_TO);
+        const sep = output.lastIndexOf(MAP_TO);
         if (sep > 0) {
             const lhs = output.substring(0, sep).trim();
             const rhs = output.substring(sep+2).trim();

@@ -24,10 +24,11 @@ export class FlowInstance {
     replyTo;
     timeoutWatcher;
     template;
+    parentId;
     traceId;
     tracePath;
-    parentId;
     responded = false;
+    topLevelException = false;
     running = true;
     constructor(flowId, cid, replyTo, template, parentId) {
         this.template = template;
@@ -102,6 +103,12 @@ export class FlowInstance {
     }
     setTracePath(tracePath) {
         this.tracePath = tracePath;
+    }
+    topLevelExceptionHappened() {
+        return this.topLevelException;
+    }
+    setExceptionAtTopLevel(state) {
+        this.topLevelException = state;
     }
     getFlow() {
         return this.template;

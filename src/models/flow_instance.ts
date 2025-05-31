@@ -25,12 +25,13 @@ export class FlowInstance {
     id = util.getUuid();
     cid: string;
     replyTo: string;
-    private timeoutWatcher: NodeJS.Timeout;
-    private template: Flow;
+    private readonly timeoutWatcher: NodeJS.Timeout;
+    private readonly template: Flow;
+    private readonly parentId: string;
     private traceId: string;
     private tracePath: string;
-    private parentId: string;
     private responded = false;
+    private topLevelException = false;
     private running = true;
 
     constructor(flowId: string, cid: string, replyTo: string, template: Flow, parentId: string) {
@@ -113,6 +114,14 @@ export class FlowInstance {
 
     setTracePath(tracePath: string): void {
         this.tracePath = tracePath;
+    }
+
+    topLevelExceptionHappened(): boolean {
+        return this.topLevelException;
+    }
+
+    setExceptionAtTopLevel(state: boolean): void {
+        this.topLevelException = state;
     }
 
     getFlow(): Flow {

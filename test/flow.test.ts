@@ -96,7 +96,7 @@ class ExtStateMachine implements Composable {
     const key = evt.getHeader(KEY);
     const input = evt.getBody();
     if (PUT == type && input instanceof Object && 'data' in input) {
-      var data = input['data'];
+      const data = input['data'];
       if (data) {
           log.info(`Saving ${key} to store`);
           store[key] = data;
@@ -1174,9 +1174,9 @@ describe('event flow use cases', () => {
                                         .setHeader('accept', 'application/json'); 
     // the iterationCount will be incremented by "my.mock.function"                                    
     iterationCount = 0;
-    var mock = new EventScriptMock("for-loop-test");
-    var previousRoute = mock.getFunctionRoute('echo.one');
-    var currentRoute = mock.assignFunctionRoute('echo.one', 'my.mock.function').getFunctionRoute('echo.one');
+    const mock = new EventScriptMock("for-loop-test");
+    const previousRoute = mock.getFunctionRoute('echo.one');
+    const currentRoute = mock.assignFunctionRoute('echo.one', 'my.mock.function').getFunctionRoute('echo.one');
     expect(previousRoute).toBe('no.op');
     expect(currentRoute).toBe('my.mock.function');
     const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req1.toMap());
@@ -1198,9 +1198,9 @@ describe('event flow use cases', () => {
                                         .setHeader('accept', 'application/json'); 
     // the iterationCount will be incremented by "my.mock.function"                                    
     iterationCount = 0;
-    var mock = new EventScriptMock("for-loop-test-single-task");
-    var previousRoute = mock.getFunctionRoute('item.picker');
-    var currentRoute = mock.assignFunctionRoute('item.picker', 'my.mock.function').getFunctionRoute('item.picker');
+    const mock = new EventScriptMock("for-loop-test-single-task");
+    const previousRoute = mock.getFunctionRoute('item.picker');
+    const currentRoute = mock.assignFunctionRoute('item.picker', 'my.mock.function').getFunctionRoute('item.picker');
     expect(previousRoute).toBe('no.op');
     expect(currentRoute).toBe('my.mock.function');
     const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req1.toMap());
@@ -1213,7 +1213,7 @@ describe('event flow use cases', () => {
     expect(map.getElement("data.user")).toBe('test-user');
     expect(map.getElement("n")).toBe(3);
     expect(iterationCount).toBe(3);
-    expect(map.getElement("items")).toEqual(['a', 'b', 'c', 'item3']);
+    expect(map.getElement("items")).toEqual(['a', 'b -> x(b)', 'c', 'item3']);
     expect(map.getElement("latest[0]")).toBe('x');
     expect(map.getElement("latest[1]")).toBe('y');
     expect(map.getElement("latest[2]")).toBe('z');
@@ -1390,10 +1390,12 @@ describe('event flow use cases', () => {
     const noSuchFlow = 'no-such-flow';
     const noSuchTask = 'no-such-task';
     expect(() => {
-      new EventScriptMock(noSuchFlow);
+      const x = new EventScriptMock(noSuchFlow);
+      log.info(x);
     }).toThrow(`Flow ${noSuchFlow} does not exist`);
     expect(() => {      
-      new EventScriptMock(empty);
+      const x = new EventScriptMock(empty);
+      log.info(x);
     }).toThrow('Missing flow ID');
     expect(() => {
       const mock = new EventScriptMock('parallel-test');

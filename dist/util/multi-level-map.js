@@ -47,8 +47,9 @@ function getFlattenList(prefix, src, target) {
 function removeMapElement(pathname, map) {
     setMapElement(pathname, null, map, true);
 }
-function setMapElement(pathname, value, map, remove = false) {
-    validateCompositePathSyntax(pathname);
+function setMapElement(compositePath, value, map, remove = false) {
+    validateCompositePathSyntax(compositePath);
+    const pathname = compositePath.includes("[]") ? appendIndex(compositePath, map) : compositePath;
     const nullValue = value == null || value === undefined;
     // ignore null value
     if (pathname && !nullValue && map.constructor == Object) {
@@ -110,34 +111,51 @@ function setMapElement(pathname, value, map, remove = false) {
                     }
                 }
             }
-            else {
-                if (n == len) {
-                    if (remove) {
-                        delete current[p];
-                    }
-                    else {
-                        current[p] = value;
-                    }
-                    break;
+            else if (n == len) {
+                if (remove) {
+                    delete current[p];
                 }
                 else {
-                    const next = current[p];
-                    if (next && next.constructor == Object) {
-                        current = next;
-                    }
-                    else {
-                        const nextMap = {};
-                        current[p] = nextMap;
-                        current = nextMap;
-                    }
+                    current[p] = value;
+                }
+                break;
+            }
+            else {
+                const next = current[p];
+                if (next && next.constructor == Object) {
+                    current = next;
+                }
+                else {
+                    const nextMap = {};
+                    current[p] = nextMap;
+                    current = nextMap;
                 }
             }
             composite += (p + '.');
         }
     }
 }
+function appendIndex(compositePath, map) {
+    const emptyIndex = compositePath.indexOf("[]");
+    if (emptyIndex != -1) {
+        const parent = compositePath.substring(0, emptyIndex);
+        const result = compositePath.substring(0, emptyIndex) + "[" + findLastIndex(parent, map) + "]" +
+            compositePath.substring(emptyIndex + 2);
+        return appendIndex(result, map);
+    }
+    return compositePath;
+}
+function findLastIndex(key, map) {
+    const value = getMapElement(`${key}[0]`, map);
+    if (value instanceof NotFound) {
+        return 0;
+    }
+    else {
+        return getMapElement(key, map).length;
+    }
+}
 function setListElement(indexes, dataset, value) {
-    const v = value == undefined ? null : value;
+    const v = value ?? null;
     let current = expandList(indexes, dataset);
     const len = indexes.length;
     for (let i = 0; i < len; i++) {
@@ -184,6 +202,9 @@ function validateCompositePathSyntax(pathname) {
     if (list.length == 0) {
         throw new Error('composite path cannot be empty');
     }
+    if (list[0].trim().startsWith("[")) {
+        throw new Error('Invalid composite path - missing first element');
+    }
     for (const s of list) {
         if (s.includes('[') || s.includes(']')) {
             if (!s.includes('[')) {
@@ -200,8 +221,8 @@ function validateCompositePathSyntax(pathname) {
             }
             let start = false;
             const text = s.substring(sep1);
-            for (let i = 0; i < text.length; i++) {
-                const c = text[i];
+            for (const element of text) {
+                const c = element;
                 if (c == '[') {
                     if (start) {
                         throw new Error('Invalid composite path - missing end bracket');
@@ -218,15 +239,13 @@ function validateCompositePathSyntax(pathname) {
                         start = false;
                     }
                 }
+                else if (start) {
+                    if (c < '0' || c > '9') {
+                        throw new Error('Invalid composite path - indexes must be digits');
+                    }
+                }
                 else {
-                    if (start) {
-                        if (c < '0' || c > '9') {
-                            throw new Error('Invalid composite path - indexes must be digits');
-                        }
-                    }
-                    else {
-                        throw new Error('Invalid composite path - invalid indexes');
-                    }
+                    throw new Error('Invalid composite path - invalid indexes');
                 }
             }
         }
@@ -238,7 +257,7 @@ function getMapElement(pathname, map) {
             return map[pathname];
         }
         if (!isComposite(pathname)) {
-            return null;
+            return new NotFound();
         }
         const list = pathname.split('.').filter(v => v.length > 0);
         let current = map;
@@ -334,7 +353,7 @@ function getListElement(indexes, data) {
             break;
         }
     }
-    return null;
+    return new NotFound();
 }
 /**
  * Convenient helper class to read/write key-values using javascript dot-bracket convention.

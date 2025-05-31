@@ -14,12 +14,13 @@ export declare class FlowInstance {
     id: string;
     cid: string;
     replyTo: string;
-    private timeoutWatcher;
-    private template;
+    private readonly timeoutWatcher;
+    private readonly template;
+    private readonly parentId;
     private traceId;
     private tracePath;
-    private parentId;
     private responded;
+    private topLevelException;
     private running;
     constructor(flowId: string, cid: string, replyTo: string, template: Flow, parentId: string);
     private resolveParent;
@@ -32,5 +33,7 @@ export declare class FlowInstance {
     setTraceId(traceId: string): void;
     getTracePath(): string;
     setTracePath(tracePath: string): void;
+    topLevelExceptionHappened(): boolean;
+    setExceptionAtTopLevel(state: boolean): void;
     getFlow(): Flow;
 }

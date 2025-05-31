@@ -174,8 +174,18 @@ export class TaskExecutor {
                                 flowInstance.pipeMap = {};
                             }
                         }
-                        const handler = task.getExceptionTask() != null ? task.getExceptionTask() : flowInstance.getFlow().exception;
-                        if (handler) {
+                        const isTaskLevel = task.getExceptionTask() != null;
+                        const handler = isTaskLevel ? task.getExceptionTask() : flowInstance.getFlow().exception;
+                        /*
+                         * Top level exception handler catches all unhandled exceptions.
+                         *
+                         * To exception loops at the top level exception handler,
+                         * abort the flow if top level exception handler throws exception.
+                         */
+                        if (handler && !flowInstance.topLevelExceptionHappened()) {
+                            if (!isTaskLevel) {
+                                flowInstance.setExceptionAtTopLevel(true);
+                            }
                             const error = { 'code': statusCode, 'message': event.getError() };
                             const stackTrace = event.getStackTrace();
                             if (stackTrace) {
@@ -194,6 +204,8 @@ export class TaskExecutor {
                     log.error(`Unable to process callback ${flowName}:${refId} - missing task in ${caller}`);
                     return false;
                 }
+                // clear top level exception state
+                flowInstance.setExceptionAtTopLevel(false);
                 self.handleCallback(from, flowInstance, task, event, seq);
             }
         }
@@ -206,7 +218,7 @@ export class TaskExecutor {
     }
     async executeTask(flowInstance, processName, seq = -1, error = {}) {
         const task = flowInstance.getFlow().tasks[processName];
-        const valid = task ? true : false;
+        const valid = !!task;
         if (!valid) {
             log.error(`Unable to process flow ${flowInstance.getFlow().id}:${flowInstance.id} - missing task '${processName}'`);
             this.abortFlow(flowInstance, 500, SERVICE_AT + processName + " not defined");
@@ -226,7 +238,7 @@ export class TaskExecutor {
         // perform input data mapping
         const mapping = task.input;
         for (const entry of mapping) {
-            const sep = entry.indexOf(MAP_TO);
+            const sep = entry.lastIndexOf(MAP_TO);
             if (sep > 0) {
                 let lhs = this.substituteDynamicIndex(entry.substring(0, sep).trim(), source, false);
                 const rhs = this.substituteDynamicIndex(entry.substring(sep + 2).trim(), source, true);
@@ -417,7 +429,7 @@ export class TaskExecutor {
         // perform output data mapping //
         const mapping = task.output;
         for (const entry of mapping) {
-            const sep = entry.indexOf(MAP_TO);
+            const sep = entry.lastIndexOf(MAP_TO);
             if (sep > 0) {
                 const lhs = this.substituteDynamicIndex(entry.substring(0, sep).trim(), consolidated, false);
                 const isInput = lhs.startsWith(INPUT_NAMESPACE) || lhs.toLowerCase() == INPUT;
@@ -958,7 +970,7 @@ export class TaskExecutor {
                         sb += String(ptr);
                     }
                     else {
-                        if (isRhs) {
+                        if (isRhs && idx) {
                             const ptr = util.str2int(idx);
                             if (ptr < 0) {
                                 throw new Error(`Cannot set RHS to negative index - ${text}`);

@@ -355,7 +355,7 @@ namespace. You should only access specific key-values in the model or model.pare
 
 The namespace `model.parent.` is shared by the primary flow and all sub-flows that are instantiated from it.
 
-The external state machine namespace uses the colon character (`:`) to indicate that the key-value is external.
+The external state machine namespace uses the namespace `ext:` to indicate that the key-value is external.
 
 *Constants for input data mapping*
 
@@ -502,6 +502,25 @@ The model variable must resolved to a number.
           exception. To avoid setting an arbitrary high index, the size of the index is limited by
           the parameter "max.model.array.size" in application.yml
 
+### Append an element to an array
+
+An empty array index in the right hand side tells the system to append an element to an array.
+For example, the value resolved from the left hand side "result.item1" and "result.item2" will be appended
+to the model.items array in the state machine.
+
+```yaml
+- 'result.item1 -> model.items[]'
+- 'result.item2 -> model.items[]'
+```
+
+If model.items does not exist, the first element will be set as array index "0". Therefore, the above output
+data mapping statements are the same as:
+
+```yaml
+- 'result.item1 -> model.items[0]'
+- 'result.item2 -> model.items[1]'
+```
+
 ### Simple type matching and conversion
 
 Event script's state machine supports simple type matching and conversion for the model namespace.
@@ -622,6 +641,9 @@ set the number as input argument. The configuration syntax can be simplified as 
 
 The above 3-part data mapping entry will be expanded into two entries internally. This extra processing is done
 at the "CompileFlows" step and thus there is no impact to the task execution speed.
+
+Please note that the 3-part data mapping format is not supported when the left-hand-side is a text constant.
+It is because a text constant may contain any special characters including the mapping signature `->`.
 
 ### Metadata for each flow instance
 

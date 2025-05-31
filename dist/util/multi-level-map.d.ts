@@ -56,14 +56,14 @@ export declare class MultiLevelMap {
      * @param value
      * @returns this
      */
-    setElement(compositePath: string, value: any): MultiLevelMap;
+    setElement(compositePath: string, value: any): this;
     /**
      * Remove an element using a composite key
      *
      * @param compositePath in dot-bracket convention
      * @returns this
      */
-    removeElement(compositePath: string): MultiLevelMap;
+    removeElement(compositePath: string): this;
     /**
      * Flatten key-values in a single layer
      *
@@ -75,5 +75,5 @@ export declare class MultiLevelMap {
      *
      * @returns multi-level map
      */
-    normalizeMap(): MultiLevelMap;
+    normalizeMap(): this;
 }

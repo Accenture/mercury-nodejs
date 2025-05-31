@@ -45,8 +45,9 @@ function removeMapElement(pathname: string, map: object): void {
     setMapElement(pathname, null, map, true);
 }
 
-function setMapElement(pathname: string, value, map: object, remove = false): void {
-    validateCompositePathSyntax(pathname);
+function setMapElement(compositePath: string, value, map: object, remove = false): void {
+    validateCompositePathSyntax(compositePath);
+    const pathname = compositePath.includes("[]")? appendIndex(compositePath, map) : compositePath;
     const nullValue = value == null || value === undefined;
     // ignore null value
     if (pathname && !nullValue && map.constructor == Object) {
@@ -103,23 +104,21 @@ function setMapElement(pathname: string, value, map: object, remove = false): vo
                         current = nextMap;
                     }
                 }
-            } else {
-                if (n == len) {
-                    if (remove) {
-                        delete current[p];                        
-                    } else {
-                        current[p] = value;
-                    }                    
-                    break;
+            } else if (n == len) {
+                if (remove) {
+                    delete current[p];                        
                 } else {
-                    const next = current[p];
-                    if (next && next.constructor == Object) {
-                        current = next;
-                    } else {
-                        const nextMap = {};
-                        current[p] = nextMap;
-                        current = nextMap;
-                    }
+                    current[p] = value;
+                }                    
+                break;
+            } else {
+                const next = current[p];
+                if (next && next.constructor == Object) {
+                    current = next;
+                } else {
+                    const nextMap = {};
+                    current[p] = nextMap;
+                    current = nextMap;
                 }
             }
             composite += (p + '.');
@@ -127,8 +126,28 @@ function setMapElement(pathname: string, value, map: object, remove = false): vo
     }
 }
 
+function appendIndex(compositePath: string, map: object): string {
+    const emptyIndex = compositePath.indexOf("[]");
+    if (emptyIndex != -1) {
+        const parent = compositePath.substring(0, emptyIndex);
+        const result = compositePath.substring(0, emptyIndex) + "[" + findLastIndex(parent, map) + "]" +
+                        compositePath.substring(emptyIndex+2);
+        return appendIndex(result, map);
+    }
+    return compositePath;
+}
+
+function findLastIndex(key: string, map: object): number {
+    const value = getMapElement(`${key}[0]`, map);
+    if (value instanceof NotFound) {
+        return 0;
+    } else {
+        return getMapElement(key, map).length;
+    }
+}
+
 function setListElement(indexes: Array<number>, dataset, value) {
-    const v = value == undefined? null : value;
+    const v = value ?? null;
     let current = expandList(indexes, dataset);
     const len = indexes.length;
     for (let i=0; i < len; i++) {
@@ -175,6 +194,9 @@ function validateCompositePathSyntax(pathname: string): void {
     if (list.length == 0) {
         throw new Error('composite path cannot be empty');
     }
+    if (list[0].trim().startsWith("[")) {
+        throw new Error('Invalid composite path - missing first element');
+    }
     for (const s of list) {
         if (s.includes('[') || s.includes(']')) {
             if (!s.includes('[')) {
@@ -191,8 +213,8 @@ function validateCompositePathSyntax(pathname: string): void {
             }
             let start = false;
             const text = s.substring(sep1);
-            for (let i=0; i < text.length; i++) {
-                const c = text[i];
+            for (const element of text) {
+                const c = element;
                 if (c == '[') {
                     if (start) {
                         throw new Error('Invalid composite path - missing end bracket');
@@ -205,14 +227,12 @@ function validateCompositePathSyntax(pathname: string): void {
                     } else {
                         start = false;
                     }
-                } else {
-                    if (start) {
-                        if (c < '0' || c > '9') {
-                            throw new Error('Invalid composite path - indexes must be digits');
-                        }
-                    } else {
-                        throw new Error('Invalid composite path - invalid indexes');
+                } else if (start) {
+                    if (c < '0' || c > '9') {
+                        throw new Error('Invalid composite path - indexes must be digits');
                     }
+                } else {
+                    throw new Error('Invalid composite path - invalid indexes');
                 }
             }
         }
@@ -225,7 +245,7 @@ function getMapElement(pathname: string, map: object) {
             return map[pathname];
         }
         if (!isComposite(pathname)) {
-            return null;
+            return new NotFound();
         }
         const list = pathname.split('.').filter(v => v.length > 0);
         let current = map;
@@ -318,7 +338,7 @@ function getListElement(indexes: Array<number>, data) {
             break;
         }
     }
-    return null;
+    return new NotFound();
 }
 
 /**
@@ -407,7 +427,7 @@ export class MultiLevelMap {
      * @param value 
      * @returns this
      */
-    setElement(compositePath: string, value): MultiLevelMap {
+    setElement(compositePath: string, value): this {
         setMapElement(compositePath, value, this.multiLevels);
         return this;
     }
@@ -418,7 +438,7 @@ export class MultiLevelMap {
      * @param compositePath in dot-bracket convention
      * @returns this
      */
-    removeElement(compositePath: string): MultiLevelMap {
+    removeElement(compositePath: string): this {
         removeMapElement(compositePath, this.multiLevels);
         return this;
     }
@@ -439,7 +459,7 @@ export class MultiLevelMap {
      * 
      * @returns multi-level map
      */
-    normalizeMap(): MultiLevelMap {
+    normalizeMap(): this {
         const flatMap = this.getFlatMap();
         this.multiLevels = {};
         Object.keys(flatMap).forEach(k => {

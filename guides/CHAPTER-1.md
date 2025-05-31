@@ -149,7 +149,24 @@ npm run build
 npm run test
 ```
 
-You will see the build log like this:
+When you build the composable example application, the first thing that you may notice is
+that the build script will scan your source code and libraries. This is similar to the class
+scanner feature in other languages. This feature is essential in composable application design 
+because it decouples composable classes from each others so that they can be written in a 
+self-contained manner. Your application does not need to import the classes. Instead, the class
+scanner will create a "Composable class loader" during the build phase. The class loader will
+then load the available composable classes and register them into the event loop.
+
+Another important feature that you would find is that a composable application has a "resources"
+folder in the "src" and "test" section to hold application configuration files including event
+flow YAML files. It supports hierarchy of configuration such that the system will search for 
+configuration files in the libraries if your application does not provide a configuration file 
+to override a default configuration file in the library. For example, your unit tests would
+use a configuration file in the "src/resources" folder if it is not in the "test/resources" folder.
+
+For details, please refer to the Configuration management section in [Appendix-I](APPENDIX-I.md)
+
+Your build log may look like this:
 
 ```text
 INFO Scanning ./node_modules/mercury-composable/dist (scanPackage:preloader.js:20)

@@ -605,7 +605,7 @@ export class CompileFlows {
     }
 
     private validInput(input: string): boolean {
-        const sep = input.indexOf(MAP_TO);
+        const sep = input.lastIndexOf(MAP_TO);
         if (sep > 0) {
             const lhs = input.substring(0, sep).trim();
             const rhs = input.substring(sep+2).trim();

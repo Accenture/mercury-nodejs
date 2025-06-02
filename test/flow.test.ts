@@ -1218,6 +1218,7 @@ describe('event flow use cases', () => {
     expect(map.getElement("latest[1]")).toBe('y');
     expect(map.getElement("latest[2]")).toBe('z');
     expect(map.getElement("latest[3].item")).toBe('item3');
+    expect(map.getElement("formula")).toBe('x -> y');
   });
   
   it('can do for-loop with break in pipeline - case 1', async () => {

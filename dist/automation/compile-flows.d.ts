@@ -14,8 +14,8 @@ export declare class CompileFlows {
     private validForStatement;
     private filterDataMapping;
     private filterMapping;
-    private normalizedTypeMapping;
-    private removeNegate;
+    private normalizedNegateTypeMapping;
+    private trimTypeQualifier;
     private validInput;
     private validModel;
     private validKeyValues;

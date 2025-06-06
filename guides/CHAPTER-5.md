@@ -276,7 +276,7 @@ trace={path=/api/upload/demo, service=hello.upload, success=true,
 The system will detect if `distributed.trace.forwarder` is available. If yes, it will forward performance metrics
 from distributed trace to your custom function.
 
-## importing from corporate artifactory
+## Importing core library from corporate artifactory
 
 While you may use github as a repository to test drive your applications, you should build and publish the
 mercury-composable library to your enterprise "npm" artifactory. Please consult your DevSecOps colleagues for

@@ -16,7 +16,7 @@ N/A
 
 ### Removed
 
-N/A
+The "npm run pull" command is no longer required
 
 ### Changed
 

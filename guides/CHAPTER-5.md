@@ -10,6 +10,8 @@ A minimalist main application template is shown as follows:
 import { ComposableLoader } from './preload/preload.js'; 
 
 async function main() {
+    // This assumes you have a ".env" environment variable file. If not, remove this line.
+    process.loadEnvFile();
     // Load composable functions into memory and automatically starts your application modules
     await ComposableLoader.initialize();
 }
@@ -274,19 +276,18 @@ trace={path=/api/upload/demo, service=hello.upload, success=true,
 The system will detect if `distributed.trace.forwarder` is available. If yes, it will forward performance metrics
 from distributed trace to your custom function.
 
-## "npm" alias for mercury-composable core library
+## importing from corporate artifactory
 
-While you may use github as a repository to test drive your applications, you would need to build and publish the
+While you may use github as a repository to test drive your applications, you should build and publish the
 mercury-composable library to your enterprise "npm" artifactory. Please consult your DevSecOps colleagues for
 pipeline setup procedure. It would vary from one organization to another.
 
-If you publish the mercury-composable to your own artifactory as another package name, you would add a "npm alias"
-in the package.json of your application like this:
+If you publish the mercury-composable to your own artifactory as another package name, you can point it to your
+corporate artifactory in the package.json of your application like this:
 
 ```shell
   "scripts": {
     "clean": "node clean.js && node placeholder.js",
-    "pull": "npm uninstall actual-published-package-name && npm install actual-published-package-name",
     "preload": "node preloader.js",
     "prebuild": "npm run lint",
     "build": "npm run preload && tsc -p tsconfig.json && node copy-resource-files.js",
@@ -296,7 +297,6 @@ in the package.json of your application like this:
     "test:watch": "vitest"
   },
   "dependencies": {
-    "actual-published-package-name": "^4.2.37",
     "mercury-composable": "npm:actual-published-package-name"
   }
 ```
@@ -304,10 +304,6 @@ in the package.json of your application like this:
 In the above example, it assumes the actual package name that is published from mercury-composable core library
 is "actual-published-package-name", the package name "mercury-composable" becomes an alias so that you can keep
 the import statements that point to "mercury-composable" unchanged.
-
-You would need to update "scripts.pull" command and the "dependencies" section accordingly.
-The "scripts.pull" command is used to pull the latest code from your enterprise artifactory and the
-"mercury-composable" entry in the "dependencies" section is an alias to your published package.
 
 Once you have updated the package.json file in the "examples" folder, you may run "npm run build". This verifies
 that the example application can import from the newly published mercury-composable core library in your own

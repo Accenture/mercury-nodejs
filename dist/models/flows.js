@@ -7,14 +7,14 @@ export class Flows {
     static flowInstances = {};
     static getFlow(id) {
         const result = Flows.allFlows[id];
-        return result ? result : null;
+        return result ?? null;
     }
     static getAllFlows() {
         return Object.keys(Flows.allFlows);
     }
     static getFlowInstance(id) {
         const result = id ? Flows.flowInstances[id] : null;
-        return result ? result : null;
+        return result ?? null;
     }
     static flowExists(id) {
         return id in Flows.allFlows;

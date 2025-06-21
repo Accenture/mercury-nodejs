@@ -1,5 +1,5 @@
 export declare class AppException extends Error {
-    private status;
+    private readonly status;
     constructor(status: number, message: string);
     /**
      * Note that status code should be compliant with the 3-digit numeric HTTP status code convention.

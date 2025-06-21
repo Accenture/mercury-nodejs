@@ -27,7 +27,7 @@ export declare class EventEnvelope {
      * @param id - unique UUID
      * @returns this
      */
-    setId(id: string): EventEnvelope;
+    setId(id: string): this;
     /**
      * Retrieve event ID
      *
@@ -41,7 +41,7 @@ export declare class EventEnvelope {
      * @param v value
      * @returns this
      */
-    setHeader(k: string, v: string): EventEnvelope;
+    setHeader(k: string, v: string): this;
     /**
      * Retrieve a header value using case-insensitive key
      *
@@ -61,7 +61,7 @@ export declare class EventEnvelope {
      * @param headers to override
      * @returns this
      */
-    setHeaders(headers: object): EventEnvelope;
+    setHeaders(headers: object): this;
     /**
      * Set an optional payload for an event.
      * The payload can be string, number, JSON object, boolean or bytes
@@ -69,7 +69,7 @@ export declare class EventEnvelope {
      * @param body
      * @returns
      */
-    setBody(body: eventPayload): EventEnvelope;
+    setBody(body: eventPayload): this;
     /**
      * Retrieve the payload if any
      *
@@ -85,7 +85,7 @@ export declare class EventEnvelope {
      * @param status code
      * @returns this
      */
-    setStatus(status: number): EventEnvelope;
+    setStatus(status: number): this;
     /**
      * Retrieve the event processing status.
      *
@@ -102,7 +102,7 @@ export declare class EventEnvelope {
      * @param to destination route
      * @returns this
      */
-    setTo(to: string): EventEnvelope;
+    setTo(to: string): this;
     /**
      * Retrieve the destination route
      *
@@ -115,7 +115,7 @@ export declare class EventEnvelope {
      * @param sender of the event
      * @returns this
      */
-    setFrom(sender: string): EventEnvelope;
+    setFrom(sender: string): this;
     /**
      * Retrieve sender route name of the event
      *
@@ -128,7 +128,7 @@ export declare class EventEnvelope {
      * @param replyTo route name if this event is used for RPC or callback
      * @returns this
      */
-    setReplyTo(replyTo: string): EventEnvelope;
+    setReplyTo(replyTo: string): this;
     /**
      * Retrieve the route name for receiving the function return value
      *
@@ -145,21 +145,21 @@ export declare class EventEnvelope {
      * @param value - tag value
      * @returns this
      */
-    addTag(key: string, value?: string): EventEnvelope;
+    addTag(key: string, value?: string): this;
     /**
      * Set tags
      *
      * @param tags of key-values
      * @returns this
      */
-    setTags(tags: object): EventEnvelope;
+    setTags(tags: object): this;
     /**
      * Remove a tag from an evvent
      *
      * @param key - tag name
      * @returns this
      */
-    removeTag(key: string): EventEnvelope;
+    removeTag(key: string): this;
     /**
      * Retrieve a tag
      *
@@ -180,7 +180,7 @@ export declare class EventEnvelope {
      * @param value of an annotation
      * @returns
      */
-    annotate(key: string, value: string | object): EventEnvelope;
+    annotate(key: string, value: string | object): this;
     /**
      * Retrieve all annotations
      *
@@ -193,20 +193,20 @@ export declare class EventEnvelope {
      * @param annotations to set
      * @returns this
      */
-    setAnnotations(annotations: object): EventEnvelope;
+    setAnnotations(annotations: object): this;
     /**
      * Clear annotations
      *
      * @returns this
      */
-    clearAnnotations(): EventEnvelope;
+    clearAnnotations(): this;
     /**
      * You may set a unique ID for tracking RPC or callback.
      *
      * @param correlationId for tracking
      * @returns this
      */
-    setCorrelationId(correlationId: string): EventEnvelope;
+    setCorrelationId(correlationId: string): this;
     /**
      * Retrieve the correlation ID of an event
      *
@@ -224,7 +224,7 @@ export declare class EventEnvelope {
      * @param traceId of the event
      * @returns this
      */
-    setTraceId(traceId: string): EventEnvelope;
+    setTraceId(traceId: string): this;
     /**
      * Retrieve trace ID of the event.
      *
@@ -242,7 +242,7 @@ export declare class EventEnvelope {
      * @param tracePath of the event
      * @returns this
      */
-    setTracePath(tracePath: string): EventEnvelope;
+    setTracePath(tracePath: string): this;
     /**
      * Retrieve the trace path of an event
      *
@@ -256,14 +256,14 @@ export declare class EventEnvelope {
      * @param error message
      * @returns this
      */
-    setException(error: Error): EventEnvelope;
+    setException(error: Error): this;
     /**
      * Convert body as an error message
      *
      * @returns error message
      */
     getError(): string | object;
-    setStackTrace(stackTrace: string): EventEnvelope;
+    setStackTrace(stackTrace: string): this;
     getStackTrace(): string;
     /**
      * Check if this event contains an exception
@@ -277,7 +277,7 @@ export declare class EventEnvelope {
      * @param execTime of the function processing this event
      * @returns this
      */
-    setExecTime(execTime: number): EventEnvelope;
+    setExecTime(execTime: number): this;
     /**
      * Retrieve execution time for the function that process this event
      *
@@ -290,7 +290,7 @@ export declare class EventEnvelope {
      * @param roundTrip end-to-end processing time
      * @returns this
      */
-    setRoundTrip(roundTrip: number): EventEnvelope;
+    setRoundTrip(roundTrip: number): this;
     /**
      * Retrieve the end-to-end processing time
      *
@@ -311,7 +311,8 @@ export declare class EventEnvelope {
      * @param map input is a JSON object
      * @returns this
      */
-    fromMap(map: object): EventEnvelope;
+    fromMap(map: object): this;
+    private metadataFromMap;
     /**
      * Convert this event into a byte array
      *
@@ -328,14 +329,15 @@ export declare class EventEnvelope {
      * @param b input is a byte array
      * @returns this
      */
-    fromBytes(b: Buffer): EventEnvelope;
+    fromBytes(b: Buffer): this;
+    private bodyFromMap;
     /**
      * Copy from an event into this
      *
      * @param event input
      * @returns this
      */
-    copy(event: EventEnvelope): EventEnvelope;
+    copy(event: EventEnvelope): this;
     toString(): string;
 }
 export {};

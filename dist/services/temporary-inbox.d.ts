@@ -5,7 +5,7 @@ import { EventEnvelope } from '../models/event-envelope.js';
  * DO NOT use this directly in your application code.
  */
 export declare class TemporaryInbox implements Composable {
-    static routeName: string;
+    static readonly routeName = "temporary.inbox";
     initialize(): Composable;
     static setPromise(cid: string, map: object): void;
     static clearPromise(cid: string): void;

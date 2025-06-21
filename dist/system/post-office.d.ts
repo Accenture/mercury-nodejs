@@ -6,7 +6,8 @@ export declare class PostOffice {
     private tracePath;
     private instance;
     private trackable;
-    constructor(headers?: Sender | object);
+    constructor(event?: EventEnvelope | Sender);
+    private loadTracking;
     private touch;
     /**
      * Application instance ID

@@ -9,12 +9,10 @@ const util = new Utility();
  */
 export class TemplateLoader {
 
-    private templateFolder: string;
+    private readonly templateFolder: string;
 
     constructor() {
-        if (this.templateFolder === undefined) {        
-            this.templateFolder = util.getFolder("../resources/templates/");
-        }
+        this.templateFolder ??= util.getFolder("../resources/templates/");
     }
 
     getTemplate(name: string): string {

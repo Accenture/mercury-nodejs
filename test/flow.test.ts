@@ -125,6 +125,18 @@ class ExtStateMachine implements Composable {
   }  
 }
 
+function handleFileVaultBuffer(result: object, text: string, binary) {
+    if (String(binary) == text) {
+        result["text"] = text;
+        result["matched"] = true;
+    } else {
+        result["matched"] = false;
+        result["text"] = "Input text and binary values do not match";
+    }
+    // set a test field with binary value
+    result["binary"] = Buffer.from('binary');  
+}
+
 class FileVault implements Composable {
   initialize(): Composable {
     return this;
@@ -136,15 +148,7 @@ class FileVault implements Composable {
       const binary = input["binary"];
       const result = {};
       if (typeof text == 'string' && binary instanceof Buffer) {
-          if (String(binary) == text) {
-              result["text"] = text;
-              result["matched"] = true;
-          } else {
-              result["matched"] = false;
-              result["text"] = "Input text and binary values do not match";
-          }
-          // set a test field with binary value
-          result["binary"] = Buffer.from('binary');
+        handleFileVaultBuffer(result, text, binary);
       } else {
           result["error"] = "Input must be a map of text and binary key values";
       }
@@ -245,6 +249,31 @@ class AbortRequest implements Composable {
   }  
 }
 
+function handleUserGreeting(evt: EventEnvelope): object {
+    const input = evt.getBody() as object;
+    const greeting = String(input[GREETING]);
+    const user = String(input[USER]);
+    const result = {};
+    result[USER] = user;
+    result[GREETING] = greeting;
+    result[MESSAGE] = "I got your greeting message - "+greeting;
+    result[TIME] = new Date().toISOString();
+    result[ORIGINAL] = input;
+    if (evt.getHeader(DEMO)) {
+        result[DEMO+1] = evt.getHeader(DEMO);
+    }
+    if (evt.getHeader(USER)) {
+        result[DEMO+2] = evt.getHeader(USER);
+    }
+    if (evt.getHeader(X_FLOW_ID)) {
+        result[DEMO+3] = evt.getHeader(X_FLOW_ID);
+    }
+    if (evt.getHeader(X_FLOW_ID)) {
+      result[DEMO+4] = evt.getHeader('x-user-profile');
+    }
+    return result;
+}
+
 class Greetings implements Composable {
   initialize(): Composable {
     return this;
@@ -262,26 +291,7 @@ class Greetings implements Composable {
         }
     }
     if (USER in input && GREETING in input) {
-        const greeting = String(input[GREETING]);
-        const user = String(input[USER]);
-        const result = {};
-        result[USER] = user;
-        result[GREETING] = greeting;
-        result[MESSAGE] = "I got your greeting message - "+greeting;
-        result[TIME] = new Date().toISOString();
-        result[ORIGINAL] = input;
-        if (evt.getHeader(DEMO)) {
-            result[DEMO+1] = evt.getHeader(DEMO);
-        }
-        if (evt.getHeader(USER)) {
-            result[DEMO+2] = evt.getHeader(USER);
-        }
-        if (evt.getHeader(X_FLOW_ID)) {
-            result[DEMO+3] = evt.getHeader(X_FLOW_ID);
-        }
-        if (evt.getHeader(X_FLOW_ID)) {
-          result[DEMO+4] = evt.getHeader('x-user-profile');
-        }
+        const result = handleUserGreeting(evt);
         return new EventEnvelope().setBody(result).setHeader(DEMO, "test-header").setStatus(201);
     } else {
         // the easiest way for error handling is just throwing an exception

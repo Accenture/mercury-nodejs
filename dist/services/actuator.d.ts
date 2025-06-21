@@ -5,12 +5,6 @@ import { EventEnvelope } from '../models/event-envelope.js';
  * DO NOT use this directly in your application code.
  */
 export declare class ActuatorServices implements Composable {
-    static loaded: boolean;
-    static infoService: string;
-    static routeService: string;
-    static healthService: string;
-    static livenessService: string;
-    static envService: string;
     initialize(): Composable;
     handleEvent(evt: EventEnvelope): Promise<EventEnvelope>;
     static doRoutes(): Promise<EventEnvelope>;

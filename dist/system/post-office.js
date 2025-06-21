@@ -14,44 +14,45 @@ const registry = FunctionRegistry.getInstance();
 const emitter = new EventEmitter();
 const handlers = new Map();
 const resolver = EventHttpResolver.getInstance();
-let self = null;
 const EVENT_MANAGER = "event.script.manager";
 const TASK_EXECUTOR = "task.executor";
 const ASYNC_HTTP_CLIENT = 'async.http.request';
 const APPLICATION_OCTET_STREAM = "application/octet-stream";
 const RPC = "rpc";
 const X_EVENT_API = "x-event-api";
+let self = null;
 export class PostOffice {
     from = null;
     traceId = null;
     tracePath = null;
     instance = "1";
     trackable = false;
-    constructor(headers) {
-        if (self == null) {
-            self = PO.getInstance();
-        }
-        if (headers && headers instanceof Sender) {
+    constructor(event) {
+        self ??= PO.getInstance();
+        if (event instanceof Sender) {
             this.trackable = true;
-            this.from = headers.originator;
-            this.traceId = headers.traceId;
-            this.tracePath = headers.tracePath;
+            this.from = event.originator;
+            this.traceId = event.traceId;
+            this.tracePath = event.tracePath;
         }
-        if (headers && headers.constructor == Object) {
-            if ('my_route' in headers) {
-                this.trackable = true;
-                this.from = String(headers['my_route']);
-            }
-            if ('my_instance' in headers) {
-                this.instance = String(headers['my_instance']);
-            }
-            if ('my_trace_id' in headers) {
-                this.trackable = true;
-                this.traceId = String(headers['my_trace_id']);
-            }
-            if ('my_trace_path' in headers) {
-                this.tracePath = String(headers['my_trace_path']);
-            }
+        else if (event instanceof EventEnvelope) {
+            this.loadTracking(event.getHeaders());
+        }
+    }
+    loadTracking(info) {
+        if ('my_route' in info) {
+            this.trackable = true;
+            this.from = typeof info['my_route'] == 'string' ? info['my_route'] : null;
+        }
+        if ('my_instance' in info) {
+            this.instance = typeof info['my_instance'] == 'string' ? info['my_instance'] : null;
+        }
+        if ('my_trace_id' in info) {
+            this.trackable = true;
+            this.traceId = typeof info['my_trace_id'] == 'string' ? info['my_trace_id'] : null;
+        }
+        if ('my_trace_path' in info) {
+            this.tracePath = typeof info['my_trace_path'] == 'string' ? info['my_trace_path'] : null;
         }
     }
     touch(event) {
@@ -223,14 +224,10 @@ class PO {
     static instance;
     id;
     constructor() {
-        if (this.id === undefined) {
-            this.id = util.getUuid();
-        }
+        this.id ??= util.getUuid();
     }
     static getInstance() {
-        if (PO.instance === undefined) {
-            PO.instance = new PO();
-        }
+        PO.instance ??= new PO();
         return PO.instance;
     }
     getId() {
@@ -252,29 +249,7 @@ class PO {
             const targetHttp = input.getHeader(X_EVENT_API) ? null : resolver.getEventHttpTarget(route);
             const headers = resolver.getEventHttpHeaders(route);
             if (targetHttp) {
-                const callback = input.getReplyTo();
-                const rpc = callback ? true : false;
-                const eventApiType = rpc ? "callback" : "async";
-                input.setReplyTo(null);
-                const forwardEvent = new EventEnvelope(input.toMap()).setHeader(X_EVENT_API, eventApiType);
-                const evt = await this.remoteRequest(forwardEvent, targetHttp, headers, rpc);
-                if (rpc) {
-                    // Send the RPC response from the remote target service to the callback
-                    evt.setTo(callback).setReplyTo(null).setFrom(route)
-                        .setTraceId(input.getTraceId()).setTracePath(input.getTracePath())
-                        .setCorrelationId(input.getCorrelationId());
-                    try {
-                        await this.send(evt);
-                    }
-                    catch (e) {
-                        log.error(`Error in sending callback event ${route} from ${targetHttp} to ${callback} - ${e.message}`);
-                    }
-                }
-                else {
-                    if (evt.getStatus() != 202) {
-                        log.error(`Error in sending async event ${route} to ${targetHttp} - status=${evt.getStatus()}, error=${String(evt.getBody())}`);
-                    }
-                }
+                this.sendEventApi(input, targetHttp, headers);
                 return;
             }
             if (handlers.has(route)) {
@@ -299,6 +274,30 @@ class PO {
             log.warn(`Event ${input.getId()} dropped because there is no target service route`);
         }
     }
+    async sendEventApi(input, targetHttp, headers) {
+        const route = input.getTo();
+        const callback = input.getReplyTo();
+        const rpc = !!callback;
+        const eventApiType = rpc ? "callback" : "async";
+        input.setReplyTo(null);
+        const forwardEvent = new EventEnvelope(input.toMap()).setHeader(X_EVENT_API, eventApiType);
+        const evt = await this.remoteRequest(forwardEvent, targetHttp, headers, rpc);
+        if (rpc) {
+            // Send the RPC response from the remote target service to the callback
+            evt.setTo(callback).setReplyTo(null).setFrom(route)
+                .setTraceId(input.getTraceId()).setTracePath(input.getTracePath())
+                .setCorrelationId(input.getCorrelationId());
+            try {
+                await this.send(evt);
+            }
+            catch (e) {
+                log.error(`Error in sending callback event ${route} from ${targetHttp} to ${callback} - ${e.message}`);
+            }
+        }
+        else if (evt.getStatus() != 202) {
+            log.error(`Error in sending async event ${route} to ${targetHttp} - status=${evt.getStatus()}`);
+        }
+    }
     sendLater(event, delay = 1000) {
         const timer = setTimeout(() => {
             this.send(event);
@@ -320,7 +319,7 @@ class PO {
                 const headers = resolver.getEventHttpHeaders(route);
                 if (targetHttp) {
                     const callback = input.getReplyTo();
-                    const rpc = callback ? true : false;
+                    const rpc = !!callback;
                     const eventApiType = rpc ? "callback" : "async";
                     input.setReplyTo(null);
                     const forwardEvent = new EventEnvelope(input.toMap()).setHeader(X_EVENT_API, eventApiType);

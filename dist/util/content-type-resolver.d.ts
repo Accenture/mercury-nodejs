@@ -6,5 +6,6 @@ export declare class ContentTypeResolver {
     private constructor();
     static getInstance(): ContentTypeResolver;
     loadCustomContentTypes(config: ConfigReader): void;
+    private addCustomContentType;
     getContentType(contentType: string): string;
 }

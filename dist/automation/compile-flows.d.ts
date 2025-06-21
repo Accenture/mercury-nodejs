@@ -4,7 +4,22 @@
  */
 export declare class CompileFlows {
     start(): void;
+    private loadFlows;
     private createFlow;
+    private parseTaskList;
+    private parseTask;
+    private validateTaskName;
+    private addTask;
+    private parseInputDataMapping;
+    private parseOutputDataMapping;
+    private parseJoinTask;
+    private parseNonSinkTask;
+    private parsePipeline;
+    private parseLoopStatement;
+    private parseForLoop;
+    private parseWhileLoop;
+    private setDelay;
+    private addFlow;
     private hasExternalState;
     private hasIncompleteMapping;
     private getCondition;
@@ -13,6 +28,7 @@ export declare class CompileFlows {
     private getForPart3;
     private validForStatement;
     private filterDataMapping;
+    private handleThreePartFormat;
     private filterMapping;
     private normalizedNegateTypeMapping;
     private trimTypeQualifier;

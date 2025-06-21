@@ -130,7 +130,7 @@ export class AsyncHttpRequest {
     setHeader(key, value) {
         if (key) {
             this.removeHeader(key);
-            this.headers[key] = value ? value : "";
+            this.headers[key] = value || "";
         }
         return this;
     }
@@ -171,7 +171,7 @@ export class AsyncHttpRequest {
      * @returns this
      */
     setBody(body) {
-        this.body = body ? body : null;
+        this.body = body || null;
         return this;
     }
     /**
@@ -316,7 +316,7 @@ export class AsyncHttpRequest {
     setSessionInfo(key, value) {
         if (key) {
             this.removeSessionInfo(key);
-            this.session[key] = value ? value : "";
+            this.session[key] = value || "";
         }
         return this;
     }
@@ -375,7 +375,7 @@ export class AsyncHttpRequest {
     setCookie(key, value) {
         if (key) {
             this.removeCookie(key);
-            this.cookies[key] = value ? value : "";
+            this.cookies[key] = value || "";
         }
         return this;
     }
@@ -436,7 +436,7 @@ export class AsyncHttpRequest {
     setPathParameter(key, value) {
         if (key) {
             this.removePathParameter(key);
-            this.pathParams[key] = value ? value : "";
+            this.pathParams[key] = value || "";
         }
         return this;
     }
@@ -480,7 +480,7 @@ export class AsyncHttpRequest {
      * @returns true or false
      */
     isSecure() {
-        return this.https ? true : false;
+        return !!this.https;
     }
     /**
      * Use HTTPS if this is an outgoing HTTP request
@@ -489,7 +489,7 @@ export class AsyncHttpRequest {
      * @returns this
      */
     setSecure(https) {
-        this.https = https ? true : false;
+        this.https = !!https;
         return this;
     }
     /**
@@ -541,7 +541,7 @@ export class AsyncHttpRequest {
      * @returns true or false
      */
     isTrustAllCert() {
-        return this.trustAllCert ? true : false;
+        return !!this.trustAllCert;
     }
     /**
      * Decide if this outgoing HTTP request skips certification verification
@@ -552,7 +552,7 @@ export class AsyncHttpRequest {
      * @returns this
      */
     setTrustAllCert(trustAllCert) {
-        this.trustAllCert = trustAllCert ? true : false;
+        this.trustAllCert = !!trustAllCert;
         return this;
     }
     /**
@@ -626,9 +626,8 @@ export class AsyncHttpRequest {
                     this.queryParams[key] = value;
                 }
                 else if (Array.isArray(value)) {
-                    const valueArray = value;
                     const params = [];
-                    for (const v of valueArray) {
+                    for (const v of value) {
                         params.push(String(v));
                     }
                     this.queryParams[key] = params;
@@ -702,6 +701,10 @@ export class AsyncHttpRequest {
         if (this.upload) {
             result[UPLOAD] = this.upload;
         }
+        this.toMoreMap(result);
+        return result;
+    }
+    toMoreMap(result) {
         const hasPathParams = Object.keys(this.pathParams).length > 0;
         const hasQueryParams = Object.keys(this.queryParams).length > 0;
         if (hasPathParams || hasQueryParams) {
@@ -725,7 +728,6 @@ export class AsyncHttpRequest {
             result[TARGET_HOST] = this.targetHost;
             result[TRUST_ALL_CERT] = this.trustAllCert;
         }
-        return result;
     }
     /**
      * Convert a JSON object into a HTTP request object
@@ -750,47 +752,50 @@ export class AsyncHttpRequest {
             if (SESSION in map) {
                 this.session = map[SESSION];
             }
-            if (METHOD in map) {
-                this.method = String(map[METHOD]);
+            if (typeof map[METHOD] == 'string') {
+                this.method = map[METHOD];
             }
-            if (IP in map) {
-                this.ip = String(map[IP]);
+            if (typeof map[IP] == 'string') {
+                this.ip = map[IP];
             }
-            if (URL_LABEL in map) {
-                this.url = String(map[URL_LABEL]);
+            this.fromMoreMap(map);
+        }
+    }
+    fromMoreMap(map) {
+        if (typeof map[URL_LABEL] == 'string') {
+            this.url = map[URL_LABEL];
+        }
+        if (typeof map[FILE_NAME] == 'string') {
+            this.filename = map[FILE_NAME];
+        }
+        if (typeof map[CONTENT_LENGTH] == 'number') {
+            this.contentLength = parseInt(String(map[CONTENT_LENGTH]));
+        }
+        if (BODY in map) {
+            this.body = map[BODY];
+        }
+        if (typeof map[QUERY] == 'string') {
+            this.queryString = map[QUERY];
+        }
+        if (typeof map[HTTPS] == 'boolean' || typeof map[HTTPS] == 'string') {
+            this.https = String(map[HTTPS]) == 'true';
+        }
+        if (typeof map[TARGET_HOST] == 'string') {
+            this.targetHost = map[TARGET_HOST];
+        }
+        if (typeof map[TRUST_ALL_CERT] == 'boolean' || typeof map[TRUST_ALL_CERT] == 'string') {
+            this.trustAllCert = String(map[TRUST_ALL_CERT]) == 'true';
+        }
+        if (typeof map[UPLOAD] == 'string') {
+            this.upload = map[UPLOAD];
+        }
+        if (PARAMETERS in map) {
+            const parameters = map[PARAMETERS];
+            if (PATH in parameters) {
+                this.pathParams = parameters[PATH];
             }
-            if (FILE_NAME in map) {
-                this.filename = String(map[FILE_NAME]);
-            }
-            if (CONTENT_LENGTH in map) {
-                this.contentLength = parseInt(String(map[CONTENT_LENGTH]));
-            }
-            if (BODY in map) {
-                this.body = map[BODY];
-            }
-            if (QUERY in map) {
-                this.queryString = String(map[QUERY]);
-            }
-            if (HTTPS in map) {
-                this.https = String(map[HTTPS]) == 'true';
-            }
-            if (TARGET_HOST in map) {
-                this.targetHost = String(map[TARGET_HOST]);
-            }
-            if (TRUST_ALL_CERT in map) {
-                this.trustAllCert = String(map[TRUST_ALL_CERT]) == 'true';
-            }
-            if (UPLOAD in map) {
-                this.upload = String(map[UPLOAD]);
-            }
-            if (PARAMETERS in map) {
-                const parameters = map[PARAMETERS];
-                if (PATH in parameters) {
-                    this.pathParams = parameters[PATH];
-                }
-                if (QUERY in parameters) {
-                    this.queryParams = parameters[QUERY];
-                }
+            if (QUERY in parameters) {
+                this.queryParams = parameters[QUERY];
             }
         }
     }

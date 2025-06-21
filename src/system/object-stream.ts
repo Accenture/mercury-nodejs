@@ -58,6 +58,20 @@ function getIdFromRoute(route: string): string {
     return null;
 }
 
+async function readOneBlock(replyTo: string, cid: string, stream: StreamInfo, data) {
+    stream.read_count++;
+    const block = new EventEnvelope(data);
+    const event = new EventEnvelope().setTo(replyTo).setCorrelationId(cid);
+    if (DATA == block.getHeader(TYPE)) {
+        stream.touch();
+        await po.send(event.setHeader(TYPE, DATA).setBody(block.getBody()));
+    } else if (END_OF_STREAM == block.getHeader(TYPE)) {
+        // EOF detected
+        stream.eof_read = true;
+        await po.send(event.setHeader(TYPE, END_OF_STREAM));
+    }
+}
+
 async function fetchNextBlock(replyTo: string, cid: string, stream: StreamInfo, timeout: number) {
     const begin = new Date().getTime();
     let now = begin;
@@ -68,21 +82,10 @@ async function fetchNextBlock(replyTo: string, cid: string, stream: StreamInfo, 
             const exists = fs.existsSync(filename);
             if (exists) {
                 const data = await fs.promises.readFile(filename);
-                if (data) {                          
-                    stream.read_count++;                                               
+                if (data) {
                     fs.promises.unlink(filename);
-                    const block = new EventEnvelope(data);
-                    const event = new EventEnvelope().setTo(replyTo).setCorrelationId(cid);
-                    if (DATA == block.getHeader(TYPE)) {
-                        stream.touch();
-                        await po.send(event.setHeader(TYPE, DATA).setBody(block.getBody()));
-                        return;
-                    } else if (END_OF_STREAM == block.getHeader(TYPE)) {
-                        // EOF detected
-                        stream.eof_read = true;
-                        await po.send(event.setHeader(TYPE, END_OF_STREAM));
-                        return;
-                    }
+                    await readOneBlock(replyTo, cid, stream, data);
+                    return;
                 }
             }
         }
@@ -102,9 +105,28 @@ async function fetchNextBlock(replyTo: string, cid: string, stream: StreamInfo, 
     } 
 }
 
+async function handleStreamConsumer(evt: EventEnvelope, cid: string, readTimeout: number, replyTo: string, stream: StreamInfo) {
+    const response = new EventEnvelope().setTo(replyTo).setCorrelationId(cid);
+    if (READ == evt.getHeader(TYPE)) {
+        if (stream.eof_read) {
+            await po.send(response.setHeader(TYPE, END_OF_STREAM));
+        } else {
+            await fetchNextBlock(replyTo, cid, stream, readTimeout);
+        }
+    }
+    if (CLOSE == evt.getHeader(TYPE)) {                    
+        if (stream.closed) {
+            await po.send(response.setBody(false));
+        } else {
+            await po.send(response.setBody(true));
+            stream.close();
+        }                                            
+    }    
+}
+
 export class ObjectStreamIO {
-    private streamIn: string;
-    private streamOut: string;
+    private readonly streamIn: string;
+    private readonly streamOut: string;
 
     /**
      * Create an object stream
@@ -154,7 +176,7 @@ export class ObjectStreamIO {
  * Use this to connect to an output object stream
  */
 export class ObjectStreamWriter {
-    private streamOut: string;
+    private readonly streamOut: string;
 
     /**
      * Create an output stream
@@ -200,8 +222,8 @@ export class ObjectStreamWriter {
  * Use this to connect to an input object stream
  */
 export class ObjectStreamReader {
-    private streamIn: string;
-    private timeout: number;
+    private readonly streamIn: string;
+    private readonly timeout: number;
     private eof = false;
 
     /**
@@ -285,8 +307,7 @@ class StreamPublisher implements Composable {
                     stream.touch();
                     stream.write_count++;
                     const filename = TEMP_DIR + '/' + stream.id + '-' + stream.write_count;
-                    // Let "writeFile" to run asynchronously. DO NOT use 'await' as it has unintended side-effect.
-                    fs.promises.writeFile(filename, b);
+                    await fs.promises.writeFile(filename, b);
                     return true;
                 }
             }
@@ -309,22 +330,7 @@ class StreamConsumer implements Composable {
             const id = getIdFromRoute(evt.getHeader('my_route'));
             const stream = streams.get(id);
             if (stream) {
-                const response = new EventEnvelope().setTo(replyTo).setCorrelationId(cid);
-                if (READ == evt.getHeader(TYPE)) {
-                    if (stream.eof_read) {
-                        await po.send(response.setHeader(TYPE, END_OF_STREAM));
-                    } else {
-                        await fetchNextBlock(replyTo, cid, stream, readTimeout);
-                    }
-                }
-                if (CLOSE == evt.getHeader(TYPE)) {                    
-                    if (stream.closed) {
-                        await po.send(response.setBody(false));
-                    } else {
-                        await po.send(response.setBody(true));
-                        stream.close();
-                    }                                            
-                }
+                await handleStreamConsumer(evt, cid, readTimeout, replyTo, stream);
             }
         }
         return null;

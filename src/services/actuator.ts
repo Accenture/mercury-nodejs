@@ -17,7 +17,13 @@ const TEXT_PLAIN = "text/plain";
 const TYPE = 'type';
 const INFO = 'info';
 const HEALTH = 'health';
+const INFO_SERVICE = "info.actuator.service";
+const ROUTE_SERVICE = "routes.actuator.service";
+const HEALTH_SERVICE = "health.actuator.service";
+const LIVENESS_SERVICE = "liveness.actuator.service";
+const ENV_SERVICE = "env.actuator.service";
 
+let loaded = false;
 let appName: string;
 let appVersion: string;
 let appDesc: string;
@@ -28,21 +34,34 @@ const util = new Utility();
 const registry = FunctionRegistry.getInstance();
 const numberFormatter = new Intl.NumberFormat('en-us');
 
+async function sendResponse(myRoute: string) {
+    if (INFO_SERVICE == myRoute) {
+        return await ActuatorServices.doInfo();
+    }
+    if (HEALTH_SERVICE == myRoute) {
+        return await ActuatorServices.doHealthChecks();
+    }
+    if (LIVENESS_SERVICE == myRoute) {
+        return new EventEnvelope().setHeader(CONTENT_TYPE, TEXT_PLAIN).setBody('OK');
+    }
+    if (ENV_SERVICE == myRoute) {
+        return await ActuatorServices.doEnv();
+    }
+    if (ROUTE_SERVICE == myRoute) {
+        return await ActuatorServices.doRoutes();
+    }  
+    throw new AppException(404, 'Resource not found');
+}
+
 /**
  * This is reserved for system use.
  * DO NOT use this directly in your application code.
  */
 export class ActuatorServices implements Composable {
-    static loaded = false;
-    static infoService = "info.actuator.service";
-    static routeService = "routes.actuator.service";
-    static healthService = "health.actuator.service";
-    static livenessService = "liveness.actuator.service";
-    static envService = "env.actuator.service";
     
     initialize(): Composable { 
-        if (!ActuatorServices.loaded) {
-            ActuatorServices.loaded = true;
+        if (!loaded) {
+            loaded = true;
             const platform = Platform.getInstance();
             const config = AppConfig.getInstance();
             appName = platform.getName();
@@ -62,22 +81,8 @@ export class ActuatorServices implements Composable {
             const myRoute = evt.getHeader('my_route');
             // interpret the incoming HTTP request
             const request = new AsyncHttpRequest(payload);
-            if (request && Object.keys(request.getHeaders()).length > 0) {
-                if (ActuatorServices.infoService == myRoute) {
-                    return await ActuatorServices.doInfo();
-                }
-                if (ActuatorServices.healthService == myRoute) {
-                    return await ActuatorServices.doHealthChecks();
-                }
-                if (ActuatorServices.livenessService == myRoute) {
-                    return new EventEnvelope().setHeader(CONTENT_TYPE, TEXT_PLAIN).setBody('OK');
-                }
-                if (ActuatorServices.envService == myRoute) {
-                    return await ActuatorServices.doEnv();
-                }
-                if (ActuatorServices.routeService == myRoute) {
-                    return await ActuatorServices.doRoutes();
-                }
+            if (request && 'GET' == request.getMethod() && Object.keys(request.getHeaders()).length > 0) {
+                return sendResponse(myRoute);
             }
         }
         throw new AppException(404, 'Resource not found');
@@ -120,14 +125,14 @@ export class ActuatorServices implements Composable {
         if (process) {
             for (const k of envVars) {
                 const v = process.env[k];
-                envKv[k] = v? v : "";
+                envKv[k] = v || "";
             }
         }
         result.setElement('env.environment', envKv);
         const propKv = {};
         for (const k of propVars) {
             const v = config.get(k);
-            propKv[k] = v? v : "";
+            propKv[k] = v ?? "";
         }
         result.setElement('env.properties', propKv);
         return new EventEnvelope().setHeader(CONTENT_TYPE, APPLICATION_JSON).setBody(result.getMap());

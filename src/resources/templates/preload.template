@@ -3,14 +3,12 @@
  */
 import fs from 'fs';
 import { fileURLToPath } from "url";
-import { Logger, Utility, MultiLevelMap, AppConfig, Platform, PostOffice, Sender, RestAutomation, EventScriptEngine, EventEnvelope } from 'mercury-composable';
-// import composable functions
+import { Logger, Utility, AppConfig, Platform, RestAutomation, EventScriptEngine } from 'mercury-composable';
 ${import-statements}
-
-const FLOW_PROTOCOL = 'flow://';
+//
 const log = Logger.getInstance();
 const util = new Utility();
-
+//
 function getRootFolder() {
     const folder = fileURLToPath(new URL("..", import.meta.url));
     // for windows OS, convert backslash to regular slash and drop drive letter from path
@@ -18,10 +16,10 @@ function getRootFolder() {
     const colon = path.indexOf(':');
     return colon == 1? path.substring(colon+1) : path;
 }
-
+//
 export class ComposableLoader {
     private static loaded = false;
-
+    //
     static async initialize(serverPort?: number, isUnitTest = false) {
         // execute only once
         if (!ComposableLoader.loaded) {
@@ -56,30 +54,6 @@ export class ComposableLoader {
                 if ('true' == config.getProperty('rest.automation')) {
                     const server = RestAutomation.getInstance();
                     await server.start();
-                }
-                const mainApps = config.get('modules.autostart');
-                if (Array.isArray(mainApps)) {
-                    const po = new PostOffice(new Sender('modules.autostart', util.getUuid(), 'START /modules'));
-                    for (let i=0; i < mainApps.length; i++) {
-                        const svc = config.getProperty(`modules.autostart[${i}]`);
-                        try {
-                            log.info(`Starting module: ${svc}`);
-                            if (svc.startsWith(FLOW_PROTOCOL) && svc.length > FLOW_PROTOCOL.length) {
-                                const flowId = svc.substring(FLOW_PROTOCOL.length);
-                                var dataset = new MultiLevelMap();
-                                dataset.setElement('body.type', 'start');
-                                dataset.setElement('header.type', 'start');
-                                const flowService = new EventEnvelope();
-                                flowService.setTo('event.script.manager').setHeader('flow_id', flowId);
-                                flowService.setCorrelationId(util.getUuid()).setBody(dataset.getMap());
-                                po.send(flowService);
-                            } else {
-                                po.send(new EventEnvelope().setTo(svc).setHeader('type', 'start'));
-                            }
-                        } catch (e) {
-                            log.error(`Unable to start module '${svc}' - ${e.message}`);
-                        }
-                    }
                 }
                 // keep the server running
                 platform.runForever();

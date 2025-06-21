@@ -71,10 +71,11 @@ rest:
     cors: cors_1
     headers: header_1
 
-  - service: ["hello.custom.content.type"]
+  - service: ["hello.custom.content.type", "hello.world"]
     methods: ['POST']
     url: "/api/hello/custom/content/type"
     timeout: 10s
+    tracing: true
 
   #
   # When service is a URL, it will relay the HTTP or HTTPS requests.
@@ -453,6 +454,13 @@ headers:
       # You may want to add cache-control to disable browser and CDN caching.
       # add: ["Cache-Control: no-cache, no-store", "Pragma: no-cache", "Expires: Thu, 01 Jan 1970 00:00:00 GMT"]
       #
+      keep:
+        - "Content-Length"
+        - "Content-Type"
+        - "X-Trace-Id"
+        - "expires"
+        - "demo"
+        - "x-demo"        
       add:
         - "Strict-Transport-Security: max-age=31536000"
         - "Cache-Control: no-cache, no-store"

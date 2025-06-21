@@ -22,7 +22,7 @@ export class Task {
     whileModelKey = null;
     constructor(service, functionRoute, execution) {
         this.service = service;
-        this.functionRoute = functionRoute == null ? service : functionRoute;
+        this.functionRoute = functionRoute ?? service;
         this.execution = execution;
     }
     reAssign(functionRoute) {

@@ -13,12 +13,26 @@ const TRACE = 'trace';
 const ANNOTATIONS = "annotations";
 const SERVICE = 'service';
 
+async function telemetry(metrics: object, payload: object, routeName: string) {
+    if (routeName && !ZERO_TRACING_FILTER.includes(routeName)) {
+        const dataset = {};
+        dataset[TRACE] = metrics;
+        if (ANNOTATIONS in payload) {
+            dataset[ANNOTATIONS] = payload[ANNOTATIONS];
+        }
+        log.always(dataset);
+        if (po.exists(DISTRIBUTED_TRACE_FORWARDER)) {
+            await po.send(new EventEnvelope().setTo(DISTRIBUTED_TRACE_FORWARDER).setBody(dataset));
+        }                
+    }    
+}
+
 /**
  * This is reserved for system use.
  * DO NOT use this directly in your application code.
  */
 export class DistributedTrace implements Composable {
-    static routeName = DISTRIBUTED_TRACING;
+    static readonly routeName = DISTRIBUTED_TRACING;
 
     initialize(): Composable {
         return this;
@@ -31,24 +45,12 @@ export class DistributedTrace implements Composable {
             if (payload && TRACE in payload) {
                 const metrics = payload[TRACE] as object;
                 const exception = metrics['exception'];
-                // for privacy, encoded binary data or non-standard error message is removed
+                // for privacy, encoded binary data or non-standard error message is masked
                 if (exception) {
                     metrics['exception'] = typeof exception == 'string'? exception : '***';
                 }                
                 const routeName = metrics[SERVICE];
-                if (routeName) {
-                    if (!ZERO_TRACING_FILTER.includes(routeName)) {
-                        const dataset = {};
-                        dataset[TRACE] = metrics;
-                        if (ANNOTATIONS in payload) {
-                            dataset[ANNOTATIONS] = payload[ANNOTATIONS];
-                        }
-                        log.always(dataset);
-                        if (po.exists(DISTRIBUTED_TRACE_FORWARDER)) {
-                            await po.send(new EventEnvelope().setTo(DISTRIBUTED_TRACE_FORWARDER).setBody(dataset));
-                        }
-                    }
-                }
+                await telemetry(metrics, payload, routeName);
             }
         }
         return null;

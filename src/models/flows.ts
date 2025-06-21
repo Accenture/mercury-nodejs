@@ -6,12 +6,12 @@ import { FlowInstance } from './flow_instance.js';
  * DO NOT use this directly in your application code.
  */
 export class Flows {
-    static allFlows = {};
-    static flowInstances = {};
+    static readonly allFlows = {};
+    static readonly flowInstances = {};
 
     static getFlow(id: string): Flow {
         const result = Flows.allFlows[id];
-        return result? result : null;
+        return result ?? null;
     }
 
     static getAllFlows(): string[] {
@@ -20,7 +20,7 @@ export class Flows {
 
     static getFlowInstance(id?: string): FlowInstance {
         const result = id? Flows.flowInstances[id] : null;
-        return result? result : null;
+        return result ?? null;
     }
 
     static flowExists(id: string): boolean {

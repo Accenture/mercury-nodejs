@@ -6,53 +6,30 @@ const log = Logger.getInstance();
 const util = new Utility();
 const MAIN_RESOURCES = "/src/resources";
 const TEST_RESOURCES = "/test/resources";
-const otherResources = new Array();
-let needToFindResources = true;
+function overrideRunTimeParameter(config) {
+    if (process) {
+        // override application parameters from command line arguments
+        const parameters = process.argv.filter(k => k.startsWith('-D') && k.substring(2).includes('='));
+        for (const param of parameters) {
+            const p = param.substring(2);
+            const sep = p.indexOf('=');
+            const k = p.substring(0, sep);
+            const v = p.substring(sep + 1);
+            if (k && v) {
+                config.set(k, v);
+            }
+        }
+    }
+}
 function resolveResource(configFile) {
-    let filePath;
     if (configFile.startsWith("classpath:")) {
         const appConfig = AppConfig.getInstance();
         const resourcePath = appConfig.getProperty('resource.path');
         const cp = util.normalizeFilePath(configFile.substring("classpath:".length));
         const classPath = cp.startsWith('/') ? cp : `/${cp}`;
-        filePath = resourcePath + classPath;
-        if (needToFindResources) {
-            needToFindResources = false;
-            if (resourcePath.endsWith(TEST_RESOURCES)) {
-                otherResources.push(resourcePath.substring(0, resourcePath.length - TEST_RESOURCES.length) + MAIN_RESOURCES);
-            }
-            const segments = util.split(resourcePath, "/");
-            if (segments.length > 2) {
-                let sb = '';
-                for (let i = 0; i < segments.length - 2; i++) {
-                    sb += '/' + segments[i];
-                }
-                const packages = appConfig.getProperty('web.component.scan');
-                if (packages) {
-                    const packageList = util.split(packages, ', ');
-                    for (const p of packageList) {
-                        otherResources.push(sb + '/node_modules/' + p + '/dist/resources');
-                    }
-                }
-            }
-        }
+        const filePath = resourcePath + classPath;
         const result = getResourceFilePath(filePath);
-        if (result) {
-            return result;
-        }
-        else {
-            // try other resources
-            if (otherResources) {
-                for (const f of otherResources) {
-                    const alternative = getResourceFilePath(f + classPath);
-                    if (alternative) {
-                        log.info(`Found resource ${alternative}`);
-                        return alternative;
-                    }
-                }
-            }
-            return null;
-        }
+        return result || getOtherResource(classPath);
     }
     else if (configFile.startsWith("file:")) {
         return getResourceFilePath(configFile.substring("file:".length));
@@ -60,6 +37,39 @@ function resolveResource(configFile) {
     else {
         return getResourceFilePath(configFile);
     }
+}
+function getOtherResource(classPath) {
+    const appConfig = AppConfig.getInstance();
+    const resourcePath = appConfig.getProperty('resource.path');
+    // try other resources
+    const otherResources = new Array();
+    if (resourcePath.endsWith(TEST_RESOURCES)) {
+        otherResources.push(resourcePath.substring(0, resourcePath.length - TEST_RESOURCES.length) + MAIN_RESOURCES);
+    }
+    const segments = util.split(resourcePath, "/");
+    if (segments.length > 2) {
+        let sb = '';
+        for (let i = 0; i < segments.length - 2; i++) {
+            sb += '/' + segments[i];
+        }
+        const packages = appConfig.getProperty('web.component.scan');
+        if (packages) {
+            const packageList = util.split(packages, ', ');
+            for (const p of packageList) {
+                otherResources.push(sb + '/node_modules/' + p + '/dist/resources');
+            }
+        }
+    }
+    if (otherResources) {
+        for (const f of otherResources) {
+            const alternative = getResourceFilePath(f + classPath);
+            if (alternative) {
+                log.info(`Found resource ${alternative}`);
+                return alternative;
+            }
+        }
+    }
+    return null;
 }
 function getResourceFilePath(filePath) {
     if (fs.existsSync(filePath)) {
@@ -78,6 +88,38 @@ function getResourceFilePath(filePath) {
     // file not found
     return null;
 }
+function loadConfigResource(configResource, isBaseConfig) {
+    if (configResource.constructor == Object) {
+        if (isBaseConfig) {
+            throw new Error('Base configuration must be a resource file');
+        }
+        else {
+            return new MultiLevelMap(configResource).normalizeMap();
+        }
+    }
+    else if (typeof configResource == 'string') {
+        return loadConfigFromFile(configResource, isBaseConfig);
+    }
+    else {
+        log.error(`Configuration not loaded because config resource is not a file path or a JSON object`);
+        return new MultiLevelMap();
+    }
+}
+function loadConfigFromFile(configResource, isBaseConfig) {
+    if (configResource.endsWith('.yaml') || configResource.endsWith('.yml')) {
+        const filePath = isBaseConfig ? getResourceFilePath(configResource) : resolveResource(configResource);
+        if (!filePath) {
+            throw new Error(`${configResource} not found`);
+        }
+        if (util.isDirectory(filePath)) {
+            throw new Error('Config file must not be a directory');
+        }
+        return util.loadYamlFile(filePath);
+    }
+    else {
+        throw new Error('Config file must use .yml or .yaml extension');
+    }
+}
 export class AppConfig {
     static singleton;
     static reader;
@@ -90,39 +132,31 @@ export class AppConfig {
                 if (!util.isDirectory(resourcePath)) {
                     throw new Error(`Not a resources folder - ${resourcePath}`);
                 }
-                AppConfig.reader = new ConfigReader(resourcePath + '/application.yml', true);
-                // save file path
-                AppConfig.reader.set('resource.path', resourcePath);
-                // save version from version.txt in the "resources" folder
-                const versionFile = `${resourcePath}/version.txt`;
-                if (fs.existsSync(versionFile)) {
-                    const version = fs.readFileSync(versionFile, { encoding: 'utf-8', flag: 'r' });
-                    if (version) {
-                        AppConfig.reader.set('info.app.version', version.trim());
-                    }
-                }
+                this.setResourcePath(resourcePath);
             }
             else {
                 throw new Error('Unable to start configuration management. Did you forget to provide a resource folder path?');
             }
         }
     }
+    setResourcePath(resourcePath) {
+        AppConfig.reader = new ConfigReader(resourcePath + '/application.yml', true);
+        // save file path
+        AppConfig.reader.set('resource.path', resourcePath);
+        // save version from version.txt in the "resources" folder
+        const versionFile = `${resourcePath}/version.txt`;
+        if (fs.existsSync(versionFile)) {
+            const version = fs.readFileSync(versionFile, { encoding: 'utf-8', flag: 'r' });
+            if (version) {
+                AppConfig.reader.set('info.app.version', version.trim());
+            }
+        }
+    }
     static getInstance(resourcePath) {
         if (AppConfig.singleton === undefined) {
             AppConfig.singleton = new AppConfig(resourcePath);
-            if (process) {
-                // override application parameters from command line arguments
-                const parameters = process.argv.filter(k => k.startsWith('-D') && k.substring(2).includes('='));
-                for (const param of parameters) {
-                    const p = param.substring(2);
-                    const sep = p.indexOf('=');
-                    const k = p.substring(0, sep);
-                    const v = p.substring(sep + 1);
-                    if (k && v) {
-                        AppConfig.reader.set(k, v);
-                    }
-                }
-            }
+            // scan for "-D" run-time parameter overrides
+            overrideRunTimeParameter(AppConfig.reader);
             log.setLevel(AppConfig.reader.getProperty('log.level', 'info'));
             // set log format: text, json, compact
             const logFormat = AppConfig.reader.getProperty('log.format', 'text');
@@ -145,8 +179,8 @@ export class ConfigReader {
     static self;
     config;
     loopDetection = new Map();
-    resolved = false;
     id;
+    resolved = false;
     /**
      * Create an instance of a ConfigReader
      *
@@ -170,39 +204,7 @@ export class ConfigReader {
             this.id = util.getUuid();
         }
         if (configResource) {
-            if (configResource.constructor == Object) {
-                if (isBaseConfig) {
-                    throw new Error('Base configuration must be a resource file');
-                }
-                else {
-                    this.config = new MultiLevelMap(configResource).normalizeMap();
-                }
-            }
-            else if (typeof configResource == 'string') {
-                if (configResource.endsWith('.yaml') || configResource.endsWith('.yml')) {
-                    let filePath;
-                    if (isBaseConfig) {
-                        filePath = getResourceFilePath(configResource);
-                    }
-                    else {
-                        filePath = resolveResource(configResource);
-                    }
-                    if (!filePath) {
-                        throw new Error(`${configResource} not found`);
-                    }
-                    if (util.isDirectory(filePath)) {
-                        throw new Error('Config file must not be a directory');
-                    }
-                    this.config = util.loadYamlFile(filePath);
-                }
-                else {
-                    throw new Error('Config file must use .yml or .yaml extension');
-                }
-            }
-            else {
-                log.error(`Configuration not loaded because config resource is not a file path or a JSON object`);
-                this.config = new MultiLevelMap();
-            }
+            this.config = loadConfigResource(configResource, isBaseConfig);
             this.resolveEnvVars();
         }
         else {
@@ -241,7 +243,7 @@ export class ConfigReader {
      * @returns value of the item
      */
     get(key, defaultValue = null, loop) {
-        const hasKey = key ? true : false;
+        const hasKey = !!key;
         if (!hasKey) {
             return null;
         }
@@ -253,29 +255,32 @@ export class ConfigReader {
             if (result.lastIndexOf('${') != -1) {
                 const segments = this.extractSegments(result);
                 segments.reverse();
-                let start = 0;
-                let sb = '';
-                for (const i in segments) {
-                    const s = segments[i];
-                    const middle = result.substring(s.start + 2, s.end - 1).trim();
-                    const evaluated = this.performEnvVarSubstitution(key, middle, defaultValue, loop);
-                    const heading = result.substring(start, s.start);
-                    if (heading) {
-                        sb += heading;
-                    }
-                    if (evaluated) {
-                        sb += evaluated;
-                    }
-                    start = s.end;
-                }
-                const lastSegment = result.substring(start);
-                if (lastSegment) {
-                    sb += lastSegment;
-                }
-                return sb ? sb : null;
+                return this.checkEnvVariables(key, segments, result, defaultValue, loop);
             }
         }
         return result;
+    }
+    checkEnvVariables(key, segments, result, defaultValue, loop) {
+        let start = 0;
+        let sb = '';
+        for (const i in segments) {
+            const s = segments[i];
+            const middle = result.substring(s.start + 2, s.end - 1).trim();
+            const evaluated = this.performEnvVarSubstitution(key, middle, defaultValue, loop);
+            const heading = result.substring(start, s.start);
+            if (heading) {
+                sb += heading;
+            }
+            if (evaluated) {
+                sb += evaluated;
+            }
+            start = s.end;
+        }
+        const lastSegment = result.substring(start);
+        if (lastSegment) {
+            sb += lastSegment;
+        }
+        return sb || null;
     }
     /**
      * Retrieve a key-value where value is enforced as a string
@@ -314,27 +319,14 @@ export class ConfigReader {
             this.resolved = true;
             // normalize the dataset first            
             const flat = this.config.getFlatMap();
-            const keys = Object.keys(flat).sort();
+            const keys = Object.keys(flat).sort((a, b) => a.localeCompare(b));
             const dataset = new MultiLevelMap();
             keys.forEach(k => {
                 dataset.setElement(k, flat[k]);
             });
             this.config.reload(dataset.getMap());
-            // Resolve environment variables and references to system properties
-            let found = false;
-            for (const k of keys) {
-                const v = flat[k];
-                if (typeof v == 'string') {
-                    const start = v.indexOf("${");
-                    const end = v.indexOf('}');
-                    if (start != -1 && end != -1 && end > start) {
-                        found = true;
-                        break;
-                    }
-                }
-            }
-            // if found, reload configuration
-            if (found) {
+            // reload configuration if there are environment variables
+            if (this.hasEnvVars(keys, flat)) {
                 const mm = new MultiLevelMap();
                 for (const k of keys) {
                     mm.setElement(k, this.get(k));
@@ -342,6 +334,21 @@ export class ConfigReader {
                 this.reload(mm);
             }
         }
+    }
+    hasEnvVars(keys, flat) {
+        let found = false;
+        for (const k of keys) {
+            const v = flat[k];
+            if (typeof v == 'string') {
+                const start = v.indexOf("${");
+                const end = v.indexOf('}');
+                if (start != -1 && end != -1 && end > start) {
+                    found = true;
+                    break;
+                }
+            }
+        }
+        return found;
     }
     extractSegments(original) {
         const result = [];
@@ -365,7 +372,7 @@ export class ConfigReader {
     performEnvVarSubstitution(key, text, defaultValue = null, loop) {
         if (text) {
             let middleDefault = null;
-            const loopId = String(loop ? loop : util.getUuid());
+            const loopId = String(loop || util.getUuid());
             const colon = text.lastIndexOf(':');
             if (colon > 0) {
                 middleDefault = text.substring(colon + 1);
@@ -376,23 +383,26 @@ export class ConfigReader {
             }
             else {
                 const refs = this.loopDetection.has(loopId) ? this.loopDetection.get(loopId) : [];
-                if (refs.includes(text)) {
-                    log.warn(`Config loop for '${key}' detected`);
-                    text = '';
-                }
-                else {
-                    refs.push(text);
-                    this.loopDetection.set(loopId, refs);
-                    // "self" points to the base configuration
-                    const mid = ConfigReader.self.get(text, defaultValue, loopId);
-                    text = mid ? String(mid) : null;
-                }
+                text = this.avoidConfigLoop(key, refs, text, defaultValue, loopId);
             }
             this.loopDetection.delete(loopId);
-            return text ? text : middleDefault;
+            return text || middleDefault;
         }
         else {
             return defaultValue ? String(defaultValue) : null;
+        }
+    }
+    avoidConfigLoop(key, refs, text, defaultValue, loopId) {
+        if (refs.includes(text)) {
+            log.warn(`Config loop for '${key}' detected`);
+            return '';
+        }
+        else {
+            refs.push(text);
+            this.loopDetection.set(loopId, refs);
+            // "self" points to the base configuration
+            const mid = ConfigReader.self.get(text, defaultValue, loopId);
+            return mid ? String(mid) : null;
         }
     }
 }

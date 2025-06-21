@@ -43,9 +43,7 @@ let self: RestEntry;
 export class RoutingEntry {
 
     constructor() {
-        if (self === undefined) {
-            self = RestEntry.getInstance();
-        }
+        self ??= RestEntry.getInstance();
     }
 
     load(config: ConfigReader): void {
@@ -58,17 +56,17 @@ export class RoutingEntry {
 
     getRequestHeaderInfo(id: string): HeaderInfo {
         const result = self.getRequestHeaderInfo(id);
-        return result? result : null;
+        return result || null;
     }
 
     getResponseHeaderInfo(id: string): HeaderInfo {
         const result = self.getResponseHeaderInfo(id);
-        return result? result : null;
+        return result || null;
     }
 
     getCorsInfo(id: string): CorsInfo {
         const result = self.getCorsInfo(id);
-        return result? result : null;
+        return result || null;
     }
 
 }
@@ -107,7 +105,7 @@ export class RouteInfo {
     
     getAuthService(headerKey: string, headerValue = '*'): string {
         const result = this.authServices.get(headerKey.toLowerCase()+':'+headerValue);
-        return result? result : null;
+        return result || null;
     }
 
     setAuthService(headerKey: string, headerValue: string, service: string): void {
@@ -152,20 +150,17 @@ export class HeaderInfo {
 
 class RestEntry {
     private static instance: RestEntry;
-
-    private requestHeaderInfo = new Map<string, HeaderInfo>();
-    private responseHeaderInfo = new Map<string, HeaderInfo>();
-    private corsConfig = new Map<string, CorsInfo>();
-    private exactRoutes = new Map<string, boolean>();
-    private routes = new Map<string, RouteInfo>();
-    private urlPaths = new Array<string>();
+    private readonly requestHeaderInfo = new Map<string, HeaderInfo>();
+    private readonly responseHeaderInfo = new Map<string, HeaderInfo>();
+    private readonly corsConfig = new Map<string, CorsInfo>();
+    private readonly exactRoutes = new Map<string, boolean>();
+    private readonly routes = new Map<string, RouteInfo>();
+    private readonly urlPaths = new Array<string>();
 
     private constructor() {}
 
     static getInstance() {
-        if (RestEntry.instance === undefined) {
-            RestEntry.instance = new RestEntry();
-        }
+        RestEntry.instance ??= new RestEntry();
         return RestEntry.instance;
     }
 
@@ -202,35 +197,39 @@ class RestEntry {
             const rest = config.get(REST);
             if (Array.isArray(rest)) {
                 this.loadRest(config);
-                const exact = Array.from(this.exactRoutes.keys());
-                if (exact.length > 0) {
-                    const sortedPath = exact.sort();
-                    log.info({'type': 'url', 'match': 'exact', 'total': exact.length, 'path': sortedPath});
-                }
-                // sort URL for easy parsing
-                if (this.routes.size > 0) {
-                    const routeList = Array.from(this.routes.keys());
-                    routeList.forEach(r => {
-                        const colon = r.indexOf(':');
-                        if (colon > 0) {
-                            const urlOnly = r.substring(colon+1);
-                            if (!this.exactRoutes.has(urlOnly) && !this.urlPaths.includes(urlOnly)) {
-                                this.urlPaths.push(urlOnly);
-                            }
-                        }
-                    });
-                }
-                if (this.urlPaths.length > 0) {
-                    const sortedPath = this.urlPaths.sort();
-                    log.info({'type': 'url', 'match': 'parameters', 'total': this.urlPaths.length, 'path': sortedPath});
-                } 
+                this.completed();
             } else {
                 log.error("'rest' section must be a list of endpoint entries (url, service, methods, timeout...)");
             }           
         }
     } 
 
-    loadHeaderTransform(config: ConfigReader, total: number): void {
+    private completed() {
+        const exact = Array.from(this.exactRoutes.keys());
+        if (exact.length > 0) {
+            const sorted = exact.slice().sort((a, b) => a.localeCompare(b));
+            log.info({'type': 'url', 'match': 'exact', 'total': exact.length, 'path': sorted});
+        }
+        // sort URL for easy parsing
+        if (this.routes.size > 0) {
+            const routeList = Array.from(this.routes.keys());
+            routeList.forEach(r => {
+                const colon = r.indexOf(':');
+                if (colon > 0) {
+                    const urlOnly = r.substring(colon+1);
+                    if (!this.exactRoutes.has(urlOnly) && !this.urlPaths.includes(urlOnly)) {
+                        this.urlPaths.push(urlOnly);
+                    }
+                }
+            });
+        }
+        if (this.urlPaths.length > 0) {
+            const sorted = this.urlPaths.slice().sort((a, b) => a.localeCompare(b));
+            log.info({'type': 'url', 'match': 'parameters', 'total': this.urlPaths.length, 'path': sorted});
+        } 
+    }
+
+    private loadHeaderTransform(config: ConfigReader, total: number): void {
         for (let i=0; i < total; i++) {            
             const id = config.getProperty(HEADERS+"["+i+"]."+ID);
             if (id != null) {
@@ -242,90 +241,105 @@ class RestEntry {
         }
     } 
 
-    loadHeaderEntry(config: ConfigReader, idx: number, isRequest: boolean): void {
+    private loadHeaderEntry(config: ConfigReader, idx: number, isRequest: boolean): void {
         const id = config.getProperty(HEADERS+"["+idx+"]."+ID);
         const type = isRequest? REQUEST : RESPONSE;
-        let addCount = 0;
-        let dropCount = 0;
-        let keepCount = 0;
+        const counters = new HeaderCounters();
         const info = new HeaderInfo();
         const addList = config.get(HEADERS+"["+idx+"]."+type+"."+ADD);
         if (Array.isArray(addList)) {
-            for (let j=0; j < addList.length; j++) {
-                let valid = false;
-                const kv = config.getProperty(HEADERS+"["+idx+"]."+type+"."+ADD+"["+j+"]", "null");
-                const colon = kv.indexOf(':');
-                if (colon > 0) {
-                    const k = kv.substring(0, colon).trim().toLowerCase();
-                    const v = kv.substring(colon+1).trim();
-                    if (k && v) {
-                        info.additionalHeaders.set(k, v);
-                        addCount++;
-                        valid = true;
-                    }                    
-                } 
-                if (!valid) {
-                    log.warn(`Skipping invalid header ${id} ${HEADERS}[${idx}].${type}.${ADD}`);
-                }
-            }
+            this.addHeaders(config, idx, type, info, addList, counters);
         }
         const dropList = config.get(HEADERS+"["+idx+"]."+type+"."+DROP);
         if (Array.isArray(dropList)) {
-            for (let j=0; j < dropList.length; j++) {
-                const key = config.getProperty(HEADERS+"["+idx+"]."+type+"."+DROP+"["+j+"]");
-                if (key) {
-                    info.dropHeaders.push(key);
-                    dropCount++;
-                }
-            }
+            this.dropHeaders(config, idx, type, info, dropList, counters);
         }
         const keepList = config.get(HEADERS+"["+idx+"]."+type+"."+KEEP);
         if (Array.isArray(keepList)) {
-            for (let j=0; j < keepList.length; j++) {
-                const key = config.getProperty(HEADERS+"["+idx+"]."+type+"."+KEEP+"["+j+"]");
-                if (key) {
-                    info.keepHeaders.push(key);
-                    keepCount++;
-                }
-            }
+            this.keepHeaders(config, idx, type, info, keepList, counters);
         }
         if (isRequest) {
             this.requestHeaderInfo.set(id, info);
         } else {
             this.responseHeaderInfo.set(id, info);
         }
-        log.info(`Loaded ${id}, ${type} headers, add=${addCount}, drop=${dropCount}, keep=${keepCount}`);
+        log.info(`Loaded ${id}, ${type} headers, add=${counters.addCount}, drop=${counters.dropCount}, keep=${counters.keepCount}`);
     }
 
-    loadCors(config: ConfigReader, total: number): void {
+    private addHeaders(config: ConfigReader, idx: number, type: string, info: HeaderInfo, addList: Array<string>, counters: HeaderCounters) {
+        const id = config.getProperty(HEADERS+"["+idx+"]."+ID);
+        for (let j=0; j < addList.length; j++) {
+            let valid = false;
+            const kv = config.getProperty(HEADERS+"["+idx+"]."+type+"."+ADD+"["+j+"]", "null");
+            const colon = kv.indexOf(':');
+            if (colon > 0) {
+                const k = kv.substring(0, colon).trim().toLowerCase();
+                const v = kv.substring(colon+1).trim();
+                if (k && v) {
+                    info.additionalHeaders.set(k, v);
+                    counters.addCount++;
+                    valid = true;
+                }                    
+            } 
+            if (!valid) {
+                log.warn(`Skipping invalid header ${id} ${HEADERS}[${idx}].${type}.${ADD}`);
+            }
+        }        
+    }
+
+    private dropHeaders(config: ConfigReader, idx: number, type: string, info: HeaderInfo, dropList: Array<string>, counters: HeaderCounters) {
+        for (let j=0; j < dropList.length; j++) {
+            const key = config.getProperty(HEADERS+"["+idx+"]."+type+"."+DROP+"["+j+"]");
+            if (key) {
+                info.dropHeaders.push(key);
+                counters.dropCount++;
+            }
+        }        
+    }
+
+    private keepHeaders(config: ConfigReader, idx: number, type: string, info: HeaderInfo, keepList: Array<string>, counters: HeaderCounters) {
+        for (let j=0; j < keepList.length; j++) {
+            const key = config.getProperty(HEADERS+"["+idx+"]."+type+"."+KEEP+"["+j+"]");
+            if (key) {
+                info.keepHeaders.push(key);
+                counters.keepCount++;
+            }
+        }       
+    }
+
+    private loadCors(config: ConfigReader, total: number): void {
         for (let i=0; i < total; i++) {
             const id = config.getProperty(CORS+"["+i+"]."+ID);
             const options = config.get(CORS+"["+i+"]."+OPTIONS);
             const headers = config.get(CORS+"["+i+"]."+HEADERS);
             if (id && Array.isArray(options) && Array.isArray(headers)) {
                 if (this.validCorsList(options) && this.validCorsList(headers)) {
-                    const info = new CorsInfo();
-                    for (let j=0; j < options.length; j++) {
-                        info.addOption(config.getProperty(CORS + "[" + i + "]." + OPTIONS + "[" + j + "]"));
-                    }
-                    for (let j=0; j < headers.length; j++) {
-                        info.addHeader(config.getProperty(CORS + "[" + i + "]." + HEADERS + "[" + j + "]"));
-                    }
-                    this.corsConfig.set(id, info);
-                    log.info(`Loaded ${id} cors headers (${info.getOrigin(false)})`);
-
+                    this.parseCors(config, i);
                 } else {
                     log.error(`Skipping invalid cors entry id=${id}, options=${options}, headers=${headers}`);
                 }
-
             } else {
                 log.error(`Skipping invalid cors definition ${config.get(CORS+"["+i+"]")}`);
             }
         }
-
     }
 
-    validCorsList(list: Array<string>): boolean {
+    private parseCors(config: ConfigReader, i: number) {
+        const id = config.getProperty(CORS+"["+i+"]."+ID);
+        const options = config.get(CORS+"["+i+"]."+OPTIONS);
+        const headers = config.get(CORS+"["+i+"]."+HEADERS);
+        const info = new CorsInfo();
+        for (let j=0; j < options.length; j++) {
+            info.addOption(config.getProperty(CORS + "[" + i + "]." + OPTIONS + "[" + j + "]"));
+        }
+        for (let j=0; j < headers.length; j++) {
+            info.addHeader(config.getProperty(CORS + "[" + i + "]." + HEADERS + "[" + j + "]"));
+        } 
+        this.corsConfig.set(id, info);
+        log.info(`Loaded ${id} cors headers (${info.getOrigin(false)})`);       
+    }
+
+    private validCorsList(list: Array<string>): boolean {
         for (const entry of list) {
             if (typeof entry == 'string') {
                 if (!this.validCorsElement(entry)) {
@@ -339,7 +353,7 @@ class RestEntry {
         return true;
     }
 
-    validCorsElement(element: string): boolean {
+    private validCorsElement(element: string): boolean {
         if (!element.startsWith(ACCESS_CONTROL_PREFIX)) {
             log.error(`cors header must start with ${ACCESS_CONTROL_PREFIX}, actual: ${element}`);
             return false;
@@ -358,7 +372,7 @@ class RestEntry {
         }
     }
 
-    loadRest(config: ConfigReader): void {
+    private loadRest(config: ConfigReader): void {
         this.addDefaultEndpoints(config);
         const rest = config.get(REST);
         const total = rest.length;
@@ -374,7 +388,7 @@ class RestEntry {
                 log.error(`Skip invalid REST entry ${config.get(REST+"["+i+"]")}`);
             }
         }
-        keys.sort();
+        keys.sort((a, b) => a.localeCompare(b));
         // generate the sorted REST entries
         const mm = new MultiLevelMap();
         let n = 0;
@@ -389,12 +403,16 @@ class RestEntry {
             const methods = sortedConfig.get(REST+"["+i+"]."+METHODS);
             const url = sortedConfig.getProperty(REST+"["+i+"]."+URL_LABEL);
             if (url && Array.isArray(methods) && (typeof services == 'string' || Array.isArray(services))) {
-                this.loadRestEntry(sortedConfig, i, !url.includes("{") && !url.includes("}") && !url.includes("*"));
+                try {
+                    this.loadRestEntry(sortedConfig, i, !url.includes("{") && !url.includes("}") && !url.includes("*"));
+                } catch (e) {
+                    log.error(`Skip entry - ${e.message}`);                     
+                }                
             }
         }
     }
 
-    addDefaultEndpoints(config: ConfigReader) {
+    private addDefaultEndpoints(config: ConfigReader) {
         const defaultRest = util.loadYamlFile(util.getFolder("../resources/default-rest.yaml"));
         const defaultRestEntries = defaultRest.getElement(REST) as Array<object>;
         const defaultTotal = defaultRestEntries.length;
@@ -432,16 +450,14 @@ class RestEntry {
         }
     }
 
-    loadRestEntry(config: ConfigReader, idx: number, exact: boolean): void {
+    private loadRestEntry(config: ConfigReader, idx: number, exact: boolean): void {
         const info = new RouteInfo();
         const services = config.get(REST+"["+idx+"]."+SERVICE);
-        const methods = config.get(REST+"["+idx+"]."+METHODS) as Array<string>;
         let url = config.getProperty(REST+"["+idx+"]."+URL_LABEL).toLowerCase();
         try {
             info.services = this.validateServiceList(services);
         } catch (e) {
-            log.error(`Skipping entry ${config.get(REST+"["+idx+"]")} - ${e.message}`);
-            return;
+            throw new Error(`${config.get(REST+"["+idx+"]")} - ${e.message}`);
         }
         info.primary = info.services[0];
         const flowId = config.getProperty(REST+"["+idx+"]."+FLOW);
@@ -452,57 +468,7 @@ class RestEntry {
         if (upload) {
             info.upload = upload.toLowerCase() == 'true';
         }
-        const authConfig = config.get(REST+"["+idx+"]."+AUTHENTICATION);
-        // authentication: "v1.api.auth"
-        if (typeof authConfig == 'string') {
-            if (util.validRouteName(authConfig)) {
-                info.defaultAuthService = authConfig;
-            } else {
-                log.error(`Skipping entry with invalid authentication service name ${config.get(REST+"["+idx+"]")}`);
-                return;
-            }
-        }
-        /*
-            authentication:
-            - "x-app-name: demo : v1.demo.auth"
-            - "authorization: v1.basic.auth"
-            - "default: v1.api.auth"
-         */
-        if (Array.isArray(authConfig)) {
-            for (const entry of authConfig) {
-                let valid = false;
-                const authEntry = String(entry);
-                const parts = authEntry.split(':').filter(k => k.trim().length > 0);
-                if (parts.length == 2) {
-                    const authHeader = parts[0].trim();
-                    const authService = parts[1].trim();
-                    if (util.validRouteName(authService)) {
-                        if ("default" == authHeader) {
-                            info.defaultAuthService = authService;
-                        } else {
-                            info.setAuthService(authHeader, "*", authService);
-                        }
-                        valid = true;
-                    }
-                } else if (parts.length == 3) {
-                    const authHeader = parts[0].trim();
-                    const authValue = parts[1].trim();
-                    const authService = parts[2].trim();
-                    if (util.validRouteName(authService)) {
-                        info.setAuthService(authHeader, authValue, authService);
-                        valid = true;
-                    }
-                }
-                if (!valid) {
-                    log.error(`Skipping entry with invalid authentication service name ${config.get(REST+"["+idx+"]")}`);
-                    return;
-                }
-            }
-            if (info.defaultAuthService == null) {
-                log.error(`Skipping entry because it is missing default authentication service ${config.get(REST+"["+idx+"]")}`);
-                return;
-            }
-        }
+        this.validateAuthConfig(config, idx, info);
         const tracing = config.getProperty(REST+"["+idx+"]."+TRACING);
         if (tracing == 'true') {
             info.tracing = true;
@@ -517,101 +483,154 @@ class RestEntry {
             if (this.corsConfig.has(corsId)) {
                 info.corsId = corsId;
             } else {
-                log.error(`Skipping invalid entry because cors ID ${corsId} is not found, ${config.get(REST+"["+idx+"]")}`);
-                return;
+                throw new Error(`cors ID ${corsId} not found, ${config.get(REST+"["+idx+"]")}`);
             }
         }
         const headerId = config.getProperty(REST+"["+idx+"]."+HEADERS);
         if (headerId) {
-            let foundTransform = false;
-            if (this.requestHeaderInfo.has(headerId)) {
-                info.requestTransformId = headerId;
-                foundTransform = true;
-            }
-            if (this.responseHeaderInfo.has(headerId)) {
-                info.responseTransformId = headerId;
-                foundTransform = true;
-            }
-            if (!foundTransform) {
-                log.error(`Skipping invalid entry because headers ID ${headerId} is not found, ${config.get(REST+"["+idx+"]")}`);
-                return;
-            }
+            this.validateHeaderTransformers(config, idx, headerId, info);
         }
         if (info.primary.startsWith(HTTP) || info.primary.startsWith(HTTPS)) {
-            const rewrite = config.get(REST+"["+idx+"]."+URL_REWRITE);
-            // URL rewrite
-            if (Array.isArray(rewrite)) {
-                if (rewrite.length == 2) {
-                    info.urlRewrite = rewrite;
-                } else {                    
-                    log.error(`Skipping entry with invalid ${URL_REWRITE} - ${rewrite}. It should contain a list of 2 prefixes`);
-                    return;
-                }
-            } else {
-                log.error(`Skipping entry with invalid ${URL_REWRITE} - ${rewrite}, expected: List<String>`);
-                return;
-            }
-            try {
-                const u = new URL(info.primary);
-                if (u.pathname != '/') {
-                    log.error(`Skipping entry with invalid service URL ${info.primary} - Must not contain path`);
-                    return;
-                }
-                if (u.search) {
-                    log.error(`Skipping entry with invalid service URL ${info.primary} - Must not contain query`);
-                    return;
-                }
-                const trustAll = config.getProperty(REST+"["+idx+"]."+TRUST_ALL_CERT);
-                if (info.primary.startsWith(HTTPS) && 'true' == trustAll) {
-                    info.trustAllCert = true;
-                    log.warn(`Be careful - ${TRUST_ALL_CERT}=true for ${info.primary}`);
-                }
-                if (info.primary.startsWith(HTTP) && trustAll != null) {
-                    log.warn(`${TRUST_ALL_CERT}=true for ${info.primary} is not relevant - Do you meant https?`);
-                }
-                // set primary to ASYNC_HTTP_REQUEST
-                info.host = info.primary;
-                info.primary = ASYNC_HTTP_REQUEST;
-
-            } catch (e) {
-                log.error(`Skipping entry with invalid service URL ${info.primary} - ${e.message}`);
-                return;
-            }
-
+            this.parseUrlRewrite(config, idx, info);
         } else {
             const trustAll = config.getProperty(REST+"["+idx+"]."+TRUST_ALL_CERT);
             if (trustAll) {
                 log.warn(`${TRUST_ALL_CERT} parameter for ${info.primary} is not relevant for regular service`);
             }
-        }
-        if (this.validMethods(methods)) {
-            info.methods = methods;
-            if (exact) {
-                this.exactRoutes.set(url, true);
-            }
-            const nUrl = this.getUrl(url, exact);
-            if (nUrl) {
-                info.url = nUrl;
-                const allMethods = new Set<string>(methods);
-                // ensure OPTIONS method is supported
-                allMethods.add(OPTIONS_METHOD);
-                allMethods.forEach(m => {
-                    const key = m+':'+nUrl;
-                    this.routes.set(key, info);
-                    if (m != OPTIONS_METHOD) {
-                        const flowHint = info.flowId? `, flow=${info.flowId}` : '';
-                        if (info.defaultAuthService) {
-                            log.info(`${m} ${nUrl} -> ${info.defaultAuthService} -> ${info.services}, timeout=${info.timeoutSeconds}s, tracing=${info.tracing}${flowHint}`);
-                        } else {
-                            log.info(`${m} ${nUrl} -> ${info.services}, timeout=${info.timeoutSeconds}s, tracing=${info.tracing}${flowHint}`);
-                        }
-                    }
-                });
+        }    
+        this.parseMethods(config, idx, info, url, exact);        
+    }
+
+    private validateAuthConfig(config: ConfigReader, idx: number, info: RouteInfo) {
+        const authConfig = config.get(REST+"["+idx+"]."+AUTHENTICATION);        
+        if (typeof authConfig == 'string') {
+            // authentication: "v1.api.auth"
+            if (util.validRouteName(authConfig)) {
+                info.defaultAuthService = authConfig;
             } else {
-                log.error(`Skipping invalid entry ${config.get(REST+"["+idx+"]")}`);
+                throw new Error(`invalid authentication service name ${config.get(REST+"["+idx+"]")}`);
+            }
+        }
+        if (Array.isArray(authConfig)) {
+            /*
+                authentication:
+                - "x-app-name: demo : v1.demo.auth"
+                - "authorization: v1.basic.auth"
+                - "default: v1.api.auth"
+            */                
+            for (const entry of authConfig) {
+                this.loadAuthConfig(config, idx, String(entry), info);
+            }
+            if (info.defaultAuthService == null) {
+                throw new Error(`missing default authentication service ${config.get(REST+"["+idx+"]")}`);
+            }
+        }        
+    }
+
+    private validateHeaderTransformers(config: ConfigReader, idx: number, headerId: string, info: RouteInfo) {
+        let found = false;
+        if (this.requestHeaderInfo.has(headerId)) {
+            info.requestTransformId = headerId;
+            found = true;
+        }
+        if (this.responseHeaderInfo.has(headerId)) {
+            info.responseTransformId = headerId;
+            found = true;
+        }
+        if (!found) {
+            throw new Error(`headers ID ${headerId} not found, ${config.get(REST+"["+idx+"]")}`);
+        }
+    }
+
+    private parseMethods(config: ConfigReader, idx: number, info: RouteInfo, url: string, exact: boolean) {
+        const methods = config.get(REST+"["+idx+"]."+METHODS) as Array<string>;
+        if (!this.validMethods(methods)) {
+            throw new Error(`invalid method ${config.get(REST+"["+idx+"]")}`);
+        }
+        info.methods = methods;
+        if (exact) {
+            this.exactRoutes.set(url, true);
+        }
+        const nUrl = this.getUrl(url, exact);
+        if (nUrl) {
+            info.url = nUrl;
+            const allMethods = new Set<string>(methods);
+            // ensure OPTIONS method is supported
+            allMethods.add(OPTIONS_METHOD);
+            allMethods.forEach(m => {
+                const key = m+':'+nUrl;
+                this.routes.set(key, info);
+                if (m != OPTIONS_METHOD) {
+                    const flowHint = info.flowId? `, flow=${info.flowId}` : '';
+                    if (info.defaultAuthService) {
+                        log.info(`${m} ${nUrl} -> ${info.defaultAuthService} -> ${info.services}, timeout=${info.timeoutSeconds}s, tracing=${info.tracing}${flowHint}`);
+                    } else {
+                        log.info(`${m} ${nUrl} -> ${info.services}, timeout=${info.timeoutSeconds}s, tracing=${info.tracing}${flowHint}`);
+                    }
+                }
+            });
+        } else {
+            throw new Error(`invalid url ${config.get(REST+"["+idx+"]")}`);
+        }        
+    }
+
+    private parseUrlRewrite(config: ConfigReader, idx: number, info: RouteInfo) {
+        const rewrite = config.get(REST+"["+idx+"]."+URL_REWRITE);
+        // URL rewrite
+        if (Array.isArray(rewrite)) {
+            if (rewrite.length == 2) {
+                info.urlRewrite = rewrite;
+            } else {                    
+                throw new Error(`invalid ${URL_REWRITE} - ${rewrite}. It should contain a list of 2 prefixes`);
             }
         } else {
-            log.error(`Skipping entry with invalid method ${config.get(REST+"["+idx+"]")}`);
+            throw new Error(`invalid ${URL_REWRITE} - ${rewrite}, expected: List<String>`);
+        }
+        const u = new URL(info.primary);
+        if (u.pathname != '/') {
+            throw new Error(`invalid service URL ${info.primary} - Must not contain path`);
+        }
+        if (u.search) {
+            throw new Error(`invalid service URL ${info.primary} - Must not contain query`);
+        }
+        const trustAll = config.getProperty(REST+"["+idx+"]."+TRUST_ALL_CERT);
+        if (info.primary.startsWith(HTTPS) && 'true' == trustAll) {
+            info.trustAllCert = true;
+            log.warn(`Be careful - ${TRUST_ALL_CERT}=true for ${info.primary}`);
+        }
+        if (info.primary.startsWith(HTTP) && trustAll != null) {
+            log.warn(`${TRUST_ALL_CERT}=true for ${info.primary} is not relevant - Do you meant https?`);
+        }
+        // set primary to ASYNC_HTTP_REQUEST
+        info.host = info.primary;
+        info.primary = ASYNC_HTTP_REQUEST;
+    }
+
+    private loadAuthConfig(config: ConfigReader, idx: number, authEntry: string, info: RouteInfo) {
+        let valid = false;
+        const parts = authEntry.split(':').filter(k => k.trim().length > 0);
+        if (parts.length == 2) {
+            const authHeader = parts[0].trim();
+            const authService = parts[1].trim();
+            if (util.validRouteName(authService)) {
+                if ("default" == authHeader) {
+                    info.defaultAuthService = authService;
+                } else {
+                    info.setAuthService(authHeader, "*", authService);
+                }
+                valid = true;
+            }
+        } else if (parts.length == 3) {
+            const authHeader = parts[0].trim();
+            const authValue = parts[1].trim();
+            const authService = parts[2].trim();
+            if (util.validRouteName(authService)) {
+                info.setAuthService(authHeader, authValue, authService);
+                valid = true;
+            }
+        }
+        if (!valid) {
+            log.error(`Skipping entry with invalid authentication service name ${config.get(REST+"["+idx+"]")}`);
         }
     }
 
@@ -627,10 +646,10 @@ class RestEntry {
         if (methods.length == 0) {
             return false;
         }
-        for (let i=0; i < methods.length; i++) {
-            if (!VALID_METHODS.includes(methods[i])) {
+        for (const m of methods) {
+            if (!VALID_METHODS.includes(m)) {
                 return false;
-            }
+            }            
         }
         return true;
     }
@@ -641,18 +660,11 @@ class RestEntry {
         for (const s of parts) {
             result += '/';
             if (!exact) {
-                if (s.includes('{') && s.includes('}')) {
-                    if (s.includes('*')) {
-                        log.error(`wildcard url segment must not mix argument with *, actual ${s}`);
-                        return null;
-                    }
-                    if (!this.validArgument(s)) {
-                        log.error(`wildcard url segment must be enclosed with curly brackets, actual ${s}`);
-                        return null;
-                    }
-                }
                 if (s.includes("*") && !this.validWildcard(s)) {
                     log.error(`wildcard url segment must end with *, actual ${s}`);
+                    return null;
+                } else if (s.includes('{') && s.includes('}') && !this.validArgument(s)) {
+                    log.error(`invalid url path parameter inside curly brackets, actual ${s}`);
                     return null;
                 }
             }
@@ -663,6 +675,9 @@ class RestEntry {
 
     validArgument(arg: string): boolean {
         if (arg.startsWith('{') && arg.endsWith('}')) {
+            if (arg.includes('*')) {
+                return false;
+            }
             const v = arg.substring(1, arg.length - 1);
             if (v.length == 0) {
                 return false;
@@ -733,9 +748,7 @@ class RestEntry {
             for (const u of this.urlPaths) {
                 const assigned = this.getMatchedRoute(urlParts, method, u);
                 if (assigned != null) {
-                    if (similar == null) {
-                        similar = assigned;
-                    }
+                    similar ??= assigned;
                     // both URL path and method are correct
                     if (this.routes.has(method + ":" + u)) {
                         return assigned;
@@ -777,17 +790,12 @@ class RestEntry {
             if (segments.length > input.length) {
                 return false;
             }
-        } else {
-            if (segments.length != input.length) {
+        } else if (segments.length != input.length) {
                 return false;
-            }
         }
         for (let i=0; i < segments.length; i++) {
             const configuredItem = segments[i];
-            if (configuredItem.startsWith("{") && configuredItem.endsWith("}")) {
-                continue;
-            }
-            if ("*" == configuredItem) {
+            if ((configuredItem.startsWith("{") && configuredItem.endsWith("}")) || "*" == configuredItem) {
                 continue;
             }
             // case-insensitive comparison using lowercase
@@ -805,4 +813,10 @@ class RestEntry {
         }
         return true;
     }
+}
+
+class HeaderCounters {
+    addCount = 0;
+    dropCount = 0;
+    keepCount = 0;
 }

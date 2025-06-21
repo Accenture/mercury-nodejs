@@ -15,7 +15,7 @@ export class HttpToFlow {
     }
     async handleEvent(evt) {
         const cid = evt.getCorrelationId() ? evt.getCorrelationId() : util.getUuid();
-        const po = new PostOffice(evt.getHeaders());
+        const po = new PostOffice(evt);
         const self = po.getMyClass();
         try {
             await self.processRequest(po, evt, cid);

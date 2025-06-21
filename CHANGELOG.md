@@ -8,6 +8,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > *Note*: Some version numbers may be skipped to align feature set with the Java version.
 
 ---
+## Version 4.3.0, 6/21/2025
+
+### Added
+
+N/A
+
+### Removed
+
+N/A
+
+### Changed
+
+Comprehensive refactoring applies to both JavaScript and TypeScript in the whole project
+to comply with SonarQube's complexity recommendation of 15.
+
+Complex code blocks are decomposed into multiple smaller methods to improve readability.
+
+Singleton constructors are updated with the JavaScript's native double question mark
+to check for null and undefined value.
+
+Regression tests validated.
+
+---
 ## Version 4.2.46, 6/2/2025
 
 ### Added

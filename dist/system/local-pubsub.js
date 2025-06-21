@@ -12,7 +12,7 @@ class LocalPublisher {
         return this;
     }
     async handleEvent(evt) {
-        const po = new PostOffice(evt.getHeaders());
+        const po = new PostOffice(evt);
         const myTopic = evt.getHeader('my_route');
         const members = topics.get(myTopic);
         if (members && members.length > 0) {

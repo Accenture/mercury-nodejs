@@ -1,7 +1,7 @@
 export declare class Logger {
     private static instance;
-    private logger;
-    private logFormat;
+    private readonly logger;
+    private readonly logFormat;
     private constructor();
     static getInstance(): Logger;
     /**

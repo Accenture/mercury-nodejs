@@ -122,7 +122,7 @@ class DemoInterceptor implements Composable {
     const replyTo = evt.getReplyTo();
     if (replyTo) {
       log.info(`Interceptor ${myRoute} finds reply_to address as ${replyTo}`);
-      const po = new PostOffice(evt.getHeaders());
+      const po = new PostOffice(evt);
       const response = new EventEnvelope().setBody(evt.getBody()).setTo(replyTo).setCorrelationId(evt.getCorrelationId());
       const cid = evt.getCorrelationId();
       if (cid) {
@@ -203,9 +203,9 @@ class MyCallBackTwo implements Composable {
 }
 
 class TraceForwarder implements Composable {
-  static traceId = util.getUuid();
-  static tracePath = 'PUT /api/demo/test';
-  static traceStack: Array<object> = [];
+  static readonly traceId = util.getUuid();
+  static readonly tracePath = 'PUT /api/demo/test';
+  static readonly traceStack: Array<object> = [];
 
   initialize(): Composable {
     return this;
@@ -478,7 +478,7 @@ describe('post office use cases', () => {
     });
 
     it('can handle custom content type mapping', async () => {
-      const po = new PostOffice();
+      const po = new PostOffice(new Sender('unit.test', '80000', 'POST /api/hello/custom/content/type'));
       const req = new AsyncHttpRequest().setMethod('POST').setTargetHost(baseUrl).setUrl('/api/hello/custom/content/type')
                       .setHeader('content-type', 'application/json').setHeader('accept', 'application/json')
                       .setBody({'hello': 'world'});

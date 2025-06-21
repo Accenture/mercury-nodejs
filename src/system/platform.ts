@@ -2,7 +2,7 @@ import { performance } from 'perf_hooks';
 import { Logger } from '../util/logger.js';
 import { Utility } from '../util/utility.js';
 import { FunctionRegistry } from "./function-registry.js";
-import { PostOffice } from '../system/post-office.js';
+import { PostOffice, Sender } from '../system/post-office.js';
 import { RestAutomation } from '../system/rest-automation.js';
 import { DistributedTrace } from '../services/tracer.js';
 import { AsyncHttpClient } from '../services/async-http-client.js';
@@ -14,6 +14,7 @@ import { AppException } from '../models/app-exception.js';
 import { AppConfig, ConfigReader } from '../util/config-reader.js';
 import { ContentTypeResolver } from '../util/content-type-resolver.js';
 import { EventHttpResolver } from '../util/event-http-resolver.js';
+import { MultiLevelMap } from '../util/multi-level-map.js';
 import fs from 'fs';
 
 const log = Logger.getInstance();
@@ -22,19 +23,25 @@ const util = new Utility();
 const po = new PostOffice();
 const emitter = po.getEventEmitter();
 const handlers = po.getHandlers();
+const FLOW_PROTOCOL = 'flow://';
 const SIGNATURE = util.getUuid() + '/';
 const DISTRIBUTED_TRACING = 'distributed.tracing';
 const RPC = "rpc";
 const OBJECT_STREAM_MANAGER = "object.stream.manager";
 const REST_AUTOMATION_HOUSEKEEPER = "rest.automation.housekeeper";
 const TEMP_DIR = "/tmp/composable/node/temp-streams";
+const INFO_SERVICE = "info.actuator.service";
+const ROUTE_SERVICE = "routes.actuator.service";
+const HEALTH_SERVICE = "health.actuator.service";
+const LIVENESS_SERVICE = "liveness.actuator.service";
+const ENV_SERVICE = "env.actuator.service";
 
 let startTime: Date;
 let appName: string;
 let self: EventSystem;
 
 function subscribe(route: string, listener: (evt: EventEnvelope) => void): void {
-    const hasRoute = route? true : false;
+    const hasRoute = !!route;
     if (!hasRoute) {
         throw new Error('Missing route');
     }
@@ -47,7 +54,7 @@ function subscribe(route: string, listener: (evt: EventEnvelope) => void): void 
     if (worker != null && (worker.length == 0 || !util.isDigits(worker))) {
         throw new Error('Invalid route worker suffix');
     }
-    const hasListener = listener? true : false;
+    const hasListener = !!listener;
     if (!hasListener) {
         throw new Error('Missing listener');
     }
@@ -96,6 +103,58 @@ function ready() {
     log.info('To stop application, press Control-C');
 }
 
+async function startup() {
+    const config = AppConfig.getInstance();
+    const mainApps = config.get('modules.autostart');
+    if (Array.isArray(mainApps)) {
+        const trackablePo = new PostOffice(new Sender('modules.autostart', util.getUuid(), 'START /modules'));
+        for (let i=0; i < mainApps.length; i++) {
+            const svc = config.getProperty(`modules.autostart[${i}]`);
+            try {                
+                if (svc.startsWith(FLOW_PROTOCOL) && svc.length > FLOW_PROTOCOL.length) {
+                    const flowId = svc.substring(FLOW_PROTOCOL.length);
+                    const dataset = new MultiLevelMap();
+                    dataset.setElement('body.type', 'start');
+                    dataset.setElement('header.type', 'start');
+                    const flowService = new EventEnvelope();
+                    flowService.setTo('event.script.manager').setHeader('flow_id', flowId);
+                    flowService.setCorrelationId(util.getUuid()).setBody(dataset.getMap());
+                    log.info(`Autostart -> ${svc}`);
+                    await trackablePo.send(flowService);
+                } else if (trackablePo.exists(svc)) {
+                        log.info(`Autostart -> ${svc}`);
+                        await trackablePo.send(new EventEnvelope().setTo(svc).setHeader('type', 'start'));
+                    } else {
+                        log.error(`Autostart '${svc}' not reachable`);
+                    }
+            } catch (e) {
+                log.error(`Unable to start '${svc}' - ${e.message}`);
+            }
+        }
+    }
+}
+
+async function shutdown() {
+    const config = AppConfig.getInstance();
+    const mainApps = config.get('modules.autostop');
+    if (Array.isArray(mainApps)) {
+        const trackablePo = new PostOffice(new Sender('modules.autostop', util.getUuid(), 'STOP /modules'));
+        for (let i=0; i < mainApps.length; i++) {
+            const svc = config.getProperty(`modules.autostop[${i}]`);
+            if (trackablePo.exists(svc)) {
+                try {
+                    log.info(`Autostop -> ${svc}`);
+                    await trackablePo.request(new EventEnvelope().setTo(svc).setHeader('type', 'stop'));            
+                } catch (e) {
+                    log.error(`Unable to run module '${svc}' - ${e.message}`);
+                }
+            } else {
+                log.error(`Autostop '${svc}' not reachable`);
+            }
+        }
+    }
+}
+
 export class Platform {
     private static singleton: Platform;
 
@@ -112,9 +171,7 @@ export class Platform {
      * @returns instance
      */
     static getInstance(): Platform {
-        if (Platform.singleton === undefined) {
-            Platform.singleton = new Platform();
-        }
+        Platform.singleton ??= new Platform();
         return Platform.singleton;
     }
 
@@ -241,15 +298,15 @@ export class Platform {
 }
 
 class ServiceManager {
-    private route: string;
-    private isPrivate: boolean;
-    private interceptor: boolean;
-    private eventQueue = [];
-    private workers = [];
+    private readonly route: string;
+    private readonly isPrivate: boolean;
+    private readonly interceptor: boolean;
+    private readonly eventQueue = [];
+    private readonly workers = [];
 
     constructor(route: string, listener: object, instances=1, isPrivate=false, interceptor=false) {
-        const hasRoute = route? true : false;
-        const hasListener = listener? true : false;
+        const hasRoute = !!route;
+        const hasListener = !!listener;
         if (!hasRoute) {
             throw new Error('Missing route');
         }
@@ -290,7 +347,7 @@ class ServiceManager {
                 const result = listener(evt);
                 // The listener must implement Composable interface.
                 // Anything else will be ignored.
-                if (result && Object(result).constructor == Promise) {                    
+                if (Object(result).constructor == Promise) {                    
                     result.then(v => this.handleResult(workerRoute, utc, start, evt, v))
                           .catch(e => this.handleError(workerRoute, utc, evt, e));
                 }
@@ -341,6 +398,10 @@ class ServiceManager {
         }        
     } 
 
+    getRoute(): string {
+        return this.route;
+    }
+
     workerNotExists(w: string): boolean {
         for (const k in this.workers) {
             if (this.workers[k] == w) {
@@ -352,50 +413,19 @@ class ServiceManager {
 
     handleResult(workerRoute: string, utc: string, start: number, evt: EventEnvelope, response): void {     
         let traced = false;
-        const diff = parseFloat((performance.now() - start).toFixed(3));
+        const diff = Math.max(0, parseFloat((performance.now() - start).toFixed(3)));
         const replyTo = evt.getReplyTo();
         if (replyTo && !this.interceptor) {
             if (this.route == replyTo) {
                 log.error(`Response event dropped to avoid looping to ${replyTo}`);
+            } else if (po.exists(replyTo)) {
+                this.sendResponse(evt, response, diff);
             } else {
-                if (po.exists(replyTo)) {
-                    const result = response instanceof EventEnvelope? new EventEnvelope(response) : new EventEnvelope().setBody(response);                    
-                    result.setTo(replyTo).setReplyTo(null).setFrom(this.route);
-                    result.setExecTime(diff);
-                    if (evt.getCorrelationId()) {
-                        result.setCorrelationId(evt.getCorrelationId());
-                    }
-                    if (evt.getTraceId() && evt.getTracePath()) {
-                        result.setTraceId(evt.getTraceId()).setTracePath(evt.getTracePath());
-                    }
-                    result.setTags(evt.getTags());
-                    if ('temporary.inbox' == replyTo) {
-                        result.setAnnotations(evt.getAnnotations());
-                    } else {
-                        result.clearAnnotations();
-                    }
-                    po.send(result);
-                } else {
-                    // unable to deliver response
-                    if (evt.getTraceId() && evt.getTracePath()) {
-                        const metrics = {'origin': self.getOriginId(), 'id': evt.getTraceId(), 'path': evt.getTracePath(), 
-                                        'service': this.route, 'start': utc, 'success': false, 'exec_time': diff,
-                                        'status': 500, 'exception': 'Response not delivered - Route '+replyTo+' not found'};
-                        if (evt.getFrom()) {
-                            metrics['from'] = evt.getFrom();
-                        }
-                        const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACING).setBody({'trace': metrics});
-                        po.send(trace);
-                        traced = true;
-                    } else {
-                        const from = evt.getFrom()? evt.getFrom() : "unknown";
-                        log.error(`Delivery error - Reply route ${replyTo} not found, from=${from}, to=${this.route}, type=response, exec_time=${diff}`);
-                    }
-                }
+                traced = this.undeliveredResponse(evt, utc, diff);
             }
         }
         // send tracing information if needed
-        const isRequestResponse = evt.getTag(RPC)? true : false;
+        const isRequestResponse = !!evt.getTag(RPC);
         if (!traced && !isRequestResponse && evt.getTraceId() && evt.getTracePath()) {
             const metrics = {'origin': self.getOriginId(), 'id': evt.getTraceId(), 'path': evt.getTracePath(), 
                             'service': this.route, 'start': utc, 'success': true, 'exec_time': diff};
@@ -421,51 +451,21 @@ class ServiceManager {
     }
 
     handleError(workerRoute: string, utc: string, evt: EventEnvelope, e: AppException | Error): void {
-        let errorCode = 500;
+        const errorCode = e instanceof AppException? e.getStatus() : 500;
         let traced = false;
         const replyTo = evt.getReplyTo();
         if (replyTo) {
             if (this.route == replyTo) {
                 log.error(`Exception event dropped to avoid looping to ${replyTo}`);
+            } else if (po.exists(replyTo)) {
+                this.sendError(evt, e);
             } else {
-                if (po.exists(replyTo)) {
-                    const result = new EventEnvelope().setTo(replyTo).setFrom(this.route);
-                    if (evt.getCorrelationId()) {
-                        result.setCorrelationId(evt.getCorrelationId());
-                    }
-                    if (evt.getTraceId() && evt.getTracePath()) {
-                        result.setTraceId(evt.getTraceId()).setTracePath(evt.getTracePath());
-                    }
-                    result.setTags(evt.getTags());
-                    if (e instanceof AppException) {
-                        errorCode = e.getStatus();
-                    }
-                    po.send(result.setException(e));
-                } else {
-                    // unable to deliver response
-                    if (evt.getTraceId() && evt.getTracePath()) {
-                        const metrics = {'origin': self.getOriginId(), 'id': evt.getTraceId(), 'path': evt.getTracePath(), 
-                                        'status': 500, 'service': this.route, 'start': utc, 'success': false, 
-                                        'exception': 'Response not delivered - Route '+replyTo+' not found'};
-                        if (evt.getFrom()) {
-                            metrics['from'] = evt.getFrom();
-                        }
-                        const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACING).setBody({'trace': metrics});
-                        po.send(trace);
-                        traced = true;
-                    } else {
-                        const from = evt.getFrom()? evt.getFrom() : "unknown";
-                        log.error(`Delivery error - Reply route ${replyTo} not found, from=${from}, to=${this.route}, type=exception_response, status=${errorCode}, exception=${e.message}`);
-                    }
-                }
+                traced = this.undeliveredError(evt, utc, e);
             }
+        } else if (e instanceof AppException) {
+            log.warn(`Unhandled exception (${evt.getTo()}), status=${errorCode}`, e);
         } else {
-            if (e instanceof AppException) {
-                errorCode = e.getStatus();
-                log.warn(`Unhandled exception (${evt.getTo()}), status=${errorCode}`, e);
-            } else {
-                log.warn(`Unhandled exception (${evt.getTo()})`, e);
-            }
+            log.warn(`Unhandled exception (${evt.getTo()})`, e);
         }
         // send tracing information if needed
         if (!traced && evt.getTraceId() && evt.getTracePath()) {
@@ -481,6 +481,80 @@ class ServiceManager {
         // send ready signal
         if (po.exists(this.route)) {
             emitter.emit(this.route, SIGNATURE + workerRoute);
+        }
+    }
+
+    private sendResponse(evt: EventEnvelope, response, diff: number) {
+         const replyTo = evt.getReplyTo();
+        const result = response instanceof EventEnvelope? new EventEnvelope(response) : new EventEnvelope().setBody(response);                    
+        result.setTo(replyTo).setReplyTo(null).setFrom(this.route);
+        result.setExecTime(diff);
+        if (evt.getCorrelationId()) {
+            result.setCorrelationId(evt.getCorrelationId());
+        }
+        if (evt.getTraceId() && evt.getTracePath()) {
+            result.setTraceId(evt.getTraceId()).setTracePath(evt.getTracePath());
+        }
+        result.setTags(evt.getTags());
+        if ('temporary.inbox' == replyTo) {
+            result.setAnnotations(evt.getAnnotations());
+        } else {
+            result.clearAnnotations();
+        }
+        po.send(result);        
+    }
+
+    private undeliveredResponse(evt: EventEnvelope, utc: string, diff: number) {
+        const replyTo = evt.getReplyTo();
+        // unable to deliver response
+        if (evt.getTraceId() && evt.getTracePath()) {
+            const metrics = {'origin': self.getOriginId(), 'id': evt.getTraceId(), 'path': evt.getTracePath(), 
+                            'service': this.route, 'start': utc, 'success': false, 'exec_time': diff,
+                            'status': 500, 'exception': 'Response not delivered - Route '+replyTo+' not found'};
+            if (evt.getFrom()) {
+                metrics['from'] = evt.getFrom();
+            }
+            const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACING).setBody({'trace': metrics});
+            po.send(trace);
+            return true;
+        } else {
+            const from = evt.getFrom()? evt.getFrom() : "unknown";
+            log.error(`Delivery error - Reply route ${replyTo} not found, from=${from}, to=${this.route}, type=response, exec_time=${diff}`);
+            return false;
+        }        
+    }
+
+    private sendError(evt: EventEnvelope, e: AppException | Error) {
+        const replyTo = evt.getReplyTo();
+        const result = new EventEnvelope().setTo(replyTo).setFrom(this.route);
+        if (evt.getCorrelationId()) {
+            result.setCorrelationId(evt.getCorrelationId());
+        }
+        if (evt.getTraceId() && evt.getTracePath()) {
+            result.setTraceId(evt.getTraceId()).setTracePath(evt.getTracePath());
+        }
+        result.setTags(evt.getTags());
+        po.send(result.setException(e));        
+    }
+
+    private undeliveredError(evt: EventEnvelope, utc: string, e: AppException | Error) {
+        const replyTo = evt.getReplyTo();
+        const errorCode = e instanceof AppException? e.getStatus() : 500;
+        // unable to deliver response
+        if (evt.getTraceId() && evt.getTracePath()) {
+            const metrics = {'origin': self.getOriginId(), 'id': evt.getTraceId(), 'path': evt.getTracePath(), 
+                            'status': errorCode, 'service': this.route, 'start': utc, 'success': false, 
+                            'exception': 'Response not delivered - Route '+replyTo+' not found'};
+            if (evt.getFrom()) {
+                metrics['from'] = evt.getFrom();
+            }
+            const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACING).setBody({'trace': metrics});
+            po.send(trace);
+            return true;
+        } else {
+            const from = evt.getFrom()? evt.getFrom() : "unknown";
+            log.error(`Delivery error - Reply route ${replyTo} not found, from=${from}, to=${this.route}, type=exception_response, status=${errorCode}, exception=${e.message}`);
+            return false;
         }
     }
 }
@@ -528,11 +602,11 @@ class EventSystem {
             }
             // load essential services
             const actuator = new ActuatorServices();
-            this.register(ActuatorServices.infoService, actuator, 10);
-            this.register(ActuatorServices.routeService, actuator, 10);
-            this.register(ActuatorServices.healthService, actuator, 10);
-            this.register(ActuatorServices.livenessService, actuator, 10);
-            this.register(ActuatorServices.envService, actuator, 10);
+            this.register(INFO_SERVICE, actuator, 10);
+            this.register(ROUTE_SERVICE, actuator, 10);
+            this.register(HEALTH_SERVICE, actuator, 10);
+            this.register(LIVENESS_SERVICE, actuator, 10);
+            this.register(ENV_SERVICE, actuator, 10);
             this.register(DistributedTrace.routeName, new DistributedTrace(), 1, true, true);
             this.register(AsyncHttpClient.routeName, new AsyncHttpClient(), 200, true, true);
             this.register(EventApiService.routeName,  new EventApiService(), 200);
@@ -558,7 +632,8 @@ class EventSystem {
                     registry.save(route, composable, instances, isPrivate, interceptor);
                     composable.initialize();
                 }
-                new ServiceManager(route, composable.handleEvent, instances, isPrivate, interceptor);
+                const manager = new ServiceManager(route, composable.handleEvent, instances, isPrivate, interceptor);
+                log.debug(`${manager.getRoute()} loaded`);
                 registry.load(route);
             } else {
                 throw new Error(`Unable to register ${route} because the given function is not a Composable`);
@@ -595,6 +670,7 @@ class EventSystem {
     async stop() {
         if (!this.stopping) {
             this.stopping = true;
+            await shutdown();
             if (po.exists(REST_AUTOMATION_HOUSEKEEPER)) {
                 await po.request(new EventEnvelope().setTo(REST_AUTOMATION_HOUSEKEEPER).setHeader('type', 'close'));
             }
@@ -621,6 +697,7 @@ class EventSystem {
         if (!this.forever) {
             this.forever = true;
             await Platform.getInstance().getReady();
+            await startup();
             ready();
             const config = AppConfig.getInstance();
             if ('true' == config.getProperty('rest.automation')) {

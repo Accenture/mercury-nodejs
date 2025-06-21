@@ -50,6 +50,20 @@ function getIdFromRoute(route) {
     }
     return null;
 }
+async function readOneBlock(replyTo, cid, stream, data) {
+    stream.read_count++;
+    const block = new EventEnvelope(data);
+    const event = new EventEnvelope().setTo(replyTo).setCorrelationId(cid);
+    if (DATA == block.getHeader(TYPE)) {
+        stream.touch();
+        await po.send(event.setHeader(TYPE, DATA).setBody(block.getBody()));
+    }
+    else if (END_OF_STREAM == block.getHeader(TYPE)) {
+        // EOF detected
+        stream.eof_read = true;
+        await po.send(event.setHeader(TYPE, END_OF_STREAM));
+    }
+}
 async function fetchNextBlock(replyTo, cid, stream, timeout) {
     const begin = new Date().getTime();
     let now = begin;
@@ -61,21 +75,9 @@ async function fetchNextBlock(replyTo, cid, stream, timeout) {
             if (exists) {
                 const data = await fs.promises.readFile(filename);
                 if (data) {
-                    stream.read_count++;
                     fs.promises.unlink(filename);
-                    const block = new EventEnvelope(data);
-                    const event = new EventEnvelope().setTo(replyTo).setCorrelationId(cid);
-                    if (DATA == block.getHeader(TYPE)) {
-                        stream.touch();
-                        await po.send(event.setHeader(TYPE, DATA).setBody(block.getBody()));
-                        return;
-                    }
-                    else if (END_OF_STREAM == block.getHeader(TYPE)) {
-                        // EOF detected
-                        stream.eof_read = true;
-                        await po.send(event.setHeader(TYPE, END_OF_STREAM));
-                        return;
-                    }
+                    await readOneBlock(replyTo, cid, stream, data);
+                    return;
                 }
             }
         }
@@ -92,6 +94,26 @@ async function fetchNextBlock(replyTo, cid, stream, timeout) {
         await util.sleep(n < 5 ? 10 * n : 100);
         n++;
         now = new Date().getTime();
+    }
+}
+async function handleStreamConsumer(evt, cid, readTimeout, replyTo, stream) {
+    const response = new EventEnvelope().setTo(replyTo).setCorrelationId(cid);
+    if (READ == evt.getHeader(TYPE)) {
+        if (stream.eof_read) {
+            await po.send(response.setHeader(TYPE, END_OF_STREAM));
+        }
+        else {
+            await fetchNextBlock(replyTo, cid, stream, readTimeout);
+        }
+    }
+    if (CLOSE == evt.getHeader(TYPE)) {
+        if (stream.closed) {
+            await po.send(response.setBody(false));
+        }
+        else {
+            await po.send(response.setBody(true));
+            stream.close();
+        }
     }
 }
 export class ObjectStreamIO {
@@ -264,8 +286,7 @@ class StreamPublisher {
                     stream.touch();
                     stream.write_count++;
                     const filename = TEMP_DIR + '/' + stream.id + '-' + stream.write_count;
-                    // Let "writeFile" to run asynchronously. DO NOT use 'await' as it has unintended side-effect.
-                    fs.promises.writeFile(filename, b);
+                    await fs.promises.writeFile(filename, b);
                     return true;
                 }
             }
@@ -286,24 +307,7 @@ class StreamConsumer {
             const id = getIdFromRoute(evt.getHeader('my_route'));
             const stream = streams.get(id);
             if (stream) {
-                const response = new EventEnvelope().setTo(replyTo).setCorrelationId(cid);
-                if (READ == evt.getHeader(TYPE)) {
-                    if (stream.eof_read) {
-                        await po.send(response.setHeader(TYPE, END_OF_STREAM));
-                    }
-                    else {
-                        await fetchNextBlock(replyTo, cid, stream, readTimeout);
-                    }
-                }
-                if (CLOSE == evt.getHeader(TYPE)) {
-                    if (stream.closed) {
-                        await po.send(response.setBody(false));
-                    }
-                    else {
-                        await po.send(response.setBody(true));
-                        stream.close();
-                    }
-                }
+                await handleStreamConsumer(evt, cid, readTimeout, replyTo, stream);
             }
         }
         return null;

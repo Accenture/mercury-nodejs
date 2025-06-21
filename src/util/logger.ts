@@ -39,42 +39,30 @@ function getText(message: string | object) {
     }
 }
 
-function printLog(format: number, lineNumber: string, label: string, message: string | object, e?: Error) {
-    
+function printLog(format: number, lineNumber: string, label: string, message: string | object, e?: Error) {    
     const timestamp = util.getLocalTimestamp();
+    const stack = e?.stack? e.stack : '';
     if (format == 0) {
         const text = getText(message);
         const location = lineNumber? ' (' + lineNumber + ')': '';
-        if (e) {
-            const stack = e.stack? e.stack : String(e);
-            console.info(timestamp + ' ' + label + ' ' + text + location + '\n' + stack);
-        } else {
-            console.info(timestamp + ' ' + label + ' ' + text + location);
-        }
+        console.info(timestamp + ' ' + label + ' ' + text + location + stack);
     } else {
         const text = {'time': timestamp, 'level': label, 'message': message};
         if (lineNumber) {
             text['source'] = lineNumber;
         }
         if (e) {
-            const stack = e.stack? e.stack : String(e);
             text['stack'] = util.split(stack, '\r\n');
         }
-        if (format == 1) {
-            // compact line feed if any
-            console.log(JSON.stringify(text));            
-        } else {
-            // pretty print
-            console.log(JSON.stringify(text, null, 2));
-        }        
+        // JSON format-1 = compact, format-2 = pretty print
+        console.log(format == 1? JSON.stringify(text) : JSON.stringify(text, null, 2));     
     }
 }
 
 export class Logger {
     private static instance: Logger;
-    private logger: SimpleLogger;
-
-    private logFormat = {
+    private readonly logger: SimpleLogger;
+    private readonly logFormat = {
         'text': 0,
         'compact': 1,
         'json': 2
@@ -85,9 +73,7 @@ export class Logger {
     }
 
     static getInstance(): Logger {
-        if (Logger.instance === undefined) {
-            Logger.instance = new Logger();            
-        }
+        Logger.instance ??= new Logger();
         return Logger.instance;
     }
 
@@ -200,9 +186,7 @@ class SimpleLogger {
     }
 
     static getInstance() {
-        if (SimpleLogger.instance === undefined) {
-            SimpleLogger.instance = new SimpleLogger();
-        }
+        SimpleLogger.instance ??= new SimpleLogger();
         return SimpleLogger.instance;
     }
     

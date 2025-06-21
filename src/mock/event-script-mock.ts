@@ -7,7 +7,7 @@ import { Logger } from '../util/logger.js';
 const log = Logger.getInstance();
 
 export class EventScriptMock {
-    private flow: Flow;
+    private readonly flow: Flow;
 
     constructor(flowId: string) {
         if (flowId) {
@@ -34,7 +34,7 @@ export class EventScriptMock {
         }
     }
 
-    assignFunctionRoute(taskName: string, mockFunction: string): EventScriptMock {
+    assignFunctionRoute(taskName: string, mockFunction: string): this {
         if (taskName) {
             if (mockFunction) {
                 const task: Task = this.flow.tasks[taskName];

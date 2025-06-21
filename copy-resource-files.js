@@ -44,13 +44,11 @@ function copyFolder(src, target) {
 function createParentFolders(path) {
     const parts = path.split('/');
     let s = '';
-    for (let i=0; i < parts.length; i++) {
-        if (parts[i]) {
-            s += `/${parts[i]}`;
-            if (!fs.existsSync(s)) {
-                fs.mkdirSync(s);
-            }
-        }
+    for (const p of parts) {
+        s += `/${p}`;
+        if (!fs.existsSync(s)) {
+            fs.mkdirSync(s);
+        }        
     }
 }
 

@@ -96,6 +96,7 @@ export declare class Utility {
      * @param path of directory to create
      */
     mkdirsIfNotExist(path: string): void;
+    private createParentFolder;
     /**
      * Check if a file path is a directory
      *
@@ -116,6 +117,7 @@ export declare class Utility {
      * @returns array of separated text string
      */
     split(text: string, chars: string, empty?: boolean): string[];
+    private matchCharacter;
     /**
      * DO NOT call this function directly in your applicaton code.
      *
@@ -126,4 +128,7 @@ export declare class Utility {
      * @returns a fully qualified folder path
      */
     getFolder(relativePath: string): string;
+    getInteger(data: any): number;
+    getString(data: any): string;
+    equalsIgnoreCase(a: string, b: string): boolean;
 }

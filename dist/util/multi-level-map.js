@@ -1,24 +1,35 @@
 class NotFound {
+    status = 404;
+}
+class StartMetadata {
+    start = false;
+}
+class ScanMetadata {
+    current;
+    value = null;
+}
+function scanArrayInMap(key, v, target) {
+    let n = 0;
+    for (const o of v) {
+        const next = key + '[' + n + ']';
+        n++;
+        if (Array.isArray(o)) {
+            getFlattenList(next, o, target);
+        }
+        else if (o && o.constructor == Object) {
+            getFlattenMap(next, o, target);
+        }
+        else if (o != null) {
+            target[next] = o;
+        }
+    }
 }
 function getFlattenMap(prefix, src, target) {
     for (const k of Object.keys(src)) {
         const key = prefix == null ? k : prefix + '.' + k;
         const v = src[k];
         if (Array.isArray(v)) {
-            let n = 0;
-            for (const o of v) {
-                const next = key + '[' + n + ']';
-                n++;
-                if (Array.isArray(o)) {
-                    getFlattenList(next, o, target);
-                }
-                else if (o && o.constructor == Object) {
-                    getFlattenMap(next, o, target);
-                }
-                else if (o != null) {
-                    target[next] = o;
-                }
-            }
+            scanArrayInMap(key, v, target);
         }
         else if (v && v.constructor == Object) {
             getFlattenMap(key, v, target);
@@ -54,86 +65,102 @@ function setMapElement(compositePath, value, map, remove = false) {
     // ignore null value
     if (pathname && !nullValue && map.constructor == Object) {
         const list = pathname.split('.').filter(v => v.length > 0);
-        if (list.length == 0) {
+        // if parent exists, do recursion to create/update key-value.
+        if (list.length == 0 || (list.length > 1 && updateMapElement(pathname, list, map, value))) {
             return;
         }
-        // if parent exists, do recursion to create/update key-value.
-        if (list.length > 1) {
-            const parentMap = getMapElement(list[0], map);
-            if (parentMap && parentMap.constructor == Object) {
-                const dot = pathname.indexOf('.');
-                const childPath = pathname.substring(dot + 1);
-                setMapElement(childPath, value, parentMap);
-                return;
-            }
-        }
         // if parent does not exist, walk the composite path and create key-value.
-        let current = map;
-        const len = list.length;
-        let n = 0;
-        let composite = '';
-        for (const p of list) {
-            n++;
-            if (isListElement(p)) {
-                const sep = p.indexOf('[');
-                const indexes = getIndexes(p.substring(sep));
-                const element = p.substring(0, sep);
-                const parent = getMapElement(composite + element, map);
-                if (n == len) {
-                    if (Array.isArray(parent)) {
-                        setListElement(indexes, parent, value);
-                    }
-                    else {
-                        const newList = [];
-                        setListElement(indexes, newList, value);
-                        current[element] = newList;
-                    }
-                    break;
-                }
-                else {
-                    if (Array.isArray(parent)) {
-                        const next = getMapElement(composite + p, map);
-                        if (next && next.constuctor == Object) {
-                            current = next;
-                        }
-                        else {
-                            const m = {};
-                            setListElement(indexes, parent, m);
-                            current = m;
-                        }
-                    }
-                    else {
-                        const nextMap = {};
-                        const newList = [];
-                        setListElement(indexes, newList, nextMap);
-                        current[element] = newList;
-                        current = nextMap;
-                    }
-                }
-            }
-            else if (n == len) {
-                if (remove) {
-                    delete current[p];
-                }
-                else {
-                    current[p] = value;
-                }
+        insertElement(list, map, value, remove);
+    }
+}
+function insertElement(list, map, value, remove) {
+    let current = map;
+    const len = list.length;
+    let n = 0;
+    let composite = '';
+    for (const p of list) {
+        n++;
+        if (isListElement(p)) {
+            const sep = p.indexOf('[');
+            const indexes = getIndexes(p.substring(sep));
+            const element = p.substring(0, sep);
+            const parent = getMapElement(composite + element, map);
+            if (n == len) {
+                setLastListElement(parent, element, indexes, current, value);
                 break;
             }
-            else {
-                const next = current[p];
-                if (next && next.constructor == Object) {
-                    current = next;
-                }
-                else {
-                    const nextMap = {};
-                    current[p] = nextMap;
-                    current = nextMap;
-                }
+            else if (Array.isArray(parent)) {
+                current = setNewMapElement(parent, composite, p, indexes, map);
             }
-            composite += (p + '.');
+            else {
+                current = setNewListElement(current, indexes, element);
+            }
         }
+        else if (n == len) {
+            if (remove) {
+                delete current[p];
+            }
+            else {
+                current[p] = value;
+            }
+            break;
+        }
+        else {
+            current = insertMapElement(p, current);
+        }
+        composite += (p + '.');
     }
+}
+function insertMapElement(p, current) {
+    const next = current[p];
+    if (next && next.constructor == Object) {
+        return next;
+    }
+    else {
+        const nextMap = {};
+        current[p] = nextMap;
+        return nextMap;
+    }
+}
+function updateMapElement(pathname, list, map, value) {
+    const parentMap = getMapElement(list[0], map);
+    if (parentMap && parentMap.constructor == Object) {
+        const dot = pathname.indexOf('.');
+        const childPath = pathname.substring(dot + 1);
+        setMapElement(childPath, value, parentMap);
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+function setLastListElement(parent, element, indexes, current, value) {
+    if (Array.isArray(parent)) {
+        setListElement(indexes, parent, value);
+    }
+    else {
+        const newList = [];
+        setListElement(indexes, newList, value);
+        current[element] = newList;
+    }
+}
+function setNewMapElement(parent, composite, p, indexes, map) {
+    const next = getMapElement(composite + p, map);
+    if (next && next.constuctor == Object) {
+        return next;
+    }
+    else {
+        const newMap = {};
+        setListElement(indexes, parent, newMap);
+        return newMap;
+    }
+}
+function setNewListElement(current, indexes, element) {
+    const nextMap = {};
+    const newList = [];
+    setListElement(indexes, newList, nextMap);
+    current[element] = newList;
+    return nextMap;
 }
 function appendIndex(compositePath, map) {
     const emptyIndex = compositePath.indexOf("[]");
@@ -197,6 +224,39 @@ function expandList(indexes, dataset) {
     }
     return dataset;
 }
+function validateIndexFormat(md, c) {
+    if (c == '[') {
+        if (md.start) {
+            throw new Error('Invalid composite path - missing end bracket');
+        }
+        else {
+            md.start = true;
+        }
+    }
+    else if (c == ']') {
+        if (!md.start) {
+            throw new Error('Invalid composite path - duplicated end bracket');
+        }
+        else {
+            md.start = false;
+        }
+    }
+    else if (md.start) {
+        if (c < '0' || c > '9') {
+            throw new Error('Invalid composite path - indexes must be digits');
+        }
+    }
+    else {
+        throw new Error('Invalid composite path - invalid indexes');
+    }
+}
+function validateCompositePathIndex(s, sep) {
+    const md = new StartMetadata();
+    const text = s.substring(sep);
+    for (const element of text) {
+        validateIndexFormat(md, element);
+    }
+}
 function validateCompositePathSyntax(pathname) {
     const list = pathname.split('.').filter(v => v.length > 0);
     if (list.length == 0) {
@@ -214,42 +274,61 @@ function validateCompositePathSyntax(pathname) {
                 throw new Error('Invalid composite path - missing end bracket');
             }
             // check start-end pair
-            const sep1 = s.indexOf('[');
-            const sep2 = s.indexOf(']');
-            if (sep2 < sep1) {
+            const start = s.indexOf('[');
+            const end = s.indexOf(']');
+            if (end < start) {
                 throw new Error('Invalid composite path - missing start bracket');
             }
-            let start = false;
-            const text = s.substring(sep1);
-            for (const element of text) {
-                const c = element;
-                if (c == '[') {
-                    if (start) {
-                        throw new Error('Invalid composite path - missing end bracket');
-                    }
-                    else {
-                        start = true;
-                    }
-                }
-                else if (c == ']') {
-                    if (!start) {
-                        throw new Error('Invalid composite path - duplicated end bracket');
-                    }
-                    else {
-                        start = false;
-                    }
-                }
-                else if (start) {
-                    if (c < '0' || c > '9') {
-                        throw new Error('Invalid composite path - indexes must be digits');
-                    }
-                }
-                else {
-                    throw new Error('Invalid composite path - invalid indexes');
-                }
+            validateCompositePathIndex(s, start);
+        }
+    }
+}
+function scanListElement(md, p, n, len) {
+    const start = p.indexOf('[');
+    const end = p.indexOf(']', start);
+    if (end == -1)
+        return 'break';
+    const key = p.substring(0, start);
+    const index = p.substring(start + 1, end);
+    if (index.length == 0 || !isDigits(index))
+        return 'break';
+    if (key in md.current) {
+        const nextList = md.current[key];
+        if (Array.isArray(nextList)) {
+            const indexes = getIndexes(p.substring(start));
+            const next = getListElement(indexes, nextList);
+            if (n == len) {
+                md.value = next;
+                return md;
+            }
+            if (next && next.constructor == Object) {
+                md.current = next;
+                return 'continue';
             }
         }
     }
+    return 'break';
+}
+function scanMapElement(md, p, n, len) {
+    const next = md.current[p];
+    if (n == len) {
+        md.value = next;
+        return md;
+    }
+    else if (next && next.constructor == Object) {
+        md.current = next;
+        return 'continue';
+    }
+    return 'break';
+}
+function scanElement(md, p, n, len) {
+    if (isListElement(p)) {
+        return scanListElement(md, p, n, len);
+    }
+    else if (p in md.current) {
+        return scanMapElement(md, p, n, len);
+    }
+    return 'break';
 }
 function getMapElement(pathname, map) {
     if (pathname && map && map.constructor == Object) {
@@ -260,48 +339,19 @@ function getMapElement(pathname, map) {
             return new NotFound();
         }
         const list = pathname.split('.').filter(v => v.length > 0);
-        let current = map;
+        const md = new ScanMetadata();
+        md.current = map;
         const len = list.length;
         let n = 0;
         for (const p of list) {
             n++;
-            if (isListElement(p)) {
-                const start = p.indexOf('[');
-                const end = p.indexOf(']', start);
-                if (end == -1)
-                    break;
-                const key = p.substring(0, start);
-                const index = p.substring(start + 1, end);
-                if (index.length == 0 || !isDigits(index))
-                    break;
-                if (key in current) {
-                    const nextList = current[key];
-                    if (Array.isArray(nextList)) {
-                        const indexes = getIndexes(p.substring(start));
-                        const next = getListElement(indexes, nextList);
-                        if (n == len) {
-                            return next;
-                        }
-                        if (next && next.constructor == Object) {
-                            current = next;
-                            continue;
-                        }
-                    }
-                }
+            const result = scanElement(md, p, n, len);
+            if (result instanceof ScanMetadata) {
+                return result.value;
             }
-            else {
-                if (p in current) {
-                    const next = current[p];
-                    if (n == len) {
-                        return next;
-                    }
-                    else if (next && next.constructor == Object) {
-                        current = next;
-                        continue;
-                    }
-                }
+            else if ('break' == result) {
+                break;
             }
-            break;
         }
     }
     return new NotFound();

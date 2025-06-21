@@ -5,8 +5,8 @@ import { FlowInstance } from './flow_instance.js';
  * DO NOT use this directly in your application code.
  */
 export declare class Flows {
-    static allFlows: {};
-    static flowInstances: {};
+    static readonly allFlows: {};
+    static readonly flowInstances: {};
     static getFlow(id: string): Flow;
     static getAllFlows(): string[];
     static getFlowInstance(id?: string): FlowInstance;

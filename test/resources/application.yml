@@ -74,3 +74,9 @@ show.env.variables: 'PATH'
 show.application.properties: 'log.format'
 
 max.model.array.size: 100
+
+modules:
+  autostart:
+    - 'hello.world.100'
+  autostop:
+    - 'hello.world.200'

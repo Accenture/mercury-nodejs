@@ -24,7 +24,7 @@ export interface Composable {
      * use the PostOffice's getMyClass method like this:
      * 
      * // Creates a unique instance of PostOffice for your function
-     * const po = new PostOffice(evt.getHeaders()); 
+     * const po = new PostOffice(evt); 
      * const self = po.getMyClass() as UserFunction; 
      * // where UserFunction should be the same as your composable class name.
      * 

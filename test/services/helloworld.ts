@@ -21,7 +21,7 @@ export class HelloWorld implements Composable {
     }
 
     async handleEvent(evt: EventEnvelope) {
-        const po = new PostOffice(evt.getHeaders());
+        const po = new PostOffice(evt);
         // demonstrate event annotation to propagate to distributed trace
         evt.annotate("hello", "world");
         // business logic here

@@ -3,14 +3,15 @@ export declare class AppConfig {
     private static singleton;
     private static reader;
     private constructor();
+    private setResourcePath;
     static getInstance(resourcePath?: string): ConfigReader;
 }
 export declare class ConfigReader {
     private static self;
-    private config;
-    private loopDetection;
+    private readonly config;
+    private readonly loopDetection;
+    private readonly id;
     private resolved;
-    private id;
     /**
      * Create an instance of a ConfigReader
      *
@@ -35,6 +36,7 @@ export declare class ConfigReader {
      * @returns value of the item
      */
     get(key: string, defaultValue?: any, loop?: string): any;
+    private checkEnvVariables;
     /**
      * Retrieve a key-value where value is enforced as a string
      *
@@ -50,14 +52,16 @@ export declare class ConfigReader {
      * @param value of the item
      * @returns this ConfigReader
      */
-    set(key: string, value: any): ConfigReader;
+    set(key: string, value: any): this;
     /**
      * Reload configuration parameters with a given map
      *
      * @returns this ConfigReader
      */
-    reload(map: MultiLevelMap): ConfigReader;
+    reload(map: MultiLevelMap): this;
     private resolveEnvVars;
+    private hasEnvVars;
     private extractSegments;
     private performEnvVarSubstitution;
+    private avoidConfigLoop;
 }

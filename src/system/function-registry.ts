@@ -9,16 +9,14 @@ const log = Logger.getInstance();
  */
 export class FunctionRegistry {
     private static singleton: FunctionRegistry;
-    private registry: SimpleRegistry;
+    private readonly registry: SimpleRegistry;
 
     private constructor() {
         this.registry = SimpleRegistry.getInstance();        
     }
 
     static getInstance(): FunctionRegistry {
-        if (FunctionRegistry.singleton === undefined) {
-            FunctionRegistry.singleton = new FunctionRegistry();
-        }
+        FunctionRegistry.singleton ??= new FunctionRegistry();
         return FunctionRegistry.singleton;
     }
 
@@ -128,16 +126,14 @@ export class FunctionRegistry {
 
 class SimpleRegistry {
     private static instance: SimpleRegistry;
-    private registry = new Map<string, object>();
-    private metadata = new Map<string, object>();
-    private loaded = new Map<string, boolean>();
+    private readonly registry = new Map<string, object>();
+    private readonly metadata = new Map<string, object>();
+    private readonly loaded = new Map<string, boolean>();
 
     private constructor() { }
 
     static getInstance() {
-        if (SimpleRegistry.instance === undefined) {
-            SimpleRegistry.instance = new SimpleRegistry();
-        }
+        SimpleRegistry.instance ??= new SimpleRegistry();
         return SimpleRegistry.instance;
     }
 

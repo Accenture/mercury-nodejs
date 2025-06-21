@@ -1,6 +1,7 @@
 import { PostOffice } from '../system/post-office.js';
 import { EventEnvelope } from '../models/event-envelope.js';
 import { AppException } from '../models/app-exception.js';
+import { Utility } from '../util/utility.js';
 const TEMPORARY_INBOX = 'temporary.inbox';
 const DISTRIBUTED_TRACING = 'distributed.tracing';
 // update ZERO_TRACING_FILTER if there are additional routes to filter out
@@ -8,9 +9,46 @@ const ASYNC_HTTP_CLIENT = "async.http.request";
 const ZERO_TRACING_FILTER = [ASYNC_HTTP_CLIENT];
 const RPC = "rpc";
 const promises = {};
+const util = new Utility();
 let po;
 function trimOrigin(route) {
     return route.includes("@") ? route.substring(0, route.indexOf('@')) : route;
+}
+function sendTrace(response, route, utc, from, traceId, tracePath, diff) {
+    const to = trimOrigin(route);
+    if (!ZERO_TRACING_FILTER.includes(to)) {
+        const metrics = { 'origin': po.getId(), 'id': traceId, 'path': tracePath,
+            'service': to, 'start': utc, 'success': true,
+            'exec_time': response.getExecTime(), 'round_trip': diff };
+        if (from) {
+            metrics['from'] = trimOrigin(from);
+        }
+        if (Object.keys(response.getAnnotations()).length > 0) {
+            metrics['annotations'] = response.getAnnotations();
+        }
+        if (response.getStatus() >= 400) {
+            metrics['success'] = false;
+            metrics['status'] = response.getStatus();
+            metrics['exception'] = response.getError();
+        }
+        const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACING).setBody({ 'trace': metrics });
+        po.send(trace);
+    }
+}
+function updateResponse(response, diff) {
+    // remove some metadata
+    response.removeTag(RPC).setTo(null).setReplyTo(null).setTraceId(null).setTracePath(null);
+    response.setRoundTrip(diff);
+    // filter out protected metadata
+    const headers = {};
+    for (const h in response.getHeaders()) {
+        if (h != 'my_route' && h != 'my_instance' && h != 'my_trace_id' && h != 'my_trace_path') {
+            headers[h] = response.getHeader(h);
+        }
+    }
+    response.setHeaders(headers);
+    // remove annotations if any because annotations are used for tracing only
+    response.clearAnnotations();
 }
 /**
  * This is reserved for system use.
@@ -19,9 +57,7 @@ function trimOrigin(route) {
 export class TemporaryInbox {
     static routeName = TEMPORARY_INBOX;
     initialize() {
-        if (po === undefined) {
-            po = new PostOffice();
-        }
+        po ??= new PostOffice();
         return this;
     }
     static setPromise(cid, map) {
@@ -49,45 +85,15 @@ export class TemporaryInbox {
                 TemporaryInbox.clearPromise(cid);
                 clearTimeout(timer);
                 if (response.isException()) {
-                    reject(new AppException(response.getStatus(), String(response.getBody())));
+                    reject(new AppException(response.getStatus(), util.getString(response.getBody())));
                 }
                 else {
-                    // remove some metadata
-                    response.removeTag(RPC).setTo(null).setReplyTo(null).setTraceId(null).setTracePath(null);
-                    const diff = parseFloat((performance.now() - start).toFixed(3));
-                    response.setRoundTrip(diff);
-                    // send tracing information if needed
+                    const diff = Math.max(0, parseFloat((performance.now() - start).toFixed(3)));
+                    // send tracing information
                     if (traceId && tracePath) {
-                        const to = trimOrigin(route);
-                        if (!ZERO_TRACING_FILTER.includes(to)) {
-                            const metrics = { 'origin': po.getId(), 'id': traceId, 'path': tracePath,
-                                'service': to, 'start': utc, 'success': true,
-                                'exec_time': response.getExecTime(), 'round_trip': diff };
-                            if (from) {
-                                metrics['from'] = trimOrigin(from);
-                            }
-                            if (Object.keys(response.getAnnotations()).length > 0) {
-                                metrics['annotations'] = response.getAnnotations();
-                            }
-                            if (response.getStatus() >= 400) {
-                                metrics['success'] = false;
-                                metrics['status'] = response.getStatus();
-                                metrics['exception'] = response.getError();
-                            }
-                            const trace = new EventEnvelope().setTo(DISTRIBUTED_TRACING).setBody({ 'trace': metrics });
-                            po.send(trace);
-                        }
+                        sendTrace(response, route, utc, from, traceId, tracePath, diff);
                     }
-                    // filter out protected metadata
-                    const headers = {};
-                    for (const h in response.getHeaders()) {
-                        if (h != 'my_route' && h != 'my_instance' && h != 'my_trace_id' && h != 'my_trace_path') {
-                            headers[h] = response.getHeader(h);
-                        }
-                    }
-                    response.setHeaders(headers);
-                    // remove annotations if any because annotations are used for tracing only
-                    response.clearAnnotations();
+                    updateResponse(response, diff);
                     // restore original correlation ID and send response with promise's resolve function                    
                     resolve(response.setCorrelationId(oid));
                 }

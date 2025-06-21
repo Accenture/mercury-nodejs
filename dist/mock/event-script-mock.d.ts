@@ -1,6 +1,6 @@
 export declare class EventScriptMock {
-    private flow;
+    private readonly flow;
     constructor(flowId: string);
     getFunctionRoute(taskName: string): string;
-    assignFunctionRoute(taskName: string, mockFunction: string): EventScriptMock;
+    assignFunctionRoute(taskName: string, mockFunction: string): this;
 }

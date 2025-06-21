@@ -8,9 +8,7 @@ export class FlowExecutor {
     static singleton;
     constructor() { }
     static getInstance() {
-        if (FlowExecutor.singleton === undefined) {
-            FlowExecutor.singleton = new FlowExecutor();
-        }
+        FlowExecutor.singleton ??= new FlowExecutor();
         return FlowExecutor.singleton;
     }
     async launch(po, flowId, dataset, correlationId, callback) {

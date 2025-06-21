@@ -1,10 +1,10 @@
 export declare class JavaScriptClassScanner {
-    private parentFolder;
-    private jsFolder;
-    private methodAnnotation;
-    private clsMap;
-    private clsParameters;
-    private clsMethods;
+    private readonly parentFolder;
+    private readonly jsFolder;
+    private readonly methodAnnotation;
+    private readonly clsMap;
+    private readonly clsParameters;
+    private readonly clsMethods;
     constructor(parentFolder: string, jsFolder: string, methodAnnotation: string);
     scan(): Promise<{
         classes: {};

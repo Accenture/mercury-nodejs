@@ -30,7 +30,7 @@ export declare class AsyncHttpRequest {
      * @param method (GET, POST, PUT, HEAD, PATCH, DELETE)
      * @returns this
      */
-    setMethod(method: string): AsyncHttpRequest;
+    setMethod(method: string): this;
     /**
      * Retrieve the URI
      *
@@ -43,7 +43,7 @@ export declare class AsyncHttpRequest {
      * @param url - the URI portion of the url
      * @returns this
      */
-    setUrl(url: string): AsyncHttpRequest;
+    setUrl(url: string): this;
     /**
      * Retrieve the IP address of the caller
      *
@@ -56,7 +56,7 @@ export declare class AsyncHttpRequest {
      * @param ip address
      * @returns this
      */
-    setRemoteIp(ip: string): AsyncHttpRequest;
+    setRemoteIp(ip: string): this;
     /**
      * Retrieve all HTTP headers
      *
@@ -77,14 +77,14 @@ export declare class AsyncHttpRequest {
      * @param value of the header
      * @returns this
      */
-    setHeader(key: string, value: string): AsyncHttpRequest;
+    setHeader(key: string, value: string): this;
     /**
      * Remove a header key-value
      *
      * @param key for the header
      * @returns this
      */
-    removeHeader(key: string): AsyncHttpRequest;
+    removeHeader(key: string): this;
     /**
      * Retrieve the HTTP request body
      *
@@ -99,7 +99,7 @@ export declare class AsyncHttpRequest {
      * @param body (aka payload)
      * @returns this
      */
-    setBody(body: eventPayload): AsyncHttpRequest;
+    setBody(body: eventPayload): this;
     /**
      * The system will perform HTML/XML/JSON data format conversion.
      * i.e. HTML would become string, XML and JSON becomes a JSON object.
@@ -117,7 +117,7 @@ export declare class AsyncHttpRequest {
      * @param streamRoute of the binary payload
      * @returns
      */
-    setStreamRoute(streamRoute: string): AsyncHttpRequest;
+    setStreamRoute(streamRoute: string): this;
     /**
      * Check if this HTTP request contains a streaming object
      *
@@ -136,7 +136,7 @@ export declare class AsyncHttpRequest {
      * @param filename of the streaming object
      * @returns this
      */
-    setFileName(filename: string): AsyncHttpRequest;
+    setFileName(filename: string): this;
     /**
      * Check if the input stream is a file object
      *
@@ -155,7 +155,7 @@ export declare class AsyncHttpRequest {
      * @param timeoutSeconds for the request expiry timer
      * @returns this
      */
-    setTimeoutSeconds(timeoutSeconds: number): AsyncHttpRequest;
+    setTimeoutSeconds(timeoutSeconds: number): this;
     /**
      * Retrieve the content length of a request payload if any
      *
@@ -169,7 +169,7 @@ export declare class AsyncHttpRequest {
      * @param contentLength of the request paylod
      * @returns this
      */
-    setContentLength(contentLength: number): AsyncHttpRequest;
+    setContentLength(contentLength: number): this;
     /**
      * Optional session information may be inserted by an externalized API authentication service.
      * e.g. OAuth2.0 authenticator and RBAC validator.
@@ -194,14 +194,14 @@ export declare class AsyncHttpRequest {
      * @param value of the session parameter
      * @returns this
      */
-    setSessionInfo(key: string, value: string): AsyncHttpRequest;
+    setSessionInfo(key: string, value: string): this;
     /**
      * Remove a session parameter
      *
      * @param key of the session parameter
      * @returns this
      */
-    removeSessionInfo(key: string): AsyncHttpRequest;
+    removeSessionInfo(key: string): this;
     /**
      * Retrieve all cookies if any
      *
@@ -222,7 +222,7 @@ export declare class AsyncHttpRequest {
      * @param value of a cookie
      * @returns this
      */
-    setCookie(key: string, value: string): AsyncHttpRequest;
+    setCookie(key: string, value: string): this;
     /**
      * Remove a cookie from this request dataset
      *
@@ -231,7 +231,7 @@ export declare class AsyncHttpRequest {
      * @param key of the cookie
      * @returns this
      */
-    removeCookie(key: string): AsyncHttpRequest;
+    removeCookie(key: string): this;
     /**
      * Retrieve all path parameters
      *
@@ -252,21 +252,21 @@ export declare class AsyncHttpRequest {
      * @param value of a path parameter
      * @returns this
      */
-    setPathParameter(key: string, value: string): AsyncHttpRequest;
+    setPathParameter(key: string, value: string): this;
     /**
      * Remove a path parameter from the HTTP request dataset
      *
      * @param key of a path parameter
      * @returns this
      */
-    removePathParameter(key: string): AsyncHttpRequest;
+    removePathParameter(key: string): this;
     /**
      * Retrieve the query string from the URI
      *
      * @returns the complete query string
      */
     getQueryString(): string;
-    setQueryString(query: string): AsyncHttpRequest;
+    setQueryString(query: string): this;
     /**
      * Check if the HTTP request uses HTTPS
      *
@@ -279,7 +279,7 @@ export declare class AsyncHttpRequest {
      * @param https true or false
      * @returns this
      */
-    setSecure(https: boolean): AsyncHttpRequest;
+    setSecure(https: boolean): this;
     /**
      * Retrieve the upload tag name in a multi-part file upload request
      *
@@ -292,7 +292,7 @@ export declare class AsyncHttpRequest {
      * @param tag name
      * @returns this
      */
-    setUploadTag(tag: string): AsyncHttpRequest;
+    setUploadTag(tag: string): this;
     /**
      * Retrieve the target host name if this is an outgoing HTTP request
      *
@@ -305,7 +305,7 @@ export declare class AsyncHttpRequest {
      * @param host name
      * @returns this
      */
-    setTargetHost(host: string): AsyncHttpRequest;
+    setTargetHost(host: string): this;
     /**
      * Check if this HTTP request skips certificate verification
      *
@@ -320,7 +320,7 @@ export declare class AsyncHttpRequest {
      * @param trustAllCert true or false
      * @returns this
      */
-    setTrustAllCert(trustAllCert: boolean): AsyncHttpRequest;
+    setTrustAllCert(trustAllCert: boolean): this;
     /**
      * Retrieve a query parameter
      *
@@ -343,20 +343,21 @@ export declare class AsyncHttpRequest {
      * @param value of a query parameter
      * @returns this
      */
-    setQueryParameter(key: string, value: string): AsyncHttpRequest;
+    setQueryParameter(key: string, value: string | Array<string>): this;
     /**
      * Remove a query parameter
      *
      * @param key of the query parameter
      * @returns this
      */
-    removeQueryParameter(key: string): AsyncHttpRequest;
+    removeQueryParameter(key: string): this;
     /**
      * Convert this HTTP request object to a JSON object
      *
      * @returns a JSON object
      */
     toMap(): object;
+    private toMoreMap;
     /**
      * Convert a JSON object into a HTTP request object
      *
@@ -370,5 +371,6 @@ export declare class AsyncHttpRequest {
      * @param map input JSON object
      */
     fromMap(map: object): void;
+    private fromMoreMap;
 }
 export {};

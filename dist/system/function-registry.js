@@ -11,9 +11,7 @@ export class FunctionRegistry {
         this.registry = SimpleRegistry.getInstance();
     }
     static getInstance() {
-        if (FunctionRegistry.singleton === undefined) {
-            FunctionRegistry.singleton = new FunctionRegistry();
-        }
+        FunctionRegistry.singleton ??= new FunctionRegistry();
         return FunctionRegistry.singleton;
     }
     /**
@@ -118,9 +116,7 @@ class SimpleRegistry {
     loaded = new Map();
     constructor() { }
     static getInstance() {
-        if (SimpleRegistry.instance === undefined) {
-            SimpleRegistry.instance = new SimpleRegistry();
-        }
+        SimpleRegistry.instance ??= new SimpleRegistry();
         return SimpleRegistry.instance;
     }
     save(route, that, instances, isPrivate, interceptor) {

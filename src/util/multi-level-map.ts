@@ -1,23 +1,38 @@
 
-class NotFound {}
+class NotFound {
+    status = 404;
+}
+
+class StartMetadata {
+    start = false;
+}
+
+class ScanMetadata {
+    current: object;
+    value = null;
+}
+
+function scanArrayInMap(key: string, v, target: object) {
+    let n = 0;
+    for (const o of v) {
+        const next = key +'['+n+']';
+        n++;
+        if (Array.isArray(o)) {
+            getFlattenList(next, o, target);
+        } else if (o && o.constructor == Object) {
+            getFlattenMap(next, o, target);
+        } else if (o != null) {
+            target[next] =  o;
+        }
+    }
+}
 
 function getFlattenMap(prefix: string, src: object, target: object): void {
     for (const k of Object.keys(src)) {
         const key = prefix == null? k : prefix+'.'+k;
         const v = src[k];
         if (Array.isArray(v)) {
-            let n = 0;
-            for (const o of v) {
-                const next = key +'['+n+']';
-                n++;
-                if (Array.isArray(o)) {
-                    getFlattenList(next, o, target);
-                } else if (o && o.constructor == Object) {
-                    getFlattenMap(next, o, target);
-                } else if (o != null) {
-                    target[next] =  o;
-                }
-            }
+            scanArrayInMap(key, v, target);
         } else if (v && v.constructor == Object) {
             getFlattenMap(key, v, target);        
         } else if (v != null) {
@@ -45,85 +60,106 @@ function removeMapElement(pathname: string, map: object): void {
     setMapElement(pathname, null, map, true);
 }
 
-function setMapElement(compositePath: string, value, map: object, remove = false): void {
+function setMapElement(compositePath: string, value, map: object, remove = false): void {    
     validateCompositePathSyntax(compositePath);
     const pathname = compositePath.includes("[]")? appendIndex(compositePath, map) : compositePath;
     const nullValue = value == null || value === undefined;
     // ignore null value
     if (pathname && !nullValue && map.constructor == Object) {
         const list = pathname.split('.').filter(v => v.length > 0);
-        if (list.length == 0) {
+        // if parent exists, do recursion to create/update key-value.
+        if (list.length == 0 || (list.length > 1 && updateMapElement(pathname, list, map, value))) {
             return;
         }
-        // if parent exists, do recursion to create/update key-value.
-        if (list.length > 1) {
-            const parentMap = getMapElement(list[0], map);
-            if (parentMap && parentMap.constructor == Object) {
-                const dot = pathname.indexOf('.');
-                const childPath = pathname.substring(dot+1);
-                setMapElement(childPath, value, parentMap);
-                return;
-            }
-        }
         // if parent does not exist, walk the composite path and create key-value.
-        let current = map;
-        const len = list.length;
-        let n = 0;
-        let composite = '';
-        for (const p of list) {
-            n++;
-            if (isListElement(p)) {
-                const sep = p.indexOf('[');
-                const indexes = getIndexes(p.substring(sep));
-                const element = p.substring(0, sep);
-                const parent = getMapElement(composite+element, map);
-                if (n == len) {
-                    if (Array.isArray(parent)) {
-                        setListElement(indexes, parent, value);
-                    } else {
-                        const newList = [];
-                        setListElement(indexes, newList, value);
-                        current[element] = newList;
-                    }
-                    break;
-                } else {
-                    if (Array.isArray(parent)) {
-                        const next = getMapElement(composite+p, map);
-                        if (next && next.constuctor == Object) {                        
-                            current = next;
-                        } else {
-                            const m = {};
-                            setListElement(indexes, parent, m);
-                            current = m;
-                        }
-                    } else {
-                        const nextMap = {};
-                        const newList = [];
-                        setListElement(indexes, newList, nextMap);
-                        current[element] = newList;
-                        current = nextMap;
-                    }
-                }
-            } else if (n == len) {
-                if (remove) {
-                    delete current[p];                        
-                } else {
-                    current[p] = value;
-                }                    
-                break;
-            } else {
-                const next = current[p];
-                if (next && next.constructor == Object) {
-                    current = next;
-                } else {
-                    const nextMap = {};
-                    current[p] = nextMap;
-                    current = nextMap;
-                }
-            }
-            composite += (p + '.');
-        }
+        insertElement(list, map, value, remove);
     }
+}
+
+function insertElement(list: Array<string>, map: object, value, remove: boolean) {
+    let current = map;
+    const len = list.length;
+    let n = 0;
+    let composite = '';
+    for (const p of list) {
+        n++;
+        if (isListElement(p)) {
+            const sep = p.indexOf('[');
+            const indexes = getIndexes(p.substring(sep));
+            const element = p.substring(0, sep);
+            const parent = getMapElement(composite+element, map);
+            if (n == len) {
+                setLastListElement(parent, element, indexes, current, value);
+                break;
+            } else if (Array.isArray(parent)) {
+                current = setNewMapElement(parent, composite, p, indexes, map);
+            } else {
+                current = setNewListElement(current, indexes, element);
+            }
+        } else if (n == len) {
+            if (remove) {
+                delete current[p];                        
+            } else {
+                current[p] = value;
+            }                    
+            break;
+        } else {
+            current = insertMapElement(p, current);
+        }
+        composite += (p + '.');
+    }
+}
+
+function insertMapElement(p: string, current: object): object {
+    const next = current[p];
+    if (next && next.constructor == Object) {
+        return next;
+    } else {
+        const nextMap = {};
+        current[p] = nextMap;
+        return nextMap;
+    }
+}
+
+function updateMapElement(pathname: string, list: Array<string>, map: object, value): boolean {
+    const parentMap = getMapElement(list[0], map);
+    if (parentMap && parentMap.constructor == Object) {
+        const dot = pathname.indexOf('.');
+        const childPath = pathname.substring(dot+1);
+        setMapElement(childPath, value, parentMap);
+        return true;
+    } else {
+        return false;
+    }
+}
+
+function setLastListElement(parent, element: string, indexes: Array<number>, current: object, value) {
+    if (Array.isArray(parent)) {
+        setListElement(indexes, parent, value);
+    } else {
+        const newList = [];
+        setListElement(indexes, newList, value);
+        current[element] = newList;
+    }    
+}
+
+function setNewMapElement(parent, composite: string, p: string, indexes: Array<number>, map: object) {
+    const next = getMapElement(composite+p, map);
+    if (next && next.constuctor == Object) {                        
+        return next;
+    } else {
+        const newMap = {};
+        setListElement(indexes, parent, newMap);
+        return newMap;
+    }
+}
+
+function setNewListElement(current: object, indexes: Array<number>, element: string): object {
+    const nextMap = {};
+    const newList = [];
+    setListElement(indexes, newList, nextMap);
+    current[element] = newList;
+    return nextMap;
 }
 
 function appendIndex(compositePath: string, map: object): string {
@@ -189,6 +225,36 @@ function expandList(indexes: Array<number>, dataset) {
     return dataset;
 }
 
+function validateIndexFormat(md: StartMetadata, c: string) {
+    if (c == '[') {
+        if (md.start) {
+            throw new Error('Invalid composite path - missing end bracket');
+        } else {
+            md.start = true;
+        }
+    } else if (c == ']') {
+        if (!md.start) {
+            throw new Error('Invalid composite path - duplicated end bracket');
+        } else {
+            md.start = false;
+        }
+    } else if (md.start) {
+        if (c < '0' || c > '9') {
+            throw new Error('Invalid composite path - indexes must be digits');
+        }
+    } else {
+        throw new Error('Invalid composite path - invalid indexes');
+    }    
+}
+
+function validateCompositePathIndex(s: string, sep: number) {
+    const md = new StartMetadata();
+    const text = s.substring(sep);
+    for (const element of text) {
+        validateIndexFormat(md, element);
+    }    
+}
+
 function validateCompositePathSyntax(pathname: string): void {
     const list = pathname.split('.').filter(v => v.length > 0);
     if (list.length == 0) {
@@ -206,37 +272,60 @@ function validateCompositePathSyntax(pathname: string): void {
                 throw new Error('Invalid composite path - missing end bracket');
             }
             // check start-end pair
-            const sep1 = s.indexOf('[');
-            const sep2 = s.indexOf(']');
-            if (sep2 < sep1) {
+            const start = s.indexOf('[');
+            const end = s.indexOf(']');
+            if (end < start) {
                 throw new Error('Invalid composite path - missing start bracket');
             }
-            let start = false;
-            const text = s.substring(sep1);
-            for (const element of text) {
-                const c = element;
-                if (c == '[') {
-                    if (start) {
-                        throw new Error('Invalid composite path - missing end bracket');
-                    } else {
-                        start = true;
-                    }
-                } else if (c == ']') {
-                    if (!start) {
-                        throw new Error('Invalid composite path - duplicated end bracket');
-                    } else {
-                        start = false;
-                    }
-                } else if (start) {
-                    if (c < '0' || c > '9') {
-                        throw new Error('Invalid composite path - indexes must be digits');
-                    }
-                } else {
-                    throw new Error('Invalid composite path - invalid indexes');
-                }
+            validateCompositePathIndex(s, start);            
+        }
+    }
+}
+
+function scanListElement(md: ScanMetadata, p: string, n: number, len: number): ScanMetadata | string {
+    const start = p.indexOf('[');
+    const end = p.indexOf(']', start);
+    if (end == -1) return 'break';
+    const key = p.substring(0, start);
+    const index = p.substring(start+1, end);
+    if (index.length == 0 || !isDigits(index)) return 'break';
+    if (key in md.current) {
+        const nextList = md.current[key];
+        if (Array.isArray(nextList)) {
+            const indexes = getIndexes(p.substring(start));
+            const next = getListElement(indexes, nextList);
+            if (n == len) {
+                md.value = next;
+                return md;
+            }
+            if (next && next.constructor == Object) {
+                md.current = next as object;
+                return 'continue';
             }
         }
     }
+   return 'break';
+}
+
+function scanMapElement(md: ScanMetadata, p: string, n: number, len: number): ScanMetadata | string {
+    const next = md.current[p];
+    if (n == len) {
+        md.value = next;
+        return md;
+    } else if (next && next.constructor == Object) {
+        md.current = next as object;
+        return 'continue';
+    } 
+    return 'break';
+}
+
+function scanElement(md: ScanMetadata, p: string, n: number, len: number) {
+    if (isListElement(p)) {
+        return scanListElement(md, p, n, len);         
+    } else if (p in md.current) {
+        return scanMapElement(md, p, n, len);
+    } 
+    return 'break';
 }
 
 function getMapElement(pathname: string, map: object) {
@@ -248,44 +337,18 @@ function getMapElement(pathname: string, map: object) {
             return new NotFound();
         }
         const list = pathname.split('.').filter(v => v.length > 0);
-        let current = map;
+        const md = new ScanMetadata();
+        md.current = map;
         const len = list.length;
         let n = 0;
         for (const p of list) {
             n++;
-            if (isListElement(p)) {
-                const start = p.indexOf('[');
-                const end = p.indexOf(']', start);
-                if (end == -1) break;
-                const key = p.substring(0, start);
-                const index = p.substring(start+1, end);
-                if (index.length == 0 || !isDigits(index)) break;
-                if (key in current) {
-                    const nextList = current[key];
-                    if (Array.isArray(nextList)) {
-                        const indexes = getIndexes(p.substring(start));
-                        const next = getListElement(indexes, nextList);
-                        if (n == len) {
-                            return next;
-                        }
-                        if (next && next.constructor == Object) {
-                            current = next as object;
-                            continue;
-                        }
-                    }
-                }
-            } else {
-                if (p in current) {
-                    const next = current[p];
-                    if (n == len) {
-                        return next;
-                    } else if (next && next.constructor == Object) {
-                        current = next as object;
-                        continue;
-                    }
-                }
-            }
-            break;
+            const result = scanElement(md, p, n, len);
+            if (result instanceof ScanMetadata) {
+                return result.value;
+            } else if ('break' == result) {
+                break;
+            }            
         } 
     }
     return new NotFound();
@@ -351,7 +414,6 @@ function getListElement(indexes: Array<number>, data) {
  * Therefore developers can programmatically construct a composite key.
  */
 export class MultiLevelMap {
-
     private multiLevels = {};
 
     constructor(kv?: object) {
@@ -467,5 +529,4 @@ export class MultiLevelMap {
         });
         return this;
     }
-
 }

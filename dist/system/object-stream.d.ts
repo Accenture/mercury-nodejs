@@ -1,6 +1,6 @@
 export declare class ObjectStreamIO {
-    private streamIn;
-    private streamOut;
+    private readonly streamIn;
+    private readonly streamOut;
     /**
      * Create an object stream
      *
@@ -29,7 +29,7 @@ export declare class ObjectStreamIO {
  * Use this to connect to an output object stream
  */
 export declare class ObjectStreamWriter {
-    private streamOut;
+    private readonly streamOut;
     /**
      * Create an output stream
      *
@@ -53,8 +53,8 @@ export declare class ObjectStreamWriter {
  * Use this to connect to an input object stream
  */
 export declare class ObjectStreamReader {
-    private streamIn;
-    private timeout;
+    private readonly streamIn;
+    private readonly timeout;
     private eof;
     /**
      * Create an input stream

@@ -102,7 +102,6 @@ export class EventEnvelope {
             }
         }
         return null;
-        // return k in this.headers? this.headers[k] : null;
     }
     /**
      * Retrieve all headers / parameters
@@ -434,8 +433,8 @@ export class EventEnvelope {
                 return "***";
             }
             else if (this.body instanceof Object && !Array.isArray(this.body) &&
-                'error' == this.body['type'] && 'status' in this.body && 'message' in this.body) {
-                return String(this.body['message']);
+                'error' == this.body['type'] && 'status' in this.body && 'message' in this.body && typeof this.body['message'] == 'string') {
+                return this.body['message'];
             }
             else {
                 return this.body;
@@ -458,7 +457,7 @@ export class EventEnvelope {
      * @returns true or false
      */
     isException() {
-        return this.stackTrace ? true : false;
+        return !!this.stackTrace;
     }
     /**
      * This method is reserved by the system. DO NOT call this directly.
@@ -476,7 +475,7 @@ export class EventEnvelope {
      * @returns performance metrics
      */
     getExecTime() {
-        return this.execTime ? this.execTime : 0;
+        return this.execTime ? Math.max(0, this.execTime) : 0;
     }
     /**
      * This method is reserved by the system. DO NOT call this directly.
@@ -494,7 +493,7 @@ export class EventEnvelope {
      * @returns performance metrics
      */
     getRoundTrip() {
-        return this.roundTrip;
+        return this.roundTrip ? Math.max(0, this.roundTrip) : 0;
     }
     /**
      * Convert this event into a JSON object
@@ -519,7 +518,7 @@ export class EventEnvelope {
         if (Object.keys(this.annotations).length > 0) {
             result['annotations'] = this.annotations;
         }
-        if (this.body) {
+        if (this.body || typeof this.body == 'boolean') {
             result['body'] = this.body;
         }
         if (this.replyTo) {
@@ -552,14 +551,14 @@ export class EventEnvelope {
      * @returns this
      */
     fromMap(map) {
-        if ('id' in map) {
-            this.id = String(map['id']);
+        if (typeof map['id'] == 'string') {
+            this.id = map['id'];
         }
-        if ('to' in map) {
-            this.to = String(map['to']);
+        if (typeof map['to'] == 'string') {
+            this.to = map['to'];
         }
-        if ('from' in map) {
-            this.sender = String(map['from']);
+        if (typeof map['from'] == 'string') {
+            this.sender = map['from'];
         }
         if ('headers' in map) {
             const headers = map['headers'];
@@ -570,34 +569,37 @@ export class EventEnvelope {
             // Casting to object for compilation only. It is irrelevant at run-time.
             this.body = map['body'];
         }
-        if ('reply_to' in map) {
-            this.replyTo = String(map['reply_to']);
+        if (typeof map['reply_to'] == 'string') {
+            this.replyTo = map['reply_to'];
         }
+        this.metadataFromMap(map);
+        return this;
+    }
+    metadataFromMap(map) {
         if ('tags' in map) {
             this.tags = map['tags'];
         }
         if ('annotations' in map) {
             this.annotations = map['annotations'];
         }
-        if ('cid' in map) {
-            this.correlationId = String(map['cid']);
+        if (typeof map['cid'] == 'string') {
+            this.correlationId = map['cid'];
         }
-        if ('trace_id' in map) {
+        if (typeof map['trace_id'] == 'string') {
             this.traceId = String(map['trace_id']);
         }
-        if ('trace_path' in map) {
+        if (typeof map['trace_path'] == 'string') {
             this.tracePath = String(map['trace_path']);
         }
-        if ('status' in map) {
+        if (typeof map['status'] == 'number') {
             this.status = parseInt(String(map['status']));
         }
-        if ('exec_time' in map) {
+        if (typeof map['exec_time'] == 'number') {
             this.execTime = Math.max(0, util.getFloat(parseFloat(String(map['exec_time'])), 3));
         }
-        if ('round_trip' in map) {
+        if (typeof map['round_trip'] == 'number') {
             this.roundTrip = Math.max(0, util.getFloat(parseFloat(String(map['round_trip'])), 3));
         }
-        return this;
     }
     /**
      * Convert this event into a byte array
@@ -624,7 +626,7 @@ export class EventEnvelope {
         if (Object.keys(this.annotations).length > 0) {
             result[ANNOTATION_FLAG] = this.annotations;
         }
-        if (this.body) {
+        if (this.body || typeof this.body == 'boolean') {
             result[BODY_FLAG] = this.body;
         }
         if (this.replyTo) {
@@ -663,56 +665,59 @@ export class EventEnvelope {
         const o = unpack(b);
         if (o && o.constructor == Object) {
             const map = o;
-            if (ID_FLAG in map) {
-                this.id = String(map[ID_FLAG]);
+            if (typeof map[ID_FLAG] == 'string') {
+                this.id = map[ID_FLAG];
             }
-            if (TO_FLAG in map) {
-                this.to = String(map[TO_FLAG]);
+            if (typeof map[TO_FLAG] == 'string') {
+                this.to = map[TO_FLAG];
             }
-            if (FROM_FLAG in map) {
-                this.sender = String(map[FROM_FLAG]);
+            if (typeof map[FROM_FLAG] == 'string') {
+                this.sender = map[FROM_FLAG];
             }
             if (HEADERS_FLAG in map) {
                 const headers = map[HEADERS_FLAG];
                 this.headers = headers && headers.constructor == Object ? headers : {};
             }
-            if (BODY_FLAG in map) {
-                // "body" can be one of (string | number | object | boolean | Buffer | Uint8Array).
-                // Casting to object for compilation only. It is irrelevant at run-time.
-                this.body = map[BODY_FLAG];
-            }
-            if (REPLY_TO_FLAG in map) {
-                this.replyTo = String(map[REPLY_TO_FLAG]);
-            }
-            if (TAG_FLAG in map) {
-                this.tags = map[TAG_FLAG];
-            }
-            if (ANNOTATION_FLAG in map) {
-                this.annotations = map[ANNOTATION_FLAG];
-            }
-            if (STACK_FLAG in map) {
-                this.stackTrace = String(map[STACK_FLAG]);
-            }
-            if (CID_FLAG in map) {
-                this.correlationId = String(map[CID_FLAG]);
-            }
-            if (TRACE_ID_FLAG in map) {
-                this.traceId = String(map[TRACE_ID_FLAG]);
-            }
-            if (TRACE_PATH_FLAG in map) {
-                this.tracePath = String(map[TRACE_PATH_FLAG]);
-            }
-            if (STATUS_FLAG in map) {
-                this.status = parseInt(String(map[STATUS_FLAG]));
-            }
-            if (EXECUTION_FLAG in map) {
-                this.execTime = Math.max(0, util.getFloat(parseFloat(String(map[EXECUTION_FLAG])), 3));
-            }
-            if (ROUND_TRIP_FLAG in map) {
-                this.roundTrip = Math.max(0, util.getFloat(parseFloat(String(map[ROUND_TRIP_FLAG])), 3));
-            }
+            this.bodyFromMap(map);
         }
         return this;
+    }
+    bodyFromMap(map) {
+        if (BODY_FLAG in map) {
+            // "body" can be one of (string | number | object | boolean | Buffer | Uint8Array).
+            // Casting to object for compilation only. It is irrelevant at run-time.
+            this.body = map[BODY_FLAG];
+        }
+        if (typeof map[REPLY_TO_FLAG] == 'string') {
+            this.replyTo = map[REPLY_TO_FLAG];
+        }
+        if (TAG_FLAG in map) {
+            this.tags = map[TAG_FLAG];
+        }
+        if (ANNOTATION_FLAG in map) {
+            this.annotations = map[ANNOTATION_FLAG];
+        }
+        if (typeof map[STACK_FLAG] == 'string') {
+            this.stackTrace = map[STACK_FLAG];
+        }
+        if (typeof map[CID_FLAG] == 'string') {
+            this.correlationId = map[CID_FLAG];
+        }
+        if (typeof map[TRACE_ID_FLAG] == 'string') {
+            this.traceId = map[TRACE_ID_FLAG];
+        }
+        if (typeof map[TRACE_PATH_FLAG] == 'string') {
+            this.tracePath = map[TRACE_PATH_FLAG];
+        }
+        if (typeof map[STATUS_FLAG] == 'number') {
+            this.status = parseInt(String(map[STATUS_FLAG]));
+        }
+        if (typeof map[EXECUTION_FLAG] == 'number') {
+            this.execTime = Math.max(0, util.getFloat(parseFloat(String(map[EXECUTION_FLAG])), 3));
+        }
+        if (typeof map[ROUND_TRIP_FLAG] == 'number') {
+            this.roundTrip = Math.max(0, util.getFloat(parseFloat(String(map[ROUND_TRIP_FLAG])), 3));
+        }
     }
     /**
      * Copy from an event into this

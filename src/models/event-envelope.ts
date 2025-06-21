@@ -71,7 +71,7 @@ export class EventEnvelope {
      * @param id - unique UUID
      * @returns this
      */
-    setId(id: string): EventEnvelope {
+    setId(id: string): this {
         this.id = id;
         return this;
     }
@@ -92,7 +92,7 @@ export class EventEnvelope {
      * @param v value
      * @returns this
      */
-    setHeader(k: string, v: string): EventEnvelope {
+    setHeader(k: string, v: string): this {
         this.headers[k] = v;
         return this;
     }
@@ -113,7 +113,6 @@ export class EventEnvelope {
             }
         }
         return null;
-        // return k in this.headers? this.headers[k] : null;
     }
 
     /**
@@ -131,7 +130,7 @@ export class EventEnvelope {
      * @param headers to override
      * @returns this
      */
-    setHeaders(headers: object): EventEnvelope {
+    setHeaders(headers: object): this {
         if (headers && headers.constructor == Object) {
             this.headers = headers;
         }        
@@ -145,7 +144,7 @@ export class EventEnvelope {
      * @param body
      * @returns 
      */
-    setBody(body: eventPayload): EventEnvelope {
+    setBody(body: eventPayload): this {
         this.body = body;
         return this;
     }
@@ -168,7 +167,7 @@ export class EventEnvelope {
      * @param status code
      * @returns this
      */
-    setStatus(status: number): EventEnvelope {
+    setStatus(status: number): this {
         this.status = status;
         return this;
     }
@@ -192,7 +191,7 @@ export class EventEnvelope {
      * @param to destination route
      * @returns this
      */
-    setTo(to: string): EventEnvelope {
+    setTo(to: string): this {
         this.to = to;
         return this;
     }
@@ -212,7 +211,7 @@ export class EventEnvelope {
      * @param sender of the event
      * @returns this
      */
-    setFrom(sender: string): EventEnvelope {
+    setFrom(sender: string): this {
         this.sender = sender;
         return this;
     }
@@ -232,7 +231,7 @@ export class EventEnvelope {
      * @param replyTo route name if this event is used for RPC or callback
      * @returns this
      */
-    setReplyTo(replyTo: string): EventEnvelope {
+    setReplyTo(replyTo: string): this {
         this.replyTo = replyTo;
         return this;
     }
@@ -256,7 +255,7 @@ export class EventEnvelope {
      * @param value - tag value
      * @returns this
      */
-    addTag(key: string, value = 'true'): EventEnvelope {
+    addTag(key: string, value = 'true'): this {
         if (key && key.length > 0) {
             this.tags[key] = String(value);
         }
@@ -269,7 +268,7 @@ export class EventEnvelope {
      * @param tags of key-values
      * @returns this
      */
-    setTags(tags: object): EventEnvelope {
+    setTags(tags: object): this {
         this.tags = tags;
         return this;
     }
@@ -280,7 +279,7 @@ export class EventEnvelope {
      * @param key - tag name
      * @returns this
      */
-    removeTag(key: string): EventEnvelope {
+    removeTag(key: string): this {
         if (key && key.length > 0) {
             delete this.tags[key];
         }
@@ -313,7 +312,7 @@ export class EventEnvelope {
      * @param value of an annotation
      * @returns 
      */
-    annotate(key: string, value: string | object): EventEnvelope {
+    annotate(key: string, value: string | object): this {
         if (key && value) {
             this.annotations[key] = value;
         }        
@@ -335,7 +334,7 @@ export class EventEnvelope {
      * @param annotations to set
      * @returns this
      */
-    setAnnotations(annotations: object): EventEnvelope {
+    setAnnotations(annotations: object): this {
         this.annotations = annotations;
         return this;
     }
@@ -345,7 +344,7 @@ export class EventEnvelope {
      * 
      * @returns this
      */
-    clearAnnotations(): EventEnvelope {
+    clearAnnotations(): this {
         this.annotations = {};
         return this;
     }
@@ -356,7 +355,7 @@ export class EventEnvelope {
      * @param correlationId for tracking
      * @returns this
      */
-    setCorrelationId(correlationId: string): EventEnvelope {
+    setCorrelationId(correlationId: string): this {
         if (correlationId) {
             this.correlationId = correlationId;
         } else {
@@ -385,7 +384,7 @@ export class EventEnvelope {
      * @param traceId of the event
      * @returns this
      */
-    setTraceId(traceId: string): EventEnvelope {
+    setTraceId(traceId: string): this {
         this.traceId = traceId;
         return this;
     }
@@ -410,7 +409,7 @@ export class EventEnvelope {
      * @param tracePath of the event
      * @returns this
      */
-    setTracePath(tracePath: string): EventEnvelope {
+    setTracePath(tracePath: string): this {
         this.tracePath = tracePath;
         return this;
     }
@@ -431,7 +430,7 @@ export class EventEnvelope {
      * @param error message
      * @returns this
      */
-    setException(error: Error): EventEnvelope {
+    setException(error: Error): this {
         this.setStatus(error instanceof AppException? error.getStatus() : 500);
         if (error instanceof Error) {
             // user function must throw AppException or Error object
@@ -470,8 +469,8 @@ export class EventEnvelope {
             } else if (this.body instanceof Buffer) {
                 return "***";
             } else if (this.body instanceof Object && !Array.isArray(this.body) && 
-                'error' == this.body['type'] && 'status' in this.body && 'message' in this.body) {
-                return String(this.body['message']);
+                'error' == this.body['type'] && 'status' in this.body && 'message' in this.body && typeof this.body['message'] == 'string') {
+                return this.body['message'];
             } else {
                 return this.body;
             }
@@ -480,7 +479,7 @@ export class EventEnvelope {
         }
     }
 
-    setStackTrace(stackTrace: string): EventEnvelope {
+    setStackTrace(stackTrace: string): this {
         this.stackTrace = stackTrace;
         return this;
     }
@@ -495,7 +494,7 @@ export class EventEnvelope {
      * @returns true or false
      */
     isException(): boolean {
-        return this.stackTrace? true : false;
+        return !!this.stackTrace;
     }
 
     /**
@@ -504,7 +503,7 @@ export class EventEnvelope {
      * @param execTime of the function processing this event
      * @returns this
      */
-    setExecTime(execTime: number): EventEnvelope {
+    setExecTime(execTime: number): this {
         this.execTime = Math.max(0, execTime);
         return this;
     }
@@ -515,7 +514,7 @@ export class EventEnvelope {
      * @returns performance metrics
      */
     getExecTime(): number {
-        return this.execTime? this.execTime : 0;
+        return this.execTime? Math.max(0, this.execTime) : 0;
     }
 
     /**
@@ -524,7 +523,7 @@ export class EventEnvelope {
      * @param roundTrip end-to-end processing time
      * @returns this
      */
-    setRoundTrip(roundTrip: number): EventEnvelope {
+    setRoundTrip(roundTrip: number): this {
         this.roundTrip = Math.max(0, roundTrip);
         return this;
     }
@@ -535,7 +534,7 @@ export class EventEnvelope {
      * @returns performance metrics
      */
     getRoundTrip(): number {
-        return this.roundTrip;
+        return this.roundTrip? Math.max(0, this.roundTrip) : 0;
     }
 
     /**
@@ -561,7 +560,7 @@ export class EventEnvelope {
         if (Object.keys(this.annotations).length > 0) {
             result['annotations'] = this.annotations;
         }
-        if (this.body) {
+        if (this.body || typeof this.body == 'boolean') {
             result['body'] = this.body;
         }
         if (this.replyTo) {
@@ -594,15 +593,15 @@ export class EventEnvelope {
      * @param map input is a JSON object
      * @returns this
      */
-    fromMap(map: object): EventEnvelope {
-        if ('id' in map) {
-            this.id = String(map['id']);
+    fromMap(map: object): this {
+        if (typeof map['id'] == 'string') {
+            this.id = map['id'];
         }
-        if ('to' in map) {
-            this.to = String(map['to']);
+        if (typeof map['to'] == 'string') {
+            this.to = map['to'];
         }
-        if ('from' in map) {
-            this.sender = String(map['from']);
+        if (typeof map['from'] == 'string') {
+            this.sender = map['from'];
         }
         if ('headers' in map) {
             const headers = map['headers'];
@@ -613,34 +612,38 @@ export class EventEnvelope {
             // Casting to object for compilation only. It is irrelevant at run-time.
             this.body = map['body'] as object;
         }
-        if ('reply_to' in map) {
-            this.replyTo = String(map['reply_to']);
+        if (typeof map['reply_to'] == 'string') {
+            this.replyTo = map['reply_to'];
         }
+        this.metadataFromMap(map);
+        return this;
+    }
+
+    private metadataFromMap(map: object) {
         if ('tags' in map) {
             this.tags = map['tags'] as object;
         }
         if ('annotations' in map) {
             this.annotations = map['annotations'] as object;
         }
-        if ('cid' in map) {
-            this.correlationId = String(map['cid']);
+        if (typeof map['cid'] == 'string') {
+            this.correlationId = map['cid'];
         }
-        if ('trace_id' in map) {
+        if (typeof map['trace_id'] == 'string') {
             this.traceId = String(map['trace_id']);
         }
-        if ('trace_path' in map) {
+        if (typeof map['trace_path'] == 'string') {
             this.tracePath = String(map['trace_path']);
         }
-        if ('status' in map) {
+        if (typeof map['status'] == 'number') {
             this.status = parseInt(String(map['status']));
         }
-        if ('exec_time' in map) {
+        if (typeof map['exec_time'] == 'number') {
             this.execTime = Math.max(0, util.getFloat(parseFloat(String(map['exec_time'])), 3));
         }
-        if ('round_trip' in map) {
+        if (typeof map['round_trip'] == 'number') {
             this.roundTrip = Math.max(0, util.getFloat(parseFloat(String(map['round_trip'])), 3));
         }
-        return this;
     }
 
     /**
@@ -668,7 +671,7 @@ export class EventEnvelope {
         if (Object.keys(this.annotations).length > 0) {
             result[ANNOTATION_FLAG] = this.annotations;
         }
-        if (this.body) {
+        if (this.body || typeof this.body == 'boolean') {
             result[BODY_FLAG] = this.body;
         }
         if (this.replyTo) {
@@ -704,60 +707,64 @@ export class EventEnvelope {
      * @param b input is a byte array
      * @returns this
      */
-    fromBytes(b: Buffer): EventEnvelope {
+    fromBytes(b: Buffer): this {
         const o = unpack(b);
         if (o && o.constructor == Object) {
             const map = o as object;
-            if (ID_FLAG in map) {
-                this.id = String(map[ID_FLAG]);
+            if (typeof map[ID_FLAG] == 'string') {
+                this.id = map[ID_FLAG];
             }
-            if (TO_FLAG in map) {
-                this.to = String(map[TO_FLAG]);
+            if (typeof map[TO_FLAG] == 'string') {
+                this.to = map[TO_FLAG];
             }
-            if (FROM_FLAG in map) {
-                this.sender = String(map[FROM_FLAG]);
+            if (typeof map[FROM_FLAG] == 'string') {
+                this.sender = map[FROM_FLAG];
             }
             if (HEADERS_FLAG in map) {
                 const headers = map[HEADERS_FLAG];
                 this.headers = headers && headers.constructor == Object? headers as object : {};
             }
-            if (BODY_FLAG in map) {
-                // "body" can be one of (string | number | object | boolean | Buffer | Uint8Array).
-                // Casting to object for compilation only. It is irrelevant at run-time.
-                this.body = map[BODY_FLAG] as object;
-            }
-            if (REPLY_TO_FLAG in map) {
-                this.replyTo = String(map[REPLY_TO_FLAG]);
-            }
-            if (TAG_FLAG in map) {
-                this.tags = map[TAG_FLAG] as object;
-            }
-            if (ANNOTATION_FLAG in map) {
-                this.annotations = map[ANNOTATION_FLAG] as object;
-            }
-            if (STACK_FLAG in map) {
-                this.stackTrace = String(map[STACK_FLAG]);
-            }
-            if (CID_FLAG in map) {
-                this.correlationId = String(map[CID_FLAG]);
-            }
-            if (TRACE_ID_FLAG in map) {
-                this.traceId = String(map[TRACE_ID_FLAG]);
-            }
-            if (TRACE_PATH_FLAG in map) {
-                this.tracePath = String(map[TRACE_PATH_FLAG]);
-            }
-            if (STATUS_FLAG in map) {
-                this.status = parseInt(String(map[STATUS_FLAG]));
-            }
-            if (EXECUTION_FLAG in map) {
-                this.execTime = Math.max(0, util.getFloat(parseFloat(String(map[EXECUTION_FLAG])), 3));
-            }
-            if (ROUND_TRIP_FLAG in map) {
-                this.roundTrip = Math.max(0, util.getFloat(parseFloat(String(map[ROUND_TRIP_FLAG])), 3));
-            }
+            this.bodyFromMap(map);
         }
         return this;
+    }
+
+    private bodyFromMap(map: object) {
+        if (BODY_FLAG in map) {
+            // "body" can be one of (string | number | object | boolean | Buffer | Uint8Array).
+            // Casting to object for compilation only. It is irrelevant at run-time.
+            this.body = map[BODY_FLAG] as object;
+        }
+        if (typeof map[REPLY_TO_FLAG] == 'string') {
+            this.replyTo = map[REPLY_TO_FLAG];
+        }
+        if (TAG_FLAG in map) {
+            this.tags = map[TAG_FLAG] as object;
+        }
+        if (ANNOTATION_FLAG in map) {
+            this.annotations = map[ANNOTATION_FLAG] as object;
+        }
+        if (typeof map[STACK_FLAG] == 'string') {
+            this.stackTrace = map[STACK_FLAG];
+        }
+        if (typeof map[CID_FLAG] == 'string') {
+            this.correlationId = map[CID_FLAG];
+        }
+        if (typeof map[TRACE_ID_FLAG] == 'string') {
+            this.traceId = map[TRACE_ID_FLAG];
+        }
+        if (typeof map[TRACE_PATH_FLAG] == 'string') {
+            this.tracePath = map[TRACE_PATH_FLAG];
+        }
+        if (typeof map[STATUS_FLAG] == 'number') {
+            this.status = parseInt(String(map[STATUS_FLAG]));
+        }
+        if (typeof map[EXECUTION_FLAG] == 'number') {
+            this.execTime = Math.max(0, util.getFloat(parseFloat(String(map[EXECUTION_FLAG])), 3));
+        }
+        if (typeof map[ROUND_TRIP_FLAG] == 'number') {
+            this.roundTrip = Math.max(0, util.getFloat(parseFloat(String(map[ROUND_TRIP_FLAG])), 3));
+        }        
     }
 
     /**
@@ -766,7 +773,7 @@ export class EventEnvelope {
      * @param event input
      * @returns this
      */
-    copy(event: EventEnvelope): EventEnvelope {
+    copy(event: EventEnvelope): this {
         this.to = event.to;
         this.id = event.id;
         this.sender = event.sender;

@@ -124,11 +124,8 @@ export class Utility {
                 route.endsWith(".") || route.endsWith("_") || route.endsWith("-"))
                 return false;
             for (let i = 0; i < route.length; i++) {
-                if (route.charAt(i) >= '0' && route.charAt(i) <= '9')
-                    continue;
-                if (route.charAt(i) >= 'a' && route.charAt(i) <= 'z')
-                    continue;
-                if (route.charAt(i) == '.' || route.charAt(i) == '_' || route.charAt(i) == '-')
+                if ((route.charAt(i) >= '0' && route.charAt(i) <= '9') || (route.charAt(i) >= 'a' && route.charAt(i) <= 'z') ||
+                    route.charAt(i) == '.' || route.charAt(i) == '_' || route.charAt(i) == '-')
                     continue;
                 return false;
             }
@@ -265,17 +262,20 @@ export class Utility {
                 let folder = '';
                 for (const p of parts) {
                     folder += ('/' + p);
-                    if (!fs.existsSync(folder)) {
-                        fs.mkdirSync(folder);
-                    }
-                    else {
-                        const file = fs.statSync(folder);
-                        if (!file.isDirectory) {
-                            throw new Error(`Unable to create ${path} - ${folder} is not a directory`);
-                        }
-                    }
+                    this.createParentFolder(folder, path);
                 }
             }
+        }
+    }
+    createParentFolder(folder, path) {
+        if (fs.existsSync(folder)) {
+            const file = fs.statSync(folder);
+            if (!file.isDirectory) {
+                throw new Error(`Unable to create ${path} - ${folder} is not a directory`);
+            }
+        }
+        else {
+            fs.mkdirSync(folder);
         }
     }
     /**
@@ -289,9 +289,14 @@ export class Utility {
             const stats = fs.statSync(filePath);
             return stats.isDirectory();
         }
-        catch (_e) {
-            // file not found
-            return false;
+        catch (e) {
+            if (e instanceof Error) {
+                // file not found
+                return false;
+            }
+            else {
+                throw e;
+            }
         }
     }
     async file2bytes(filePath) {
@@ -335,21 +340,11 @@ export class Utility {
         if (text && chars) {
             let sb = '';
             for (const i of text) {
-                let found = false;
-                for (const j of chars) {
-                    if (i == j) {
-                        if (sb.length > 0) {
-                            result.push(sb);
-                        }
-                        else if (empty) {
-                            result.push('');
-                        }
-                        sb = '';
-                        found = true;
-                        break;
-                    }
+                const found = this.matchCharacter(sb, i, chars, empty, result);
+                if (found) {
+                    sb = '';
                 }
-                if (!found) {
+                else {
                     sb += i;
                 }
             }
@@ -358,6 +353,20 @@ export class Utility {
             }
         }
         return result;
+    }
+    matchCharacter(sb, i, chars, empty, result) {
+        for (const j of chars) {
+            if (i == j) {
+                if (sb.length > 0) {
+                    result.push(sb);
+                }
+                else if (empty) {
+                    result.push('');
+                }
+                return true;
+            }
+        }
+        return false;
     }
     /**
      * DO NOT call this function directly in your applicaton code.
@@ -374,6 +383,23 @@ export class Utility {
         const fPath = folder.includes('\\') ? folder.replaceAll('\\', '/') : folder;
         const colon = fPath.indexOf(':');
         return colon == 1 ? fPath.substring(colon + 1) : fPath;
+    }
+    getInteger(data) {
+        if (typeof data == 'string') {
+            return this.str2int(data);
+        }
+        else if (typeof data == 'number') {
+            return this.str2int(String(data));
+        }
+        else {
+            return -1;
+        }
+    }
+    getString(data) {
+        return typeof data == 'string' ? data : JSON.stringify(data);
+    }
+    equalsIgnoreCase(a, b) {
+        return a.localeCompare(b, undefined, { sensitivity: 'accent' }) === 0;
     }
 }
 //# sourceMappingURL=utility.js.map

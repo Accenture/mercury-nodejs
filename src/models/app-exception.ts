@@ -1,6 +1,6 @@
 export class AppException extends Error {
     
-    private status: number;
+    private readonly status: number;
 
     constructor(status: number, message: string) {
         super(message);

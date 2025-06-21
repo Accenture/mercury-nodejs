@@ -133,9 +133,8 @@ export class Utility {
             if (route.startsWith(".") || route.startsWith("_") || route.startsWith("-") || route.includes("..") ||
                 route.endsWith(".") || route.endsWith("_") || route.endsWith("-")) return false;
             for (let i=0; i < route.length; i++) {
-                if (route.charAt(i) >= '0' && route.charAt(i) <= '9') continue;
-                if (route.charAt(i) >= 'a' && route.charAt(i) <= 'z') continue;
-                if (route.charAt(i) == '.' || route.charAt(i) == '_' || route.charAt(i) == '-') continue;
+                if ((route.charAt(i) >= '0' && route.charAt(i) <= '9') || (route.charAt(i) >= 'a' && route.charAt(i) <= 'z') ||
+                    route.charAt(i) == '.' || route.charAt(i) == '_' || route.charAt(i) == '-') continue;
                 return false;
             }
             return route.includes('.');
@@ -274,17 +273,21 @@ export class Utility {
                 let folder = ''
                 for (const p of parts) {
                     folder += ('/' + p);
-                    if (!fs.existsSync(folder)) {
-                        fs.mkdirSync(folder);
-                    } else {
-                        const file = fs.statSync(folder);
-                        if (!file.isDirectory) {
-                            throw new Error(`Unable to create ${path} - ${folder} is not a directory`);
-                        }
-                    }                  
+                    this.createParentFolder(folder, path);                
                 }
             } 
         }
+    }
+
+    private createParentFolder(folder: string, path: string): void {
+        if (fs.existsSync(folder)) {
+            const file = fs.statSync(folder);
+            if (!file.isDirectory) {
+                throw new Error(`Unable to create ${path} - ${folder} is not a directory`);
+            }
+        } else {
+            fs.mkdirSync(folder);
+        } 
     }
 
     /**
@@ -297,9 +300,13 @@ export class Utility {
         try {
             const stats = fs.statSync(filePath);
             return stats.isDirectory();
-        } catch (_e) {
-            // file not found
-            return false;
+        } catch (e) {
+            if (e instanceof Error) {
+                // file not found
+                return false;
+            } else {
+                throw e;
+            }
         }
     }
 
@@ -346,20 +353,10 @@ export class Utility {
         if (text && chars) {
             let sb = '';
             for (const i of text) {
-                let found = false;
-                for (const j of chars) {
-                    if (i == j) {
-                        if (sb.length > 0) {
-                            result.push(sb);
-                        } else if (empty) {
-                            result.push('');
-                        }
-                        sb = '';
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
+                const found = this.matchCharacter(sb, i, chars, empty, result);
+                if (found) {
+                    sb = '';
+                } else {
                     sb += i;
                 }
             }
@@ -368,6 +365,20 @@ export class Utility {
             }
         }
         return result;
+    }
+
+    private matchCharacter(sb: string, i: string, chars: string, empty: boolean, result: string[]): boolean {
+        for (const j of chars) {
+            if (i == j) {
+                if (sb.length > 0) {
+                    result.push(sb);
+                } else if (empty) {
+                    result.push('');
+                }
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -385,5 +396,23 @@ export class Utility {
         const fPath = folder.includes('\\')? folder.replaceAll('\\', '/') : folder;
         const colon = fPath.indexOf(':');
         return colon == 1? fPath.substring(colon+1) : fPath;
+    }
+
+    getInteger(data): number {
+        if (typeof data == 'string') {
+            return this.str2int(data);
+        } else if (typeof data == 'number') {
+            return this.str2int(String(data));
+        } else {
+            return -1;
+        }
+    }
+
+    getString(data): string {
+        return typeof data == 'string'? data : JSON.stringify(data);
+    }
+
+    equalsIgnoreCase(a: string, b: string): boolean {
+        return a.localeCompare(b, undefined, { sensitivity: 'accent' }) === 0;
     }
 }

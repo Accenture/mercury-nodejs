@@ -89,6 +89,13 @@ const OPERATION = {
     BOOLEAN_COMMAND: 5,
     CONCAT_COMMAND: 6
 };
+class CommandMetadata {
+    command;
+}
+class DynamicIndexMetadata {
+    sb = '';
+    start = 0;
+}
 /**
  * This is reserved for system use.
  * DO NOT use this directly in your application code.
@@ -102,7 +109,7 @@ export class TaskExecutor {
         return this;
     }
     async handleEvent(event) {
-        const po = new PostOffice(event.getHeaders());
+        const po = new PostOffice(event);
         const self = po.getMyClass();
         const compositeCid = event.getCorrelationId();
         if (compositeCid == null) {
@@ -149,64 +156,8 @@ export class TaskExecutor {
             if (firstTask) {
                 await self.executeTask(flowInstance, firstTask);
             }
-            else {
-                // handle callback from a task
-                const from = ref != null ? ref.processId : event.getFrom();
-                if (!from) {
-                    log.error(`Unable to process callback ${flowName}:${refId} - task does not provide 'from' address`);
-                    return false;
-                }
-                const caller = from.includes("@") ? from.substring(0, from.indexOf('@')) : from;
-                const task = flowInstance.getFlow().tasks[caller];
-                if (task) {
-                    const statusCode = event.getStatus();
-                    if (statusCode >= 400 || event.isException()) {
-                        if (seq > 0) {
-                            if (task.getExceptionTask() != null) {
-                                // Clear this specific pipeline queue when task has its own exception handler
-                                delete flowInstance.pipeMap[seq];
-                            }
-                            else {
-                                /*
-                                * Clear all pipeline queues when task does not have its own exception handler.
-                                * System will route the exception to the generic exception handler.
-                                */
-                                flowInstance.pipeMap = {};
-                            }
-                        }
-                        const isTaskLevel = task.getExceptionTask() != null;
-                        const handler = isTaskLevel ? task.getExceptionTask() : flowInstance.getFlow().exception;
-                        /*
-                         * Top level exception handler catches all unhandled exceptions.
-                         *
-                         * To exception loops at the top level exception handler,
-                         * abort the flow if top level exception handler throws exception.
-                         */
-                        if (handler && !flowInstance.topLevelExceptionHappened()) {
-                            if (!isTaskLevel) {
-                                flowInstance.setExceptionAtTopLevel(true);
-                            }
-                            const error = { 'code': statusCode, 'message': event.getError() };
-                            const stackTrace = event.getStackTrace();
-                            if (stackTrace) {
-                                error['stack'] = stackTrace;
-                            }
-                            await self.executeTask(flowInstance, handler, -1, error);
-                        }
-                        else {
-                            // when there are no task or flow exception handlers
-                            self.abortFlow(flowInstance, statusCode, event.getError());
-                        }
-                        return false;
-                    }
-                }
-                else {
-                    log.error(`Unable to process callback ${flowName}:${refId} - missing task in ${caller}`);
-                    return false;
-                }
-                // clear top level exception state
-                flowInstance.setExceptionAtTopLevel(false);
-                self.handleCallback(from, flowInstance, task, event, seq);
+            else if (await self.checkCallBack(self, event, flowInstance, seq, flowName, refId, ref)) {
+                return false;
             }
         }
         catch (e) {
@@ -215,6 +166,222 @@ export class TaskExecutor {
             return false;
         }
         return true;
+    }
+    async checkCallBack(self, event, flowInstance, seq, flowName, refId, ref) {
+        // handle callback from a task
+        const from = ref != null ? ref.processId : event.getFrom();
+        if (!from) {
+            log.error(`Unable to process callback ${flowName}:${refId} - task does not provide 'from' address`);
+            return true;
+        }
+        const caller = from.includes("@") ? from.substring(0, from.indexOf('@')) : from;
+        const task = flowInstance.getFlow().tasks[caller];
+        if (task) {
+            const statusCode = event.getStatus();
+            if (statusCode >= 400 || event.isException()) {
+                await self.handleException(self, event, seq, flowInstance, task);
+                return true;
+            }
+        }
+        else {
+            log.error(`Unable to process callback ${flowName}:${refId} - missing task in ${caller}`);
+            return true;
+        }
+        // clear top level exception state
+        flowInstance.setExceptionAtTopLevel(false);
+        self.handleCallback(from, flowInstance, task, event, seq);
+        return false;
+    }
+    async handleException(self, event, seq, flowInstance, task) {
+        const statusCode = event.getStatus();
+        if (seq > 0) {
+            if (task.getExceptionTask() != null) {
+                // Clear this specific pipeline queue when task has its own exception handler
+                delete flowInstance.pipeMap[seq];
+            }
+            else {
+                /*
+                * Clear all pipeline queues when task does not have its own exception handler.
+                * System will route the exception to the generic exception handler.
+                */
+                flowInstance.pipeMap = {};
+            }
+        }
+        const isTaskLevel = task.getExceptionTask() != null;
+        const handler = isTaskLevel ? task.getExceptionTask() : flowInstance.getFlow().exception;
+        /*
+            * Top level exception handler catches all unhandled exceptions.
+            *
+            * To exception loops at the top level exception handler,
+            * abort the flow if top level exception handler throws exception.
+            */
+        if (handler && !flowInstance.topLevelExceptionHappened()) {
+            if (!isTaskLevel) {
+                flowInstance.setExceptionAtTopLevel(true);
+            }
+            const error = { 'code': statusCode, 'message': event.getError() };
+            const stackTrace = event.getStackTrace();
+            if (stackTrace) {
+                error['stack'] = stackTrace;
+            }
+            await self.executeTask(flowInstance, handler, -1, error);
+        }
+        else {
+            // when there are no task or flow exception handlers
+            self.abortFlow(flowInstance, statusCode, event.getError());
+        }
+    }
+    async inputDataMappingModelVar(isInput, lhs, rhs, source, flowInstance) {
+        const modelOnly = {};
+        modelOnly['model'] = flowInstance.dataset['model'];
+        const model = new MultiLevelMap(modelOnly);
+        if (isInput || lhs.startsWith(MODEL_NAMESPACE)) {
+            const value = this.getLhsElement(lhs, source);
+            if (value == null) {
+                this.removeModelElement(rhs, model);
+            }
+            else {
+                this.setRhsElement(value, rhs, model);
+            }
+        }
+        else {
+            await this.setConstantValue(lhs, rhs, model);
+        }
+    }
+    setInputDataMappingValue(optionalHeaders, entry, rhs, target, value) {
+        let valid = true;
+        if (ALL == rhs) {
+            if (value instanceof Object && !Array.isArray(value)) {
+                target.reload(value);
+            }
+            else {
+                valid = false;
+            }
+        }
+        else if (rhs == HEADER) {
+            if (value instanceof Object && !Array.isArray(value)) {
+                Object.keys(value).forEach(k => {
+                    optionalHeaders[k] = String(value[k]);
+                });
+            }
+            else {
+                valid = false;
+            }
+        }
+        else if (rhs.startsWith(HEADER_NAMESPACE)) {
+            const k = rhs.substring(HEADER_NAMESPACE.length);
+            if (k) {
+                optionalHeaders[k] = String(value);
+            }
+        }
+        else {
+            target.setElement(rhs, value);
+        }
+        if (!valid) {
+            const type = typeof value;
+            log.error(`Invalid input mapping '${entry}' - expect: JSON, actual: ${type}`);
+        }
+    }
+    inputDataMappingNormalCase(optionalHeaders, lhs, rhs, entry, source, target) {
+        let value = this.getLhsElement(lhs, source);
+        // special cases for simple type matching for a non-exist model variable
+        if (value == null && lhs.startsWith(MODEL_NAMESPACE)) {
+            value = this.getValueFromNonExistModel(lhs);
+        }
+        if (value != null) {
+            this.setInputDataMappingValue(optionalHeaders, entry, rhs, target, value);
+        }
+    }
+    async doInputDataMapping(optionalHeaders, entry, sep, source, target, flowInstance, task) {
+        let lhs = this.substituteDynamicIndex(entry.substring(0, sep).trim(), source, false);
+        const rhs = this.substituteDynamicIndex(entry.substring(sep + 2).trim(), source, true);
+        const isInput = lhs.startsWith(INPUT_NAMESPACE) || lhs.toLowerCase() == INPUT;
+        if (lhs.startsWith(INPUT_HEADER_NAMESPACE)) {
+            lhs = lhs.toLowerCase();
+        }
+        if (rhs.startsWith(EXT_NAMESPACE)) {
+            let value = null;
+            if (isInput || lhs.startsWith(MODEL_NAMESPACE)) {
+                value = this.getLhsElement(lhs, source);
+            }
+            else {
+                value = await this.getConstantValue(lhs);
+            }
+            this.callExternalStateMachine(flowInstance, task, rhs, value);
+        }
+        else if (rhs.startsWith(MODEL_NAMESPACE)) {
+            // special case to set model variables
+            await this.inputDataMappingModelVar(isInput, lhs, rhs, source, flowInstance);
+        }
+        else if (isInput || lhs.startsWith(MODEL_NAMESPACE) || lhs.startsWith(ERROR_NAMESPACE)) {
+            // normal case to input argument
+            this.inputDataMappingNormalCase(optionalHeaders, lhs, rhs, entry, source, target);
+        }
+        else if (rhs.startsWith(HEADER_NAMESPACE)) {
+            // Assume left hand side is a constant
+            const k = rhs.substring(HEADER_NAMESPACE.length);
+            const v = await this.getConstantValue(lhs);
+            if (k && v) {
+                optionalHeaders[k] = String(v);
+            }
+        }
+        else {
+            await this.setConstantValue(lhs, rhs, target);
+        }
+    }
+    async runNextFlow(optionalHeaders, compositeCid, target, flowInstance, task) {
+        const flowId = task.functionRoute.substring(FLOW_PROTOCOL.length);
+        const subFlow = Flows.getFlow(flowId);
+        if (!subFlow) {
+            log.error(`Unable to process flow ${flowInstance.getFlow().id}:${flowInstance.id} - missing sub-flow ${task.functionRoute}`);
+            this.abortFlow(flowInstance, 500, task.functionRoute + " not defined");
+            return;
+        }
+        if (Object.keys(optionalHeaders).length > 0) {
+            target.setElement(HEADER, optionalHeaders);
+        }
+        const forward = new EventEnvelope().setTo(EVENT_MANAGER)
+            .setHeader(PARENT, flowInstance.id)
+            .setHeader(FLOW_ID, flowId).setBody(target.getMap()).setCorrelationId(util.getUuid());
+        const po = new PostOffice(new Sender(task.functionRoute, flowInstance.getTraceId(), flowInstance.getTracePath()));
+        const response = await po.request(forward, subFlow.ttl);
+        const event = new EventEnvelope().setTo(TASK_EXECUTOR)
+            .setCorrelationId(compositeCid).setStatus(response.getStatus())
+            .setHeaders(response.getHeaders()).setBody(response.getBody());
+        await po.send(event);
+    }
+    async runNextTask(optionalHeaders, deferred, compositeCid, target, flowInstance, task) {
+        const po = new PostOffice(new Sender(TASK_EXECUTOR, flowInstance.getTraceId(), flowInstance.getTracePath()));
+        const event = new EventEnvelope().setTo(task.functionRoute)
+            .setCorrelationId(compositeCid)
+            .setReplyTo(TASK_EXECUTOR).setBody(target.getMap());
+        Object.keys(optionalHeaders).forEach(k => {
+            event.setHeader(k, String(optionalHeaders[k]));
+        });
+        // execute task by sending event
+        if (deferred > 0) {
+            po.sendLater(event, deferred);
+        }
+        else {
+            await po.send(event);
+        }
+    }
+    resolveDelayVar(source, flowInstance, task) {
+        const d = source.getElement(task.getDelayVar());
+        if (d) {
+            const delay = Math.max(1, util.str2int(String(d)));
+            if (delay < flowInstance.getFlow().ttl) {
+                return delay;
+            }
+            else {
+                log.warn(`Unable to schedule future task for ${task.service}` +
+                    ` because ${task.getDelayVar()} is invalid (TTL=${flowInstance.getFlow().ttl}, delay=${delay})`);
+            }
+        }
+        else {
+            log.warn(`Unable to schedule future task for ${task.service} because ${task.getDelayVar()} does not exist`);
+        }
+        return 0;
     }
     async executeTask(flowInstance, processName, seq = -1, error = {}) {
         const task = flowInstance.getFlow().tasks[processName];
@@ -240,95 +407,7 @@ export class TaskExecutor {
         for (const entry of mapping) {
             const sep = entry.lastIndexOf(MAP_TO);
             if (sep > 0) {
-                let lhs = this.substituteDynamicIndex(entry.substring(0, sep).trim(), source, false);
-                const rhs = this.substituteDynamicIndex(entry.substring(sep + 2).trim(), source, true);
-                const isInput = lhs.startsWith(INPUT_NAMESPACE) || lhs.toLowerCase() == INPUT;
-                if (lhs.startsWith(INPUT_HEADER_NAMESPACE)) {
-                    lhs = lhs.toLowerCase();
-                }
-                if (rhs.startsWith(EXT_NAMESPACE)) {
-                    let value = null;
-                    if (isInput || lhs.startsWith(MODEL_NAMESPACE)) {
-                        value = this.getLhsElement(lhs, source);
-                    }
-                    else {
-                        value = await this.getConstantValue(lhs);
-                    }
-                    this.callExternalStateMachine(flowInstance, task, rhs, value);
-                }
-                else if (rhs.startsWith(MODEL_NAMESPACE)) {
-                    // special case to set model variables
-                    const modelOnly = {};
-                    modelOnly['model'] = flowInstance.dataset['model'];
-                    const model = new MultiLevelMap(modelOnly);
-                    if (isInput || lhs.startsWith(MODEL_NAMESPACE)) {
-                        const value = this.getLhsElement(lhs, source);
-                        if (value == null) {
-                            this.removeModelElement(rhs, model);
-                        }
-                        else {
-                            this.setRhsElement(value, rhs, model);
-                        }
-                    }
-                    else {
-                        await this.setConstantValue(lhs, rhs, model);
-                    }
-                }
-                else if (isInput || lhs.startsWith(MODEL_NAMESPACE) || lhs.startsWith(ERROR_NAMESPACE)) {
-                    // normal case to input argument
-                    let value = this.getLhsElement(lhs, source);
-                    // special cases for simple type matching for a non-exist model variable
-                    if (value == null && lhs.startsWith(MODEL_NAMESPACE)) {
-                        value = this.getValueFromNonExistModel(lhs);
-                    }
-                    if (value != null) {
-                        let valid = true;
-                        if (ALL == rhs) {
-                            if (value instanceof Object && !Array.isArray(value)) {
-                                target.reload(value);
-                            }
-                            else {
-                                valid = false;
-                            }
-                        }
-                        else if (rhs == HEADER) {
-                            if (value instanceof Object && !Array.isArray(value)) {
-                                Object.keys(value).forEach(k => {
-                                    optionalHeaders[k] = String(value[k]);
-                                });
-                            }
-                            else {
-                                valid = false;
-                            }
-                        }
-                        else if (rhs.startsWith(HEADER_NAMESPACE)) {
-                            const k = rhs.substring(HEADER_NAMESPACE.length);
-                            if (k) {
-                                optionalHeaders[k] = String(value);
-                            }
-                        }
-                        else {
-                            target.setElement(rhs, value);
-                        }
-                        if (!valid) {
-                            const type = typeof value;
-                            log.error(`Invalid input mapping '${entry}' - expect: JSON, actual: ${type}`);
-                        }
-                    }
-                }
-                else {
-                    // Assume left hand side is a constant
-                    if (rhs.startsWith(HEADER_NAMESPACE)) {
-                        const k = rhs.substring(HEADER_NAMESPACE.length);
-                        const v = await this.getConstantValue(lhs);
-                        if (k && v) {
-                            optionalHeaders[k] = String(v);
-                        }
-                    }
-                    else {
-                        await this.setConstantValue(lhs, rhs, target);
-                    }
-                }
+                await this.doInputDataMapping(optionalHeaders, entry, sep, source, target, flowInstance, task);
             }
         }
         // need to send later?
@@ -336,23 +415,8 @@ export class TaskExecutor {
         if (task.getDelay() > 0) {
             deferred = task.getDelay();
         }
-        else {
-            if (task.getDelayVar() != null) {
-                const d = source.getElement(task.getDelayVar());
-                if (d) {
-                    const delay = Math.max(1, util.str2int(String(d)));
-                    if (delay < flowInstance.getFlow().ttl) {
-                        deferred = delay;
-                    }
-                    else {
-                        log.warn(`Unable to schedule future task for ${task.service}` +
-                            ` because ${task.getDelayVar()} is invalid (TTL=${flowInstance.getFlow().ttl}, delay=${delay})`);
-                    }
-                }
-                else {
-                    log.warn(`Unable to schedule future task for ${task.service} because ${task.getDelayVar()} does not exist`);
-                }
-            }
+        else if (task.getDelayVar() != null) {
+            deferred = this.resolveDelayVar(source, flowInstance, task);
         }
         const uuid = util.getUuid();
         const ref = new TaskReference(flowInstance.id, task.service);
@@ -360,41 +424,10 @@ export class TaskExecutor {
         flowInstance.pendingTasks[uuid] = true;
         const compositeCid = seq > 0 ? uuid + "#" + seq : uuid;
         if (task.functionRoute.startsWith(FLOW_PROTOCOL)) {
-            const flowId = task.functionRoute.substring(FLOW_PROTOCOL.length);
-            const subFlow = Flows.getFlow(flowId);
-            if (!subFlow) {
-                log.error(`Unable to process flow ${flowInstance.getFlow().id}:${flowInstance.id} - missing sub-flow ${task.functionRoute}`);
-                this.abortFlow(flowInstance, 500, task.functionRoute + " not defined");
-                return;
-            }
-            if (Object.keys(optionalHeaders).length > 0) {
-                target.setElement(HEADER, optionalHeaders);
-            }
-            const forward = new EventEnvelope().setTo(EVENT_MANAGER)
-                .setHeader(PARENT, flowInstance.id)
-                .setHeader(FLOW_ID, flowId).setBody(target.getMap()).setCorrelationId(util.getUuid());
-            const po = new PostOffice(new Sender(task.functionRoute, flowInstance.getTraceId(), flowInstance.getTracePath()));
-            const response = await po.request(forward, subFlow.ttl);
-            const event = new EventEnvelope().setTo(TASK_EXECUTOR)
-                .setCorrelationId(compositeCid).setStatus(response.getStatus())
-                .setHeaders(response.getHeaders()).setBody(response.getBody());
-            await po.send(event);
+            await this.runNextFlow(optionalHeaders, compositeCid, target, flowInstance, task);
         }
         else {
-            const po = new PostOffice(new Sender(TASK_EXECUTOR, flowInstance.getTraceId(), flowInstance.getTracePath()));
-            const event = new EventEnvelope().setTo(task.functionRoute)
-                .setCorrelationId(compositeCid)
-                .setReplyTo(TASK_EXECUTOR).setBody(target.getMap());
-            Object.keys(optionalHeaders).forEach(k => {
-                event.setHeader(k, String(optionalHeaders[k]));
-            });
-            // execute task by sending event
-            if (deferred > 0) {
-                po.sendLater(event, deferred);
-            }
-            else {
-                await po.send(event);
-            }
+            await this.runNextTask(optionalHeaders, deferred, compositeCid, target, flowInstance, task);
         }
     }
     getValueFromNonExistModel(lhs) {
@@ -407,189 +440,173 @@ export class TaskExecutor {
             else {
                 const parts = util.split(qualifier, "(= )");
                 if (parts.length == 3 && BOOLEAN_SUFFIX == parts[0] && NULL == parts[1]) {
-                    if (TRUE == parts[2]) {
-                        return true;
-                    }
-                    if (FALSE == parts[2]) {
-                        return false;
-                    }
+                    return this.parseBooleanComparator(parts[2]);
                 }
             }
         }
         return null;
     }
-    async handleCallback(from, flowInstance, task, event, seq) {
-        const combined = {};
-        combined['input'] = flowInstance.dataset['input'];
-        combined['model'] = flowInstance.dataset['model'];
-        combined['status'] = event.getStatus();
-        combined['header'] = event.getHeaders();
-        combined['result'] = event.getBody();
-        const consolidated = new MultiLevelMap(combined);
-        // perform output data mapping //
-        const mapping = task.output;
-        for (const entry of mapping) {
-            const sep = entry.lastIndexOf(MAP_TO);
-            if (sep > 0) {
-                const lhs = this.substituteDynamicIndex(entry.substring(0, sep).trim(), consolidated, false);
-                const isInput = lhs.startsWith(INPUT_NAMESPACE) || lhs.toLowerCase() == INPUT;
-                let value = null;
-                const rhs = this.substituteDynamicIndex(entry.substring(sep + 2).trim(), consolidated, true);
-                if (isInput || lhs.startsWith(MODEL_NAMESPACE)
-                    || lhs == HEADER || lhs.startsWith(HEADER_NAMESPACE)
-                    || lhs == STATUS
-                    || lhs == RESULT || lhs.startsWith(RESULT_NAMESPACE)) {
-                    value = this.getLhsElement(lhs, consolidated);
-                    if (value == null) {
-                        this.removeModelElement(rhs, consolidated);
-                    }
-                }
-                else {
-                    value = await this.getConstantValue(lhs);
-                }
-                if (rhs.startsWith(FILE_TYPE)) {
-                    const fd = new SimpleFileDescriptor(rhs);
-                    // automatically create parent folder
-                    const fileFound = fs.existsSync(fd.fileName);
-                    if (!fileFound) {
-                        const parent = this.getParentFolder(fd.fileName);
-                        if (parent) {
-                            if (this.createParentFolders(parent)) {
-                                log.info(`Folder ${parent} created`);
-                            }
-                            ;
-                        }
-                    }
-                    if (!fileFound || !util.isDirectory(fd.fileName)) {
-                        if (value) {
-                            if (value instanceof Buffer) {
-                                await util.bytes2file(fd.fileName, value);
-                            }
-                            else if (typeof value == 'string') {
-                                await util.str2file(fd.fileName, value);
-                            }
-                            else if (value instanceof Object) {
-                                await util.str2file(fd.fileName, JSON.stringify(value));
-                            }
-                            else {
-                                await util.str2file(fd.fileName, String(value));
-                            }
-                        }
-                        else {
-                            if (fileFound)
-                                fs.rmSync(fd.fileName);
-                        }
-                    }
-                }
-                else {
-                    if (value != null) {
-                        let required = true;
-                        if (rhs == OUTPUT_STATUS) {
-                            const status = typeof value == 'number' ? value : util.str2int(String(value));
-                            if (status < 100 || status > 599) {
-                                log.error(`Invalid output mapping '${entry}' - expect: valid HTTP status code, actual: ${status}`);
-                                required = false;
-                            }
-                        }
-                        if (rhs == OUTPUT_HEADER) {
-                            if (!(value instanceof Object && !Array.isArray(value))) {
-                                const type = typeof value;
-                                log.error(`Invalid output mapping '${entry}' - expect: JSON, actual: ${type}`);
-                                required = false;
-                            }
-                        }
-                        if (rhs.startsWith(EXT_NAMESPACE)) {
-                            required = false;
-                            this.callExternalStateMachine(flowInstance, task, rhs, value);
-                        }
-                        if (required) {
-                            this.setRhsElement(value, rhs, consolidated);
-                        }
-                    }
-                    else {
-                        if (rhs.startsWith(EXT_NAMESPACE)) {
-                            this.callExternalStateMachine(flowInstance, task, rhs, null);
-                        }
-                    }
-                }
+    parseBooleanComparator(condition) {
+        if (TRUE == condition) {
+            return true;
+        }
+        if (FALSE == condition) {
+            return false;
+        }
+        return null;
+    }
+    async outputDataMappingToFile(value, rhs) {
+        const fd = new SimpleFileDescriptor(rhs);
+        // automatically create parent folder
+        const fileFound = fs.existsSync(fd.fileName);
+        if (!fileFound) {
+            const parent = this.getParentFolder(fd.fileName);
+            if (parent && this.createParentFolders(parent)) {
+                log.info(`Folder ${parent} created`);
             }
         }
-        if (seq > 0 && seq in flowInstance.pipeMap) {
-            const pipe = flowInstance.pipeMap[seq];
-            // this is a callback from a fork task
-            if (JOIN == pipe.getType()) {
-                const joinInfo = pipe;
-                const callBackCount = ++joinInfo.resultCount;
-                log.debug(`Flow ${flowInstance.getFlow().id}:${flowInstance.id} fork-n-join #${seq} result ${callBackCount} of ${joinInfo.forks} from ${from}`);
-                if (callBackCount >= joinInfo.forks) {
-                    delete flowInstance.pipeMap[seq];
-                    log.debug(`Flow ${flowInstance.getFlow().id}:${flowInstance.id} fork-n-join #${seq} done`);
-                    this.executeTask(flowInstance, joinInfo.joinTask);
+        if (!fileFound || !util.isDirectory(fd.fileName)) {
+            if (value) {
+                if (value instanceof Buffer) {
+                    await util.bytes2file(fd.fileName, value);
                 }
-                return;
+                else if (typeof value == 'string') {
+                    await util.str2file(fd.fileName, value);
+                }
+                else if (value instanceof Object) {
+                    await util.str2file(fd.fileName, JSON.stringify(value));
+                }
+                else {
+                    await util.str2file(fd.fileName, String(value));
+                }
             }
-            // this is a callback from a pipeline task
-            if (PIPELINE == pipe.getType()) {
-                const pipeline = pipe;
-                const pipelineTask = pipeline.getTask();
-                if (pipeline.isCompleted()) {
-                    this.pipelineCompletion(flowInstance, pipeline, consolidated, seq);
-                    return;
-                }
-                const n = pipeline.nextStep();
-                if (pipeline.isLastStep(n)) {
-                    pipeline.setCompleted();
-                    log.debug(`Flow ${flowInstance.getFlow().id}:${flowInstance.id} pipeline #${seq} last step-${n + 1} ${pipeline.getTaskName(n)}`);
-                }
-                else {
-                    log.debug(`Flow ${flowInstance.getFlow().id}:${flowInstance.id} pipeline #${seq} next step-${n + 1} ${pipeline.getTaskName(n)}`);
-                }
-                if (pipelineTask.conditions.length == 0) {
-                    if (pipeline.isCompleted() && pipeline.isSingleton()) {
-                        this.pipelineCompletion(flowInstance, pipeline, consolidated, seq);
-                    }
-                    else {
-                        this.executeTask(flowInstance, pipeline.getTaskName(n), seq);
-                    }
-                }
-                else {
-                    // check loop-conditions
-                    let action = null;
-                    for (const condition of pipelineTask.conditions) {
-                        /*
-                        * The first element of a condition is the model key.
-                        * The second element is "continue" or "break".
-                        */
-                        const elements = condition;
-                        const resolved = this.resolveCondition(elements, consolidated);
-                        if (resolved) {
-                            action = resolved;
-                            if (CONTINUE == resolved) {
-                                // clear condition
-                                consolidated.setElement(elements[0], false);
-                            }
-                            break;
-                        }
-                    }
-                    if (BREAK == action) {
-                        delete flowInstance.pipeMap[seq];
-                        this.executeTask(flowInstance, pipeline.getExitTask());
-                    }
-                    else if (CONTINUE == action) {
-                        this.pipelineCompletion(flowInstance, pipeline, consolidated, seq);
-                    }
-                    else {
-                        if (pipeline.isCompleted() && pipeline.isSingleton()) {
-                            this.pipelineCompletion(flowInstance, pipeline, consolidated, seq);
-                        }
-                        else {
-                            this.executeTask(flowInstance, pipeline.getTaskName(n), seq);
-                        }
-                    }
-                }
-                return;
+            else if (fileFound)
+                fs.rmSync(fd.fileName);
+        }
+    }
+    outputDateMappingSetValue(entry, consolidated, flowInstance, task, value, rhs) {
+        let required = true;
+        if (rhs == OUTPUT_STATUS) {
+            const status = typeof value == 'number' ? value : util.str2int(String(value));
+            if (status < 100 || status > 599) {
+                log.error(`Invalid output mapping '${entry}' - expect: valid HTTP status code, actual: ${status}`);
+                required = false;
             }
         }
+        if (rhs == OUTPUT_HEADER) {
+            if (!(value instanceof Object && !Array.isArray(value))) {
+                const type = typeof value;
+                log.error(`Invalid output mapping '${entry}' - expect: JSON, actual: ${type}`);
+                required = false;
+            }
+        }
+        if (rhs.startsWith(EXT_NAMESPACE)) {
+            required = false;
+            this.callExternalStateMachine(flowInstance, task, rhs, value);
+        }
+        if (required) {
+            this.setRhsElement(value, rhs, consolidated);
+        }
+    }
+    async doOutputDataMapping(entry, sep, consolidated, flowInstance, task) {
+        const lhs = this.substituteDynamicIndex(entry.substring(0, sep).trim(), consolidated, false);
+        const isInput = lhs.startsWith(INPUT_NAMESPACE) || lhs.toLowerCase() == INPUT;
+        let value = null;
+        const rhs = this.substituteDynamicIndex(entry.substring(sep + 2).trim(), consolidated, true);
+        if (isInput || lhs.startsWith(MODEL_NAMESPACE)
+            || lhs == HEADER || lhs.startsWith(HEADER_NAMESPACE)
+            || lhs == STATUS
+            || lhs == RESULT || lhs.startsWith(RESULT_NAMESPACE)) {
+            value = this.getLhsElement(lhs, consolidated);
+            if (value == null) {
+                this.removeModelElement(rhs, consolidated);
+            }
+        }
+        else {
+            value = await this.getConstantValue(lhs);
+        }
+        if (rhs.startsWith(FILE_TYPE)) {
+            await this.outputDataMappingToFile(value, rhs);
+        }
+        else if (value != null) {
+            this.outputDateMappingSetValue(entry, consolidated, flowInstance, task, value, rhs);
+        }
+        else if (rhs.startsWith(EXT_NAMESPACE)) {
+            this.callExternalStateMachine(flowInstance, task, rhs, null);
+        }
+    }
+    handleCallBackFromForkAndJoin(pipe, seq, from, flowInstance) {
+        const joinInfo = pipe;
+        const callBackCount = ++joinInfo.resultCount;
+        log.debug(`Flow ${flowInstance.getFlow().id}:${flowInstance.id} fork-n-join #${seq} result ${callBackCount} of ${joinInfo.forks} from ${from}`);
+        if (callBackCount >= joinInfo.forks) {
+            delete flowInstance.pipeMap[seq];
+            log.debug(`Flow ${flowInstance.getFlow().id}:${flowInstance.id} fork-n-join #${seq} done`);
+            this.executeTask(flowInstance, joinInfo.joinTask);
+        }
+    }
+    evaluatePipelineCondition(pipelineTask, consolidated) {
+        // check loop-conditions
+        let action = null;
+        for (const condition of pipelineTask.conditions) {
+            /*
+            * The first element of a condition is the model key.
+            * The second element is "continue" or "break".
+            */
+            const elements = condition;
+            const resolved = this.resolveCondition(elements, consolidated);
+            if (resolved) {
+                action = resolved;
+                if (CONTINUE == resolved) {
+                    // clear condition
+                    consolidated.setElement(elements[0], false);
+                }
+                break;
+            }
+        }
+        return action;
+    }
+    handleCallbackFromPipeline(pipe, seq, consolidated, flowInstance) {
+        const pipeline = pipe;
+        const pipelineTask = pipeline.getTask();
+        if (pipeline.isCompleted()) {
+            this.pipelineCompletion(flowInstance, pipeline, consolidated, seq);
+            return;
+        }
+        const n = pipeline.nextStep();
+        if (pipeline.isLastStep(n)) {
+            pipeline.setCompleted();
+            log.debug(`Flow ${flowInstance.getFlow().id}:${flowInstance.id} pipeline #${seq} last step-${n + 1} ${pipeline.getTaskName(n)}`);
+        }
+        else {
+            log.debug(`Flow ${flowInstance.getFlow().id}:${flowInstance.id} pipeline #${seq} next step-${n + 1} ${pipeline.getTaskName(n)}`);
+        }
+        if (pipelineTask.conditions.length == 0) {
+            if (pipeline.isCompleted() && pipeline.isSingleton()) {
+                this.pipelineCompletion(flowInstance, pipeline, consolidated, seq);
+            }
+            else {
+                this.executeTask(flowInstance, pipeline.getTaskName(n), seq);
+            }
+        }
+        else {
+            const action = this.evaluatePipelineCondition(pipelineTask, consolidated);
+            if (BREAK == action) {
+                delete flowInstance.pipeMap[seq];
+                this.executeTask(flowInstance, pipeline.getExitTask());
+            }
+            else if (CONTINUE == action) {
+                this.pipelineCompletion(flowInstance, pipeline, consolidated, seq);
+            }
+            else if (pipeline.isCompleted() && pipeline.isSingleton()) {
+                this.pipelineCompletion(flowInstance, pipeline, consolidated, seq);
+            }
+            else {
+                this.executeTask(flowInstance, pipeline.getTaskName(n), seq);
+            }
+        }
+    }
+    proceedWithNextTask(flowInstance, task, consolidated) {
         const executionType = task.execution;
         // consolidated dataset would be mapped as output for "response", "end" and "decision" tasks
         if (RESPONSE == executionType) {
@@ -614,6 +631,37 @@ export class TaskExecutor {
         if (PIPELINE == executionType) {
             this.handlePipelineTask(flowInstance, task, consolidated);
         }
+    }
+    async handleCallback(from, flowInstance, task, event, seq) {
+        const combined = {};
+        combined['input'] = flowInstance.dataset['input'];
+        combined['model'] = flowInstance.dataset['model'];
+        combined['status'] = event.getStatus();
+        combined['header'] = event.getHeaders();
+        combined['result'] = event.getBody();
+        const consolidated = new MultiLevelMap(combined);
+        // perform output data mapping //
+        const mapping = task.output;
+        for (const entry of mapping) {
+            const sep = entry.lastIndexOf(MAP_TO);
+            if (sep > 0) {
+                await this.doOutputDataMapping(entry, sep, consolidated, flowInstance, task);
+            }
+        }
+        if (seq > 0 && seq in flowInstance.pipeMap) {
+            const pipe = flowInstance.pipeMap[seq];
+            // this is a callback from a fork task
+            if (JOIN == pipe.getType()) {
+                this.handleCallBackFromForkAndJoin(pipe, seq, from, flowInstance);
+                return;
+            }
+            // this is a callback from a pipeline task
+            if (PIPELINE == pipe.getType()) {
+                this.handleCallbackFromPipeline(pipe, seq, consolidated, flowInstance);
+                return;
+            }
+        }
+        this.proceedWithNextTask(flowInstance, task, consolidated);
     }
     resolveCondition(condition, consolidated) {
         if ("true" == String(consolidated.getElement(condition[0]))) {
@@ -664,25 +712,27 @@ export class TaskExecutor {
             }
         }
     }
+    runPipeline(task, map) {
+        // evaluate initial condition to decide if the pipeline should run
+        if (WHILE == task.getLoopType() && task.getWhileModelKey()) {
+            const o = map.getElement(task.getWhileModelKey());
+            return typeof o == 'boolean' ? o : false;
+        }
+        else if (FOR == task.getLoopType()) {
+            // execute initializer if any
+            if (task.init.length == 2) {
+                const n = util.str2int(task.init[1]);
+                if (task.init[0].startsWith(MODEL_NAMESPACE)) {
+                    map.setElement(task.init[0], n);
+                }
+            }
+            return this.evaluateForCondition(map, task.comparator[0], task.comparator[1], task.comparator[2]);
+        }
+        return true;
+    }
     handlePipelineTask(flowInstance, task, map) {
         if (task.pipelineSteps.length > 0) {
-            // evaluate initial condition
-            let valid = true;
-            if (WHILE == task.getLoopType() && task.getWhileModelKey()) {
-                const o = map.getElement(task.getWhileModelKey());
-                valid = typeof o == 'boolean' ? o : false;
-            }
-            else if (FOR == task.getLoopType()) {
-                // execute initializer if any
-                if (task.init.length == 2) {
-                    const n = util.str2int(task.init[1]);
-                    if (task.init[0].startsWith(MODEL_NAMESPACE)) {
-                        map.setElement(task.init[0], n);
-                    }
-                }
-                valid = this.evaluateForCondition(map, task.comparator[0], task.comparator[1], task.comparator[2]);
-            }
-            if (valid) {
+            if (this.runPipeline(task, map)) {
                 const seq = ++flowInstance.pipeCounter;
                 const pipeline = new PipelineInfo(task);
                 flowInstance.pipeMap[seq] = pipeline;
@@ -827,17 +877,15 @@ export class TaskExecutor {
                     .setHeader(FLOW_ID, flowId).setBody(dataset.getMap()).setCorrelationId(util.getUuid());
                 po.send(forward);
             }
+            else if (value) {
+                // tell external state machine to save key-value
+                po.send(new EventEnvelope()
+                    .setTo(externalStateMachine).setBody({ 'data': value }).setHeader(TYPE, PUT).setHeader(KEY, key));
+            }
             else {
-                if (value) {
-                    // tell external state machine to save key-value
-                    po.send(new EventEnvelope()
-                        .setTo(externalStateMachine).setBody({ 'data': value }).setHeader(TYPE, PUT).setHeader(KEY, key));
-                }
-                else {
-                    // tell external state machine to remove key-value
-                    po.send(new EventEnvelope()
-                        .setTo(externalStateMachine).setHeader(TYPE, REMOVE).setHeader(KEY, key));
-                }
+                // tell external state machine to remove key-value
+                po.send(new EventEnvelope()
+                    .setTo(externalStateMachine).setHeader(TYPE, REMOVE).setHeader(KEY, key));
             }
         }
     }
@@ -881,57 +929,74 @@ export class TaskExecutor {
             this.removeModelElement(rhs, target);
         }
     }
+    getConstantAsMap(lhs, last) {
+        const ref = lhs.substring(MAP_TYPE.length, last).trim();
+        if (ref.includes("=") || ref.includes(",")) {
+            const keyValues = util.split(ref, ",");
+            const map = {};
+            for (const kv of keyValues) {
+                const eq = kv.indexOf('=');
+                const k = eq == -1 ? kv.trim() : kv.substring(0, eq).trim();
+                const v = eq == -1 ? "" : kv.substring(eq + 1).trim();
+                if (k) {
+                    map[k] = v;
+                }
+            }
+            return map;
+        }
+        else {
+            return AppConfig.getInstance().get(ref);
+        }
+    }
+    getConstantByType(lhs, last) {
+        if (lhs.startsWith(TEXT_TYPE)) {
+            return lhs.substring(TEXT_TYPE.length, last);
+        }
+        if (lhs.startsWith(INTEGER_TYPE)) {
+            return util.str2int(lhs.substring(INTEGER_TYPE.length, last).trim());
+        }
+        if (lhs.startsWith(LONG_TYPE)) {
+            return util.str2int(lhs.substring(LONG_TYPE.length, last).trim());
+        }
+        if (lhs.startsWith(FLOAT_TYPE)) {
+            return util.str2float(lhs.substring(FLOAT_TYPE.length, last).trim());
+        }
+        if (lhs.startsWith(DOUBLE_TYPE)) {
+            return util.str2float(lhs.substring(DOUBLE_TYPE.length, last).trim());
+        }
+        if (lhs.startsWith(BOOLEAN_TYPE)) {
+            return TRUE == lhs.substring(BOOLEAN_TYPE.length, last).trim().toLowerCase();
+        }
+        if (lhs.startsWith(MAP_TYPE)) {
+            return this.getConstantAsMap(lhs, last);
+        }
+        return null;
+    }
+    async getConstantFromFile(lhs) {
+        if (lhs.startsWith(FILE_TYPE)) {
+            const fd = new SimpleFileDescriptor(lhs);
+            if (fs.existsSync(fd.fileName) && !util.isDirectory(fd.fileName)) {
+                return fd.binary ? await util.file2bytes(fd.fileName) : await util.file2str(fd.fileName);
+            }
+        }
+        if (lhs.startsWith(CLASSPATH_TYPE)) {
+            const fd = new SimpleFileDescriptor(lhs);
+            if (fs.existsSync(fd.fileName) && !util.isDirectory(fd.fileName)) {
+                return fd.binary ? await util.file2bytes(fd.fileName) : await util.file2str(fd.fileName);
+            }
+        }
+        return null;
+    }
     async getConstantValue(lhs) {
+        const f = await this.getConstantFromFile(lhs);
+        if (f) {
+            return f;
+        }
         const last = lhs.lastIndexOf(CLOSE_BRACKET);
         if (last > 0) {
-            if (lhs.startsWith(TEXT_TYPE)) {
-                return lhs.substring(TEXT_TYPE.length, last);
-            }
-            if (lhs.startsWith(INTEGER_TYPE)) {
-                return util.str2int(lhs.substring(INTEGER_TYPE.length, last).trim());
-            }
-            if (lhs.startsWith(LONG_TYPE)) {
-                return util.str2int(lhs.substring(LONG_TYPE.length, last).trim());
-            }
-            if (lhs.startsWith(FLOAT_TYPE)) {
-                return util.str2float(lhs.substring(FLOAT_TYPE.length, last).trim());
-            }
-            if (lhs.startsWith(DOUBLE_TYPE)) {
-                return util.str2float(lhs.substring(DOUBLE_TYPE.length, last).trim());
-            }
-            if (lhs.startsWith(BOOLEAN_TYPE)) {
-                return TRUE == lhs.substring(BOOLEAN_TYPE.length, last).trim().toLowerCase();
-            }
-            if (lhs.startsWith(MAP_TYPE)) {
-                const ref = lhs.substring(MAP_TYPE.length, last).trim();
-                if (ref.includes("=") || ref.includes(",")) {
-                    const keyValues = util.split(ref, ",");
-                    const map = {};
-                    for (const kv of keyValues) {
-                        const eq = kv.indexOf('=');
-                        const k = eq == -1 ? kv.trim() : kv.substring(0, eq).trim();
-                        const v = eq == -1 ? "" : kv.substring(eq + 1).trim();
-                        if (k) {
-                            map[k] = v;
-                        }
-                    }
-                    return map;
-                }
-                else {
-                    return AppConfig.getInstance().get(ref);
-                }
-            }
-            if (lhs.startsWith(FILE_TYPE)) {
-                const fd = new SimpleFileDescriptor(lhs);
-                if (fs.existsSync(fd.fileName) && !util.isDirectory(fd.fileName)) {
-                    return fd.binary ? await util.file2bytes(fd.fileName) : await util.file2str(fd.fileName);
-                }
-            }
-            if (lhs.startsWith(CLASSPATH_TYPE)) {
-                const fd = new SimpleFileDescriptor(lhs);
-                if (fs.existsSync(fd.fileName) && !util.isDirectory(fd.fileName)) {
-                    return fd.binary ? await util.file2bytes(fd.fileName) : await util.file2str(fd.fileName);
-                }
+            const v = this.getConstantByType(lhs, last);
+            if (v) {
+                return v;
             }
         }
         return null;
@@ -946,255 +1011,274 @@ export class TaskExecutor {
         }
         return value;
     }
+    validateIndexBounds(ptr, text) {
+        if (ptr > this.maxModelArraySize) {
+            throw new Error("Cannot set RHS to index > " + ptr
+                + " that exceeds max " + this.maxModelArraySize + " - " + text);
+        }
+        if (ptr < 0) {
+            throw new Error(`Cannot set RHS to negative index - ${text}`);
+        }
+    }
+    checkDynamicIndex(md, open, close, text, source, isRhs) {
+        md.sb += text.substring(md.start, open + 1);
+        const idx = text.substring(open + 1, close).trim();
+        if (idx.startsWith(MODEL_NAMESPACE)) {
+            const ptr = util.str2int(String(source.getElement(idx)));
+            if (isRhs) {
+                this.validateIndexBounds(ptr, text);
+            }
+            md.sb += String(ptr);
+        }
+        else {
+            if (isRhs && idx) {
+                const ptr = util.str2int(idx);
+                if (ptr < 0) {
+                    throw new Error(`Cannot set RHS to negative index - ${text}`);
+                }
+            }
+            md.sb += idx;
+        }
+        md.sb += ']';
+        md.start = close + 1;
+    }
     substituteDynamicIndex(text, source, isRhs) {
         if (text.includes('[') && text.includes(']')) {
-            let sb = '';
-            let start = 0;
-            while (start < text.length) {
-                const open = text.indexOf('[', start);
-                const close = text.indexOf(']', start);
+            const md = new DynamicIndexMetadata();
+            while (md.start < text.length) {
+                const open = text.indexOf('[', md.start);
+                const close = text.indexOf(']', md.start);
                 if (open != -1 && close > open) {
-                    sb += text.substring(start, open + 1);
-                    const idx = text.substring(open + 1, close).trim();
-                    if (idx.startsWith(MODEL_NAMESPACE)) {
-                        const ptr = util.str2int(String(source.getElement(idx)));
-                        if (isRhs) {
-                            if (ptr > this.maxModelArraySize) {
-                                throw new Error("Cannot set RHS to index > " + ptr
-                                    + " that exceeds max " + this.maxModelArraySize + " - " + text);
-                            }
-                            if (ptr < 0) {
-                                throw new Error(`Cannot set RHS to negative index - ${text}`);
-                            }
-                        }
-                        sb += String(ptr);
-                    }
-                    else {
-                        if (isRhs && idx) {
-                            const ptr = util.str2int(idx);
-                            if (ptr < 0) {
-                                throw new Error(`Cannot set RHS to negative index - ${text}`);
-                            }
-                        }
-                        sb += idx;
-                    }
-                    sb += ']';
-                    start = close + 1;
+                    this.checkDynamicIndex(md, open, close, text, source, isRhs);
                 }
                 else {
-                    sb += text.substring(start);
+                    md.sb += text.substring(md.start);
                     break;
                 }
             }
-            return sb;
+            return md.sb;
         }
         else {
             return text;
         }
     }
-    getValueByType(type, value, path, data) {
-        const selection = this.getMappingType(type);
-        if (selection == OPERATION.SIMPLE_COMMAND) {
-            if (TEXT_SUFFIX == type) {
-                if (typeof value == 'string') {
-                    return value;
-                }
-                // Buffer must be tested before Object
-                if (value instanceof Buffer) {
-                    return String(value);
-                }
-                if (value instanceof Object) {
-                    return JSON.stringify(value);
-                }
-                // set as string is unknown type
-                return String(value);
+    getTextValue(value) {
+        if (typeof value == 'string') {
+            return value;
+        }
+        // Buffer must be tested before Object
+        if (value instanceof Buffer) {
+            return String(value);
+        }
+        if (value instanceof Object) {
+            return JSON.stringify(value);
+        }
+        // set as string is unknown type
+        return String(value);
+    }
+    getBinaryValue(value) {
+        if (value instanceof Buffer) {
+            return value;
+        }
+        if (typeof value == 'string') {
+            return Buffer.from(value);
+        }
+        if (value instanceof Object) {
+            return Buffer.from(JSON.stringify(value));
+        }
+        return Buffer.from(String(value));
+    }
+    getLenValue(value) {
+        if (value) {
+            if (Array.isArray(value) || value instanceof Buffer || typeof value == 'string') {
+                return value.length;
             }
-            if (BINARY_SUFFIX == type) {
-                if (value instanceof Buffer) {
-                    return value;
-                }
-                if (typeof value == 'string') {
-                    return Buffer.from(value);
-                }
-                if (value instanceof Object) {
-                    return Buffer.from(JSON.stringify(value));
-                }
-                return Buffer.from(String(value));
+            else {
+                return String(value).length;
             }
-            if (BOOLEAN_SUFFIX == type) {
-                return "true" == String(value).toLowerCase();
-            }
-            if (NEGATE_SUFFIX == type) {
-                return "true" != String(value).toLowerCase();
-            }
-            if (INTEGER_SUFFIX == type || LONG_SUFFIX == type) {
-                return util.str2int(String(value));
-            }
-            if (FLOAT_SUFFIX == type || DOUBLE_SUFFIX == type) {
-                return util.str2float(String(value));
-            }
-            if (UUID_SUFFIX == type) {
-                return util.getUuid4();
-            }
-            if (LENGTH_SUFFIX == type) {
-                if (value) {
-                    if (Array.isArray(value) || value instanceof Buffer || typeof value == 'string') {
-                        return value.length;
-                    }
-                    else {
-                        return String(value).length;
-                    }
-                }
-                else {
-                    return 0;
-                }
-            }
-            if (B64_SUFFIX == type) {
-                if (value instanceof Buffer) {
-                    return util.bytesToBase64(value);
-                }
-                if (typeof value == 'string') {
-                    return util.base64ToBytes(value);
-                }
-                return util.base64ToBytes(String(value));
-            }
-            log.error(`Unable to do ${type} of ${path} - matching type must be substring(start, end), boolean, and, or, text, binary or b64`);
         }
         else {
-            let error = "missing close bracket";
-            if (type.endsWith(CLOSE_BRACKET)) {
-                const command = type.substring(type.indexOf('(') + 1, type.length - 1).trim();
-                /*
-                 * substring(start, end)]
-                 * substring(start)
-                 * boolean(value=true)
-                 * boolean(value) is same as boolean(value=true)
-                 * and(model.anotherKey)
-                 * or(model.anotherKey)
-                 */
-                if (selection == OPERATION.SUBSTRING_COMMAND) {
-                    const parts = util.split(command, ", ");
-                    if (parts.length > 0 && parts.length < 3) {
-                        if (typeof value == 'string') {
-                            const start = util.str2int(parts[0]);
-                            const end = parts.length == 1 ? value.length : util.str2int(parts[1]);
-                            if (end > start && start >= 0 && end <= value.length) {
-                                return value.substring(start, end);
-                            }
-                            else {
-                                error = "index out of bound";
-                            }
-                        }
-                        else {
-                            error = "value is not a string";
-                        }
-                    }
-                    else {
-                        error = "invalid syntax";
-                    }
-                }
-                else if (selection == OPERATION.CONCAT_COMMAND) {
-                    const parts = this.tokenizeConcatParameters(command);
-                    if (parts.length == 0) {
-                        error = "parameters must be model variables and/or text constants";
-                    }
-                    else {
-                        let sb = '';
-                        const str = String(value);
-                        sb += str;
-                        for (const p of parts) {
-                            if (p.startsWith(TEXT_TYPE)) {
-                                sb += p.substring(TEXT_TYPE.length, p.length - 1);
-                            }
-                            if (p.startsWith(MODEL_NAMESPACE)) {
-                                const v = String(data.getElement(p));
-                                sb += v;
-                            }
-                        }
-                        return sb.toString();
-                    }
-                }
-                else if (selection == OPERATION.AND_COMMAND || selection == OPERATION.OR_COMMAND) {
-                    if (command.startsWith(MODEL_NAMESPACE)) {
-                        const v1 = "true" == String(value);
-                        const v2 = "true" == String(data.getElement(command));
-                        return selection == OPERATION.AND_COMMAND ? v1 && v2 : v1 || v2;
-                    }
-                    else {
-                        error = "'" + command + "' is not a model variable";
-                    }
-                }
-                else if (selection == OPERATION.BOOLEAN_COMMAND) {
-                    const parts = util.split(command, ",=");
-                    const filtered = [];
-                    parts.forEach(d => {
-                        const txt = d.trim();
-                        if (txt) {
-                            filtered.push(txt);
-                        }
-                    });
-                    if (filtered.length > 0 && filtered.length < 3) {
-                        // enforce value to a text string where null value will become "null"
-                        const str = String(value);
-                        const condition = filtered.length == 1 || "true" == filtered[1].toLowerCase();
-                        if (str == filtered[0]) {
-                            return condition;
-                        }
-                        else {
-                            return !condition;
-                        }
-                    }
-                    else {
-                        error = "invalid syntax";
-                    }
-                }
-            }
-            log.error(`Unable to do ${type} of ${path} - ${error}`);
+            return 0;
         }
-        return value;
     }
-    tokenizeConcatParameters(text) {
-        const result = new Array();
-        let command = text.trim();
-        while (command) {
-            if (command.startsWith(MODEL_NAMESPACE)) {
-                const sep = command.indexOf(',');
-                if (sep == -1) {
-                    result.push(command);
-                    break;
+    convertB64(value) {
+        if (value instanceof Buffer) {
+            return util.bytesToBase64(value);
+        }
+        if (typeof value == 'string') {
+            return util.base64ToBytes(value);
+        }
+        return util.base64ToBytes(String(value));
+    }
+    getValueWithSuffix(type, value) {
+        if (TEXT_SUFFIX == type) {
+            return this.getTextValue(value);
+        }
+        if (BINARY_SUFFIX == type) {
+            return this.getBinaryValue(value);
+        }
+        if (BOOLEAN_SUFFIX == type) {
+            return "true" == String(value).toLowerCase();
+        }
+        if (NEGATE_SUFFIX == type) {
+            return "true" != String(value).toLowerCase();
+        }
+        if (INTEGER_SUFFIX == type || LONG_SUFFIX == type) {
+            return util.str2int(String(value));
+        }
+        if (FLOAT_SUFFIX == type || DOUBLE_SUFFIX == type) {
+            return util.str2float(String(value));
+        }
+        if (UUID_SUFFIX == type) {
+            return util.getUuid4();
+        }
+        if (LENGTH_SUFFIX == type) {
+            return this.getLenValue(value);
+        }
+        if (B64_SUFFIX == type) {
+            return this.convertB64(value);
+        }
+        throw new Error(`matching type must be substring(start, end), boolean, and, or, text, binary or b64`);
+    }
+    getSubstring(command, value) {
+        const parts = util.split(command, ", ");
+        if (parts.length > 0 && parts.length < 3) {
+            if (typeof value == 'string') {
+                const start = util.str2int(parts[0]);
+                const end = parts.length == 1 ? value.length : util.str2int(parts[1]);
+                if (end > start && start >= 0 && end <= value.length) {
+                    return value.substring(start, end);
                 }
                 else {
-                    const token = command.substring(0, sep).trim();
-                    if (token == MODEL_NAMESPACE) {
-                        return [];
-                    }
-                    else {
-                        result.push(token);
-                        command = command.substring(sep + 1).trim();
-                    }
-                }
-            }
-            else if (command.startsWith(TEXT_TYPE)) {
-                const close = command.indexOf(CLOSE_BRACKET);
-                if (close == 1) {
-                    return [];
-                }
-                else {
-                    result.push(command.substring(0, close + 1));
-                    const sep = command.indexOf(',', close);
-                    if (sep == -1) {
-                        break;
-                    }
-                    else {
-                        command = command.substring(sep + 1).trim();
-                    }
+                    throw new Error("index out of bound");
                 }
             }
             else {
+                throw new Error("value is not a string");
+            }
+        }
+        else {
+            throw new Error("invalid syntax");
+        }
+    }
+    getConcatValue(command, value, data) {
+        const parts = this.tokenizeConcatParameters(command);
+        if (parts.length == 0) {
+            throw new Error("parameters must be model variables and/or text constants");
+        }
+        else {
+            let sb = '';
+            const str = String(value);
+            sb += str;
+            for (const p of parts) {
+                if (p.startsWith(TEXT_TYPE)) {
+                    sb += p.substring(TEXT_TYPE.length, p.length - 1);
+                }
+                if (p.startsWith(MODEL_NAMESPACE)) {
+                    const v = String(data.getElement(p));
+                    sb += v;
+                }
+            }
+            return sb.toString();
+        }
+    }
+    getBooleanLogicalValue(selection, command, value, data) {
+        if (command.startsWith(MODEL_NAMESPACE)) {
+            const v1 = "true" == String(value);
+            const v2 = "true" == String(data.getElement(command));
+            return selection == OPERATION.AND_COMMAND ? v1 && v2 : v1 || v2;
+        }
+        else {
+            throw new Error(`'${command}' is not a model variable`);
+        }
+    }
+    getBooleanValue(command, value) {
+        const parts = util.split(command, ",=");
+        const filtered = [];
+        parts.forEach(d => {
+            const txt = d.trim();
+            if (txt) {
+                filtered.push(txt);
+            }
+        });
+        if (filtered.length > 0 && filtered.length < 3) {
+            // enforce value to a text string where null value will become "null"
+            const str = String(value);
+            const condition = filtered.length == 1 || "true" == filtered[1].toLowerCase();
+            if (str == filtered[0]) {
+                return condition;
+            }
+            else {
+                return !condition;
+            }
+        }
+        else {
+            throw new Error("invalid syntax");
+        }
+    }
+    tokenizeConcatParameters(text) {
+        const result = new Array();
+        const md = new CommandMetadata();
+        md.command = text.trim();
+        while (md.command) {
+            let outcome = 'empty';
+            if (md.command.startsWith(MODEL_NAMESPACE)) {
+                outcome = this.tokenizeModelParameter(md, result);
+            }
+            else if (md.command.startsWith(TEXT_TYPE)) {
+                outcome = this.tokenizeTextParameter(md, result);
+            }
+            if (outcome == 'empty') {
                 return [];
+            }
+            else if (outcome == 'break') {
+                break;
             }
         }
         return result;
+    }
+    tokenizeModelParameter(md, result) {
+        const sep = md.command.indexOf(',');
+        if (sep == -1) {
+            result.push(md.command);
+            return "break";
+        }
+        else {
+            const token = md.command.substring(0, sep).trim();
+            if (token == MODEL_NAMESPACE) {
+                return "empty";
+            }
+            else {
+                result.push(token);
+                md.command = md.command.substring(sep + 1).trim();
+                return "continue";
+            }
+        }
+    }
+    tokenizeTextParameter(md, result) {
+        const close = md.command.indexOf(CLOSE_BRACKET);
+        if (close == 1) {
+            return "empty";
+        }
+        else {
+            result.push(md.command.substring(0, close + 1));
+            const sep = md.command.indexOf(',', close);
+            if (sep == -1) {
+                return "break";
+            }
+            else {
+                md.command = md.command.substring(sep + 1).trim();
+                return "continue";
+            }
+        }
+    }
+    getModelTypeIndex(text) {
+        if (text.startsWith(MODEL_NAMESPACE)) {
+            return text.indexOf(':');
+        }
+        else {
+            return -1;
+        }
     }
     getMappingType(type) {
         if (type.startsWith(SUBSTRING_TYPE)) {
@@ -1216,13 +1300,45 @@ export class TaskExecutor {
             return OPERATION.SIMPLE_COMMAND;
         }
     }
-    getModelTypeIndex(text) {
-        if (text.startsWith(MODEL_NAMESPACE)) {
-            return text.indexOf(':');
+    getValueByType(type, value, path, data) {
+        try {
+            const selection = this.getMappingType(type);
+            if (selection == OPERATION.SIMPLE_COMMAND) {
+                return this.getValueWithSuffix(type, value);
+            }
+            else if (type.endsWith(CLOSE_BRACKET)) {
+                const command = type.substring(type.indexOf('(') + 1, type.length - 1).trim();
+                /*
+                * substring(start, end)]
+                * substring(start)
+                * boolean(value=true)
+                * boolean(value) is same as boolean(value=true)
+                * and(model.anotherKey)
+                * or(model.anotherKey)
+                */
+                if (selection == OPERATION.SUBSTRING_COMMAND) {
+                    return this.getSubstring(command, value);
+                }
+                else if (selection == OPERATION.CONCAT_COMMAND) {
+                    return this.getConcatValue(command, value, data);
+                }
+                else if (selection == OPERATION.AND_COMMAND || selection == OPERATION.OR_COMMAND) {
+                    return this.getBooleanLogicalValue(selection, command, value, data);
+                }
+                else if (selection == OPERATION.BOOLEAN_COMMAND) {
+                    return this.getBooleanValue(command, value);
+                }
+            }
+            else {
+                throw new Error('missing close bracket');
+            }
         }
-        else {
-            return -1;
+        catch (e) {
+            if (e instanceof Error) {
+                log.error(`Unable to do ${type} of ${path} - ${e.message}`);
+            }
         }
+        return value;
     }
     abortFlow(flowInstance, status, message) {
         if (flowInstance.isNotResponded()) {
@@ -1253,7 +1369,7 @@ export class TaskExecutor {
         const formatted = util.getElapsedTime(diff);
         const totalExecutions = flowInstance.tasks.length;
         const s = totalExecutions == 1 ? "" : "s";
-        const logId = traceId ? traceId : flowInstance.id;
+        const logId = traceId || flowInstance.id;
         const po = new PostOffice();
         const payload = {};
         const metrics = {};

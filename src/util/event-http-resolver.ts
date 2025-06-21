@@ -6,15 +6,13 @@ const log = Logger.getInstance();
 export class EventHttpResolver {
     private static instance: EventHttpResolver;
     private loaded = false;
-    private eventHttpTargets = new Map<string, string>();
-    private eventHttpHeaders = new Map<string, object>();
+    private readonly eventHttpTargets = new Map<string, string>();
+    private readonly eventHttpHeaders = new Map<string, object>();
 
     private constructor() {}
 
     static getInstance() {
-        if (EventHttpResolver.instance === undefined) {
-            EventHttpResolver.instance = new EventHttpResolver();
-        }
+        EventHttpResolver.instance ??= new EventHttpResolver();
         return EventHttpResolver.instance;
     }
 
@@ -25,22 +23,7 @@ export class EventHttpResolver {
             if (Array.isArray(o)) {
                 const eventHttpEntries = o as object[];
                 for (let i=0; i < eventHttpEntries.length; i++) {
-                    const route = config.getProperty("event.http["+i+"].route");
-                    const target = config.getProperty("event.http["+i+"].target");
-                    if (route && target) {
-                        this.eventHttpTargets.set(route, target);
-                        let headerCount = 0;
-                        const h = config.get("event.http["+i+"].headers");
-                        if (h instanceof Object && !Array.isArray(h)) {
-                            const headers = {};
-                            Object.keys(h).forEach(k => {
-                                headers[String(k)] = config.getProperty("event.http["+i+"].headers."+k);
-                                headerCount++;
-                            });
-                            this.eventHttpHeaders.set(route, headers);
-                        }
-                        log.info(`Event-over-HTTP ${route} -> ${target} with ${headerCount} header${headerCount == 1? '' : 's'}`);
-                    }
+                    this.addHttpEntry(config, i);
                 }
                 const total = this.eventHttpTargets.size;
                 log.info(`Total ${total} event-over-http target${total == 1? '' : 's'} configured`);
@@ -48,6 +31,25 @@ export class EventHttpResolver {
                 log.error(`Invalid config ${file} - the event.http section should be a list of route and target`);
             }
         }
+    }
+
+    private addHttpEntry(config: ConfigReader, i: number) {
+        const route = config.getProperty("event.http["+i+"].route");
+        const target = config.getProperty("event.http["+i+"].target");
+        if (route && target) {
+            this.eventHttpTargets.set(route, target);
+            let headerCount = 0;
+            const h = config.get("event.http["+i+"].headers");
+            if (h instanceof Object && !Array.isArray(h)) {
+                const headers = {};
+                Object.keys(h).forEach(k => {
+                    headers[String(k)] = config.getProperty("event.http["+i+"].headers."+k);
+                    headerCount++;
+                });
+                this.eventHttpHeaders.set(route, headers);
+            }
+            log.info(`Event-over-HTTP ${route} -> ${target} with ${headerCount} header${headerCount == 1? '' : 's'}`);
+        }        
     }
 
     getEventHttpTarget(route: string): string {

@@ -40,13 +40,13 @@ export class EventScriptManager {
         return this;
     }
     async handleEvent(event) {
-        const po = new PostOffice(event.getHeaders());
+        const po = new PostOffice(event);
         const self = po.getMyClass();
         try {
             await self.processRequest(event, event.getHeader(FLOW_ID));
         }
         catch (e) {
-            const message = e.message ? e.message : 'unknown error';
+            const message = e.message ?? 'unknown error';
             log.error(`Unable to process request - ${message}`);
             if (event.getReplyTo() && event.getCorrelationId()) {
                 const error = new EventEnvelope()
@@ -61,7 +61,7 @@ export class EventScriptManager {
         if (flowId == null || flowId.length == 0) {
             throw new Error("Missing " + FLOW_ID);
         }
-        const po = new PostOffice(event.getHeaders());
+        const po = new PostOffice(event);
         const flowInstance = this.getFlowInstance(event, flowId, Flows.getFlow(flowId));
         Flows.addFlowInstance(flowInstance);
         // Set the input event body into the flow dataset

@@ -5,8 +5,7 @@ import { EventEnvelope } from '../models/event-envelope.js';
  * DO NOT use this directly in your application code.
  */
 export declare class EventApiService implements Composable {
-    static routeName: string;
+    static readonly routeName = "event.api.service";
     initialize(): Composable;
     handleEvent(evt: EventEnvelope): Promise<EventEnvelope>;
-    static eventApiError(status: number, message: string): EventEnvelope;
 }

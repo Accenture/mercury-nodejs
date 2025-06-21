@@ -5,7 +5,7 @@ import { EventEnvelope } from '../models/event-envelope.js';
  */
 export declare class FunctionRegistry {
     private static singleton;
-    private registry;
+    private readonly registry;
     private constructor();
     static getInstance(): FunctionRegistry;
     /**

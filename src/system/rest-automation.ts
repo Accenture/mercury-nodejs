@@ -48,12 +48,191 @@ let server: Server = null;
 let running = false;
 let self: RestEngine;
 
+function keepSomeHeaders(headerInfo: HeaderInfo, headers: object): object {
+    const result = {};
+    for (const h in headers) {
+        if (includesLabel(headerInfo.keepHeaders, h)) {
+            result[h] = headers[h];
+        }
+    }
+    return result;
+}
+
+function dropSomeHeaders(headerInfo: HeaderInfo, headers: object) {
+    const result = {};
+    for (const h in headers) {
+        if (!includesLabel(headerInfo.dropHeaders, h)) {
+            result[h] = headers[h];
+        }
+    }
+    return result;
+}
+
+function includesLabel(headerLabels: Array<string>, h: string): boolean {
+    for (const key of headerLabels) {
+        if (util.equalsIgnoreCase(key, h)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+async function copyToSecondaryTarget(p: RelayParameters) {
+    for (let i=1; i < p.route.info.services.length; i++) {
+        const target = p.route.info.services[i];
+        const secondary = new EventEnvelope().setTo(target).setFrom('http.request').setBody(p.httpReq.toMap());
+        if (p.traceId) {
+            secondary.setTraceId(p.traceId);
+            secondary.setTracePath(p.tracePath);
+        }
+        try {
+            await po.send(secondary);
+        } catch (e) {
+            log.warn(`Unable to copy event to ${target} - ${e.message}`);
+        }
+    }    
+}
+
+function setupResponseHeaders(route: AssignedRoute, router: RoutingEntry, traceHeaderLabel: string, serviceResponse: EventEnvelope, md: ResponseMetadata, httpHead: boolean) {
+    for (const h in serviceResponse.getHeaders()) {
+        const key = h.toLowerCase();
+        const value = serviceResponse.getHeader(h);
+        if (key == STREAM_CONTENT && value.startsWith('stream.') && value.endsWith('.in')) {
+            md.streamId = value;
+        } else if (key == 'timeout') {
+            md.streamTimeout = value;
+        } else if (key == LOWERCASE_CONTENT_TYPE) {
+            if (!httpHead) {
+                md.resContentType = value.toLowerCase();
+                md.resHeaders[CONTENT_TYPE] = md.resContentType;
+            }
+        } else {
+            md.resHeaders[key] = value;
+        }   
+    } 
+    const traceId = serviceResponse.getTraceId();
+    if (traceId && traceHeaderLabel) {
+        md.resHeaders[traceHeaderLabel] = traceId;
+    }
+    if (route.info.responseTransformId) {
+        md.resHeaders = self.filterHeaders(router.getResponseHeaderInfo(route.info.responseTransformId), md.resHeaders);
+    }    
+}
+
+function setupResponseContentType(req: Request, md: ResponseMetadata) {
+    if (md.resContentType == null) {
+        const accept = req.header('accept');
+        if (accept) {
+            if (accept.includes(TEXT_HTML)) {
+                md.resContentType = TEXT_HTML;
+                md.resHeaders[CONTENT_TYPE] = TEXT_HTML;
+            } else if (accept.includes(APPLICATION_JSON) || accept.includes('*/*')) {
+                md.resContentType = APPLICATION_JSON;
+                md.resHeaders[CONTENT_TYPE] = APPLICATION_JSON;
+            } else if (accept.includes(APPLICATION_XML)) {
+                md.resContentType = APPLICATION_XML;
+                md.resHeaders[CONTENT_TYPE] = APPLICATION_XML;
+            } else if (accept.includes(APPLICATION_OCTET_STREAM)) {
+                md.resContentType = APPLICATION_OCTET_STREAM;
+                md.resHeaders[CONTENT_TYPE] = APPLICATION_OCTET_STREAM;
+            } else {
+                md.resContentType = TEXT_PLAIN;
+                md.resHeaders[CONTENT_TYPE] = TEXT_PLAIN;
+            } 
+        } else {
+            md.resContentType = '?';
+        }
+    }    
+}
+
+function setupResponseCookies(res: Response, md: ResponseMetadata) {
+    for (const h in md.resHeaders) {
+        if (h == 'set-cookie') {
+            const cookieList = String(md.resHeaders[h]).split('|').filter(v => v.length > 0);
+            for (const c of cookieList) {
+                res.setHeader(self.getHeaderCase(h), c);
+            }
+        } else {
+            res.setHeader(self.getHeaderCase(h), md.resHeaders[h]);
+        }                  
+    }
+}
+
+function writeHttpPayload(res: Response, resBody, serviceResponse: EventEnvelope, md: ResponseMetadata) {
+    let b: Buffer = null;
+    if (resBody instanceof Buffer) {
+        b = resBody;
+    } else if (resBody instanceof Object) {
+        if (TEXT_HTML == md.resContentType) {
+            b = Buffer.from(HTML_START + JSON.stringify(resBody, null, 2) + HTML_END);
+        } else {
+            b = Buffer.from(JSON.stringify(resBody, null, 2));
+        }
+    } else {
+        b = Buffer.from(String(resBody));
+    }
+    res.setHeader(CONTENT_LENGTH, b.length);
+    res.statusCode = serviceResponse.getStatus();
+    res.write(b);    
+}
+
+async function writeHttpStream(res: Response, route: AssignedRoute, serviceResponse: EventEnvelope, md: ResponseMetadata) {
+    res.statusCode = serviceResponse.getStatus();
+    if (md.streamId) {
+        const timeout = self.getReadTimeout(md.streamTimeout, route.info.timeoutSeconds * 1000);
+        let done = false;
+        const stream = new ObjectStreamReader(md.streamId, timeout);        
+        while (!done) {
+            try {
+                const block = await stream.read();
+                if (block) {
+                    writeHttpData(block, res);
+                } else {
+                    done = true;
+                }
+            } catch (e) {
+                const status = e instanceof AppException? e.getStatus() : 500;
+                log.error(`Exception - rc=${status}, message=${e.message}`);
+                done = true;
+            }        
+        }
+    }    
+}
+
+function writeHttpData(block, res: Response) {
+    if (block instanceof Buffer) {
+        res.write(block);
+    } else if (typeof(block) == 'string') {
+        const b = Buffer.from(block);
+        res.write(b);
+    }
+}
+
 function ready(port: number) {
     const now = new Date();
     const diff = now.getTime() - Platform.getInstance().getStartTime().getTime();
     log.info(`Modules loaded in ${diff} ms`);
     log.info(`Reactive HTTP server running on port ${port}`);
     loaded = true;
+}
+
+class RelayParameters {
+    authService: string;
+    traceId: string;
+    tracePath: string;
+    traceHeaderLabel: string;
+    httpReq: AsyncHttpRequest;
+    req: Request;
+    res: Response;
+    route: AssignedRoute;
+    router: RoutingEntry;
+}
+
+class ResponseMetadata {
+    resContentType: string = null;
+    resHeaders = {};    
+    streamId: string = null;
+    streamTimeout: string = null;
 }
 
 export class RestAutomation {
@@ -63,15 +242,11 @@ export class RestAutomation {
      * Enable REST automation
      */
     private constructor() {
-        if (self === undefined) {
-            self = new RestEngine();
-        }
+        self ??= new RestEngine();
     }
 
     static getInstance(): RestAutomation {
-        if (RestAutomation.singleton === undefined) {
-            RestAutomation.singleton = new RestAutomation();
-        }
+        RestAutomation.singleton ??= new RestAutomation();
         return RestAutomation.singleton;
     }
 
@@ -181,113 +356,20 @@ class AsyncHttpResponse implements Composable {
             clearTimeout(watcher);
             delete context[cid];
             // handle response
-            const traceId = serviceResponse.getTraceId();
-            let resBody = serviceResponse.getBody();
             const httpHead = 'HEAD' == httpReq.getMethod();
-            let resContentType: string = httpHead? '?' : null;
-            let streamId: string = null;
-            let streamTimeout: string = null;
-            let resHeaders = {};
-            for (const h in serviceResponse.getHeaders()) {
-                const key = h.toLowerCase();
-                const value = serviceResponse.getHeader(h);
-                if (key == STREAM_CONTENT && value.startsWith('stream.') && value.endsWith('.in')) {
-                    streamId = value;
-                } else if (key == 'timeout') {
-                    streamTimeout = value;
-                } else if (key == LOWERCASE_CONTENT_TYPE) {
-                    if (!httpHead) {
-                        resContentType = value.toLowerCase();
-                        resHeaders[CONTENT_TYPE] = resContentType;
-                    }
-                } else {
-                    resHeaders[key] = value;
-                }
-            }
-            if (resContentType == null) {
-                const accept = req.header('accept');
-                if (accept) {
-                    if (accept.includes(TEXT_HTML)) {
-                        resContentType = TEXT_HTML;
-                        resHeaders[CONTENT_TYPE] = TEXT_HTML;
-                    } else if (accept.includes(APPLICATION_JSON) || accept.includes('*/*')) {
-                        resContentType = APPLICATION_JSON;
-                        resHeaders[CONTENT_TYPE] = APPLICATION_JSON;
-                    } else if (accept.includes(APPLICATION_XML)) {
-                        resContentType = APPLICATION_XML;
-                        resHeaders[CONTENT_TYPE] = APPLICATION_XML;
-                    } else if (accept.includes(APPLICATION_OCTET_STREAM)) {
-                        resContentType = APPLICATION_OCTET_STREAM;
-                        resHeaders[CONTENT_TYPE] = APPLICATION_OCTET_STREAM;
-                    } else {
-                        resContentType = TEXT_PLAIN;
-                        resHeaders[CONTENT_TYPE] = TEXT_PLAIN;
-                    } 
-                } else {
-                    resContentType = '?';
-                }
-            }
-            if (traceId && traceHeaderLabel) {
-                resHeaders[traceHeaderLabel] = traceId;
-            }
-            if (route.info.responseTransformId != null) {
-                resHeaders = self.filterHeaders(router.getResponseHeaderInfo(route.info.responseTransformId), resHeaders);
-            }
-            for (const h in resHeaders) {
-                if (h == 'set-cookie') {
-                    const cookieList = String(resHeaders[h]).split('|').filter(v => v.length > 0);
-                    for (const c of cookieList) {
-                        res.setHeader(self.getHeaderCase(h), c);
-                    }
-                } else {
-                    res.setHeader(self.getHeaderCase(h), resHeaders[h]);
-                }                  
-            }
+            let resBody = serviceResponse.getBody();
+            const md = new ResponseMetadata();
+            // follow this sequence - hedaers, content-type and cookies
+            setupResponseHeaders(route, router, traceHeaderLabel, serviceResponse, md, httpHead);
+            setupResponseContentType(req, md);
+            setupResponseCookies(res, md);
             if (resBody) {
-                if (typeof resBody == 'string' && serviceResponse.getStatus() >= 400 && resContentType && resContentType.includes('json') && !resBody.startsWith('{')) {
+                if (typeof resBody == 'string' && serviceResponse.getStatus() >= 400 && md.resContentType && md.resContentType.includes('json') && !resBody.startsWith('{')) {
                     resBody = {'type': 'error', 'status': serviceResponse.getStatus(), 'message': resBody};
                 }
-                let b: Buffer = null;
-                if (resBody instanceof Buffer) {
-                    b = resBody;
-                } else if (resBody instanceof Object) {
-                    if (TEXT_HTML == resContentType) {
-                        b = Buffer.from(HTML_START + JSON.stringify(resBody, null, 2) + HTML_END);
-                    } else {
-                        b = Buffer.from(JSON.stringify(resBody, null, 2));
-                    }
-                } else {
-                    b = Buffer.from(String(resBody));
-                }
-                res.setHeader(CONTENT_LENGTH, b.length);
-                res.statusCode = serviceResponse.getStatus();
-                res.write(b);
+                writeHttpPayload(res, resBody, serviceResponse, md);
             } else {
-                res.statusCode = serviceResponse.getStatus();
-                if (streamId) {
-                    const timeout = self.getReadTimeout(streamTimeout, route.info.timeoutSeconds * 1000);
-                    let done = false;
-                    const stream = new ObjectStreamReader(streamId, timeout);        
-                    while (!done) {
-                        try {
-                            const block = await stream.read();
-                            if (block) {
-                                if (block instanceof Buffer) {
-                                    res.write(block);
-                                } else if (typeof(block) == 'string') {
-                                    const b = Buffer.from(block);
-                                    res.write(b);
-                                }
-                            } else {
-                                done = true;
-                            }
-                        } catch (e) {
-                            const status = e instanceof AppException? e.getStatus() : 500;
-                            log.error(`Exception - rc=${status}, message=${e.message}`);
-                            done = true;
-                        }        
-                    }
-                }
+                await writeHttpStream(res, route, serviceResponse, md);
             }          
             res.end();
         } else {
@@ -298,12 +380,12 @@ class AsyncHttpResponse implements Composable {
 }
 
 class RestEngine {
-    private loaded = false;
-    private plugins = new Array<RequestHandler>;
-    private traceIdLabels: Array<string>;
+    private readonly plugins = new Array<RequestHandler>;
+    private readonly traceIdLabels: Array<string>;
+    private readonly customContentTypes = new Map<string, string>();
+    private readonly connections = new Map<number, Socket>();
     private htmlFolder: string;
-    private customContentTypes = new Map<string, string>();
-    private connections = new Map<number, Socket>();
+    private loaded = false;
 
     constructor() {
         if (this.traceIdLabels === undefined) {        
@@ -341,43 +423,10 @@ class RestEngine {
             }
             this.htmlFolder = config.resolveResourceFilePath(config.getProperty('static.html.folder', 'classpath:/public'));
             log.info(`Static HTML folder: ${this.htmlFolder}`);
-            const ctypes = config.getProperty('yaml.custom.content.types');
-            if (ctypes) {
-                const cFilePath = config.resolveResourceFilePath(ctypes);
-                const cConfig = util.loadYamlFile(cFilePath);
-                if (cConfig.exists('custom.content.types')) {
-                    const cSettings = cConfig.getElement('custom.content.types');
-                    if (cSettings instanceof Object && Array.isArray(cSettings)) {
-                        for (const entry of cSettings) {
-                            const sep = entry.indexOf('->');
-                            if (sep != -1) {
-                                const k = entry.substring(0, sep).trim();
-                                const v = entry.substring(sep+2).trim();
-                                if (k && v) {
-                                    this.customContentTypes.set(k, v.toLowerCase());
-                                }                                
-                            }
-                        }
-                    }
-                }
-            }
-            // load custom content types in application config if any
-            const ct = config.get('custom.content.types');
-            if (ct instanceof Object && Array.isArray(ct)) {
-                for (const entry of ct) {
-                    const sep = entry.indexOf('->');
-                    if (sep != -1) {
-                        const k = entry.substring(0, sep).trim();
-                        const v = entry.substring(sep+2).trim();
-                        if (k && v) {
-                            this.customContentTypes.set(k, v.toLowerCase());
-                        }                        
-                    }                    
-                }
-            }
+            this.setupCustomContentTypes(config);   
             if (this.customContentTypes.size > 0) {
                 log.info(`Loaded ${this.customContentTypes.size} custom content types`);
-            }        
+            }
             let port = util.str2int(config.getProperty('server.port', String(DEFAULT_SERVER_PORT)));
             if (port < 80) {
                 log.error(`Port ${port} is invalid. Reset to default port ${DEFAULT_SERVER_PORT}`);
@@ -400,7 +449,7 @@ class RestEngine {
             const binaryParser = bodyParser.raw({
                 type(req) {
                     const contentType = req.headers['content-type'];
-                    if (contentType && contentType.startsWith(MULTIPART_FORM_DATA)) {
+                    if (contentType?.startsWith(MULTIPART_FORM_DATA)) {
                         // skip "multipart/form-data" because it will be handled by another module
                         return false;
                     } else {
@@ -430,30 +479,7 @@ class RestEngine {
             }
             // the last middleware is the rest-automation request handler            
             app.use(async (req: Request, res: Response) => {
-                const method = req.method;
-                // Avoid "path traversal" attack by filtering "../" from URI
-                const uriPath = util.getDecodedUri(req.path);
-                let found = false;
-                if (restEnabled) {                
-                    const assigned = router.getRouteInfo(method, uriPath);
-                    if (assigned) {
-                        if (assigned.info) {
-                            try {
-                                await this.processRequest(uriPath, req, res, assigned, router);
-                            } catch (e) {
-                                const rc = e instanceof AppException? e.getStatus() : 500;
-                                this.rejectRequest(res, rc, e.message);
-                            }                            
-                        } else {
-                            this.rejectRequest(res, 405, 'Method not allowed');
-                        }
-                        found = true;
-                    }  
-                }
-                // send HTTP-404 when page is not found
-                if (!found) {
-                    this.rejectRequest(res, 404, 'Resource not found');
-                }               
+                this.setupRestHandler(req, res, router, restEnabled);              
             });                
             // for security reason, hide server identification
             app.disable('x-powered-by');
@@ -488,84 +514,184 @@ class RestEngine {
         }
     }
 
+    private setupCustomContentTypes(config: ConfigReader) {
+        const ctypes = config.getProperty('yaml.custom.content.types');
+        if (ctypes) {
+            const cFilePath = config.resolveResourceFilePath(ctypes);
+            const cConfig = util.loadYamlFile(cFilePath);
+            if (cConfig.exists('custom.content.types')) {
+                const cSettings = cConfig.getElement('custom.content.types');
+                if (cSettings instanceof Object && Array.isArray(cSettings)) {
+                    for (const entry of cSettings) {
+                        this.loadCustomContentTypes(entry);
+                    }
+                }
+            }
+        }
+        // load custom content types in application config if any
+        const ct = config.get('custom.content.types');
+        if (ct instanceof Object && Array.isArray(ct)) {
+            for (const entry of ct) {
+                this.loadCustomContentTypes(entry);                  
+            }
+        }
+    }
+
+    private loadCustomContentTypes(entry: string) {
+        const sep = entry.indexOf('->');
+        if (sep != -1) {
+            const k = entry.substring(0, sep).trim();
+            const v = entry.substring(sep+2).trim();
+            if (k && v) {
+                this.customContentTypes.set(k, v.toLowerCase());
+            }                        
+        }          
+    }
+
+    private async setupRestHandler(req: Request, res: Response, router: RoutingEntry, restEnabled: boolean) {
+        const method = req.method;
+        // Avoid "path traversal" attack by filtering "../" from URI
+        const uriPath = util.getDecodedUri(req.path);
+        let found = false;
+        if (restEnabled) {                
+            const assigned = router.getRouteInfo(method, uriPath);
+            if (assigned) {
+                if (assigned.info) {
+                    this.processRestRequest(uriPath, req, res, assigned, router);                          
+                } else {
+                    this.rejectRequest(res, 405, 'Method not allowed');
+                }
+                found = true;
+            }  
+        }
+        // send HTTP-404 when page is not found
+        if (!found) {
+            this.rejectRequest(res, 404, 'Resource not found');
+        }          
+    }
+
+    private async processRestRequest(uriPath: string, req: Request, res: Response, assigned: AssignedRoute, router: RoutingEntry) {
+        try {
+            await this.processRequest(uriPath, req, res, assigned, router);
+        } catch (e) {
+            const rc = e instanceof AppException? e.getStatus() : 500;
+            this.rejectRequest(res, rc, e.message);
+        }          
+    }
+
     setupMiddleWare(handler: RequestHandler) {
         this.plugins.push(handler);
     }
 
-    async processRequest(uriPath: string, req: Request, res: Response, route: AssignedRoute, router: RoutingEntry) {
-        const method = req.method;
-        if (OPTIONS_METHOD == method) {
-            if (route.info.corsId == null) {
-                throw new AppException(405, "Method not allowed");
-            } else {
-                const corsInfo = router.getCorsInfo(route.info.corsId);
-                if (corsInfo != null && corsInfo.options.size > 0) {
-                    for (const h of corsInfo.options.keys()) {
-                        const prettyHeader = this.getHeaderCase(h);
-                        if (prettyHeader != null) {
-                            res.setHeader(prettyHeader, corsInfo.options.get(h));
-                        }
-                    }
-                    // set status to "HTTP-204: No content"
-                    res.statusCode = 204;
-                    res.end();
-                } else {
-                    throw new AppException(405, "Method not allowed");
-                }
-            }
-            return;
-        }
-        // set cors headers
-        if (route.info.corsId) {
+    private handleHttpOptions(route: AssignedRoute, router: RoutingEntry, res: Response) {
+        if (route.info.corsId == null) {
+            throw new AppException(405, "Method not allowed");
+        } else {
             const corsInfo = router.getCorsInfo(route.info.corsId);
-            if (corsInfo != null && corsInfo.headers.size > 0) {
-                for (const h of corsInfo.headers.keys()) {
+            if (corsInfo != null && corsInfo.options.size > 0) {
+                for (const h of corsInfo.options.keys()) {
                     const prettyHeader = this.getHeaderCase(h);
                     if (prettyHeader != null) {
-                        res.setHeader(prettyHeader, corsInfo.headers.get(h));
+                        res.setHeader(prettyHeader, corsInfo.options.get(h));
                     }
                 }
+                // set status to "HTTP-204: No content"
+                res.statusCode = 204;
+                res.end();
+            } else {
+                throw new AppException(405, "Method not allowed");
             }
-        }
-        // check if target service is available
+        }    
+    }    
+
+    private setCorsHeaders(route: AssignedRoute, router: RoutingEntry, res: Response) {
+        const corsInfo = router.getCorsInfo(route.info.corsId);
+        if (corsInfo != null && corsInfo.headers.size > 0) {
+            for (const h of corsInfo.headers.keys()) {
+                const prettyHeader = this.getHeaderCase(h);
+                if (prettyHeader != null) {
+                    res.setHeader(prettyHeader, corsInfo.headers.get(h));
+                }
+            }
+        }    
+    } 
+
+    private validateAuthService(route: AssignedRoute, req: Request): string {
         let authService: string = null;
-        if (!po.exists(route.info.primary)) {
-            throw new AppException(503, `Service ${route.info.primary} not reachable`);
-        }
-        if (route.info.defaultAuthService) {
-            const authHeaders = route.info.authHeaders;
-            if (authHeaders.length > 0) {
-                for (const h of authHeaders) {
-                    const v = req.header(h);
-                    if (v) {
-                        let svc = route.info.getAuthService(h);
-                        if (svc == null) {
-                            svc = route.info.getAuthService(h, v);
-                        }
-                        if (svc != null) {
-                            authService = svc;
-                            break;
-                        }
+        const authHeaders = route.info.authHeaders;
+        if (authHeaders.length > 0) {
+            for (const h of authHeaders) {
+                const v = req.header(h);
+                if (v) {
+                    let svc = route.info.getAuthService(h);
+                    svc ??= route.info.getAuthService(h, v);
+                    if (svc != null) {
+                        authService = svc;
+                        break;
                     }
                 }
             }
-            if (authService == null) {
-                authService = route.info.defaultAuthService;
-            }
-            if (!po.exists(authService)) {
-                throw new AppException(503, `Service ${authService} not reachable`);
-            }
         }
+        authService ??= route.info.defaultAuthService;
+        if (!po.exists(authService)) {
+            throw new AppException(503, `Service ${authService} not reachable`);
+        }
+        return authService;
+    }
+
+    private handleUpload(req: Request, res: Response, route: AssignedRoute, httpReq: AsyncHttpRequest, parameters: RelayParameters) {
+        const bb = busboy({ headers: req.headers });
+        let len = 0;
+        bb.on('file', (name, file, info) => {
+            const stream = new ObjectStreamIO(route.info.timeoutSeconds);
+            const outputStream = new ObjectStreamWriter(stream.getOutputStreamId());
+            file.on('data', (data) => {                    
+                len += data.length;
+                outputStream.write(data);
+            }).on('close', () => {
+                httpReq.setStreamRoute(stream.getInputStreamId())
+                        .setFileName(info.filename)
+                        .setContentLength(len)
+                        .setUploadTag(name);
+                outputStream.close();                                                    
+            });
+            });
+            bb.on('field', (name, value) => {
+            httpReq.setQueryParameter(name, value);
+            });
+            bb.on('close', () => {
+            this.relay(parameters)
+                .catch(e => {
+                    const rc = e instanceof AppException? e.getStatus() : 500;
+                    this.rejectRequest(res, rc, e.message);
+                });
+            });
+            bb.on('error', (e) => {
+            this.rejectRequest(res, 500, 'Unexpected upload exception');
+            log.error(`Unexpected upload exception ${e}`);
+            });
+        req.pipe(bb);        
+    }
+
+    private parseQuery(req: Request, httpReq: AsyncHttpRequest): string {
         let qs = '';
-        const httpReq = new AsyncHttpRequest();
         for (const k in req.query) {            
-            const v = String(req.query[k]);
-            httpReq.setQueryParameter(k, v);
-            qs += ('&'+k+'='+v);
+            const v = req.query[k];
+            if (typeof v == 'string') {
+                httpReq.setQueryParameter(k, v);
+                qs += ('&'+k+'='+v);
+            }
         }
         if (qs) {
             qs = qs.substring(1);
         }
+        return qs;
+    }
+
+    private prepareHttpRequest(uriPath: string, req: Request, route: AssignedRoute, router: RoutingEntry): AsyncHttpRequest {
+        const method = req.method;
+        const httpReq = new AsyncHttpRequest();   
+        const qs = this.parseQuery(req, httpReq);
         httpReq.setUrl(this.normalizeUrl(uriPath, route.info.urlRewrite));
         httpReq.setQueryString(qs);
         if (route.info.host) {
@@ -589,7 +715,7 @@ class RestEngine {
         }
         for (const k in req.cookies) {
             const v = req.cookies[k];
-            if (typeof(v) == 'string') {
+            if (typeof v == 'string') {
                 httpReq.setCookie(k, v);
             }
         }
@@ -604,6 +730,42 @@ class RestEngine {
         }
         const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress);
         httpReq.setRemoteIp(ip);
+        return httpReq;
+    }
+
+    private handleRequestPayload(req: Request, res: Response, route: AssignedRoute, httpReq: AsyncHttpRequest, parameters: RelayParameters): boolean {
+        const method = req.method;
+        const contentType = resolver.getContentType(req.header(CONTENT_TYPE)) || TEXT_PLAIN;
+        if (contentType.startsWith(MULTIPART_FORM_DATA) && 'POST' == method && route.info.upload) {
+            this.handleUpload(req, res, route, httpReq, parameters);
+            return true;
+        } else if (contentType.startsWith(APPLICATION_URL_ENCODED)) {
+            for (const k in req.body) {
+                httpReq.setQueryParameter(k, req.body[k]);
+            }
+        } else if (req.body) {
+            httpReq.setBody(req.body);
+        } 
+        return false;      
+    }
+
+    private async processRequest(uriPath: string, req: Request, res: Response, route: AssignedRoute, router: RoutingEntry) {        
+        const method = req.method;
+        if (OPTIONS_METHOD == method) {
+            this.handleHttpOptions(route, router, res);           
+            return;
+        }
+        // set cors headers
+        if (route.info.corsId) {
+            this.setCorsHeaders(route, router, res);
+        }
+        // check if target service is available
+        if (!po.exists(route.info.primary)) {
+            throw new AppException(503, `Service ${route.info.primary} not reachable`);
+        }
+        const authService: string = route.info.defaultAuthService? this.validateAuthService(route, req) : null;
+        // prepareHttpRequest(uriPath: string, req: Request, route: AssignedRoute, router: RoutingEntry
+        const httpReq = this.prepareHttpRequest(uriPath, req, route, router);
         // Distributed tracing required?
         let traceId: string = null;
         let tracePath: string = null;
@@ -614,110 +776,61 @@ class RestEngine {
             traceHeaderLabel = traceHeader[0];
             traceId = traceHeader[1];
             tracePath = method + " " + uriPath;
-            if (qs) {
-                tracePath += "?" + qs;
+            if (httpReq.getQueryString()) {
+                tracePath += "?" + httpReq.getQueryString();
             }
         }
-        if ('POST' == method || 'PUT' == method || 'PATCH' == method) {
-            let contentType = resolver.getContentType(req.header(CONTENT_TYPE));
-            if (!contentType) {
-                contentType = TEXT_PLAIN;
-            }
-            if (contentType.startsWith(MULTIPART_FORM_DATA) && 'POST' == method && route.info.upload) {
-                const bb = busboy({ headers: req.headers });
-                let len = 0;
-                bb.on('file', (name, file, info) => {
-                    const stream = new ObjectStreamIO(route.info.timeoutSeconds);
-                    const outputStream = new ObjectStreamWriter(stream.getOutputStreamId());
-                    file.on('data', (data) => {                    
-                        len += data.length;
-                        outputStream.write(data);
-                    }).on('close', () => {
-                        httpReq.setStreamRoute(stream.getInputStreamId())
-                                .setFileName(info.filename)
-                                .setContentLength(len)
-                                .setUploadTag(name);
-                        outputStream.close();                                                    
-                    });
-                  });
-                  bb.on('field', (name, value) => {
-                    httpReq.setQueryParameter(name, value);
-                  });
-                  bb.on('close', () => {
-                    this.relay(authService, traceId, tracePath, traceHeaderLabel, httpReq, req, res, route, router)
-                        .catch(e => {
-                            const rc = e instanceof AppException? e.getStatus() : 500;
-                            this.rejectRequest(res, rc, e.message);
-                        });
-                  });
-                  bb.on('error', (e) => {
-                    this.rejectRequest(res, 500, 'Unexpected upload exception');
-                    log.error(`Unexpected upload exception ${e}`);
-                  });
-                req.pipe(bb);
-                return;
-            } else {
-                if (contentType.startsWith(APPLICATION_URL_ENCODED)) {
-                    for (const k in req.body) {
-                        httpReq.setQueryParameter(k, req.body[k]);
-                    }
-                } else if (req.body) {
-                    httpReq.setBody(req.body);
-                } 
-            }            
+        const parameters = new RelayParameters();
+        parameters.authService = authService;
+        parameters.traceId = traceId;
+        parameters.tracePath = tracePath;
+        parameters.traceHeaderLabel = traceHeaderLabel;
+        parameters.route = route;
+        parameters.req = req;
+        parameters.res = res;
+        parameters.router = router;
+        parameters.httpReq = httpReq;        
+        if (('POST' == method || 'PUT' == method || 'PATCH' == method) && this.handleRequestPayload(req, res, route, httpReq, parameters)) {
+            return;         
         }
-        await this.relay(authService, traceId, tracePath, traceHeaderLabel, httpReq, req, res, route, router);
+        await this.relay(parameters);
     }
 
-    async relay(authService: string, traceId: string, tracePath: string, traceHeaderLabel: string, 
-                    httpReq: AsyncHttpRequest,
-                    req: Request, res: Response, route: AssignedRoute, router: RoutingEntry) {
-        if (authService) {
-            const authRequest = new EventEnvelope().setTo(authService).setFrom('http.request').setBody(httpReq.toMap());
-            if (traceId) {
-                authRequest.setTraceId(traceId);
-                authRequest.setTracePath(tracePath);
+    async relay(p: RelayParameters) {
+        if (p.authService) {
+            const authRequest = new EventEnvelope().setTo(p.authService).setFrom('http.request').setBody(p.httpReq.toMap());
+            if (p.traceId) {
+                authRequest.setTraceId(p.traceId);
+                authRequest.setTracePath(p.tracePath);
             }
-            const authResponse = await po.request(authRequest, route.info.timeoutSeconds * 1000);
+            const authResponse = await po.request(authRequest, p.route.info.timeoutSeconds * 1000);
             const approved = typeof authResponse.getBody() == 'boolean'? authResponse.getBody() : false;
             if (!approved) {
                 throw new AppException(401, 'Unauthorized');
             }
             for (const k in authResponse.getHeaders()) {
                 const v = authResponse.getHeader(k);
-                httpReq.setSessionInfo(k, v);
+                p.httpReq.setSessionInfo(k, v);
             }
         }
-        const serviceRequest = new EventEnvelope().setTo(route.info.primary).setFrom('http.request').setBody(httpReq.toMap());
-        if (traceId) {
-            serviceRequest.setTraceId(traceId);
-            serviceRequest.setTracePath(tracePath);
+        const serviceRequest = new EventEnvelope().setTo(p.route.info.primary).setFrom('http.request').setBody(p.httpReq.toMap());
+        if (p.traceId) {
+            serviceRequest.setTraceId(p.traceId);
+            serviceRequest.setTracePath(p.tracePath);
         }
         // copy to secondary addresses if any
-        if (route.info.services.length > 1) {
-            for (let i=1; i < route.info.services.length; i++) {
-                const target = route.info.services[i];
-                const secondary = new EventEnvelope().setTo(target).setFrom('http.request').setBody(httpReq.toMap());
-                if (traceId) {
-                    secondary.setTraceId(traceId);
-                    secondary.setTracePath(tracePath);
-                }
-                try {
-                    await po.send(secondary);
-                } catch (e) {
-                    log.warn(`Unable to copy event to ${target} - ${e.message}`);
-                }
-            }
+        if (p.route.info.services.length > 1) {
+            copyToSecondaryTarget(p);
         }
         // send request to target service with async.http.response as callback
         const contextId = util.getUuid();
-        const timeoutMs = route.info.timeoutSeconds * 1000;
+        const timeoutMs = p.route.info.timeoutSeconds * 1000;
         const timeoutEvent = new EventEnvelope().setTo(ASYNC_HTTP_RESPONSE).setCorrelationId(contextId)
-                                                .setStatus(408).setBody(`Timeout for ${route.info.timeoutSeconds} seconds`);
+                                                .setStatus(408).setBody(`Timeout for ${p.route.info.timeoutSeconds} seconds`);
         // install future event to catch timeout of the target service
         const watcher = po.sendLater(timeoutEvent, timeoutMs);
-        httpContext[contextId] = {'req': req, 'res': res, 'http': httpReq, 
-                                'route': route, 'router': router, 'label': traceHeaderLabel,
+        httpContext[contextId] = {'req': p.req, 'res': p.res, 'http': p.httpReq, 
+                                'route': p.route, 'router': p.router, 'label': p.traceHeaderLabel,
                                 'watcher': watcher};
         serviceRequest.setCorrelationId(contextId).setReplyTo(ASYNC_HTTP_RESPONSE);
         await po.send(serviceRequest);
@@ -761,22 +874,10 @@ class RestEngine {
         let result = headers;
         if (headerInfo.keepHeaders != null && headerInfo.keepHeaders.length > 0) {
             // drop all headers except those to be kept
-            const toBeKept = {};
-            for (const h in headers) {
-                if (headerInfo.keepHeaders.includes(h)) {
-                    toBeKept[h] = headers[h];
-                }
-            }
-            result = toBeKept;
+            result = keepSomeHeaders(headerInfo, headers);
         } else if (headerInfo.dropHeaders != null && headerInfo.dropHeaders.length > 0) {
             // drop the headers according to "drop" list
-            const toBeKept = {};
-            for (const h in headers) {
-                if (!headerInfo.dropHeaders.includes(h)) {
-                    toBeKept[h] = headers[h];
-                }
-            }
-            result = toBeKept;
+            result = dropSomeHeaders(headerInfo, headers);
         }
         if (headerInfo.additionalHeaders != null && headerInfo.additionalHeaders.size > 0) {
             for (const h of headerInfo.additionalHeaders.keys()) {

@@ -20,7 +20,7 @@ export class HttpToFlow implements Composable {
 
     async handleEvent(evt: EventEnvelope) {
         const cid = evt.getCorrelationId()? evt.getCorrelationId() : util.getUuid();
-        const po = new PostOffice(evt.getHeaders());
+        const po = new PostOffice(evt);
         const self = po.getMyClass() as HttpToFlow;
         try {
             await self.processRequest(po, evt, cid);

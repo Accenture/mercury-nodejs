@@ -436,11 +436,27 @@ modules.autostart:
   - 'flow://my-startup-flow'
 ```
 
-For more complex startup procedure, you can use a flow to execute multiple tasks.
-The second item in the modules.autostart illustrates this use case.
+For more sophisticated startup procedure, you can use a flow to execute multiple tasks. The second item in the
+`modules.autostart` illustrates this use case.
 
 > *Note*: autostart modules or flows should assume there is no input dataset.
           Startup modules usually take input parameters from the environment variables or a secret manager.
+
+### Graceful shutdown
+
+If your application has some dependencies that must be shutdown gracefully, you can create a composable
+function to handle the shutdown. The following configuration parameter in application.yml will invoke
+the composable function with the route name "shutdown.hook". The system will wait for the completion
+of the shutdown.hook before closing the application.
+
+```yaml
+modules.autostop:
+  - 'shutdown.hook'
+```
+
+> *Note*: Similar to the autostart design, autostop modules should assume there is no input dataset
+          to the composable function handle graceful shutdown. For simplicity, the autostop feature
+          does not support shutdown sequence using a flow.
 
 ### Commad line application
 

@@ -6,7 +6,7 @@ import { AsyncHttpRequest } from '../models/async-http-request.js';
 import { AppException } from '../models/app-exception.js';
 import { ObjectStreamIO, ObjectStreamWriter, ObjectStreamReader } from '../system/object-stream.js';
 import { ContentTypeResolver } from '../util/content-type-resolver.js';
-import axios, { AxiosRequestConfig } from 'axios';
+import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
 import stream from 'stream';
 import FormData from 'form-data';
 
@@ -30,6 +30,7 @@ const STREAM_CONTENT = 'x-stream-id';
 const CONTENT_TYPE = 'content-type';
 const CONTENT_LENGTH = 'content-length';
 const X_CONTENT_LENGTH = 'x-content-length';
+const X_NO_STREAM = "x-small-payload-as-bytes";
 const X_TTL = 'x-ttl';
 const APPLICATION_JSON = 'application/json';
 const APPLICATION_XML = 'application/xml';
@@ -41,8 +42,197 @@ const X_TRACE_ID = "x-trace-id";
 const USER_AGENT = "user-agent";
 const ECONNREFUSED = 'ECONNREFUSED';
 
+function loadBuffer(reqBody): Buffer {
+    let b: Buffer;
+    if (reqBody instanceof Buffer) {
+        b = reqBody;
+    } else if (typeof reqBody == 'string') {
+        b = Buffer.from(reqBody);
+    } else if (reqBody instanceof Object) {
+        b = Buffer.from(JSON.stringify(reqBody));
+    } else {
+        b = Buffer.from('');
+    } 
+    return b;  
+}
+
+function uploadBlock(size: number, b: Buffer, handler: stream.Readable) {
+    if (size) {
+        if (b.length > size) {
+            let start = 0;
+            let end = size;
+            while (start <= b.length) {
+                if (end - start < size) {
+                    handler.push(b.subarray(start));
+                    break;
+                } else {
+                    handler.push(b.subarray(start, end));
+                    start = end;
+                    end += size;
+                }   
+            }
+        } else {
+            handler.push(b);
+        }    
+    } else {
+        handler.push(b);
+    } 
+}
+
+function handleInputStream(requestConfig: AxiosRequestConfig, streamId: string, timeout: number, reqContentType: string, method: string, filename: string) {
+    // handle input stream
+    const upload = new ObjectStreamReader(streamId, timeout);
+    const uploadStream = new stream.Readable({
+        read: function(size?: number) {
+            upload.read().then(v => {
+                if (v) {
+                    let b: Buffer = null;
+                    if (v instanceof Buffer) {
+                        b = v;
+                    } else if (typeof v == 'string') {
+                        b = Buffer.from(v);
+                    } else {
+                        log.error(`Stream dropped because data in ${streamId} is not Buffer or string`);
+                        this.push(null);
+                    }
+                    uploadBlock(size, b, this);                                                              
+                } else {
+                    this.push(null);
+                    upload.close();
+                }
+            });
+        }
+    });
+    uploadStream.on('close', () => {
+        log.debug(`Upload from ${streamId} completed`);
+    });
+    uploadStream.on('end', () => {
+        log.debug(`Closing ${streamId}`);
+    });
+    if (reqContentType.startsWith(MULTIPART_FORM_DATA) && POST == method && filename) {
+        const form = new FormData();
+        form.append('file', uploadStream, filename);
+        requestConfig.data = form;                      
+    } else {
+        requestConfig.data = uploadStream;
+    }    
+}
+
+function renderFixedLenContent(httpResponse: AxiosResponse, textContent: boolean, blocks: Array<Buffer>, resContentType: string, result: EventEnvelope) {
+    const b = Buffer.concat(blocks);                    
+    if (resContentType.startsWith(APPLICATION_JSON)) {
+        const text = normalizeTextResponse(httpResponse.status, b.toString(UTF_8)).trim();
+        if ((text.startsWith('{') && text.endsWith('}')) ||
+            (text.startsWith('[') && text.endsWith(']'))) {
+            try {
+                result.setBody(JSON.parse(text));
+            } catch (e) {
+                if (e) {
+                    result.setBody(text);
+                }
+            }
+        } else {
+            result.setBody(text);
+        }
+    } else if (textContent) {
+        result.setBody(normalizeTextResponse(httpResponse.status, b.toString(UTF_8)));
+    } else {
+        // binary content
+        result.setBody(b);
+    }    
+}
+
+function setupHttpRequest(request: AsyncHttpRequest): ReqMetadata {
+    const md = new ReqMetadata();
+    md.method = request.getMethod();
+    if (!(md.method && METHODS.includes(md.method))) {
+        throw new AppException(405, "Method not allowed");
+    }
+    const targetHost = request.getTargetHost();
+    if (targetHost == null) {
+        throw new AppException(400, "Missing target host. e.g. https://hostname");
+    }    
+    try {
+        md.targetUrl = new URL(targetHost);
+    } catch (e) {
+        throw new AppException(400, e.message);
+    }
+    const protocol = md.targetUrl.protocol;        
+    if ("http:" == protocol) {
+        md.secure = false;
+    } else if ("https:" == protocol) {
+        md.secure = true;
+    } else {
+        throw new AppException(400, "Protocol must be http or https");
+    }
+    const validHost = !!md.targetUrl.hostname;
+    if (!validHost) {
+        throw new AppException(400, "Unable to resolve target host as domain or IP address");
+    }
+    if (md.targetUrl.pathname && md.targetUrl.pathname != '/') {
+        throw new AppException(400, "Target host must not contain URI path");
+    } 
+    return md;   
+}
+
+function getUriWithQuery(request: AsyncHttpRequest): string {
+    let uri = request.getUrl();
+    if (uri.includes('?')) {
+        // when there are more than one query separator, drop the middle portion.
+        const sep1 = request.getUrl().indexOf('?');
+        const sep2 = request.getUrl().lastIndexOf('?');
+        uri = cleanEncodeURI(decodeURI(request.getUrl().substring(0, sep1)));
+        const q = request.getUrl().substring(sep2+1).trim();
+        if (q) {
+            request.setQueryString(q);
+        }
+    } else {
+        uri = cleanEncodeURI(decodeURI(uri));
+    }
+    // construct target URL
+    let qs = request.getQueryString();
+    const queryParams = queryParametersToString(request);
+    if (queryParams) {
+        qs = qs == null? queryParams : qs + "&" + queryParams;
+    }
+    return uri + (qs == null? "" : "?" + qs);    
+}
+
+function setupHeaders(request: AsyncHttpRequest): object {
+    const result = {};
+    result[USER_AGENT] = 'async-http-client';
+    const reqHeaders = request.getHeaders();
+    for (const h in request.getSession()) {
+        reqHeaders[h] = request.getSessionInfo(h);
+    }
+    for (const h in reqHeaders) {
+        if (allowedHeader(h)) {
+            result[h] = reqHeaders[h];
+        }
+    }
+    let cookies = '';
+    for (const c in request.getCookies()) {
+        cookies += c;
+        cookies += '=';
+        cookies += encodeURI(request.getCookie(c));
+        cookies += '; ';
+    }
+    if (cookies.length > 0) {
+        // remove the ending separator
+        cookies = cookies.substring(0, cookies.length-2);
+        result['cookie'] = cookies;
+    }  
+    return result;  
+}
+
+class ReqMetadata {
+    method: string;
+    secure: boolean;
+    targetUrl: URL;
+}
+
 export class AsyncHttpClient implements Composable {
-    static routeName = HTTP_CLIENT_SERVICE;
+    static readonly routeName = HTTP_CLIENT_SERVICE;
 
     initialize(): Composable { 
         return this;
@@ -54,171 +244,39 @@ export class AsyncHttpClient implements Composable {
         }
         const traceId = evt.getHeader(MY_TRACE_ID);
         const request = new AsyncHttpRequest(evt.getBody() as object);
-        const method = request.getMethod();
-        if (!(method && METHODS.includes(method))) {
-            throw new AppException(405, "Method not allowed");
-        }
-        const targetHost = request.getTargetHost();
-        if (targetHost == null) {
-            throw new AppException(400, "Missing target host. e.g. https://hostname");
-        }
-        let secure: boolean;
-        let targetUrl: URL;
-        try {
-            targetUrl = new URL(targetHost);
-        } catch (e) {
-            throw new AppException(400, e.message);
-        }
-        const protocol = targetUrl.protocol;        
-        if ("http:" == protocol) {
-            secure = false;
-        } else if ("https:" == protocol) {
-            secure = true;
-        } else {
-            throw new AppException(400, "Protocol must be http or https");
-        }
-        const validHost = !!targetUrl.hostname;
-        if (!validHost) {
-            throw new AppException(400, "Unable to resolve target host as domain or IP address");
-        }
-        if (targetUrl.pathname && targetUrl.pathname != '/') {
-            throw new AppException(400, "Target host must not contain URI path");
-        }
-        let uri = request.getUrl();
-        if (uri.includes('?')) {
-            // when there are more than one query separator, drop the middle portion.
-            const sep1 = request.getUrl().indexOf('?');
-            const sep2 = request.getUrl().lastIndexOf('?');
-            uri = cleanEncodeURI(decodeURI(request.getUrl().substring(0, sep1)));
-            const q = request.getUrl().substring(sep2+1).trim();
-            if (q) {
-                request.setQueryString(q);
-            }
-        } else {
-            uri = cleanEncodeURI(decodeURI(uri));
-        }
-        // construct target URL
-        let qs = request.getQueryString();
-        const queryParams = queryParametersToString(request);
-        if (queryParams) {
-            qs = qs == null? queryParams : qs + "&" + queryParams;
-        }
-        const uriWithQuery = uri + (qs == null? "" : "?" + qs);
-        const consolidatedHeaders = {};
-        consolidatedHeaders[USER_AGENT] = 'async-http-client';
-        const reqHeaders = request.getHeaders();
-        for (const h in request.getSession()) {
-            reqHeaders[h] = request.getSessionInfo(h);
-        }
-        for (const h in reqHeaders) {
-            if (allowedHeader(h)) {
-                consolidatedHeaders[h] = reqHeaders[h];
-            }
-        }
-        let cookies = '';
-        for (const c in request.getCookies()) {
-            cookies += c;
-            cookies += '=';
-            cookies += encodeURI(request.getCookie(c));
-            cookies += '; ';
-        }
-        if (cookies.length > 0) {
-            // remove the ending separator
-            cookies = cookies.substring(0, cookies.length-2);
-            consolidatedHeaders['cookie'] = cookies;
-        }
-        const fqUrl = (secure? 'https://' : 'http://') + targetUrl.host + uriWithQuery;
+        const md = setupHttpRequest(request);
+        const uriWithQuery = getUriWithQuery(request);
+        const reqHeaders = setupHeaders(request);
+        const fqUrl = (md.secure? 'https://' : 'http://') + md.targetUrl.host + uriWithQuery;
         // minimum timeout value is 5 seconds
         const timeout = Math.max(5000, request.getTimeoutSeconds() * 1000);
         if (traceId) {
-            consolidatedHeaders[X_TRACE_ID] = traceId;
+            reqHeaders[X_TRACE_ID] = traceId;
         }
         // When validateStatus returns true, HTTP-4xx and 5xx responses are processed as regular response.
         // We can then handle different HTTP responses in a consistent fashion.
         // Since we don't know the payload size of the HTTP response, 'stream' is a better option.
         const requestConfig: AxiosRequestConfig = {
-            method: method,
+            method: md.method,
             url: fqUrl,
-            headers: consolidatedHeaders,
+            headers: reqHeaders,
             timeout: timeout,
             responseType: 'stream',
             validateStatus: (status) => status != null
         };
-        if (PUT == method || POST == method || PATCH == method) {
-            const reqContentType = consolidatedHeaders[CONTENT_TYPE];
+        if (PUT == md.method || POST == md.method || PATCH == md.method) {
+            const reqContentType = String(reqHeaders[CONTENT_TYPE]);
             const reqBody = request.getBody();
             const streamId = request.getStreamRoute();
             const filename = request.getFileName();
             if (streamId && streamId.startsWith('stream.') && streamId.endsWith('.in')) {
-                // handle input stream
-                const upload = new ObjectStreamReader(streamId, timeout);
-                const uploadStream = new stream.Readable({
-                    read: function(size?: number) {
-                        upload.read().then(v => {
-                            if (v) {
-                                let b: Buffer = null;
-                                if (v instanceof Buffer) {
-                                    b = v;
-                                } else if (typeof v == 'string') {
-                                    b = Buffer.from(v);
-                                } else {
-                                    log.error(`Stream dropped because data in ${streamId} is not Buffer or string`);
-                                    this.push(null);
-                                }
-                                if (size) {
-                                    if (b.length > size) {
-                                        let start = 0;
-                                        let end = size;
-                                        while (start <= b.length) {
-                                            if (end - start < size) {
-                                                this.push(b.subarray(start));
-                                                break;
-                                            } else {
-                                                this.push(b.subarray(start, end));
-                                                start = end;
-                                                end += size;
-                                            }   
-                                        }
-                                    } else {
-                                        this.push(b);
-                                    }    
-                                } else {
-                                    this.push(b);
-                                }                                                               
-                            } else {
-                                this.push(null);
-                                upload.close();
-                            }
-                        });
-                    }
-                });
-                uploadStream.on('close', () => {
-                    log.debug(`Upload from ${streamId} completed`);
-                });
-                uploadStream.on('end', () => {
-                    log.debug(`Closing ${streamId}`);
-                });
-                if (String(reqContentType).startsWith(MULTIPART_FORM_DATA) &&
-                        POST == method && filename) {
-                    const form = new FormData();
-                    form.append('file', uploadStream, filename);
-                    requestConfig.data = form;                      
-                } else {
-                    requestConfig.data = uploadStream;
-                }
+                handleInputStream(requestConfig, streamId, timeout, reqContentType, md.method, filename);
             } else if (reqBody) {
-                let b: Buffer = null;
-                if (reqBody instanceof Buffer) {
-                    b = reqBody;
-                } else if (typeof reqBody == 'string') {
-                    b = Buffer.from(reqBody);
-                } else if (reqBody instanceof Object) {
-                    b = Buffer.from(JSON.stringify(reqBody));
-                }
+                const b = loadBuffer(reqBody);
                 requestConfig.data = b;
-                consolidatedHeaders[CONTENT_LENGTH] = b.length;
+                reqHeaders[CONTENT_LENGTH] = b.length;
             } else {
-                consolidatedHeaders[CONTENT_LENGTH] = 0;
+                reqHeaders[CONTENT_LENGTH] = 0;
             }
         }
         try {
@@ -230,7 +288,8 @@ export class AsyncHttpClient implements Composable {
             const resContentType = resolver.getContentType(resHeaders.get(CONTENT_TYPE));
             const resContentLen = resHeaders.get(CONTENT_LENGTH);
             const textContent = isTextResponse(resContentType);
-            const fixedLenContent = resContentLen || textContent; 
+            const renderAsBytes = "true" == request.getHeader(X_NO_STREAM);
+            const fixedLenContent = renderAsBytes || resContentLen || textContent; 
             let len = 0;
             const blocks = Array<Buffer>();
             let objectStream: ObjectStreamIO = null;
@@ -249,7 +308,9 @@ export class AsyncHttpClient implements Composable {
                             responseStream.write(chunk);
                         }
                     }
-                    next();
+                    if (typeof next == 'function') {
+                        next();
+                    }                    
                 }
             });
             outputStream.on('close', () => {
@@ -259,36 +320,16 @@ export class AsyncHttpClient implements Composable {
                 for (const h of headerNames) {
                     result.setHeader(h, resHeaders.get(h));
                 }
-                if (OPTIONS == method || HEAD == method || !resContentType) {
+                if (OPTIONS == md.method || HEAD == md.method || !resContentType) {
                     result.setHeader(CONTENT_LENGTH, "0");
                     result.setBody('');
                 } else if (fixedLenContent) {
-                    const b = Buffer.concat(blocks);                    
-                    if (resContentType.startsWith(APPLICATION_JSON)) {
-                        const text = normalizeTextResponse(httpResponse.status, b.toString(UTF_8)).trim();
-                        if ((text.startsWith('{') && text.endsWith('}')) ||
-                            (text.startsWith('[') && text.endsWith(']'))) {
-                            try {
-                                result.setBody(JSON.parse(text));
-                            } catch (_ignore) {
-                                result.setBody(text);
-                            }
-                        } else {
-                            result.setBody(text);
-                        }
-                    } else if (textContent) {
-                        result.setBody(normalizeTextResponse(httpResponse.status, b.toString(UTF_8)));
-                    } else {
-                        // binary content
-                        result.setBody(b);
-                    }
-                } else {
-                    if (responseStream != null) {
-                        result.setHeader(STREAM_CONTENT, objectStream.getInputStreamId());
-                        result.setHeader(X_TTL, String(timeout));
-                        result.setHeader(X_CONTENT_LENGTH, String(len));
-                        responseStream.close();
-                    }
+                    renderFixedLenContent(httpResponse, textContent, blocks, resContentType, result);
+                } else if (responseStream != null) {
+                    result.setHeader(STREAM_CONTENT, objectStream.getInputStreamId());
+                    result.setHeader(X_TTL, String(timeout));
+                    result.setHeader(X_CONTENT_LENGTH, String(len));
+                    responseStream.close();
                 }
                 po.send(result);
             });

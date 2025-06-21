@@ -170,11 +170,10 @@ const originId = po.getId();
 
 ## PostOffice API
 
-You can obtain an instance of the PostOffice from the input "headers" parameters in the input
-arguments of your function.
+You can obtain an instance of the PostOffice from the input EventEnvelope of your function.
 
 ```javascript
-const po = new PostOffice(evt.getHeaders());
+const po = new PostOffice(evt);
 ```
 
 The PostOffice is the event emitter that you can use to send asynchronous events or to make RPC requests.
@@ -213,7 +212,7 @@ To invoke other methods in the same class holding the composable function, the "
 
 ```javascript
 async handleEvent(evt: EventEnvelope) {
-    const po = new PostOffice(evt.getHeaders());
+    const po = new PostOffice(evt);
     const self = po.getMyClass() as HelloWorldService;
     // business logic here
     const len = await self.downloadFile(request.getStreamRoute(), request.getFileName());
@@ -230,7 +229,7 @@ optional traceId and tracePath.
 
 ```javascript
 async handleEvent(evt: EventEnvelope) {
-    const po = new PostOffice(evt.getHeaders());
+    const po = new PostOffice(evt);
     const route = po.getMyRoute();
     const workerNumber = po.getMyInstance();
     const traceId = po.getMyTraceId();
@@ -306,7 +305,7 @@ If you want to know the route name and optional trace ID and path, you can inspe
 event headers.
 
 ```javascript
-const po = new PostOffice(evt.getHeaders());
+const po = new PostOffice(evt);
 const myRoute = po.getMyRoute();
 const traceId = po.getMyTraceId();
 const tracePath = po.getMyTracePath();
@@ -530,6 +529,18 @@ const result = await scanner.scan();
 
 > *Note*: For simplicity, the scanners support method annotations only. Class and input parameter annotations
           are not handled.
+
+## Export of composable functions
+
+You can write composable modules as libraries for other composable application to use. The build script
+`preload.js` will use the TypeScriptClassScanner to scan composable functions from the source code
+of your application and use the JavaScriptClassCanner to scan composable modules from your libraries.
+
+When writing a composable library, please ensure that the composable functions in your library must export
+the composable modules in the index.ts file. Without this setup, the user application may fail to build.
+
+For the application that uses your composable libraries, it must include the package name in the 
+`web.component.scan` parameter in the application.yml configuration file.
 
 ## Minimalist API design
 

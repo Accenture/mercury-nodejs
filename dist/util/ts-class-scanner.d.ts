@@ -3,8 +3,8 @@ export declare class ClassScanUtility {
     static list2str(list: Array<string>): string;
 }
 export declare class TypeScriptClassScanner {
-    private sourceFolder;
-    private methodAnnotation;
+    private readonly sourceFolder;
+    private readonly methodAnnotation;
     private clsMap;
     private clsParents;
     private clsParameters;
@@ -17,5 +17,8 @@ export declare class TypeScriptClassScanner {
         methods: {};
     }>;
     private scanSource;
-    private getSourceFile;
+    private scanSourceCode;
+    private parseExportTag;
+    private parseInheritance;
+    private parseMethod;
 }

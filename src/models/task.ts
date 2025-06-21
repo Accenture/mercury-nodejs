@@ -23,7 +23,7 @@ export class Task {
 
     constructor(service: string, functionRoute: string, execution: string) {
         this.service = service;
-        this.functionRoute = functionRoute == null? service : functionRoute;
+        this.functionRoute = functionRoute ?? service;
         this.execution = execution;
     }
 

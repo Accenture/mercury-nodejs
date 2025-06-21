@@ -16,7 +16,7 @@ class LocalPublisher implements Composable{
     }
 
     async handleEvent(evt: EventEnvelope) {
-        const po = new PostOffice(evt.getHeaders());
+        const po = new PostOffice(evt);
         const myTopic = evt.getHeader('my_route');
         const members = topics.get(myTopic);
         if (members && members.length > 0) {

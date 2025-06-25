@@ -648,12 +648,13 @@ class RestEngine {
             this.relay(parameters)
                 .catch(e => {
                 const rc = e instanceof AppException ? e.getStatus() : 500;
-                this.rejectRequest(res, rc, e.message);
+                const msg = typeof e.message == 'string' ? e.message.replace('<', '&lt').replace('>', '&gt') : 'Upload failed';
+                this.rejectRequest(res, rc, msg);
             });
         });
-        bb.on('error', (e) => {
+        bb.on('error', (_e) => {
             this.rejectRequest(res, 500, 'Unexpected upload exception');
-            log.error(`Unexpected upload exception ${e}`);
+            log.error(`Unexpected upload exception`);
         });
         req.pipe(bb);
     }

@@ -663,8 +663,7 @@ class RestEngine {
             this.relay(parameters)
                 .catch(e => {
                     const rc = e instanceof AppException? e.getStatus() : 500;
-                    const msg = typeof e.message == 'string'? e.message.replace('<', '&lt').replace('>', '&gt') : 'Upload failed';
-                    this.rejectRequest(res, rc, msg);
+                    this.rejectRequest(res, rc, e.message);
                 });
             });
             bb.on('error', (_e) => {
@@ -906,12 +905,7 @@ class RestEngine {
 
     rejectRequest(res: Response, rc: number, message: string): void {
         const result = {'type': 'error', 'status': rc, 'message': message};
-        const b = Buffer.from(JSON.stringify(result, null, 2));
-        res.writeHead(rc, {
-            'Content-Type': APPLICATION_JSON,
-            'Content-Length': String(b.length)
-        });
-        res.write(b);
+        res.status(rc).json(result);
         res.end();
     }
     

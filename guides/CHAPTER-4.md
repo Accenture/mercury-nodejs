@@ -1365,6 +1365,55 @@ tasks:
     execution: end
     delay: '2000 ms'
 ```
+
+### Using Worker Threads
+
+In some use cases, there is a need to use legacy libraries and open sources that we cannot refactor
+into composable functions.
+
+We have provided a worked example to encapsulate any legacy library running in a worker thread to
+behave as a composable function. This allows you to accelerate integration with existing enterprise
+software assets for production use so that you can gradually refactor them into composable functions.
+
+Please review the composable-worker.ts source file to examine how it encapsulates a worker thread:
+[Composable-example](https://github.com/Accenture/mercury-composable-examples)
+
+An extract of the sample code is shown below.
+
+```javascript
+export class ComposableWorker implements Composable {
+
+    @preload('composable.worker.demo', 5, true, true)
+    initialize(): Composable {
+        return this;
+    }
+
+    async handleEvent(evt: EventEnvelope) {
+        // deferred startup until triggered by autostart or your own setup task
+        if (!loaded && 'start' == evt.getHeader('type')) {
+            workerBridge();
+        }
+        if (worker) {
+            // sending the original event to the worker to preserve metadata for tracing and correlation
+            sendEventToWorker(evt);
+        }
+        return null;
+    }
+}
+```
+
+The `workerBridge` will start a new worker thread and the sendEventToWorker method will forward
+an incoming event to the worker thread.
+
+After processing the request, the worker thread would send acknowledgement or response back to the
+main thread in the composable function that will forward it to the caller accordingly.
+
+A demo endpoint "GET /api/worker/demo" or "POST /api/worker/demo" is available to demonstrate the
+ComposableWorker example.
+
+You can use it as a worked example or a template to write your own composable function to encapsulate
+some legacy code or open sources that you have no direct control.
+
 <br/>
 
 |             Chapter-3             |                    Home                     |                Chapter-5                 |

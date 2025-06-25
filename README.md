@@ -12,6 +12,7 @@ The project is available in both Java and Node.js languages.
 For Java, please visit [Mercury Composable for Java](https://github.com/Accenture/mercury-composable)
 
 For Node.js, please browse [Mercury Composable for Node](https://github.com/Accenture/mercury-nodejs)
+and [Composable-example](https://github.com/Accenture/mercury-composable-examples)
 
 January 2025
 
@@ -41,7 +42,7 @@ To get started, please visit [Chapter 1, Developer Guide](https://accenture.gith
 and [Methodology](https://accenture.github.io/mercury-nodejs/guides/METHODOLOGY/).
 
 We will illustrate the methodology with a composable application example which is available in this
-repo: [composable-example](https://github.com/Accenture/mercury-composable-examples)
+repo: [Composable-example](https://github.com/Accenture/mercury-composable-examples)
 
 # Conquer Complexity: Embrace Composable Design
 

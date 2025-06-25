@@ -845,7 +845,7 @@ export class TaskExecutor {
         return slash == -1 ? null : path.substring(0, slash);
     }
     createParentFolders(path) {
-        const parts = path.split('/');
+        const parts = path.split('/').filter(v => v.length > 0);
         let s = '';
         let created = false;
         for (const p of parts) {

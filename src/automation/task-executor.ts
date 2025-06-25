@@ -843,7 +843,7 @@ export class TaskExecutor implements Composable {
     }
 
     private createParentFolders(path): boolean {
-        const parts = path.split('/');
+        const parts = path.split('/').filter(v => v.length > 0);
         let s = '';
         let created = false;
         for (const p of parts) {

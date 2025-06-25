@@ -42,7 +42,7 @@ function copyFolder(src, target) {
 }
 
 function createParentFolders(path) {
-    const parts = path.split('/');
+    const parts = path.split('/').filter(v => v.length > 0);
     let s = '';
     for (const p of parts) {
         s += `/${p}`;

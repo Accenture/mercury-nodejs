@@ -318,11 +318,15 @@ export class Utility {
         }        
     }
 
+    async appendBytes2file(filePath: string, b: Buffer) {
+        await fs.promises.appendFile(filePath, b);     
+    }    
+
     async bytes2file(filePath: string, b: Buffer) {
-        const content = await this.file2bytes(filePath);
+        const content = await this.file2bytes(filePath);        
         if (!content.equals(b)) {
             await fs.promises.writeFile(filePath, b);
-        }        
+        }             
     }
 
     async file2str(filePath: string) {
@@ -338,6 +342,10 @@ export class Utility {
         if (content != text) {
             await fs.promises.writeFile(filePath, text);
         }        
+    }
+
+    async appendStr2file(filePath: string, text: string) {
+        await fs.promises.appendFile(filePath, text);
     }
 
     /**

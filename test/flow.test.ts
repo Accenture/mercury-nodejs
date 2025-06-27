@@ -53,6 +53,8 @@ let server: RestAutomation;
 let eventManager: EventScriptEngine;
 let resourcePath: string;
 let baseUrl: string;
+const testItems = new Array<string>();
+const testIndexes = new Array<number>();
 
 function getRootFolder() {
     const folder = fileURLToPath(new URL("..", import.meta.url));
@@ -60,6 +62,24 @@ function getRootFolder() {
     const path = folder.includes('\\')? folder.replaceAll('\\', '/') : folder;
     const colon = path.indexOf(':');
     return colon == 1? path.substring(colon+1) : path;
+}
+
+class TestDataCollector implements Composable {
+  initialize(): Composable {
+    return this;
+  }
+  async handleEvent(evt: EventEnvelope) {
+    if (evt.getBody() instanceof Object) {
+        const data = evt.getBody() as object;
+        const item = data['item'];
+        const index = data['index'];
+        if (typeof item == 'string' && typeof index == 'number') {
+            testItems.push(item);
+            testIndexes.push(index);
+        }
+    }
+    return evt.getBody();
+  }
 }
 
 class SimpleAuth implements Composable {
@@ -505,6 +525,7 @@ describe('event flow use cases', () => {
     platform.register('parallel.task', new ParallelTask());
     platform.register('my.mock.function', new MockFunction());
     platform.register('resilience.handler', new ResilienceHandler(), 10, true, true);
+    platform.register('test.data.collector', new TestDataCollector(), 10);
     // start the Event API HTTP server
     server = RestAutomation.getInstance();
     server.start();
@@ -1110,6 +1131,39 @@ describe('event flow use cases', () => {
     expect(map.getElement("key2")).toBe("hello-world-two");
   });
 
+  it('can do dynamic-fork-n-join', async () => {
+    const po = new PostOffice();
+    const req1 = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/api/fork-n-join-with-dynamic-model/test-user')
+                                        .setQueryParameter('seq', '100')
+                                        .setHeader('accept', 'application/json'); 
+    // Since there are only 3 items in the next tasks, a decision value of 100 is invalid                                                 
+    const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req1.toMap());
+    const result = await po.request(reqEvent);
+    expect(result.getStatus()).toBe(200);
+    expect(result.getBody() instanceof Object);
+    const map = new MultiLevelMap(result.getBody() as object);
+    expect(result.getHeader('content-type')).toBe('application/json');
+    expect(map.getElement("sequence")).toBe(100);
+    expect(map.getElement("user")).toBe('test-user');
+    expect(map.getElement("key1")).toBe("hello-world-one");
+    expect(map.getElement("key2")).toBe("hello-world-two");
+    // use a test data collector to gather the indexes and items to protect against racing condition
+    // (Note that Javascript event loop is single threaded. Racing condition should not occur.
+    //  This pattern is used for consistency with composable Java version)
+    expect(testItems.length).toBe(5);
+    expect(testIndexes.length).toBe(5);
+    expect(testItems.includes('one')).toBeTruthy();
+    expect(testItems.includes('two')).toBeTruthy();
+    expect(testItems.includes('three')).toBeTruthy();
+    expect(testItems.includes('four')).toBeTruthy();
+    expect(testItems.includes('five')).toBeTruthy();
+    expect(testIndexes.includes(0)).toBeTruthy();
+    expect(testIndexes.includes(1)).toBeTruthy();
+    expect(testIndexes.includes(2)).toBeTruthy();
+    expect(testIndexes.includes(3)).toBeTruthy();
+    expect(testIndexes.includes(4)).toBeTruthy();    
+  });  
+
   it('can do fork-n-join-flows', async () => {
     const po = new PostOffice();
     const req1 = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/api/fork-n-join-flows/test-user')
@@ -1199,6 +1253,9 @@ describe('event flow use cases', () => {
     expect(map.getElement("data.user")).toBe('test-user');
     expect(map.getElement("n")).toBe(3);
     expect(iterationCount).toBe(3);
+
+    // the for-loop has executed 3 times and each round deposits "one,", "two," and "three," using file append mode
+    expect(map.getElement("content")).toBe("one,two,three,one,two,three,one,two,three,");
   });
 
   it('can do for-loop with single task in pipeline', async () => {

@@ -402,23 +402,20 @@ class PO {
                     catch (e) {
                         // response is not a packed EventEnvelope
                         resolve(new EventEnvelope().setStatus(400)
-                            .setBody("Did you configure rest.yaml correctly? " +
-                            "Invalid result set - " + e.getMessage()));
+                            .setBody(`Did you configure rest.yaml correctly? invalid result set - ${e.message}`));
                     }
                 }
-                else {
-                    if (result.getStatus() >= 400 && body && body.constructor == Object) {
-                        const map = body;
-                        if ('type' in map && 'error' == map['type'] && 'message' in map && typeof map['message'] == 'string') {
-                            resolve(new EventEnvelope().setStatus(result.getStatus()).setBody(map['message']));
-                        }
-                        else {
-                            resolve(result);
-                        }
+                else if (result.getStatus() >= 400 && body && body.constructor == Object) {
+                    const map = body;
+                    if ('type' in map && 'error' == map['type'] && 'message' in map && typeof map['message'] == 'string') {
+                        resolve(new EventEnvelope().setStatus(result.getStatus()).setBody(map['message']));
                     }
                     else {
                         resolve(result);
                     }
+                }
+                else {
+                    resolve(result);
                 }
             })
                 .catch(e => {

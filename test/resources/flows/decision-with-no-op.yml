@@ -13,7 +13,6 @@ tasks:
       - 'model.decision -> decision'
     process: 'no.op'
     output:
-      - 'model.decision -> file(/tmp/model-decision.txt)'
       - 'model.decision -> decision'
     description: 'Simple decision test'
     execution: decision

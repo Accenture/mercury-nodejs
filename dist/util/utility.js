@@ -307,6 +307,9 @@ export class Utility {
             return Buffer.from('');
         }
     }
+    async appendBytes2file(filePath, b) {
+        await fs.promises.appendFile(filePath, b);
+    }
     async bytes2file(filePath, b) {
         const content = await this.file2bytes(filePath);
         if (!content.equals(b)) {
@@ -326,6 +329,9 @@ export class Utility {
         if (content != text) {
             await fs.promises.writeFile(filePath, text);
         }
+    }
+    async appendStr2file(filePath, text) {
+        await fs.promises.appendFile(filePath, text);
     }
     /**
      * Split a text string into an array of elements

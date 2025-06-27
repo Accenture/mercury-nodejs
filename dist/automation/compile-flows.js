@@ -12,6 +12,7 @@ const NAME = "name";
 const OUTPUT = "output";
 const DESCRIPTION = "description";
 const EXECUTION = "execution";
+const SOURCE = "source";
 const RESULT = "result";
 const STATUS = "status";
 const DELAY = "delay";
@@ -140,6 +141,9 @@ export class CompileFlows {
             }
             this.parseTaskList(taskCount, entry, flow, name);
         }
+        else {
+            log.error(`Unable to parse ${name} - check flow.id, flow.description, flow.ttl, first.task`);
+        }
     }
     parseTaskList(taskCount, entry, flow, name) {
         let endTaskCount = 0;
@@ -175,9 +179,7 @@ export class CompileFlows {
         const delay = flow.getProperty(TASKS + "[" + i + "]." + DELAY);
         const taskException = flow.get(TASKS + "[" + i + "]." + EXCEPTION);
         const uniqueTaskName = taskName ?? functionRoute;
-        if (Array.isArray(input) && Array.isArray(output) &&
-            uniqueTaskName && typeof taskDesc == 'string' &&
-            typeof execution == 'string' && this.validExecutionType(execution)) {
+        if (this.isValidTaskConfiguration(input, output, uniqueTaskName, taskDesc, execution, name, i)) {
             this.validateTaskName(uniqueTaskName, functionRoute, name);
             const task = new Task(uniqueTaskName, functionRoute, execution);
             if (delay) {
@@ -188,10 +190,34 @@ export class CompileFlows {
             }
             this.addTask(entry, flow, task, i, uniqueTaskName, name);
         }
-        else {
-            log.error(`Unable to parse ${name} - a task must contain input, process, output, description and execution`);
-        }
         return END == execution;
+    }
+    isValidTaskConfiguration(input, output, uniqueTaskName, taskDesc, execution, flowName, taskIndex) {
+        if (!Array.isArray(input)) {
+            log.error(`Unable to parse ${flowName} task ${taskIndex} - input must be a list`);
+            return false;
+        }
+        if (!Array.isArray(output)) {
+            log.error(`Unable to parse ${flowName} task ${taskIndex} - output must be a list`);
+            return false;
+        }
+        if (!uniqueTaskName) {
+            log.error(`Unable to parse ${flowName} task ${taskIndex} - task name must not be empty`);
+            return false;
+        }
+        if (typeof taskDesc != 'string' || taskDesc.length == 0) {
+            log.error(`Unable to parse ${flowName} task ${taskIndex} - description must not be empty`);
+            return false;
+        }
+        if (typeof execution != 'string' || execution.length == 0) {
+            log.error(`Unable to parse ${flowName} task ${taskIndex} - execution type must not be empty`);
+            return false;
+        }
+        if (!this.validExecutionType(execution)) {
+            log.error(`Unable to parse ${flowName} task ${taskIndex} - execution type '${execution}' must be one of ${JSON.stringify(EXECUTION_TYPES)}`);
+            return false;
+        }
+        return true;
     }
     validateTaskName(uniqueTaskName, functionRoute, name) {
         if (uniqueTaskName.includes("://") && !uniqueTaskName.startsWith(FLOW_PROTOCOL)) {
@@ -278,6 +304,7 @@ export class CompileFlows {
         }
     }
     parseNonSinkTask(flow, task, i, uniqueTaskName, name) {
+        const source = flow.getProperty(TASKS + "[" + i + "]." + SOURCE);
         const execution = flow.get(TASKS + "[" + i + "]." + EXECUTION);
         const nextTasks = flow.get(TASKS + "[" + i + "]." + NEXT, []);
         if (!Array.isArray(nextTasks)) {
@@ -288,6 +315,19 @@ export class CompileFlows {
         }
         if (nextTasks.length > 1 && (SEQUENTIAL == execution || PIPELINE == execution)) {
             throw new Error(`Skip invalid task ${uniqueTaskName} in ${name}. Expected one next task, Actual: ${nextTasks.length}`);
+        }
+        if (nextTasks.length > 1 && source) {
+            throw new Error(`Invalid ${execution} task ${uniqueTaskName} in ${name}.`
+                + ` Expected one next task if dynamic model source is used, Actual: ${nextTasks.length}`);
+        }
+        if (source) {
+            if (source.startsWith(MODEL_NAMESPACE) && !source.endsWith(".")) {
+                task.setSourceModelKey(source);
+            }
+            else {
+                throw new Error(`Invalid ${execution} task ${uniqueTaskName} in ${name}.`
+                    + ` Source must start with model namespace, Actual: ${source}`);
+            }
         }
         nextTasks.forEach(t => {
             task.nextSteps.push(String(t));

@@ -46,6 +46,7 @@ const MAP_TYPE = "map(";
 const CLOSE_BRACKET = ")";
 const TEXT_FILE = "text:";
 const BINARY_FILE = "binary:";
+const APPEND_MODE = "append:";
 const MAP_TO = "->";
 const ALL = "*";
 const END = "end";
@@ -81,6 +82,8 @@ const SUBSTRING_TYPE = "substring(";
 const CONCAT_TYPE = "concat(";
 const AND_TYPE = "and(";
 const OR_TYPE = "or(";
+const ITEM_SUFFIX = ".ITEM";
+const INDEX_SUFFIX = ".INDEX";
 const OPERATION = {
     SIMPLE_COMMAND: 1,
     SUBSTRING_COMMAND: 2,
@@ -95,6 +98,15 @@ class CommandMetadata {
 class DynamicIndexMetadata {
     sb = '';
     start = 0;
+}
+class InputDataMappingMetadata {
+    source;
+    target;
+    flowInstance;
+    task;
+    dynamicListIndex;
+    dynamicListKey;
+    headers = {};
 }
 /**
  * This is reserved for system use.
@@ -282,19 +294,35 @@ export class TaskExecutor {
             log.error(`Invalid input mapping '${entry}' - expect: JSON, actual: ${type}`);
         }
     }
-    inputDataMappingNormalCase(optionalHeaders, lhs, rhs, entry, source, target) {
-        let value = this.getLhsElement(lhs, source);
+    inputDataMappingNormalCase(md, lhs, rhs, entry) {
+        let value = this.getLhsElement(lhs, md.source);
         // special cases for simple type matching for a non-exist model variable
         if (value == null && lhs.startsWith(MODEL_NAMESPACE)) {
             value = this.getValueFromNonExistModel(lhs);
         }
+        // special case for a dynamic list in fork and join
+        if (value == null && md.dynamicListKey) {
+            if (lhs == md.dynamicListKey + ITEM_SUFFIX) {
+                value = this.getDynamicListItem(md.dynamicListKey, md.dynamicListIndex, md.source);
+            }
+            if (lhs == md.dynamicListKey + INDEX_SUFFIX) {
+                value = md.dynamicListIndex;
+            }
+        }
         if (value != null) {
-            this.setInputDataMappingValue(optionalHeaders, entry, rhs, target, value);
+            this.setInputDataMappingValue(md.headers, entry, rhs, md.target, value);
         }
     }
-    async doInputDataMapping(optionalHeaders, entry, sep, source, target, flowInstance, task) {
-        let lhs = this.substituteDynamicIndex(entry.substring(0, sep).trim(), source, false);
-        const rhs = this.substituteDynamicIndex(entry.substring(sep + 2).trim(), source, true);
+    getDynamicListItem(dynamicListKey, dynamicListIndex, source) {
+        const value = source.getElement(dynamicListKey);
+        if (Array.isArray(value)) {
+            return value[dynamicListIndex];
+        }
+        return value;
+    }
+    async doInputDataMapping(md, entry, sep) {
+        let lhs = this.substituteDynamicIndex(entry.substring(0, sep).trim(), md.source, false);
+        const rhs = this.substituteDynamicIndex(entry.substring(sep + 2).trim(), md.source, true);
         const isInput = lhs.startsWith(INPUT_NAMESPACE) || lhs.toLowerCase() == INPUT;
         if (lhs.startsWith(INPUT_HEADER_NAMESPACE)) {
             lhs = lhs.toLowerCase();
@@ -302,31 +330,31 @@ export class TaskExecutor {
         if (rhs.startsWith(EXT_NAMESPACE)) {
             let value = null;
             if (isInput || lhs.startsWith(MODEL_NAMESPACE)) {
-                value = this.getLhsElement(lhs, source);
+                value = this.getLhsElement(lhs, md.source);
             }
             else {
                 value = await this.getConstantValue(lhs);
             }
-            this.callExternalStateMachine(flowInstance, task, rhs, value);
+            this.callExternalStateMachine(md.flowInstance, md.task, rhs, value);
         }
         else if (rhs.startsWith(MODEL_NAMESPACE)) {
             // special case to set model variables
-            await this.inputDataMappingModelVar(isInput, lhs, rhs, source, flowInstance);
+            await this.inputDataMappingModelVar(isInput, lhs, rhs, md.source, md.flowInstance);
         }
         else if (isInput || lhs.startsWith(MODEL_NAMESPACE) || lhs.startsWith(ERROR_NAMESPACE)) {
             // normal case to input argument
-            this.inputDataMappingNormalCase(optionalHeaders, lhs, rhs, entry, source, target);
+            this.inputDataMappingNormalCase(md, lhs, rhs, entry);
         }
         else if (rhs.startsWith(HEADER_NAMESPACE)) {
             // Assume left hand side is a constant
             const k = rhs.substring(HEADER_NAMESPACE.length);
             const v = await this.getConstantValue(lhs);
             if (k && v) {
-                optionalHeaders[k] = String(v);
+                md.headers[k] = String(v);
             }
         }
         else {
-            await this.setConstantValue(lhs, rhs, target);
+            await this.setConstantValue(lhs, rhs, md.target);
         }
     }
     async runNextFlow(optionalHeaders, compositeCid, target, flowInstance, task) {
@@ -383,7 +411,7 @@ export class TaskExecutor {
         }
         return 0;
     }
-    async executeTask(flowInstance, processName, seq = -1, error = {}) {
+    async executeTask(flowInstance, processName, seq = -1, error = {}, dynamicListIndex = -1, dynamicListKey = null) {
         const task = flowInstance.getFlow().tasks[processName];
         const valid = !!task;
         if (!valid) {
@@ -401,13 +429,19 @@ export class TaskExecutor {
         }
         const source = new MultiLevelMap(combined);
         const target = new MultiLevelMap();
-        const optionalHeaders = {};
+        const md = new InputDataMappingMetadata();
+        md.flowInstance = flowInstance;
+        md.task = task;
+        md.source = source;
+        md.target = target;
+        md.dynamicListIndex = dynamicListIndex;
+        md.dynamicListKey = dynamicListKey;
         // perform input data mapping
         const mapping = task.input;
         for (const entry of mapping) {
             const sep = entry.lastIndexOf(MAP_TO);
             if (sep > 0) {
-                await this.doInputDataMapping(optionalHeaders, entry, sep, source, target, flowInstance, task);
+                await this.doInputDataMapping(md, entry, sep);
             }
         }
         // need to send later?
@@ -424,10 +458,10 @@ export class TaskExecutor {
         flowInstance.pendingTasks[uuid] = true;
         const compositeCid = seq > 0 ? uuid + "#" + seq : uuid;
         if (task.functionRoute.startsWith(FLOW_PROTOCOL)) {
-            await this.runNextFlow(optionalHeaders, compositeCid, target, flowInstance, task);
+            await this.runNextFlow(md.headers, compositeCid, target, flowInstance, task);
         }
         else {
-            await this.runNextTask(optionalHeaders, deferred, compositeCid, target, flowInstance, task);
+            await this.runNextTask(md.headers, deferred, compositeCid, target, flowInstance, task);
         }
     }
     getValueFromNonExistModel(lhs) {
@@ -468,20 +502,36 @@ export class TaskExecutor {
         if (!fileFound || !util.isDirectory(fd.fileName)) {
             if (value) {
                 if (value instanceof Buffer) {
-                    await util.bytes2file(fd.fileName, value);
+                    await this.saveBytesToFile(fd, value);
                 }
                 else if (typeof value == 'string') {
-                    await util.str2file(fd.fileName, value);
+                    await this.saveTextToFile(fd, value);
                 }
                 else if (value instanceof Object) {
-                    await util.str2file(fd.fileName, JSON.stringify(value));
+                    await this.saveTextToFile(fd, JSON.stringify(value));
                 }
                 else {
-                    await util.str2file(fd.fileName, String(value));
+                    await this.saveTextToFile(fd, String(value));
                 }
             }
             else if (fileFound)
                 fs.rmSync(fd.fileName);
+        }
+    }
+    async saveTextToFile(fd, value) {
+        if (fd.append) {
+            await util.appendStr2file(fd.fileName, value);
+        }
+        else {
+            await util.str2file(fd.fileName, value);
+        }
+    }
+    async saveBytesToFile(fd, value) {
+        if (fd.append) {
+            await util.appendBytes2file(fd.fileName, value);
+        }
+        else {
+            await util.bytes2file(fd.fileName, value);
         }
     }
     outputDateMappingSetValue(entry, consolidated, flowInstance, task, value, rhs) {
@@ -702,14 +752,36 @@ export class TaskExecutor {
         }
     }
     handleForkAndJoin(flowInstance, task) {
-        const steps = task.nextSteps;
-        if (steps.length > 0 && task.getJoinTask()) {
-            const seq = ++flowInstance.pipeCounter;
-            const forks = steps.length;
-            flowInstance.pipeMap[seq] = new JoinTaskInfo(forks, task.getJoinTask());
-            for (const next of steps) {
-                this.executeTask(flowInstance, next, seq);
+        const steps = Array.from(task.nextSteps);
+        let isList = false;
+        const dynamicListKey = task.getSourceModelKey();
+        if (dynamicListKey && steps.length == 1) {
+            const model = new MultiLevelMap({ 'model': flowInstance.dataset['model'] });
+            const items = model.getElement(dynamicListKey);
+            if (Array.isArray(items)) {
+                isList = true;
+                if (items.length > 1) {
+                    const singleStep = steps.pop();
+                    for (const _ of items) {
+                        steps.push(singleStep);
+                    }
+                }
             }
+            else {
+                throw new Error(`Flow ${flowInstance.getFlow().id}:${flowInstance.id} ${task.service} - ${dynamicListKey} is not a list`);
+            }
+        }
+        if (steps.length > 0 && task.getJoinTask()) {
+            this.executeForkAndJoin(flowInstance, task, steps, isList, dynamicListKey);
+        }
+    }
+    executeForkAndJoin(flowInstance, task, steps, isList, dynamicListKey) {
+        const seq = ++flowInstance.pipeCounter;
+        const forks = steps.length;
+        flowInstance.pipeMap[seq] = new JoinTaskInfo(forks, task.getJoinTask());
+        for (let i = 0; i < steps.length; i++) {
+            const next = steps[i];
+            this.executeTask(flowInstance, next, seq, {}, isList ? i : -1, isList ? dynamicListKey : null);
         }
     }
     runPipeline(task, map) {
@@ -1404,7 +1476,8 @@ class TaskReference {
 }
 class SimpleFileDescriptor {
     fileName;
-    binary;
+    binary = true;
+    append = false;
     constructor(value) {
         let isResource = false;
         const last = value.lastIndexOf(CLOSE_BRACKET);
@@ -1424,12 +1497,14 @@ class SimpleFileDescriptor {
         }
         else if (filePath.startsWith(BINARY_FILE)) {
             name = filePath.substring(BINARY_FILE.length);
-            this.binary = true;
+        }
+        else if (filePath.startsWith(APPEND_MODE)) {
+            name = filePath.substring(APPEND_MODE.length);
+            this.append = true;
         }
         else {
             // default fileType is binary
             name = filePath;
-            this.binary = true;
         }
         name = util.normalizeFilePath(name.startsWith('/') ? name : '/' + name);
         this.fileName = isResource ? this.resolveClassPath(name) : name;

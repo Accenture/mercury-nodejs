@@ -13,6 +13,7 @@ tasks:
     output:
       - 'result -> model.json'
       - 'int(5) -> model.n'
+      - 'model.none -> file(/tmp/for-loop-test.txt)'        
     description: 'Pass a JSON to another task'
     execution: pipeline
     #
@@ -39,6 +40,7 @@ tasks:
     process: 'no.op'
     output:
       - 'result.data -> model.json'
+      - 'text(one,) -> file(append:/tmp/for-loop-test.txt)'      
     description: 'first step of a pipeline'
     execution: sink
 
@@ -49,6 +51,7 @@ tasks:
     process: 'no.op'
     output:
       - 'result.data -> model.json'
+      - 'text(two,) -> file(append:/tmp/for-loop-test.txt)'      
     description: 'second step of a pipeline'
     execution: sink
 
@@ -59,6 +62,7 @@ tasks:
     process: 'no.op'
     output:
       - 'result.data -> model.json'
+      - 'text(three,) -> file(append:/tmp/for-loop-test.txt)'      
     description: 'third step of a pipeline'
     execution: sink
 
@@ -66,10 +70,12 @@ tasks:
     input:
       - 'model.n -> n'
       - 'model.json -> data'
+      - 'file(text:/tmp/for-loop-test.txt) -> content'      
     process: 'no.op'
     output:
       - 'text(application/json) -> output.header.content-type'
       - 'result -> output.body'
       - 'model.none -> model.json'
+      - 'model.none -> file(/tmp/for-loop-test.txt)'      
     description: 'Final step to take result from the pipeline'
     execution: end

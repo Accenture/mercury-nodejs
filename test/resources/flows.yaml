@@ -26,6 +26,7 @@ flows:
   - 'response-test.yml'
   - 'delayed-response.yml'
   - 'fork-n-join-test.yml'
+  - 'fork-n-join-with-dynamic-model-test.yml'  
   - 'pipeline-test.yml'
   - 'for-loop-test.yml'
   - 'for-loop-test-single-task.yml'

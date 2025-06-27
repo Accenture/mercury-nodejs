@@ -20,6 +20,7 @@ export class Task {
     private exceptionTask: string = null;
     private loopType = "none";
     private whileModelKey: string = null;
+    private sourceModelKey: string = null;
 
     constructor(service: string, functionRoute: string, execution: string) {
         this.service = service;
@@ -31,7 +32,7 @@ export class Task {
         this.functionRoute = functionRoute;
     }
 
-    setJoinTask(task: string) {
+    setJoinTask(task: string): void {
         this.joinTask = task;
     }
 
@@ -39,7 +40,7 @@ export class Task {
         return this.joinTask;
     }
 
-    setExceptionTask(task: string) {
+    setExceptionTask(task: string): void {
         this.exceptionTask = task;
     }
 
@@ -51,7 +52,7 @@ export class Task {
         return JSON.stringify(this);
     }
 
-    setDelay(delay: number) {
+    setDelay(delay: number): void {
         this.delay = delay;
     }
 
@@ -63,11 +64,11 @@ export class Task {
         return this.delayVar;
     }
 
-    setDelayVar(delayVar: string) {
+    setDelayVar(delayVar: string): void {
         this.delayVar = delayVar;
     }
 
-    setLoopType(loopType: string) {
+    setLoopType(loopType: string): void {
         this.loopType = loopType;
     }
 
@@ -79,7 +80,15 @@ export class Task {
         return this.whileModelKey;
     }
 
-    setWhileModelKey(whileModelKey: string) {
+    setWhileModelKey(whileModelKey: string): void {
         this.whileModelKey = whileModelKey;
     }
+
+    getSourceModelKey() {
+        return this.sourceModelKey;
+    }
+
+    setSourceModelKey(sourceModelKey: string): void {
+        this.sourceModelKey = sourceModelKey;
+    }    
 }

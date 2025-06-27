@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > *Note*: Some version numbers may be skipped to align feature set with the Java version.
 
 ---
+## Version 4.3.3, 6/26/2025
+
+### Added
+
+1. Support file "append" mode in output data mapping
+2. Dynamic fork-n-join feature for parallel processing of a list of elements by multiple instances of the same task
+
+### Removed
+
+N/A
+
+### Changed
+
+Improve CompileFlow error message. The new error message will tell where the error comes from.
+
+---
 ## Version 4.3.1, 6/24/2025
 
 ### Added

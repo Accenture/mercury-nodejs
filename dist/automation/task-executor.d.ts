@@ -14,6 +14,7 @@ export declare class TaskExecutor implements Composable {
     private inputDataMappingModelVar;
     private setInputDataMappingValue;
     private inputDataMappingNormalCase;
+    private getDynamicListItem;
     private doInputDataMapping;
     private runNextFlow;
     private runNextTask;
@@ -22,6 +23,8 @@ export declare class TaskExecutor implements Composable {
     private getValueFromNonExistModel;
     private parseBooleanComparator;
     private outputDataMappingToFile;
+    private saveTextToFile;
+    private saveBytesToFile;
     private outputDateMappingSetValue;
     private doOutputDataMapping;
     private handleCallBackFromForkAndJoin;
@@ -34,6 +37,7 @@ export declare class TaskExecutor implements Composable {
     private handleEndTask;
     private handleDecisionTask;
     private handleForkAndJoin;
+    private executeForkAndJoin;
     private runPipeline;
     private handlePipelineTask;
     private sendResponse;

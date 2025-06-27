@@ -20,6 +20,7 @@ export class Task {
     exceptionTask = null;
     loopType = "none";
     whileModelKey = null;
+    sourceModelKey = null;
     constructor(service, functionRoute, execution) {
         this.service = service;
         this.functionRoute = functionRoute ?? service;
@@ -66,6 +67,12 @@ export class Task {
     }
     setWhileModelKey(whileModelKey) {
         this.whileModelKey = whileModelKey;
+    }
+    getSourceModelKey() {
+        return this.sourceModelKey;
+    }
+    setSourceModelKey(sourceModelKey) {
+        this.sourceModelKey = sourceModelKey;
     }
 }
 //# sourceMappingURL=task.js.map

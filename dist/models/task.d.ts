@@ -20,6 +20,7 @@ export declare class Task {
     private exceptionTask;
     private loopType;
     private whileModelKey;
+    private sourceModelKey;
     constructor(service: string, functionRoute: string, execution: string);
     reAssign(functionRoute: string): void;
     setJoinTask(task: string): void;
@@ -35,4 +36,6 @@ export declare class Task {
     getLoopType(): string;
     getWhileModelKey(): string;
     setWhileModelKey(whileModelKey: string): void;
+    getSourceModelKey(): string;
+    setSourceModelKey(sourceModelKey: string): void;
 }

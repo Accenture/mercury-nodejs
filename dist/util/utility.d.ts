@@ -105,9 +105,11 @@ export declare class Utility {
      */
     isDirectory(filePath: string): boolean;
     file2bytes(filePath: string): Promise<Buffer<ArrayBufferLike>>;
+    appendBytes2file(filePath: string, b: Buffer): Promise<void>;
     bytes2file(filePath: string, b: Buffer): Promise<void>;
     file2str(filePath: string): Promise<string>;
     str2file(filePath: string, text: string): Promise<void>;
+    appendStr2file(filePath: string, text: string): Promise<void>;
     /**
      * Split a text string into an array of elements
      *

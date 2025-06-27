@@ -8,6 +8,7 @@ export declare class CompileFlows {
     private createFlow;
     private parseTaskList;
     private parseTask;
+    private isValidTaskConfiguration;
     private validateTaskName;
     private addTask;
     private parseInputDataMapping;

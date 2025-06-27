@@ -299,6 +299,15 @@ rest:
     timeout: 10s
     cors: cors_1
     headers: header_1
+    tracing: true
+
+  - service: "http.flow.adapter"
+    methods: [ 'GET' ]
+    url: "/api/fork-n-join-with-dynamic-model/{user}?seq=_"
+    flow: 'fork-n-join-with-dynamic-model-test'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
     tracing: true    
 
   - service: "http.flow.adapter"

@@ -1427,8 +1427,7 @@ Please review the composable-worker.ts source file to examine how it encapsulate
 [Composable example repository](https://github.com/Accenture/mercury-composable-examples)
 
 The composable-worker.ts class may be used as a template:
-
-https://github.com/Accenture/mercury-composable-examples/blob/main/node/composable-example/src/workers/composable-worker.ts
+[ComposableWorker](https://github.com/Accenture/mercury-composable-examples/blob/main/node/composable-example/src/workers/composable-worker.ts)
 
 An extract of the source code is shown below.
 

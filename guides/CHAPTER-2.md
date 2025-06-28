@@ -130,17 +130,16 @@ Chromium `V8` engine with isolated memory space.
 For some open source or legacy libraries that you have no control to convert into Composable functions, you can
 encapsulate them into a separate worker thread and expose their capabilities as Composable functions.
 
-For more details, please refer to :
+For more details, please refer to:
 
 1. [Chapter-4](CHAPTER-4.md#using-worker-threads)
-2. [Mozilla] (https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers)
-3. [Node.js] (https://nodejs.org/api/worker_threads.html)
+2. [Mozilla](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers)
+3. [Node.js](https://nodejs.org/api/worker_threads.html)
 
 A worked example is available in [Composable-example](https://github.com/Accenture/mercury-composable-examples)
 
 The composable-worker.ts class may be used as a template:
-
-https://github.com/Accenture/mercury-composable-examples/blob/main/node/composable-example/src/workers/composable-worker.ts
+[ComposableWorker](https://github.com/Accenture/mercury-composable-examples/blob/main/node/composable-example/src/workers/composable-worker.ts)
 
 <br/>
 

@@ -4,7 +4,7 @@ export declare class AppConfig {
     private static reader;
     private constructor();
     private setResourcePath;
-    static getInstance(resourcePath?: string): ConfigReader;
+    static getInstance(resourcePath?: string, argv?: Array<string>): ConfigReader;
 }
 export declare class ConfigReader {
     private static self;
@@ -21,7 +21,6 @@ export declare class ConfigReader {
     constructor(configResource?: string | object, isBaseConfig?: boolean);
     getId(): string;
     resolveResourceFilePath(configFile: string): string;
-    overrideRunTime(argv?: Array<string>): void;
     getMap(): object;
     exists(key: string): boolean;
     isEmpty(): boolean;

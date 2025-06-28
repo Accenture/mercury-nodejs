@@ -6,6 +6,21 @@ const log = Logger.getInstance();
 const util = new Utility();
 const MAIN_RESOURCES = "/src/resources";
 const TEST_RESOURCES = "/test/resources";
+function overrideRunTime(config, argv) {
+    const params = argv ? argv : process.argv;
+    // scan for "-D" run-time parameter overrides
+    const parameters = params.filter(k => k.startsWith('-D') && k.includes('='));
+    for (const param of parameters) {
+        const p = param.substring(2);
+        const sep = p.indexOf('=');
+        const k = p.substring(0, sep);
+        const v = p.substring(sep + 1);
+        if (k && v) {
+            config.set(k, v);
+        }
+    }
+    config.set('runtime.parameters', parameters);
+}
 function resolveResource(configFile) {
     if (configFile.startsWith("classpath:")) {
         const appConfig = AppConfig.getInstance();
@@ -108,7 +123,7 @@ function loadConfigFromFile(configResource, isBaseConfig) {
 export class AppConfig {
     static singleton;
     static reader;
-    constructor(resourcePath, argv) {
+    constructor(resourcePath) {
         if (!AppConfig.reader) {
             if (typeof resourcePath == 'string') {
                 if (!fs.existsSync(resourcePath)) {
@@ -118,7 +133,6 @@ export class AppConfig {
                     throw new Error(`Not a resources folder - ${resourcePath}`);
                 }
                 this.setResourcePath(resourcePath);
-                AppConfig.reader.overrideRunTime(argv);
             }
             else {
                 throw new Error('Unable to start configuration management. Did you forget to provide a resource folder path?');
@@ -138,9 +152,10 @@ export class AppConfig {
             }
         }
     }
-    static getInstance(resourcePath) {
+    static getInstance(resourcePath, argv) {
         if (AppConfig.singleton === undefined) {
             AppConfig.singleton = new AppConfig(resourcePath);
+            overrideRunTime(AppConfig.reader, argv);
             log.setLevel(AppConfig.reader.getProperty('log.level', 'info'));
             // set log format: text, json, compact
             const logFormat = AppConfig.reader.getProperty('log.format', 'text');
@@ -204,23 +219,6 @@ export class ConfigReader {
         }
         else {
             throw new Error('Resource filename must be prefixed with classpath:');
-        }
-    }
-    overrideRunTime(argv) {
-        if ('base' == this.id) {
-            const params = argv ? argv : process.argv;
-            // scan for "-D" run-time parameter overrides
-            const parameters = params.filter(k => k.startsWith('-D') && k.includes('='));
-            for (const param of parameters) {
-                const p = param.substring(2);
-                const sep = p.indexOf('=');
-                const k = p.substring(0, sep);
-                const v = p.substring(sep + 1);
-                if (k && v) {
-                    this.set(k, v);
-                }
-            }
-            this.set('runtime.parameters', parameters);
         }
     }
     getMap() {

@@ -132,15 +132,14 @@ encapsulate them into a separate worker thread and expose their capabilities as 
 
 For more details, please refer to:
 
-1. [Chapter-4](CHAPTER-4.md#using-worker-threads)
-2. [Mozilla](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers)
-3. [Node.js](https://nodejs.org/api/worker_threads.html)
+1. [Composable Developer Guide Chapter-4](CHAPTER-4.md#using-worker-threads)
+2. [Mozilla Developer Guide](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers)
+3. [Node.js Worker Thread API Documentation](https://nodejs.org/api/worker_threads.html)
 
 A worked example is available in [Composable-example](https://github.com/Accenture/mercury-composable-examples)
 
 The composable-worker.ts class may be used as a template:
 [ComposableWorker](https://github.com/Accenture/mercury-composable-examples/blob/main/node/composable-example/src/workers/composable-worker.ts)
-
 <br/>
 
 |          Chapter-1           |                   Home                    |            Chapter-3            |

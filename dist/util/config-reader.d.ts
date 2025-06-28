@@ -21,6 +21,7 @@ export declare class ConfigReader {
     constructor(configResource?: string | object, isBaseConfig?: boolean);
     getId(): string;
     resolveResourceFilePath(configFile: string): string;
+    overrideRunTime(argv?: Array<string>): void;
     getMap(): object;
     exists(key: string): boolean;
     isEmpty(): boolean;

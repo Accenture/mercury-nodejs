@@ -1420,12 +1420,17 @@ into composable functions.
 
 We have provided a worked example to encapsulate any legacy library running in a worker thread to
 behave as a composable function. This allows you to accelerate integration with existing enterprise
-software assets for production use so that you can gradually refactor them into composable functions.
+software assets for production use so that you can gradually and orderly refactor them into composable
+functions.
 
 Please review the composable-worker.ts source file to examine how it encapsulates a worker thread:
-[Composable-example](https://github.com/Accenture/mercury-composable-examples)
+[Composable example repository](https://github.com/Accenture/mercury-composable-examples)
 
-An extract of the sample code is shown below.
+The composable-worker.ts class may be used as a template:
+
+https://github.com/Accenture/mercury-composable-examples/blob/main/node/composable-example/src/workers/composable-worker.ts
+
+An extract of the source code is shown below.
 
 ```javascript
 export class ComposableWorker implements Composable {
@@ -1455,10 +1460,15 @@ an incoming event to the worker thread.
 After processing the request, the worker thread would send acknowledgement or response back to the
 main thread in the composable function that will forward it to the caller accordingly.
 
-A demo endpoint "GET /api/worker/demo" or "POST /api/worker/demo" is available to demonstrate the
-ComposableWorker example.
+In the ComposableWorker sample code, it also illustrates the technique to pass environment variables,
+application runtime arguments and the Composable configuration system from the main thread in your
+Composable application to the legacy code in the worker thread.
 
-You can use it as a worked example or a template to write your own composable function to encapsulate
+A demo endpoint "GET /api/worker/demo" or "POST /api/worker/demo" is available to demonstrate the
+ComposableWorker example. Using using the POST method, please set content-type to 'application/json'
+and provide HTTP request payload as a JSON string.
+
+Please use the worked example as a template to write your own composable function to encapsulate
 some legacy code or open sources that you have no direct control.
 
 <br/>

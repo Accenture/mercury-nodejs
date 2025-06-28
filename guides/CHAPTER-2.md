@@ -122,16 +122,26 @@ processing very quickly. If not, you should reserve more workers to handle the w
 
 Concurrency requires careful planning for optimal performance and throughput.
 
-### Preemptive multitasking
+### Functional isolation of legacy code
 
-Javascript supports preemptive multitasking using the "web-worker" API. Each worker will run in a separate
-Chromium `V8` engine with isolated memory space. You would need to implement messaging between your main application
-and the web workers.
+Node.js supports "functional isolation" using "worker-threads" technology. Each worker will run in a separate
+Chromium `V8` engine with isolated memory space.
 
-For details, visit https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers
+For some open source or legacy libraries that you have no control to convert into Composable functions, you can
+encapsulate them into a separate worker thread and expose their capabilities as Composable functions.
 
-For most applications, you do not need preemptive multitasking. It is reserved for use cases that involve 
-computational intensive operation that mixes with interactive real-time request-response.
+For more details, please refer to :
+
+1. [Chapter-4](CHAPTER-4.md#using-worker-threads)
+2. [Mozilla] (https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers)
+3. [Node.js] (https://nodejs.org/api/worker_threads.html)
+
+A worked example is available in [Composable-example](https://github.com/Accenture/mercury-composable-examples)
+
+The composable-worker.ts class may be used as a template:
+
+https://github.com/Accenture/mercury-composable-examples/blob/main/node/composable-example/src/workers/composable-worker.ts
+
 <br/>
 
 |          Chapter-1           |                   Home                    |            Chapter-3            |

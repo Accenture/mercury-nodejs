@@ -122,7 +122,7 @@ processing very quickly. If not, you should reserve more workers to handle the w
 
 Concurrency requires careful planning for optimal performance and throughput.
 
-### Functional isolation of legacy code
+## Functional isolation of legacy code
 
 Node.js supports "functional isolation" using "worker-threads" technology. Each worker will run in a separate
 Chromium `V8` engine with isolated memory space.

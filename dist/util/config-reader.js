@@ -7,7 +7,7 @@ const util = new Utility();
 const MAIN_RESOURCES = "/src/resources";
 const TEST_RESOURCES = "/test/resources";
 function overrideRunTime(config, argv) {
-    const params = argv ? argv : process.argv;
+    const params = argv || process.argv;
     // scan for "-D" run-time parameter overrides
     const parameters = params.filter(k => k.startsWith('-D') && k.includes('='));
     for (const param of parameters) {

@@ -122,7 +122,7 @@ export class KafkaAdapter implements Composable {
 ## Sample code
 
 The minimalist Kafka Flow Adapter can be used as a template to write your own "Flow Adapters". Some flow adapters
-do not need "worker thread" technology for functional isolation if you have controls of the underlying dependencies. 
+do not need "worker thread" technology for functional isolation if you have control of the underlying dependencies. 
 For those libraries that are complex and you have no control over its source code, "worker thread" technology is a 
 good choice.
 

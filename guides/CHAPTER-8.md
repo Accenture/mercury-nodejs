@@ -14,7 +14,7 @@ configuration to connect the tasks together to handle a certain use case, query 
 
 A "Flow Adapter" provides a gateway between the external world and the internal world of a flow connecting the tasks.
 
-## Built-in HTTP FLow Adapter
+## Built-in HTTP Flow Adapter
 
 The system has a built-in "HTTP Flow Adapter" that converts a REST request into an event that is passed to
 the first task of a flow. When the flow finishes, the result of the last task will be converted as a REST response

@@ -16,7 +16,7 @@ A "Flow Adapter" provides a gateway between the external world and the internal 
 
 ## Built-in HTTP FLow Adapter
 
-The system comes with a build-in "HTTP Flow Adapter" that converts a REST request into an event that is passed to
+The system has a built-in "HTTP Flow Adapter" that converts a REST request into an event that is passed to
 the first task of a flow. When the flow finishes, the result of the last task will be converted as a REST response
 to the HTTP Flow Adapter for onward delivery to the caller.
 
@@ -57,6 +57,7 @@ consumer:
 producer.enabled: true
 ```
 
+
 *Kafka emulator*
 
 The system can emulate a Kafka server in unit tests. Just turn on the "emulate.kafka" parameter in application.yml 
@@ -87,8 +88,7 @@ The minimalist Kafka Adapter uses the Node's worker thread feature to encapsulat
 This functional isolation runs the KafkaJS library in a sandbox memory space separated from the Kafka Flow Adapter
 itself.
 
-Since Kafka is resource intensive, this functional isolation is a best practice for architectural separation of
-concerns.
+Since Kafka is resource intensive, this functional isolation is an architectural best practice.
 
 The following composable function encapsulates a Kafka Worker that runs in a separate "worker thread". The Kafka 
 consumers and producer are available as a composable function using the route "kafka.adapter". In this example, 

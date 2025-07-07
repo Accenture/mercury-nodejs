@@ -90,9 +90,11 @@ itself.
 
 Since Kafka is resource intensive, this functional isolation is an architectural best practice.
 
-The following composable function encapsulates a Kafka Worker that runs in a separate "worker thread". The Kafka 
-consumers and producer are available as a composable function using the route "kafka.adapter". In this example, 
-the `kafka.adapter` serves both inbound and outbound Kafka topics.
+The composable function "kafka.adapter" encapsulates a Kafka Worker that runs in a separate "worker thread". The Kafka 
+consumers and producer are served by two composable functions using the routes `kafka.adapter` and `kafka.notification`
+respectively.
+
+*Consumer wrapper*:
 
 ```javascript
 import { Composable, EventEnvelope, preload } from 'mercury-composable';
@@ -118,6 +120,43 @@ export class KafkaAdapter implements Composable {
     }
 }
 ```
+
+*Producer wrapper*:
+
+```javascript
+import { Composable, EventEnvelope, AppException, preload, PostOffice } from 'mercury-composable';
+
+/**
+ * This composable function sends outbound messages from the caller to any Kafka topics
+ */
+export class KafkaNotification implements Composable {
+
+    @preload('kafka.notification', 10)
+    initialize(): Composable {
+        return this;
+    }
+
+    async handleEvent(evt: EventEnvelope) {
+        const po = new PostOffice(evt);
+        if (evt.getHeader('topic') && evt.getBody() instanceof Object) {
+            const body = evt.getBody() as object;
+            if ('content' in body) {
+                // convert traceId into x-trace-id header
+                if (evt.getTraceId()) {
+                    evt.setHeader('x-trace-id', evt.getTraceId());
+                } 
+                // ask 'kafka.adapter' to send a message to a Kafka topic asynchronously
+                const req = new EventEnvelope().setTo('kafka.adapter').setBody(evt.getBody()).setHeaders(evt.getHeaders());
+                await po.send(req);
+                return {'message': 'Event sent', 'topic': evt.getHeader('topic'), 'time':  new Date()};
+            }
+        }
+        throw new AppException(400, 'Input must contain topic in headers and content in body');        
+    }
+}
+```
+
+> *Note*: The 'kafka.notification' function in turn uses the 'kafka.adapter' function to publish Kafka messages.
 
 ## Sample code
 

@@ -3,13 +3,14 @@ export declare class ClassScanUtility {
     static list2str(list: Array<string>): string;
 }
 export declare class TypeScriptClassScanner {
-    private readonly sourceFolder;
+    private readonly parentFolder;
+    private readonly tsFolder;
     private readonly methodAnnotation;
     private clsMap;
     private clsParents;
     private clsParameters;
     private clsMethods;
-    constructor(sourceFolder: string, methodAnnotation: string);
+    constructor(parentFolder: string, tsFolder: string, methodAnnotation: string);
     scan(): Promise<{
         classes: {};
         parents: {};
@@ -18,6 +19,7 @@ export declare class TypeScriptClassScanner {
     }>;
     private scanSource;
     private scanSourceCode;
+    private getAnnotation;
     private parseExportTag;
     private parseInheritance;
     private parseMethod;

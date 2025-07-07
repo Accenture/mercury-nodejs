@@ -5,8 +5,10 @@ const log = Logger.getInstance();
 const po = new PostOffice();
 const DISTRIBUTED_TRACING = 'distributed.tracing';
 const DISTRIBUTED_TRACE_FORWARDER = 'distributed.trace.forwarder';
-const EVENT_API_SERVICE = 'event.api.service';
-const ZERO_TRACING_FILTER = [EVENT_API_SERVICE, DISTRIBUTED_TRACING, DISTRIBUTED_TRACE_FORWARDER];
+const ZERO_TRACING_FILTER = [
+    DISTRIBUTED_TRACING, DISTRIBUTED_TRACE_FORWARDER,
+    'event.api.service'
+];
 const TRACE = 'trace';
 const ANNOTATIONS = "annotations";
 const SERVICE = 'service';

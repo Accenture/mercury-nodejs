@@ -8,7 +8,7 @@ export class ClassScanUtility {
         const end = text.indexOf(')');
         if (end > start) {
             const inner = text.substring(start + 1, end);
-            return inner.split(',').map(v => v.trim()).filter(v => v);
+            return util.split(inner, ', ');
         }
         else {
             return new Array();
@@ -24,35 +24,36 @@ export class ClassScanUtility {
     }
 }
 export class TypeScriptClassScanner {
-    sourceFolder;
+    parentFolder;
+    tsFolder;
     methodAnnotation;
     clsMap = {};
     clsParents = {};
     clsParameters = {};
     clsMethods = {};
-    constructor(sourceFolder, methodAnnotation) {
-        this.sourceFolder = sourceFolder || 'null/';
+    constructor(parentFolder, tsFolder, methodAnnotation) {
+        this.parentFolder = parentFolder || 'null/';
+        this.tsFolder = this.parentFolder + (tsFolder || 'null');
         this.methodAnnotation = methodAnnotation ? `@${methodAnnotation}` : '@undefined';
     }
     async scan() {
-        await this.scanSource(this.sourceFolder);
+        await this.scanSource(this.parentFolder, this.tsFolder);
         return { 'classes': this.clsMap, 'parents': this.clsParents, 'parameters': this.clsParameters, 'methods': this.clsMethods };
     }
     async scanSource(parent, folder) {
-        const target = folder || parent;
-        const files = await fs.promises.readdir(target);
+        const files = await fs.promises.readdir(folder);
         for (const f of files) {
-            const path = target + '/' + f;
-            const stat = await fs.promises.stat(path);
+            const filePath = `${folder}/${f}`;
+            const stat = await fs.promises.stat(filePath);
             if (stat.isDirectory()) {
-                await this.scanSource(parent, path);
+                await this.scanSource(parent, filePath);
             }
             else if (f.endsWith('.ts') && !f.endsWith('.d.ts')) {
-                const content = await fs.promises.readFile(path, 'utf-8');
+                const content = await fs.promises.readFile(filePath, 'utf-8');
                 const lines = content.split('\n').map(v => v.trim()).filter(v => v);
                 const clsList = this.scanSourceCode(lines);
                 if (clsList.length > 0) {
-                    const relativePath = `..${path.substring(parent.length, path.length - 3)}.js`;
+                    const relativePath = `${filePath.substring(parent.length, filePath.length - 3)}`;
                     this.clsMap[ClassScanUtility.list2str(clsList)] = relativePath;
                 }
             }
@@ -62,24 +63,41 @@ export class TypeScriptClassScanner {
         const clsList = new Array();
         const md = new ClassMetadata();
         for (const line of lines) {
-            if (line.startsWith('//')) {
-                continue;
-            }
-            if (EXPORT_TAG == md.signature && line.startsWith(EXPORT_TAG)) {
-                this.parseExportTag(line, md);
-            }
-            else if (this.methodAnnotation == md.signature && line.startsWith(this.methodAnnotation) && line.includes('(') && line.includes(')')) {
-                md.store.push(ClassScanUtility.getParams(line));
-            }
-            else if (this.methodAnnotation == md.signature && md.store.length > 0 && md.clsName && line.includes('(') && line.includes(')')) {
-                const parts = util.split(line, '() :{');
-                if (parts.length > 0) {
-                    this.parseMethod(parts, clsList, md);
-                    md.signature = EXPORT_TAG;
+            const statement = this.getAnnotation(line);
+            if (statement) {
+                if (EXPORT_TAG == md.signature && statement.startsWith(EXPORT_TAG)) {
+                    this.parseExportTag(statement, md);
+                }
+                else if (this.methodAnnotation == md.signature &&
+                    statement.startsWith(this.methodAnnotation) &&
+                    statement.includes('(') && statement.includes(')')) {
+                    md.store.push(ClassScanUtility.getParams(statement));
+                }
+                else if (this.methodAnnotation == md.signature && md.store.length > 0 &&
+                    md.clsName && statement.includes('(') && statement.includes(')')) {
+                    const parts = util.split(statement, '() :{');
+                    if (parts.length > 0) {
+                        this.parseMethod(parts, clsList, md);
+                        md.signature = EXPORT_TAG;
+                    }
                 }
             }
         }
         return clsList;
+    }
+    getAnnotation(statement) {
+        if (statement.startsWith('//')) {
+            const text = statement.substring(2).trim();
+            if (text.startsWith(this.methodAnnotation)) {
+                return text;
+            }
+            else {
+                return null;
+            }
+        }
+        else {
+            return statement;
+        }
     }
     parseExportTag(line, md) {
         const parts = util.split(line, ', {');

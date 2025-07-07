@@ -1,4 +1,5 @@
 import fs from 'fs';
+import net from 'net';
 import { fileURLToPath } from "url";
 import { v4 as uuid4 } from 'uuid';
 import { parse as parseYaml } from 'yaml';
@@ -103,11 +104,15 @@ export class Utility {
      * @returns true if numbers
      */
     isDigits(text: string): boolean {
-        for (let i=0; i < text.length; i++) {
-            if (text.charAt(i) >= '0' && text.charAt(i) <= '9') continue;
+        if (text) {
+            for (let i=0; i < text.length; i++) {
+                if (text.charAt(i) >= '0' && text.charAt(i) <= '9') continue;
+                return false;
+            }
+            return true;
+        } else {
             return false;
         }
-        return true;
     }
 
     isNumeric(text: string): boolean {
@@ -421,6 +426,26 @@ export class Utility {
     }
 
     equalsIgnoreCase(a: string, b: string): boolean {
-        return a.localeCompare(b, undefined, { sensitivity: 'accent' }) === 0;
+        return String(a).localeCompare(String(b), undefined, { sensitivity: 'accent' }) === 0;        
+    }
+
+    async portReady(host: string, port: number, timeout = 5000) {
+        return new Promise((resolve, _reject) => {
+            const socket = new net.Socket();
+            socket.setTimeout(timeout);
+            socket.once('connect', () => {
+                socket.destroy();
+                resolve(true);
+            });
+            socket.once('error', (_e) => {
+                socket.destroy();
+                resolve(false);
+            });
+            socket.once('timeout', () => {
+                socket.destroy();
+                resolve(false);
+            });
+            socket.connect(port, host);
+        });
     }
 }

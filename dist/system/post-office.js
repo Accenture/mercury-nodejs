@@ -14,8 +14,7 @@ const registry = FunctionRegistry.getInstance();
 const emitter = new EventEmitter();
 const handlers = new Map();
 const resolver = EventHttpResolver.getInstance();
-const EVENT_MANAGER = "event.script.manager";
-const TASK_EXECUTOR = "task.executor";
+const SYSTEM_EVENT_SERVICES = ['task.executor', 'event.script.manager'];
 const ASYNC_HTTP_CLIENT = 'async.http.request';
 const APPLICATION_OCTET_STREAM = "application/octet-stream";
 const RPC = "rpc";
@@ -253,7 +252,7 @@ class PO {
                 return;
             }
             if (handlers.has(route)) {
-                if (route == EVENT_MANAGER || route == TASK_EXECUTOR) {
+                if (SYSTEM_EVENT_SERVICES.includes(route)) {
                     // let event manager and task executor process the event directly
                     // because they are considered to be part of the event system.
                     setImmediate(() => {

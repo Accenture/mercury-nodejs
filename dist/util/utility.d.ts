@@ -133,4 +133,5 @@ export declare class Utility {
     getInteger(data: any): number;
     getString(data: any): string;
     equalsIgnoreCase(a: string, b: string): boolean;
+    portReady(host: string, port: number, timeout?: number): Promise<unknown>;
 }

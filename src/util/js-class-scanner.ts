@@ -29,7 +29,7 @@ function scanDecorator(content: string, methodAnnotation: string): DecoratorMeta
     return md;  
 }
 
-function scanPrototype(parent: string, path: string, md: DecoratorMetadata, clsParameters: object, clsMethods: object, clsMap: object) {
+function scanPrototype(parent: string, filePath: string, md: DecoratorMetadata, clsParameters: object, clsMethods: object, clsMap: object) {
     const clsList = new Array<string>();
     if (md.parameterBlocks.length == md.classBlocks.length) {
         for (let i=0; i < md.classBlocks.length; i++) {
@@ -48,7 +48,7 @@ function scanPrototype(parent: string, path: string, md: DecoratorMetadata, clsP
         }
     } 
     if (clsList.length > 0) {
-        const relativePath = `../${path.substring(parent.length)}`;
+        const relativePath = `${filePath.substring(parent.length)}`;
         clsMap[ClassScanUtility.list2str(clsList)] = relativePath;                  
     }     
 }
@@ -79,17 +79,17 @@ export class JavaScriptClassScanner {
         return {'classes': this.clsMap, 'parameters': this.clsParameters, 'methods': this.clsMethods};
     }
 
-    private async scanJs(parent: string, folder?: string) {
+    private async scanJs(parent: string, folder: string) {
         const files = await fs.promises.readdir(folder);
         for (const f of files) {
-            const path = `${folder}/${f}`;
-            const stat = await fs.promises.stat(path);
+            const filePath = `${folder}/${f}`;
+            const stat = await fs.promises.stat(filePath);
             if (stat.isDirectory()) {
-                await this.scanJs(parent, path);
+                await this.scanJs(parent, filePath);
             } else if (f.endsWith('.js')) {
-                const content = await fs.promises.readFile(path, 'utf-8');
+                const content = await fs.promises.readFile(filePath, 'utf-8');
                 const md = scanDecorator(content, this.methodAnnotation);
-                scanPrototype(parent, path, md, this.clsParameters, this.clsMethods, this.clsMap);              
+                scanPrototype(parent, filePath, md, this.clsParameters, this.clsMethods, this.clsMap);              
             }
         }
     }

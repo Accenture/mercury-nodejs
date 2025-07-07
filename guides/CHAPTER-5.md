@@ -110,6 +110,8 @@ so that we can adjust the configuration to test different scenarios.
 This can be done by using the ComposableLoader's initialize method in the `BeforeAll` section like this:
 
 ```javascript
+import { ComposableLoader } from '../test/preload/preload.ts';
+
 describe('End-to-end tests', () => {
 
     beforeAll(async () => {
@@ -140,17 +142,56 @@ Please refer to the e2e.test.ts and service.test.ts test suites as examples.
 > *Note*: You must select a unique server port number for each test class because the test engine (vitest) will
           instantiate a new Javascript V8 engine for each test class.
 
-### Unit test limitations
+### Composable loader
 
-1. The `preload` annotation is not supported in TypeScript classes in the "test" folder. Therefore, you must
-   programmatically import the Composable functions and use the `platform` API to register the functions so that
-   they can be used in your unit tests.
+Since version 4.3.3, the build script "npm run build" will generate two "preloader.ts" files, one in the `src` folder
+and the other in the `test` folder. For unit tests, please import the preloader.ts file under the "test" folder
+because it can initialize Composable functions in your unit tests.
 
-2. Unlike its Java counterpart, the configuration management system can only use either the "dist" resources
-   or the "test" resources folder. Therefore, you must copy all the configuration files from the "src" resources
-   folder to the "test" resources as a template. Then modify the configuration in the "test" resources
-   folder to adjust to your unit tests. The `ComposableLoader.initialize(port, true)` API tells the system to use the
-   "test" resources folder in unit tests instead of the "dist" folder in runtime.
+### Pseudo annotation
+
+The TypeScript annotation `preload` only works in the main application under the `src` folder.
+
+To support writing composable functions for unit test purpose, the class scanner supports a concept called
+"pseudo annotation".
+
+This can be done by commenting out the "preload annotation" like this:
+
+```javascript
+import { Composable, EventEnvelope } from "mercury-composable";
+
+export class SimpleTestTask implements Composable {
+    static readonly routeName = 'simple.test.task'
+
+    // @preload(SimpleTestTask.routeName, 10)
+    initialize(): Composable {
+        return this;
+    }
+
+    async handleEvent(evt: EventEnvelope) {
+        return evt.setHeader('type', 'simple-test');
+    }
+}
+```
+
+The class scanner will recognize the commented-out "preload" annotation and register the composable function
+accordingly. However, functions with commented-out "preload" annotation are only visible in unit tests under
+the "test" folder. They are not active when declared in the main application under the "src" folder.
+
+The ability to write composable functions in unit tests allows the developer to use composable design pattern
+consistently in the main application and unit tests.
+
+### Unit test limitation
+
+1. Although the `preload` annotation is not supported in TypeScript classes in the "test" folder, you can use
+   "pseudo annotation" described earlier when writing composable functions that are used in unit tests.
+
+2. Similar to its Java counterpart, the configuration management system will use configuration files in composable
+   libraries and those configuration files in "src/resources" folder if the requested configuration file does not
+   exist in the "test/resources" folder.
+
+3. However, the `application.yml` file must be presented in the "test/resources" folder when running unit tests.
+   The system does not scan the "src/resources" or composable libraries for this base configuration file.
 
 ## Convenient utility classes
 

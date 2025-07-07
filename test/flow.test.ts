@@ -545,6 +545,12 @@ describe('event flow use cases', () => {
     await util.sleep(1000);
   });
 
+  it('can test if REST server port is ready', async () => {
+    const port = parseInt(AppConfig.getInstance().getProperty('server.port'));
+    const result = await util.portReady('127.0.0.1', port);
+    expect(result).toBe(true);
+  });   
+
   it('will reject request when flow-id does not exist', async () => {
     const po = new PostOffice();
     const req = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('/api/no-such-flow');

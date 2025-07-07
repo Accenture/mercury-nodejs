@@ -26,7 +26,7 @@ function scanDecorator(content, methodAnnotation) {
     }
     return md;
 }
-function scanPrototype(parent, path, md, clsParameters, clsMethods, clsMap) {
+function scanPrototype(parent, filePath, md, clsParameters, clsMethods, clsMap) {
     const clsList = new Array();
     if (md.parameterBlocks.length == md.classBlocks.length) {
         for (let i = 0; i < md.classBlocks.length; i++) {
@@ -45,7 +45,7 @@ function scanPrototype(parent, path, md, clsParameters, clsMethods, clsMap) {
         }
     }
     if (clsList.length > 0) {
-        const relativePath = `../${path.substring(parent.length)}`;
+        const relativePath = `${filePath.substring(parent.length)}`;
         clsMap[ClassScanUtility.list2str(clsList)] = relativePath;
     }
 }
@@ -74,15 +74,15 @@ export class JavaScriptClassScanner {
     async scanJs(parent, folder) {
         const files = await fs.promises.readdir(folder);
         for (const f of files) {
-            const path = `${folder}/${f}`;
-            const stat = await fs.promises.stat(path);
+            const filePath = `${folder}/${f}`;
+            const stat = await fs.promises.stat(filePath);
             if (stat.isDirectory()) {
-                await this.scanJs(parent, path);
+                await this.scanJs(parent, filePath);
             }
             else if (f.endsWith('.js')) {
-                const content = await fs.promises.readFile(path, 'utf-8');
+                const content = await fs.promises.readFile(filePath, 'utf-8');
                 const md = scanDecorator(content, this.methodAnnotation);
-                scanPrototype(parent, path, md, this.clsParameters, this.clsMethods, this.clsMap);
+                scanPrototype(parent, filePath, md, this.clsParameters, this.clsMethods, this.clsMap);
             }
         }
     }

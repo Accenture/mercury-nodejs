@@ -20,7 +20,7 @@ The system has a built-in "HTTP Flow Adapter" that converts a REST request into 
 the first task of a flow. When the flow finishes, the result of the last task will be converted as a REST response
 to the HTTP Flow Adapter for onward delivery to the caller.
 
-## Minimal Kafka Flow Adapter
+## Minimalist Kafka Flow Adapter
 
 A minimalist Kafka Flow Adapter application is available in
 [Composable-example](https://github.com/Accenture/mercury-composable-examples)

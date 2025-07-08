@@ -79,7 +79,7 @@ Topics are automatically created.
 
 *Kafka helper scripts*
 
-In the "helpers" folder, there are three JavaScript files that are need when you try the minimalist Kafka Flow Adapter
+In the "helpers" folder, there are three JavaScript programs you may use when trying the minimalist Kafka Flow Adapter
 as a main application. Please follow the README file in the minimalist-kafka-adapter subproject to test it.
 
 ## Use of worker thread technology
@@ -104,7 +104,7 @@ export class KafkaAdapter implements Composable {
 
     // Composable worker is configured as an interceptor so its responses are ignored.
     // You can check if the incoming request has a "replyTo" and then send a response accordingly.
-    @preload('kafka.adapter', 5, true, true)
+    @preload('kafka.adapter', 10, true, true)
     initialize(): Composable {
         return this;
     }
@@ -136,8 +136,7 @@ export class KafkaNotification implements Composable {
         return this;
     }
 
-    async handleEvent(evt: EventEnvelope) {
-        const po = new PostOffice(evt);
+    async handleEvent(evt: EventEnvelope) {     
         if (evt.getHeader('topic') && evt.getBody() instanceof Object) {
             const body = evt.getBody() as object;
             if ('content' in body) {
@@ -147,6 +146,8 @@ export class KafkaNotification implements Composable {
                 } 
                 // ask 'kafka.adapter' to send a message to a Kafka topic asynchronously
                 const req = new EventEnvelope().setTo('kafka.adapter').setBody(evt.getBody()).setHeaders(evt.getHeaders());
+                // use PostOffice without tracking to reduce observability noise when forwarding request to 'kafka.adapter'
+                const po = new PostOffice();
                 await po.send(req);
                 return {'message': 'Event sent', 'topic': evt.getHeader('topic'), 'time':  new Date()};
             }

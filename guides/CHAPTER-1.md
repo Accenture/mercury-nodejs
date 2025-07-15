@@ -162,7 +162,7 @@ folder in the "src" and "test" sections to hold application configuration files 
 flow YAML files. It supports hierarchy of configuration such that the system will search for 
 configuration files in the libraries if your application does not provide a configuration file 
 to override a default configuration file in the library. For example, your unit tests would
-use a configuration file in the "src/resources" folder if it is not in the "test/resources" folder.
+use a configuration file in the "src/resources" folder if it is not in the "tests/resources" folder.
 
 For details, please refer to the Configuration management section in [Appendix-I](APPENDIX-I.md)
 

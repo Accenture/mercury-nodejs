@@ -19,7 +19,7 @@ function getRootFolder() {
 describe('config reader tests', () => {
 
     beforeAll(() => {
-        const resourcePath = getRootFolder() + 'test/resources';
+        const resourcePath = getRootFolder() + 'tests/resources';
         const config = AppConfig.getInstance(resourcePath);
         log.info(`Base configuration id=${config.getId()} loaded`);
     });
@@ -106,7 +106,7 @@ describe('config reader tests', () => {
         // the system will convert it to Unix separator
         const filePath = config.resolveResourceFilePath('classpath:\\templates\\preload.template');
         expect(filePath).toBeTruthy();
-        // verify that "/test/resources/" is replaced by "/src/resources/"
+        // verify that "/tests/resources/" is replaced by "/src/resources/"
         expect(filePath.includes('/src/resources/')).toBe(true);
         const template = fs.readFileSync(filePath);
         expect(template).toBeTruthy();

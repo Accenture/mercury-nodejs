@@ -7,7 +7,7 @@ const log = Logger.getInstance();
 const util = new Utility();
 
 const MAIN_RESOURCES = "/src/resources";
-const TEST_RESOURCES = "/test/resources";
+const TEST_RESOURCES = "/tests/resources";
 
 function overrideRunTime(config: ConfigReader, argv?: Array<string>) {
     const params = argv || process.argv;

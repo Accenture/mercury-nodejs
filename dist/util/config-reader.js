@@ -5,7 +5,7 @@ import { Utility } from './utility.js';
 const log = Logger.getInstance();
 const util = new Utility();
 const MAIN_RESOURCES = "/src/resources";
-const TEST_RESOURCES = "/test/resources";
+const TEST_RESOURCES = "/tests/resources";
 function overrideRunTime(config, argv) {
     const params = argv || process.argv;
     // scan for "-D" run-time parameter overrides

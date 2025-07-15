@@ -26,20 +26,20 @@ files using the `ConfigReader` API.
 ## Configuration management
 
 The application.yml config file must be placed in the "src/resources" folder in your project. For unit test,
-it can be placed in the "test/resources" folder.
+it can be placed in the "tests/resources" folder.
 
 The configuration management system will discover configuration files with the following order of precedence:
 
 ```shell
 dist/resources
-test/resources
+tests/resources
 src/resources
 (library-1)/dist/resources
 (library-2)/dist/resources
 (library-n)/dist/resources
 ```
 
-For example, if a config file is not found in the test/resources folder in a unit test, it will search
+For example, if a config file is not found in the tests/resources folder in a unit test, it will search
 the "src/resources" folder. If still not found, it will search the list of libraries for their resources
 folders.
 

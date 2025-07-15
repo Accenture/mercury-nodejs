@@ -494,7 +494,7 @@ function getByteArrayFromEncodedIntegers(integers: object): Buffer {
 describe('event flow use cases', () => {
   
   beforeAll(async () => {
-    resourcePath = getRootFolder() + 'test/resources';
+    resourcePath = getRootFolder() + 'tests/resources';
     // AppConfig should be initialized with base configuration parameter before everything else
     const appConfig = AppConfig.getInstance(resourcePath);
     // You can programmatically change a configuration parameter.

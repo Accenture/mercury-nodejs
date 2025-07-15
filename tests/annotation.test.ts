@@ -31,12 +31,12 @@ describe('Annotation scan tests', () => {
 
     it('can scan Javascript compiled code with preload annotation', async () => {
         const parent = getRootFolder();
-        const scanner = new JavaScriptClassScanner(parent, 'test', 'preload');
+        const scanner = new JavaScriptClassScanner(parent, 'tests', 'preload');
         const result = await scanner.scan();
         const map = new MultiLevelMap(result);
         // proves that it finds the NoOp class with method and parameters
         // note that any parent class inheritance is lost from the compiled JS files
-        expect(map.getElement('classes.NoOp')).toBe('test/resources/annotated/no-op.js');
+        expect(map.getElement('classes.NoOp')).toBe('tests/resources/annotated/no-op.js');
         expect(map.getElement('methods.NoOp')).toBe('initialize');
                 // the original single or double quotes are preserved
         expect(map.getElement('parameters.NoOp[0]')).toBe("'no.op'");

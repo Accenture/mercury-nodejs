@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > *Note*: Some version numbers may be skipped to align feature set with the Java version.
 
 ---
+## Version 4.3.5, 7/14/2025
+
+### Added
+
+N/A
+
+### Removed
+
+N/A
+
+### Changed
+
+Rename "test" folder to "tests"
+
+---
 ## Version 4.3.4, 7/5/2025
 
 ### Added

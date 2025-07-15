@@ -36,7 +36,7 @@ composable library.
 
 You can define the "topic to task/flow" mapping in the kafka-adapter.yaml file.
 
-For example, the sample kafka-adapter.yaml in the "test" folder tells the system to route inbound messages from the
+For example, the sample kafka-adapter.yaml in the "tests" folder tells the system to route inbound messages from the
 Kafka topic "hello.world" to the flow "get-profile-kafka" and from the topic "hello.notice" to the task 
 "simple.topic.listener". Note that a flow has the "flow://" protocol prefix.
 

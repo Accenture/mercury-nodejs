@@ -104,7 +104,7 @@ happy with the new version of function, you can route the endpoint directly to t
 
 ## Writing a unit test
 
-In unit tests, we want to tell the system to use the "test/resources" folder to override the "src/resources" folder
+In unit tests, we want to tell the system to use the "tests/resources" folder to override the "src/resources" folder
 so that we can adjust the configuration to test different scenarios. 
 
 This can be done by using the ComposableLoader's initialize method in the `BeforeAll` section like this:
@@ -188,9 +188,9 @@ consistently in the main application and unit tests.
 
 2. Similar to its Java counterpart, the configuration management system will use configuration files in composable
    libraries and those configuration files in "src/resources" folder if the requested configuration file does not
-   exist in the "test/resources" folder.
+   exist in the "tests/resources" folder.
 
-3. However, the `application.yml` file must be presented in the "test/resources" folder when running unit tests.
+3. However, the `application.yml` file must be presented in the "tests/resources" folder when running unit tests.
    The system does not scan the "src/resources" or composable libraries for this base configuration file.
 
 ## Convenient utility classes

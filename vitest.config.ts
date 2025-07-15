@@ -11,14 +11,14 @@ export default defineConfig({
     // Equivalent to jest.testMatch
     // Vitest's default includes common patterns like **/*.{test,spec}.?(c|m)[jt]s?(x)
     // You can override it if needed:
-    include: ['**/test/*.test.ts'],
+    include: ['**/tests/*.test.ts'],
     coverage: {
       enabled: true, // Activate coverage collection
       provider: 'v8', // Equivalent to jest.coverageProvider: 'v8'
       // Equivalent to jest.collectCoverageFrom
       include: ['src/**/*.ts'],
       exclude: [
-        'test/services/*.ts',
+        'tests/services/*.ts',
         'src/**/*.d.ts',
         'dist/**', // From coveragePathIgnorePatterns
         'target/**', // From coveragePathIgnorePatterns

@@ -21,7 +21,7 @@ function getRootFolder() {
 describe('object stream I/O tests', () => {
 
     beforeAll(async () => {
-        const resourcePath = getRootFolder() + 'test/resources';
+        const resourcePath = getRootFolder() + 'tests/resources';
         // AppConfig should be initialized with base configuration parameter before everything else
         const config = AppConfig.getInstance(resourcePath);
         log.info(`Using base configuration - ${config.getId()}`);

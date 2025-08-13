@@ -45,6 +45,7 @@ const FILE_TYPE = "file(";
 const MAP_TYPE = "map(";
 const CLOSE_BRACKET = ")";
 const TEXT_FILE = "text:";
+const JSON_FILE = "json:";
 const BINARY_FILE = "binary:";
 const APPEND_MODE = "append:";
 const MAP_TO = "->";
@@ -519,7 +520,7 @@ export class TaskExecutor {
         }
     }
     async saveTextToFile(fd, value) {
-        if (fd.append) {
+        if (fd.mode == 'append') {
             await util.appendStr2file(fd.fileName, value);
         }
         else {
@@ -527,7 +528,7 @@ export class TaskExecutor {
         }
     }
     async saveBytesToFile(fd, value) {
-        if (fd.append) {
+        if (fd.mode == 'append') {
             await util.appendBytes2file(fd.fileName, value);
         }
         else {
@@ -1045,19 +1046,30 @@ export class TaskExecutor {
         return null;
     }
     async getConstantFromFile(lhs) {
-        if (lhs.startsWith(FILE_TYPE)) {
+        if (lhs.startsWith(FILE_TYPE) || lhs.startsWith(CLASSPATH_TYPE)) {
             const fd = new SimpleFileDescriptor(lhs);
             if (fs.existsSync(fd.fileName) && !util.isDirectory(fd.fileName)) {
-                return fd.binary ? await util.file2bytes(fd.fileName) : await util.file2str(fd.fileName);
-            }
-        }
-        if (lhs.startsWith(CLASSPATH_TYPE)) {
-            const fd = new SimpleFileDescriptor(lhs);
-            if (fs.existsSync(fd.fileName) && !util.isDirectory(fd.fileName)) {
-                return fd.binary ? await util.file2bytes(fd.fileName) : await util.file2str(fd.fileName);
+                if (fd.mode == 'text') {
+                    return await util.file2str(fd.fileName);
+                }
+                else if (fd.mode == 'json') {
+                    return await this.getJson(await util.file2str(fd.fileName));
+                }
+                else if (fd.mode == 'binary') {
+                    return await util.file2bytes(fd.fileName);
+                }
             }
         }
         return null;
+    }
+    async getJson(text) {
+        const content = text.trim();
+        if (content.startsWith('[') && content.endsWith(']') || content.startsWith('{') && content.endsWith('}')) {
+            return JSON.parse(content);
+        }
+        else {
+            return content;
+        }
     }
     async getConstantValue(lhs) {
         const f = await this.getConstantFromFile(lhs);
@@ -1476,8 +1488,7 @@ class TaskReference {
 }
 class SimpleFileDescriptor {
     fileName;
-    binary = true;
-    append = false;
+    mode;
     constructor(value) {
         let isResource = false;
         const last = value.lastIndexOf(CLOSE_BRACKET);
@@ -1493,18 +1504,24 @@ class SimpleFileDescriptor {
         const filePath = value.substring(offset, last).trim();
         if (filePath.startsWith(TEXT_FILE)) {
             name = filePath.substring(TEXT_FILE.length);
-            this.binary = false;
+            this.mode = 'text';
+        }
+        else if (filePath.startsWith(JSON_FILE)) {
+            name = filePath.substring(JSON_FILE.length);
+            this.mode = 'json';
         }
         else if (filePath.startsWith(BINARY_FILE)) {
             name = filePath.substring(BINARY_FILE.length);
+            this.mode = 'binary';
         }
         else if (filePath.startsWith(APPEND_MODE)) {
             name = filePath.substring(APPEND_MODE.length);
-            this.append = true;
+            this.mode = 'append';
         }
         else {
             // default fileType is binary
             name = filePath;
+            this.mode = 'binary';
         }
         name = util.normalizeFilePath(name.startsWith('/') ? name : '/' + name);
         this.fileName = isResource ? this.resolveClassPath(name) : name;

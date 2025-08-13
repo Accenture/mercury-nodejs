@@ -321,8 +321,11 @@ In the input/output data mapping sections, the configuration management system p
 state machine using the namespace `model.parent.` to be shared by the primary flow and all sub-flows that
 are instantiated from it.
 
-> *Note*: The input data mapping for a "sub-flow" task should contain only the "header" and "body" arguments
-          to be mapped in the "input" namespace.
+*Important*:
+
+1. The input data mapping for a "sub-flow" task should contain only the "header" and "body" arguments
+   to be mapped in the "input" namespace.
+2. The "body" argument must be a map of key-values. Otherwise, it will be ignored.
 
 ## Tasks and data mapping
 
@@ -359,17 +362,21 @@ The external state machine namespace uses the namespace `ext:` to indicate that 
 
 *Constants for input data mapping*
 
-| Type      | Keyword for the left-hand-side argument                      |
-|:----------|:-------------------------------------------------------------|
-| String    | `text(example_value)`                                        |
-| Integer   | `int(number)`                                                |
-| Long      | `long(number)`                                               |
-| Float     | `float(number)`                                              |
-| Double    | `double(number)`                                             |
-| Boolean   | `boolean(true or false)`                                     |
-| Map       | `map(k1=v1, k2=v2)`<br>`map(base.config.parameter)`          |
-| File      | `file(text:file_path)`<br>`file(binary:file_path)`           |
-| Classpath | `classpath(text:file_path)`<br>`classpath(binary:file_path)` |
+| Type      | Keyword for the left-hand-side argument              |
+|:----------|:-----------------------------------------------------|
+| String    | `text(example_value)`                                |
+| Integer   | `int(number)`                                        |
+| Long      | `long(number)`                                       |
+| Float     | `float(number)`                                      |
+| Double    | `double(number)`                                     |
+| Boolean   | `boolean(true or false)`                             |
+| Map       | `map(k1=v1, k2=v2)`<br>`map(base.config.parameter)`  |
+| File      | `file(text:file_path)`                               |
+| File      | `file(binary:file_path)`                             |
+| File      | `file(json:file_path)`                               |
+| Classpath | `classpath(text:file_path)`                          |
+| Classpath | `classpath(binary:file_path)`                        |
+| Classpath | `classpath(json:file_path)`                          |
 
 For input data mapping, the "file" constant type is used to load some file content as an argument of a user function.
 You can tell the system to render the file as "text" or "binary". Similarly, the "classpath" constant type refers
@@ -906,6 +913,13 @@ In the input data mapping section, there are two special suffixes `.ITEM` and `.
 the list of elements and spin up an instance of the "next" task to retrieve the element (item) and index of
 the element in the list. The two special suffixes are relevant only when adding to the model variable configured
 in the "source" parameter.
+
+*Important*:
+
+1. The model variables with special suffixes '.ITEM' and '.INDEX' are virtual objects for the purpose
+   of mapping as input arguments to a task. They cannot be used as regular model variables.
+2. Dynamic fork-n-join is designed to execute the same task for a list of elements in parallel.
+   It does not support subflow. i.e. the "process" tag of the "next" task cannot be a subflow.
 
 ### Sink task
 

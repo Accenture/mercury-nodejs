@@ -54,6 +54,7 @@ export declare class TaskExecutor implements Composable {
     private getConstantAsMap;
     private getConstantByType;
     private getConstantFromFile;
+    private getJson;
     private getConstantValue;
     private getLhsElement;
     private validateIndexBounds;

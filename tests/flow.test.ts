@@ -145,7 +145,7 @@ class ExtStateMachine implements Composable {
   }  
 }
 
-function handleFileVaultBuffer(result: object, text: string, binary) {
+function handleFileVaultBuffer(result: object, text: string, json: object, binary: Buffer) {
     if (String(binary) == text) {
         result["text"] = text;
         result["matched"] = true;
@@ -153,6 +153,8 @@ function handleFileVaultBuffer(result: object, text: string, binary) {
         result["matched"] = false;
         result["text"] = "Input text and binary values do not match";
     }
+    result['json'] = json;
+    result['list'] = ['hello', 'world'];
     // set a test field with binary value
     result["binary"] = Buffer.from('binary');  
 }
@@ -166,9 +168,10 @@ class FileVault implements Composable {
     if (input instanceof Object) {
       const text = input["text"];
       const binary = input["binary"];
+      const json = input['json'];
       const result = {};
       if (typeof text == 'string' && binary instanceof Buffer) {
-        handleFileVaultBuffer(result, text, binary);
+        handleFileVaultBuffer(result, text, json, binary);
       } else {
           result["error"] = "Input must be a map of text and binary key values";
       }
@@ -730,30 +733,38 @@ describe('event flow use cases', () => {
   });
 
   it('can do file vault test', async () => {
-    const hello = 'hello world';
+    const hello = {'hello': 'world'};
     const f1 = '/tmp/temp-test-input.txt';
-    util.str2file(f1, hello);
+    util.str2file(f1, JSON.stringify(hello));
     const resourceText = await util.file2str(resourcePath + '/files/hello.txt');
     const po = new PostOffice();
     const req = new AsyncHttpRequest().setMethod('GET').setTargetHost(baseUrl).setUrl('api/file/vault')
                                         .setHeader('accept', 'application/json');                                                             
     const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req.toMap());
     const result = await po.request(reqEvent);
-    expect(typeof result.getBody()).toBe('string');
-    expect(result.getBody()).toBe(resourceText);
+    expect(result.getBody() instanceof Object);
+    const mm = new MultiLevelMap(result.getBody() as object);
+    expect(mm.getElement('text')).toBe(resourceText);
+    expect(mm.getElement('json')).toEqual(hello);
     const f2 = '/tmp/temp-test-output.txt';
     expect(fs.existsSync(f2)).toBe(true);
     const f3 = '/tmp/temp-test-match.txt';
     expect(fs.existsSync(f3)).toBe(true);
     const f4 = '/tmp/temp-test-binary.txt';
     expect(fs.existsSync(f4)).toBe(true);
-    expect(await util.file2str(f2)).toBe(hello);
+    const f5 = '/tmp/temp-test-list.json';
+    expect(fs.existsSync(f5)).toBe(true);
+    expect(await util.file2str(f2)).toBe(JSON.stringify(hello));
     expect(await util.file2str(f3)).toBe("true");
     expect(await util.file2str(f4)).toBe("binary");
+    const helloList = JSON.parse(await util.file2str(f5));
+
+    expect(helloList).toEqual(["hello", "world"]);
     // f1 will be deleted by the output data mapping 'model.none -> file(/tmp/temp-test-input.txt)'
     fs.rmSync(f2);
     fs.rmSync(f3);
     fs.rmSync(f4);
+    fs.rmSync(f5);
   });  
 
   it('will retry with a circuit breaker', async () => {

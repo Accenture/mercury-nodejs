@@ -378,9 +378,10 @@ The external state machine namespace uses the namespace `ext:` to indicate that 
 | Classpath | `classpath(binary:file_path)`                        |
 | Classpath | `classpath(json:file_path)`                          |
 
-For input data mapping, the "file" constant type is used to load some file content as an argument of a user function.
-You can tell the system to render the file as "text" or "binary". Similarly, the "classpath" constant type refers
-to static file in the application source code's "resources" folder.
+For input data mapping, the "file" constant type is used to load some file content as an argument of a user
+function. You can tell the system to render the file as "text", "binary" or "json". Similarly, the 
+"classpath" constant type refers to static file in the application source code's "resources" folder.
+When file type mapping is "json", the file content will be rendered as a Map or a List from a JSON string.
 
 The "map" constant type is used for two purposes:
 

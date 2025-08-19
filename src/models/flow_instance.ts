@@ -40,17 +40,20 @@ export class FlowInstance {
         this.replyTo = replyTo;
         // initialize the state machine
         const model = {'instance': this.id, 'cid': cid, 'flow': flowId}
-        // this is a sub-flow if parent flow instance is available
+        
         if (parentId) {
             const parent = this.resolveParent(parentId);
             if (parent) {
                 model['parent'] = parent.shared;
+                model['root'] = parent.shared;
                 this.parentId = parent.id;
                 log.info(`${this.getFlow().id}:${this.id} extends ${parent.getFlow().id}:${parent.id}`);
             }
         } else {
+            // this is a sub-flow if parent flow instance is available
             this.parentId = null;
             model['parent'] = this.shared;
+            model['root'] = this.shared;
         }
         this.dataset['model'] = model;
         const timeoutTask = new EventEnvelope().setTo('task.executor');

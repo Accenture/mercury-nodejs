@@ -23,6 +23,7 @@ const INPUT_NAMESPACE = "input.";
 const OUTPUT_NAMESPACE = "output.";
 const MODEL = "model";
 const PARENT = "parent";
+const ROOT = "root";
 const MODEL_NAMESPACE = "model.";
 const NEGATE_MODEL = "!model.";
 const RESULT_NAMESPACE = "result.";
@@ -730,7 +731,8 @@ export class CompileFlows {
             // model.parent to access the whole parent namespace is not allowed
             if (parts[0].startsWith(MODEL_NAMESPACE)) {
                 const segments = util.split(parts[0], ".");
-                return segments.length != 1 && (segments.length != 2 || PARENT != segments[1]);
+                return segments.length != 1 && (segments.length != 2 ||
+                    (PARENT != segments[1] && ROOT != segments[1]));
             }
             return true;
         }

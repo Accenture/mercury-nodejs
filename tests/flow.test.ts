@@ -915,6 +915,7 @@ describe('event flow use cases', () => {
     expect(result.getHeader('demo')).toBe('test-header');
     expect(result.getHeader('x-demo')).toBe('test-header');
     const map = new MultiLevelMap(result.getBody() as object);
+    expect(map.getElement('hello')).toBe('hello');
     expect(map.getElement('user')).toBe(testUser);
     expect(map.getElement('name')).toBe(platform.getName());
     expect(map.getElement('greeting')).toBe('hello world');

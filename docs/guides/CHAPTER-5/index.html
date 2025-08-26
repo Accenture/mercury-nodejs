@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://github.com/accenture/mercury-nodejs/guides/CHAPTER-5/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Chapter-5 - Composable for Node.js</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Chapter-5";
+        var mkdocs_page_input_path = "guides/CHAPTER-5.md";
+        var mkdocs_page_url = "/accenture/mercury-nodejs/guides/CHAPTER-5/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Composable for Node.js
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../METHODOLOGY/">Methodology</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-1/">Chapter-1</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-2/">Chapter-2</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-3/">Chapter-3</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-4/">Chapter-4</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Chapter-5</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#main-application">Main application</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#writing-your-functions">Writing your functions</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#http-forwarding">HTTP forwarding</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#sending-http-request-event-to-more-than-one-service">Sending HTTP request event to more than one service</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#writing-a-unit-test">Writing a unit test</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#composable-loader">Composable loader</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#pseudo-annotation">Pseudo annotation</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#unit-test-limitation">Unit test limitation</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#convenient-utility-classes">Convenient utility classes</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#event-flow-mocking-framework">Event Flow mocking framework</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#deployment">Deployment</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#distributed-tracing">Distributed tracing</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#importing-core-library-from-corporate-artifactory">Importing core library from corporate artifactory</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-6/">Chapter-6</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-7/">Chapter-7</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-8/">Chapter-8</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-I/">Appendix-I</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-II/">Appendix-II</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CHANGELOG/">Release notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../arch-decisions/DESIGN-NOTES/">Design notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../INCLUSIVITY/">Inclusivity</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CODE_OF_CONDUCT/">Code of Conduct</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CONTRIBUTING/">Contribution</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../TABLE-OF-CONTENTS/">Contents</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Composable for Node.js</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Chapter-5</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="build-test-and-deploy">Build, Test and Deploy</h1>
+<p>The first step in writing an application is to create an entry point for your application.</p>
+<h2 id="main-application">Main application</h2>
+<p>A minimalist main application template is shown as follows:</p>
+<pre><code class="language-javascript">import { ComposableLoader } from './preload/preload.js'; 
+
+async function main() {
+    // This assumes you have a &quot;.env&quot; environment variable file. If not, remove this line.
+    process.loadEnvFile();
+    // Load composable functions into memory and automatically starts your application modules
+    await ComposableLoader.initialize();
+}
+// run the application
+main();
+</code></pre>
+<p>In your application.yml configuration file, you would configure autostart modules like this:</p>
+<pre><code class="language-yaml">modules.autostart:
+  - 'main.app'
+</code></pre>
+<p>In the above example, the "main.app" is defined in the main-application.ts in the composable-example project.
+It looks like this:</p>
+<pre><code class="language-javascript">export class MainApp implements Composable {
+
+    @preload('main.app')
+    initialize(): Composable {
+        return this;
+    }
+
+    async handleEvent(evt: EventEnvelope) {
+        // put your start up business logic here
+        log.info(&quot;Application started&quot;);
+        // release this function to guarantee that it is executed only once
+        Platform.getInstance().release('main.app');      
+        // return value is ignored because start up code runs asynchronously
+        return true;
+    }
+}
+
+</code></pre>
+<p>You can also build and run the application from command line like this:</p>
+<pre><code class="language-shell">cd sandbox/composable-nodejs-example
+npm install
+npm run build
+npm run test
+</code></pre>
+<p>Since all functions are connected using the in-memory event bus, you can test any function by sending events
+from a unit test module.</p>
+<h2 id="writing-your-functions">Writing your functions</h2>
+<p>Please follow the step-by-step learning guide in <a href="../CHAPTER-1/">Chapter-1</a> to write your own functions. You can then
+configure new REST endpoints to use your new functions.</p>
+<h2 id="http-forwarding">HTTP forwarding</h2>
+<p>In <a href="../CHAPTER-3/">Chapter-3</a>, we have presented the configuration syntax for the "rest.yaml" REST automation
+definition file. Please review the sample rest.yaml file in the lambda-example project. You may notice that
+it has an entry for HTTP forwarding. The following entry in the sample rest.yaml file illustrates an HTTP
+forwarding endpoint. In HTTP forwarding, you can replace the "service" route name with a direct HTTP target host.
+You can do "URL rewrite" to change the URL path to the target endpoint path. In the below example,
+<code>/api/v1/*</code> will be mapped to <code>/api/*</code> in the target endpoint.</p>
+<pre><code class="language-yaml">  - service: &quot;http://127.0.0.1:${rest.server.port}&quot;
+    trust_all_cert: true
+    methods: ['GET', 'PUT', 'POST']
+    url: &quot;/api/v1/*&quot;
+    url_rewrite: ['/api/v1', '/api']
+    timeout: 20
+    cors: cors_1
+    headers: header_1
+    tracing: true
+</code></pre>
+<h2 id="sending-http-request-event-to-more-than-one-service">Sending HTTP request event to more than one service</h2>
+<p>One feature in REST automation "rest.yaml" configuration is that you can configure more than one function in the
+"service" section. In the following example, there are two function route names ("hello.world" and "hello.copy").
+The first one "hello.world" is the primary service provider. The second one "hello.copy" will receive a copy of
+the incoming event.</p>
+<p>This feature allows you to write new version of a function without disruption to current functionality. Once you are
+happy with the new version of function, you can route the endpoint directly to the new version by updating the
+"rest.yaml" configuration file.</p>
+<pre><code class="language-yaml">  - service: [&quot;hello.world&quot;, &quot;hello.copy&quot;]
+</code></pre>
+<h2 id="writing-a-unit-test">Writing a unit test</h2>
+<p>In unit tests, we want to tell the system to use the "tests/resources" folder to override the "src/resources" folder
+so that we can adjust the configuration to test different scenarios. </p>
+<p>This can be done by using the ComposableLoader's initialize method in the <code>BeforeAll</code> section like this:</p>
+<pre><code class="language-javascript">import { ComposableLoader } from '../test/preload/preload.ts';
+
+describe('End-to-end tests', () =&gt; {
+
+    beforeAll(async () =&gt; {
+        await ComposableLoader.initialize(8305, true);
+    });
+
+    // your unit test here
+    afterAll(async () =&gt; {
+        await Platform.getInstance().stop();
+        // give console.log a moment to finish
+        await util.sleep(2000);
+        log.info(&quot;End-to-end tests completed&quot;);
+    });
+
+    it('can do health check', async () =&gt; {
+        const po = new PostOffice();
+        const req = new EventEnvelope().setTo('demo.health').setHeader('type', 'health');
+        const result = await po.request(req, 2000);
+        expect(result).toBeTruthy();
+        expect(result.getBody()).toEqual({&quot;status&quot;: &quot;demo.service is running fine&quot;});
+    });      
+}
+</code></pre>
+<p>In the above example, we set the server port for REST automation to 8305 and set the "unit test" parameter to true.
+Please refer to the e2e.test.ts and service.test.ts test suites as examples.</p>
+<blockquote>
+<p><em>Note</em>: You must select a unique server port number for each test class because the test engine (vitest) will
+          instantiate a new Javascript V8 engine for each test class.</p>
+</blockquote>
+<h3 id="composable-loader">Composable loader</h3>
+<p>Since version 4.3.3, the build script "npm run build" will generate two "preloader.ts" files, one in the <code>src</code> folder
+and the other in the <code>test</code> folder. For unit tests, please import the preloader.ts file under the "test" folder
+because it can initialize Composable functions in your unit tests.</p>
+<h3 id="pseudo-annotation">Pseudo annotation</h3>
+<p>The TypeScript annotation <code>preload</code> only works in the main application under the <code>src</code> folder.</p>
+<p>To support writing composable functions for unit test purpose, the class scanner supports a concept called
+"pseudo annotation".</p>
+<p>This can be done by commenting out the "preload annotation" like this:</p>
+<pre><code class="language-javascript">import { Composable, EventEnvelope } from &quot;mercury-composable&quot;;
+
+export class SimpleTestTask implements Composable {
+    static readonly routeName = 'simple.test.task'
+
+    // @preload(SimpleTestTask.routeName, 10)
+    initialize(): Composable {
+        return this;
+    }
+
+    async handleEvent(evt: EventEnvelope) {
+        return evt.setHeader('type', 'simple-test');
+    }
+}
+</code></pre>
+<p>The class scanner will recognize the commented-out "preload" annotation and register the composable function
+accordingly. However, functions with commented-out "preload" annotation are only visible in unit tests under
+the "test" folder. They are not active when declared in the main application under the "src" folder.</p>
+<p>The ability to write composable functions in unit tests allows the developer to use composable design pattern
+consistently in the main application and unit tests.</p>
+<h3 id="unit-test-limitation">Unit test limitation</h3>
+<ol>
+<li>
+<p>Although the <code>preload</code> annotation is not supported in TypeScript classes in the "test" folder, you can use
+   "pseudo annotation" described earlier when writing composable functions that are used in unit tests.</p>
+</li>
+<li>
+<p>Similar to its Java counterpart, the configuration management system will use configuration files in composable
+   libraries and those configuration files in "src/resources" folder if the requested configuration file does not
+   exist in the "tests/resources" folder.</p>
+</li>
+<li>
+<p>However, the <code>application.yml</code> file must be presented in the "tests/resources" folder when running unit tests.
+   The system does not scan the "src/resources" or composable libraries for this base configuration file.</p>
+</li>
+</ol>
+<h2 id="convenient-utility-classes">Convenient utility classes</h2>
+<p>The Utility and MultiLevelMap classes are convenient tools for unit tests.</p>
+<p>The MultiLevelMap supports reading an element using the convenient "dot and bracket" format.</p>
+<p>For example, given a map like this:</p>
+<pre><code class="language-json">{
+  &quot;body&quot;:
+  {
+    &quot;time&quot;: &quot;2023-03-27T18:10:34.234Z&quot;,
+    &quot;hello&quot;: [1, 2, 3]
+  }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Example</th>
+<th style="text-align: left;">Command</th>
+<th style="text-align: left;">Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">1</td>
+<td style="text-align: left;">map.getElement("body.time")</td>
+<td style="text-align: left;">2023-03-27T18:10:34.234Z</td>
+</tr>
+<tr>
+<td style="text-align: center;">2</td>
+<td style="text-align: left;">map.getElement("body.hello[2]")</td>
+<td style="text-align: left;">3</td>
+</tr>
+</tbody>
+</table>
+<h2 id="event-flow-mocking-framework">Event Flow mocking framework</h2>
+<p>We recommend using Event Script to write Composable application for highest level of decoupling.
+Event Script supports sophisticated event choreography by configuration.</p>
+<p>In Event Script, you have a event flow configuration and a few Composable functions in an application.
+Composable functions are self-contained with zero dependencies with other composable functions.
+You can invoke an event flow from an event flow adapter.</p>
+<p>The most common flow adapter is the "HTTP flow adapter" and it is available as a built-in module in
+the event-script-engine module in the system. You can associate many REST endpoints to the HTTP flow
+adapter.</p>
+<p>Since function routes for each composable function is defined in a event flow configuration and the same
+function route may be used for more than one task in the flow, the system provides a mock helper class
+called "EventScriptMock" to let your unit tests to override a task's function routes during test.</p>
+<p>In the following unit test example for a "pipeline" test, we created a mock function "my.mock.function"
+to override the "no.op" function that is associated with the first task "echo.one" in a pipeline.</p>
+<p>The original "no.op" function is an echo function. The mocked function increments a counter
+in addition to just echoing the input payload. In this fashion, the unit test can count the number
+of iteration of a pipeline to validate the looping feature of a pipeline.</p>
+<p>The unit test programmatically registers the mock function and override an existing function route with
+the new route for the mock function.</p>
+<pre><code class="language-javascript">it('can do for-loop in pipeline', async () =&gt; {
+    const po = new PostOffice();
+    const req1 = new AsyncHttpRequest().setMethod('GET')
+                    .setTargetHost(baseUrl).setUrl('/api/for-loop/test-user')
+                    .setQueryParameter('seq', '100')
+                    .setHeader('accept', 'application/json');
+    // the iterationCount will be incremented by &quot;my.mock.function&quot;                                    
+    iterationCount = 0;
+    var mock = new EventScriptMock(&quot;for-loop-test&quot;);
+    var previousRoute = mock.getFunctionRoute('echo.one');
+    var currentRoute = mock.assignFunctionRoute('echo.one', 'my.mock.function').getFunctionRoute('echo.one');
+    expect(previousRoute).toBe('no.op');
+    expect(currentRoute).toBe('my.mock.function');
+    const reqEvent = new EventEnvelope().setTo(ASYNC_HTTP_CLIENT).setBody(req1.toMap());
+    const result = await po.request(reqEvent);
+    expect(result.getStatus()).toBe(200);
+    expect(result.getBody() instanceof Object);
+    const map = new MultiLevelMap(result.getBody() as object);
+    expect(result.getHeader('content-type')).toBe('application/json');
+    expect(map.getElement(&quot;data.sequence&quot;)).toBe(100);
+    expect(map.getElement(&quot;data.user&quot;)).toBe('test-user');
+    expect(map.getElement(&quot;n&quot;)).toBe(3);
+    expect(iterationCount).toBe(3);
+});
+</code></pre>
+<p>When the event flow finishes, you will see an "end-of-flow" log like this. It shows that the function
+route for the "echo.one" task has been changed to "my.mock.function". This end-of-flow log is useful
+during application development and tests so that the developer knows exactly which function has been
+executed.</p>
+<pre><code class="language-text">Flow for-loop-test (0afcf555fc4141f4a16393422e468dc9) completed. Run 11 tasks in 28 ms. 
+[ sequential.one, 
+  echo.one(my.mock.function), 
+  echo.two(no.op), 
+  echo.three(no.op), 
+  echo.one(my.mock.function), 
+  echo.two(no.op), 
+  echo.three(no.op), 
+  echo.one(my.mock.function), 
+  echo.two(no.op), 
+  echo.three(no.op), 
+  echo.four(no.op) ]
+</code></pre>
+<h2 id="deployment">Deployment</h2>
+<p>The <code>npm run build</code> command will generate an executable javascript bundle in the "dist" folder.
+Your pipeline can deploy the bundle in a Docker instance accordingly.</p>
+<p>Composable application is designed to be deployable using Kubernetes or serverless.</p>
+<h2 id="distributed-tracing">Distributed tracing</h2>
+<p>The system has a built-in distributed tracing feature. You can enable tracing for any REST endpoint by adding
+"tracing=true" in the endpoint definition in the "rest.yaml" configuration file.</p>
+<p>You may also upload performance metrics from the distributed tracing data to your favorite telemetry system dashboard.</p>
+<p>To do that, please implement a custom metrics function with the route name <code>distributed.trace.forwarder</code>.</p>
+<p>The input to the function will be a JSON of key-values like this:</p>
+<pre><code class="language-shell">trace={path=/api/upload/demo, service=hello.upload, success=true, 
+       origin=2023032731e2a5eeae8f4da09f3d9ac6b55fb0a4, 
+       exec_time=77.462, start=2023-03-27T19:38:30.061Z, 
+       from=http.request, id=12345, round_trip=132.296, status=200}
+</code></pre>
+<p>The system will detect if <code>distributed.trace.forwarder</code> is available. If yes, it will forward performance metrics
+from distributed trace to your custom function.</p>
+<h2 id="importing-core-library-from-corporate-artifactory">Importing core library from corporate artifactory</h2>
+<p>While you may use github as a repository to test drive your applications, you should build and publish the
+mercury-composable library to your enterprise "npm" artifactory. Please consult your DevSecOps colleagues for
+pipeline setup procedure. It would vary from one organization to another.</p>
+<p>If you publish the mercury-composable to your own artifactory as another package name, you can point it to your
+corporate artifactory in the package.json of your application like this:</p>
+<pre><code class="language-shell">  &quot;scripts&quot;: {
+    &quot;clean&quot;: &quot;node clean.js &amp;&amp; node placeholder.js&quot;,
+    &quot;preload&quot;: &quot;node preloader.js&quot;,
+    &quot;prebuild&quot;: &quot;npm run lint&quot;,
+    &quot;build&quot;: &quot;npm run preload &amp;&amp; tsc -p tsconfig.json &amp;&amp; node copy-resource-files.js&quot;,
+    &quot;build:watch&quot;: &quot;tsc -w -p tsconfig.json&quot;,
+    &quot;lint&quot;: &quot;eslint . --fix&quot;,
+    &quot;test&quot;: &quot;vitest run&quot;,
+    &quot;test:watch&quot;: &quot;vitest&quot;
+  },
+  &quot;dependencies&quot;: {
+    &quot;mercury-composable&quot;: &quot;npm:actual-published-package-name&quot;
+  }
+</code></pre>
+<p>In the above example, it assumes the actual package name that is published from mercury-composable core library
+is "actual-published-package-name", the package name "mercury-composable" becomes an alias so that you can keep
+the import statements that point to "mercury-composable" unchanged.</p>
+<p>Once you have updated the package.json file in the "examples" folder, you may run "npm run build". This verifies
+that the example application can import from the newly published mercury-composable core library in your own
+artifactory.</p>
+<blockquote>
+<p><em>Note</em>: To publish the library to your enterprise npm artifactory, you may need to remove the package-lock.json
+          and perform a <code>npm install</code> using your enterprise npm registry. This would ensure a new package-lock.json
+          is generated based on your artifactory requirement.</p>
+</blockquote>
+<p><br/></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Chapter-4</th>
+<th style="text-align: center;">Home</th>
+<th style="text-align: center;">Chapter-6</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><a href="../CHAPTER-4/">Event Script Syntax</a></td>
+<td style="text-align: center;"><a href="../TABLE-OF-CONTENTS/">Table of Contents</a></td>
+<td style="text-align: center;"><a href="../CHAPTER-6/">Event over HTTP</a></td>
+</tr>
+</tbody>
+</table>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../CHAPTER-4/" class="btn btn-neutral float-left" title="Chapter-4"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../CHAPTER-6/" class="btn btn-neutral float-right" title="Chapter-6">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../CHAPTER-4/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../CHAPTER-6/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

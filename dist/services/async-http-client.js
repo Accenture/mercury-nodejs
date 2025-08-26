@@ -8,6 +8,7 @@ import { ContentTypeResolver } from '../util/content-type-resolver.js';
 import axios from 'axios';
 import stream from 'stream';
 import FormData from 'form-data';
+import { StringBuilder } from 'src/util/utility.js';
 const log = Logger.getInstance();
 const po = new PostOffice();
 const resolver = ContentTypeResolver.getInstance();
@@ -384,26 +385,27 @@ function allowedHeader(header) {
     return true;
 }
 function queryParametersToString(request) {
-    let sb = '';
+    const sb = new StringBuilder();
     const params = request.getQueryParameters();
     for (const k in params) {
         const v = params[k];
         if (typeof (v) == 'string') {
-            sb += k;
-            sb += '=';
-            sb += v;
-            sb += '&';
+            sb.append(k);
+            sb.append('=');
+            sb.append(v);
+            sb.append('&');
         }
         if (Array.isArray(v)) {
             for (const item of v) {
-                sb += k;
-                sb += '=';
-                sb += item;
-                sb += '&';
+                sb.append(k);
+                sb.append('=');
+                sb.append(item);
+                sb.append('&');
             }
         }
     }
-    return sb.length > 0 ? sb.substring(0, sb.length - 1) : sb;
+    const text = sb.getValue();
+    return text.length > 0 ? text.substring(0, text.length - 1) : text;
 }
 function cleanEncodeURI(uri) {
     const result = encodeURI(uri).replaceAll("+", "%20");

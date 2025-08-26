@@ -61,7 +61,6 @@ export declare class ConfigReader {
     reload(map: MultiLevelMap): this;
     private resolveEnvVars;
     private hasEnvVars;
-    private extractSegments;
     private performEnvVarSubstitution;
     private avoidConfigLoop;
 }

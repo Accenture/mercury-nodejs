@@ -1,4 +1,10 @@
 import { MultiLevelMap } from './multi-level-map.js';
+import { VarSegment } from '../models/var-segment.js';
+export declare class StringBuilder {
+    private text;
+    append(message: any): void;
+    getValue(): string;
+}
 export declare class Utility {
     /**
      * Generate UUID without hyphen characters
@@ -134,4 +140,5 @@ export declare class Utility {
     getString(data: any): string;
     equalsIgnoreCase(a: string, b: string): boolean;
     portReady(host: string, port: number, timeout?: number): Promise<unknown>;
+    extractSegments(original: string, begin: string, end: string): Array<VarSegment>;
 }

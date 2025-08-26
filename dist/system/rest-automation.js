@@ -1,5 +1,5 @@
 import { Logger } from '../util/logger.js';
-import { Utility } from '../util/utility.js';
+import { StringBuilder, Utility } from '../util/utility.js';
 import { Platform } from './platform.js';
 import { PostOffice } from './post-office.js';
 import { ObjectStreamIO, ObjectStreamWriter, ObjectStreamReader } from './object-stream.js';
@@ -837,16 +837,17 @@ class RestEngine {
         return url;
     }
     getHeaderCase(header) {
-        let sb = '';
+        const sb = new StringBuilder();
         const parts = header.split("-").filter(v => v.length > 0);
         for (const p of parts) {
-            sb += (p.substring(0, 1).toUpperCase());
+            sb.append(p.substring(0, 1).toUpperCase());
             if (p.length > 1) {
-                sb += (p.substring(1).toLowerCase());
+                sb.append(p.substring(1).toLowerCase());
             }
-            sb += '-';
+            sb.append('-');
         }
-        return sb.length == 0 ? null : sb.substring(0, sb.length - 1);
+        const text = sb.getValue();
+        return text.length == 0 ? null : text.substring(0, text.length - 1);
     }
     filterHeaders(headerInfo, headers) {
         let result = headers;

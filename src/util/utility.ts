@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import { v4 as uuid4 } from 'uuid';
 import { parse as parseYaml } from 'yaml';
 import { MultiLevelMap } from './multi-level-map.js';
+import { VarSegment } from '../models/var-segment.js';
 
 const ONE_SECOND_MS = BigInt(1000);
 const ONE_MINUTE_MS = BigInt(60) * ONE_SECOND_MS;
@@ -13,6 +14,22 @@ const ONE_DAY_MS = BigInt(24) * ONE_HOUR_MS;
 const ONE_MINUTE = 60;
 const ONE_HOUR = 60 * ONE_MINUTE;
 const ONE_DAY = 24 * ONE_HOUR;
+
+export class StringBuilder {
+    private text = '';
+    
+    public append(message) {
+        if (typeof message == 'string' && message) {
+            this.text += message;
+        } else {
+            this.text += String(message);
+        }    
+    }
+
+    public getValue() {
+        return this.text;
+    }
+}
 
 export class Utility {
 
@@ -155,32 +172,32 @@ export class Utility {
      * @returns elapsed time
      */
     getElapsedTime(milliseconds: number): string {
-        let sb = '';
+        const sb = new StringBuilder();
         let time = BigInt(Math.round(milliseconds));
         if (time > ONE_DAY_MS) {
             const days = time / ONE_DAY_MS;
-            sb += days;
-            sb += (days == 1n? " day " : " days ");
+            sb.append(days);
+            sb.append(days == 1n? " day " : " days ");
             time -= days * ONE_DAY_MS;
         }
         if (time > ONE_HOUR_MS) {
             const hours = time / ONE_HOUR_MS;
-            sb += hours;
-            sb += (hours == 1n? " hour " : " hours ");
+            sb.append(hours);
+            sb.append(hours == 1n? " hour " : " hours ");
             time -= hours * ONE_HOUR_MS;
         }
         if (time > ONE_MINUTE_MS) {
             const minutes = time / ONE_MINUTE_MS;
-            sb += minutes;
-            sb += (minutes == 1n? " minute " : " minutes ");
+            sb.append(minutes);
+            sb.append(minutes == 1n? " minute " : " minutes ");
             time -= minutes * ONE_MINUTE_MS;
         }
         if (time >= ONE_SECOND_MS) {
             const seconds = time / ONE_SECOND_MS;
-            sb += seconds;
-            sb += (seconds == 1n ? " second" : " seconds");
+            sb.append(seconds);
+            sb.append(seconds == 1n ? " second" : " seconds");
         }
-        return sb.length == 0? time + " ms" : sb.trim();
+        return sb.getValue().length == 0? time + " ms" : sb.getValue().trim();
     }
 
     /**
@@ -447,5 +464,23 @@ export class Utility {
             });
             socket.connect(port, host);
         });
+    }
+
+    public extractSegments(original: string, begin: string, end: string): Array<VarSegment> {
+        const result = [];
+        let text = original;
+        while (true) {
+            const bracketStart = text.lastIndexOf(begin);
+            const bracketEnd = text.lastIndexOf(end);
+            if (bracketStart != -1 && bracketEnd != -1 && bracketEnd > bracketStart) {
+                result.push(new VarSegment(bracketStart, bracketEnd+1));
+                text = original.substring(0, bracketStart);
+            } else if (bracketStart != -1) {
+                text = original.substring(0, bracketStart);
+            } else {
+                break;
+            }
+        }
+        return result.reverse();;
     }
 }

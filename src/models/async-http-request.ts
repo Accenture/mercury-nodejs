@@ -21,6 +21,14 @@ const TARGET_HOST = "host";
 
 type eventPayload = string | number | object | boolean | Buffer | Uint8Array;
 
+function filterLineFeed(text: string): string {
+    if (text == null) {
+        return '';
+    } else {
+        return text.replaceAll('\r', '').replaceAll('\n', '');
+    }
+}
+
 export class AsyncHttpRequest {
     private method: string;
     private queryString: string;
@@ -40,7 +48,7 @@ export class AsyncHttpRequest {
     private contentLength = -1;
 
     constructor(map?: object) {
-        if (map && map instanceof Object && map.constructor == Object) {
+        if (map && map instanceof Object) {
             this.fromMap(map);
         }
     }
@@ -143,7 +151,7 @@ export class AsyncHttpRequest {
     setHeader(key: string, value: string): this {
         if (key) {
             this.removeHeader(key);
-            this.headers[key] = value || "";
+            this.headers[key] = filterLineFeed(value);
         }
         return this;
     }
@@ -345,7 +353,7 @@ export class AsyncHttpRequest {
     setSessionInfo(key: string, value: string): this {
         if (key) {
             this.removeSessionInfo(key);
-            this.session[key] = value || "";
+            this.session[key] = filterLineFeed(value);
         }
         return this;
     }
@@ -408,7 +416,7 @@ export class AsyncHttpRequest {
     setCookie(key: string, value: string): this {
         if (key) {
             this.removeCookie(key);
-            this.cookies[key] = value || "";
+            this.cookies[key] = filterLineFeed(value);
         }
         return this;
     }
@@ -793,13 +801,19 @@ export class AsyncHttpRequest {
     fromMap(map: object) {
         if (map && map.constructor == Object) {
             if (HEADERS in map) {
-                this.headers = map[HEADERS] as object;
+                Object.keys(map[HEADERS]).forEach(k => {
+                    this.setHeader(k, map[HEADERS][k]);
+                });
             }
             if (COOKIES in map) {
-                this.cookies = map[COOKIES] as object;
+                Object.keys(map[COOKIES]).forEach(k => {
+                    this.setCookie(k, map[COOKIES][k]);
+                });
             }
             if (SESSION in map) {
-                this.session = map[SESSION] as object;
+                Object.keys(map[SESSION]).forEach(k => {
+                    this.setSessionInfo(k, map[SESSION][k]);
+                });
             }
             if (typeof map[METHOD] == 'string') {
                 this.method = map[METHOD];

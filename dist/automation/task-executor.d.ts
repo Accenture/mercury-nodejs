@@ -60,6 +60,9 @@ export declare class TaskExecutor implements Composable {
     private validateIndexBounds;
     private checkDynamicIndex;
     private substituteDynamicIndex;
+    private getStringFromModelValue;
+    private replaceWithRuntimeVar;
+    private substituteRuntimeVarsIfAny;
     private getTextValue;
     private getBinaryValue;
     private getLenValue;

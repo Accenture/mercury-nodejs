@@ -19,6 +19,7 @@ export default defineConfig({
       include: ['src/**/*.ts'],
       exclude: [
         'tests/services/*.ts',
+        'src/index.ts',
         'src/**/*.d.ts',
         'dist/**', // From coveragePathIgnorePatterns
         'target/**', // From coveragePathIgnorePatterns

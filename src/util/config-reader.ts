@@ -1,7 +1,8 @@
 import fs from 'fs';
 import { MultiLevelMap } from './multi-level-map.js';
+import { VarSegment } from '../models/var-segment.js';
 import { Logger } from './logger.js';
-import { Utility } from './utility.js';
+import { Utility, StringBuilder } from './utility.js';
 
 const log = Logger.getInstance();
 const util = new Utility();
@@ -51,15 +52,16 @@ function getOtherResource(classPath: string): string {
     }
     const segments = util.split(resourcePath, "/");
     if (segments.length > 2) {
-        let sb = ''
+        const sb = new StringBuilder();
         for (let i=0; i < segments.length - 2; i++) {
-            sb += '/' + segments[i];
+            sb.append('/');
+            sb.append(segments[i]);
         }
         const packages = appConfig.getProperty('web.component.scan');
         if (packages) {
             const packageList = util.split(packages, ', ');
             for (const p of packageList) {
-                otherResources.push(sb + '/node_modules/' + p + '/dist/resources');
+                otherResources.push(sb.getValue() + '/node_modules/' + p + '/dist/resources');
             }
         } 
     }              
@@ -261,35 +263,33 @@ export class ConfigReader {
         const result = this.config.getElement(key, defaultValue);
         if (typeof result == 'string' && ConfigReader.self) {
             if (result.lastIndexOf('${') != -1) {
-                const segments = this.extractSegments(result);
-                segments.reverse();
+                const segments = util.extractSegments(result, '${', '}');
                 return this.checkEnvVariables(key, segments, result, defaultValue, loop);
             }
         }
         return result;
     }
 
-    private checkEnvVariables(key: string, segments: Array<EnvVarSegment>, result: string, defaultValue, loop?: string): string {
+    private checkEnvVariables(key: string, segments: Array<VarSegment>, result: string, defaultValue, loop?: string): string {
         let start = 0;
-        let sb = '';
-        for (const i in segments) {
-            const s = segments[i];
+        const sb = new StringBuilder();
+        for (const s of segments) {
             const middle = result.substring(s.start+2, s.end-1).trim();
             const evaluated = this.performEnvVarSubstitution(key, middle, defaultValue, loop);
             const heading = result.substring(start, s.start);
             if (heading) {
-                sb += heading;
+                sb.append(heading);
             }
             if (evaluated) {
-                sb += evaluated;
+                sb.append(evaluated);
             }
             start = s.end;
         }
         const lastSegment = result.substring(start);
         if (lastSegment) {
-            sb += lastSegment;
+            sb.append(lastSegment);
         }
-        return sb || null;
+        return sb.getValue() || null;
     }
 
     /**
@@ -365,24 +365,6 @@ export class ConfigReader {
         return found;
     }
 
-    private extractSegments(original: string): Array<EnvVarSegment> {
-        const result = [];
-        let text = original;
-        while (true) {
-            const bracketStart = text.lastIndexOf('${');
-            const bracketEnd = text.lastIndexOf('}');
-            if (bracketStart != -1 && bracketEnd != -1 && bracketEnd > bracketStart) {
-                result.push(new EnvVarSegment(bracketStart, bracketEnd+1));
-                text = original.substring(0, bracketStart);
-            } else if (bracketStart != -1) {
-                text = original.substring(0, bracketStart);
-            } else {
-                break;
-            }
-        }
-        return result;
-    }
-
     private performEnvVarSubstitution(key: string, text: string, defaultValue = null, loop?: string): string {
         if (text) {
             let middleDefault = null;
@@ -416,15 +398,5 @@ export class ConfigReader {
             const mid = ConfigReader.self.get(text, defaultValue, loopId);
             return mid? String(mid) : null;
         }        
-    }
-}
-
-class EnvVarSegment {
-    public start: number = 0;
-    public end: number = 0;
-
-    constructor(start: number, end: number) {
-        this.start = start;
-        this.end = end;
     }
 }

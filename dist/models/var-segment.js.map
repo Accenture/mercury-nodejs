@@ -1,0 +1,1 @@
+{"version":3,"file":"var-segment.js","sourceRoot":"","sources":["../../src/models/var-segment.ts"],"names":[],"mappings":"AAAA,MAAM,OAAO,UAAU;IACZ,KAAK,GAAW,CAAC,CAAC;IAClB,GAAG,GAAW,CAAC,CAAC;IAEvB,YAAY,KAAa,EAAE,GAAW;QAClC,IAAI,CAAC,KAAK,GAAG,KAAK,CAAC;QACnB,IAAI,CAAC,GAAG,GAAG,GAAG,CAAC;IACnB,CAAC;CACJ"}

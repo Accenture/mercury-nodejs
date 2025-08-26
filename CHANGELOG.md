@@ -8,6 +8,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > *Note*: Some version numbers may be skipped to align feature set with the Java version.
 
 ---
+## Version 4.3.18, 8/26/2025
+
+### Added
+
+Validation logic to filter out CR/LF for headers, cookies and session info when creating
+an AsyncHttpRequest from a map. For example, when using the "AsyncHttpClient
+by configuration" method, the AsyncHttpRequest is created by a map of key-values.
+The additional validation prevents creating headers and cookies with CR/LF accidentially.
+
+Support runtime string substitution using a model variable.
+
+StringBuilder class for easy concatenation of strings and other primitives into a single string.
+
+### Removed
+
+N/A
+
+### Changed
+
+Streamlined subflow routing in TaskExecutor of the event-script-engine.
+Changed subflow RPC call to asynchronous callback for performance optimization.
+
+---
 ## Version 4.3.14, 8/19/2025
 
 ### Added

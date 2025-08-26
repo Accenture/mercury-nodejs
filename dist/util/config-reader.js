@@ -1,7 +1,7 @@
 import fs from 'fs';
 import { MultiLevelMap } from './multi-level-map.js';
 import { Logger } from './logger.js';
-import { Utility } from './utility.js';
+import { Utility, StringBuilder } from './utility.js';
 const log = Logger.getInstance();
 const util = new Utility();
 const MAIN_RESOURCES = "/src/resources";
@@ -48,15 +48,16 @@ function getOtherResource(classPath) {
     }
     const segments = util.split(resourcePath, "/");
     if (segments.length > 2) {
-        let sb = '';
+        const sb = new StringBuilder();
         for (let i = 0; i < segments.length - 2; i++) {
-            sb += '/' + segments[i];
+            sb.append('/');
+            sb.append(segments[i]);
         }
         const packages = appConfig.getProperty('web.component.scan');
         if (packages) {
             const packageList = util.split(packages, ', ');
             for (const p of packageList) {
-                otherResources.push(sb + '/node_modules/' + p + '/dist/resources');
+                otherResources.push(sb.getValue() + '/node_modules/' + p + '/dist/resources');
             }
         }
     }
@@ -252,8 +253,7 @@ export class ConfigReader {
         const result = this.config.getElement(key, defaultValue);
         if (typeof result == 'string' && ConfigReader.self) {
             if (result.lastIndexOf('${') != -1) {
-                const segments = this.extractSegments(result);
-                segments.reverse();
+                const segments = util.extractSegments(result, '${', '}');
                 return this.checkEnvVariables(key, segments, result, defaultValue, loop);
             }
         }
@@ -261,25 +261,24 @@ export class ConfigReader {
     }
     checkEnvVariables(key, segments, result, defaultValue, loop) {
         let start = 0;
-        let sb = '';
-        for (const i in segments) {
-            const s = segments[i];
+        const sb = new StringBuilder();
+        for (const s of segments) {
             const middle = result.substring(s.start + 2, s.end - 1).trim();
             const evaluated = this.performEnvVarSubstitution(key, middle, defaultValue, loop);
             const heading = result.substring(start, s.start);
             if (heading) {
-                sb += heading;
+                sb.append(heading);
             }
             if (evaluated) {
-                sb += evaluated;
+                sb.append(evaluated);
             }
             start = s.end;
         }
         const lastSegment = result.substring(start);
         if (lastSegment) {
-            sb += lastSegment;
+            sb.append(lastSegment);
         }
-        return sb || null;
+        return sb.getValue() || null;
     }
     /**
      * Retrieve a key-value where value is enforced as a string
@@ -349,25 +348,6 @@ export class ConfigReader {
         }
         return found;
     }
-    extractSegments(original) {
-        const result = [];
-        let text = original;
-        while (true) {
-            const bracketStart = text.lastIndexOf('${');
-            const bracketEnd = text.lastIndexOf('}');
-            if (bracketStart != -1 && bracketEnd != -1 && bracketEnd > bracketStart) {
-                result.push(new EnvVarSegment(bracketStart, bracketEnd + 1));
-                text = original.substring(0, bracketStart);
-            }
-            else if (bracketStart != -1) {
-                text = original.substring(0, bracketStart);
-            }
-            else {
-                break;
-            }
-        }
-        return result;
-    }
     performEnvVarSubstitution(key, text, defaultValue = null, loop) {
         if (text) {
             let middleDefault = null;
@@ -403,14 +383,6 @@ export class ConfigReader {
             const mid = ConfigReader.self.get(text, defaultValue, loopId);
             return mid ? String(mid) : null;
         }
-    }
-}
-class EnvVarSegment {
-    start = 0;
-    end = 0;
-    constructor(start, end) {
-        this.start = start;
-        this.end = end;
     }
 }
 //# sourceMappingURL=config-reader.js.map

@@ -1,5 +1,5 @@
 import { Logger } from './logger.js';
-import { Utility } from './utility.js';
+import { StringBuilder, Utility } from './utility.js';
 import { ConfigReader } from './config-reader.js';
 import { MultiLevelMap } from './multi-level-map.js';
 const log = Logger.getInstance();
@@ -703,14 +703,14 @@ class RestEntry {
         return result;
     }
     getRouteInfo(method, url) {
-        let sb = '';
+        const sb = new StringBuilder();
         const urlParts = url.split('/').filter(v => v.length > 0);
         for (const p of urlParts) {
-            sb += '/';
-            sb += p;
+            sb.append('/');
+            sb.append(p);
         }
         // do case-insensitive matching for exact URL
-        const normalizedUrl = sb.toLowerCase();
+        const normalizedUrl = sb.getValue().toLowerCase();
         const key = method + ":" + normalizedUrl;
         if (this.exactRoutes.has(normalizedUrl)) {
             return new AssignedRoute(this.routes.get(key));

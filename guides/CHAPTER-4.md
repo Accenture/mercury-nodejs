@@ -488,6 +488,53 @@ The "decision" value is also saved to the state machine (`model`) for subsequent
       - 'result -> model.decision'
 ```
 
+### Environment variables
+
+You can use the standard `${ENV_VAR:default}` syntax to resolve environment variables or parameters from
+the application.properties.
+
+### Runtime model variables
+
+To use a runtime model variable value as a key or constant, you can use the `{model.variable_name}` syntax.
+
+For example,
+```yaml
+  - input:
+      - 'text(wonderful day) -> model.world'
+      - 'text(world) -> model.pointer'
+      - 'model.{model.pointer} -> value1'
+      - 'text(new {model.pointer}) -> value2' 
+      - 'text(keep {this}/{one} unchanged) -> value3'  
+    process: 'demo.function'
+```
+
+`model.{model.pointer}` is resolved as `model.world`, giving value1 = `wonderful day` and
+value2 = `new world`. 
+
+The text inside a set of brackets that is not a model variable will be kept unchanged, 
+thus value3 = `keep {this}/{one} unchanged`
+
+The use of string substitution is subject to event script syntax validation. Therefore,
+
+1. When this feature is used in the left-hand-side of an input data mapping, it can be used to substitute a constant 
+   or a segment of a key in the `input.` and `model.` namespaces. The above example shows the use of the
+   model namespace in `model.{model.pointer} -> value1`.
+2. Similarly, when used in the left-hand-side of an output data mapping, it can be used to substitute a constant
+   or a segment of a key in the `input.`, `model.`, `header.` or `result.` namespaces.
+3. When used in the right-hand-side of an input data mapping, namespace is optional because it may map as an argument
+   to a task.
+4. When used in the right-hand-side of an output data mapping, it can be used to substitute a `model.` namespace,
+   `file(` output, flow `output.` namespace or an external state machine `ext:` namespace.
+
+*Important*:
+
+1. For security reason, the key inside the brackets must be a model variable.
+2. The resolved value from a model variable must be either text or number.
+   Otherwise, it will be converted to a value of "null".
+3. For simplicity, nested substitution is not allowed. 
+   i.e. `model.{model.{model.n}}` or `model.{model.list[model.n]}` will be rejected.
+4. If the bracketed text is not a model variable, the brackets and the enclosed text will be kept unchanged.
+
 ### Handling arrays in a dataset
 
 An array of data elements is expressed as a list.
@@ -600,7 +647,17 @@ operation such as multiple AND, OR and NEGATE operators, you can configure multi
 operation.
 
 For string concatenation, you may concat a model variable with one or more model variables and
-text constants. The latter uses the "text(some value)" format.
+text constants. A more convenient alternative to string concatenation is the use of "runtime model
+variables". You can replace the "concat" method with "runtime model variable" method as follows:
+
+```yaml
+# assuming the bearer token value is in model.token
+- 'text(Bearer ) -> model.bearer'
+- 'model.bearer:concat(model.token) -> authorization'
+
+# the above is the same as
+- 'text(Bearer {model.token}) -> authorization'
+```
 
 An interesting use case is a simple decision task using the built-in no-op function.
 For boolean with value matching, you can test if the key-value in the left-hand-side is a null

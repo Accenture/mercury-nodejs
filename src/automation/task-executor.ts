@@ -3,8 +3,9 @@ import { EventEnvelope } from '../models/event-envelope.js';
 import { PostOffice, Sender } from '../system/post-office.js';
 import { Composable } from '../models/composable.js';
 import { Logger } from '../util/logger.js';
-import { Utility } from '../util/utility.js';
+import { Utility, StringBuilder } from '../util/utility.js';
 import { MultiLevelMap } from '../util/multi-level-map.js';
+import { VarSegment } from '../models/var-segment.js';
 import { AppConfig } from '../util/config-reader.js';
 import { Flows } from '../models/flows.js';
 import { FlowInstance } from '../models/flow_instance.js';
@@ -105,7 +106,7 @@ class CommandMetadata {
 }
 
 class DynamicIndexMetadata {
-    sb = '';
+    sb = new StringBuilder();
     start = 0;    
 }
 
@@ -371,15 +372,11 @@ export class TaskExecutor implements Composable {
         if (Object.keys(optionalHeaders).length > 0) {
             target.setElement(HEADER, optionalHeaders);
         }
-        const forward = new EventEnvelope().setTo(EVENT_MANAGER)
+        const forward = new EventEnvelope().setTo(EVENT_MANAGER).setReplyTo(TASK_EXECUTOR)
                             .setHeader(PARENT, flowInstance.id)
-                            .setHeader(FLOW_ID, flowId).setBody(target.getMap()).setCorrelationId(util.getUuid());
+                            .setHeader(FLOW_ID, flowId).setBody(target.getMap()).setCorrelationId(compositeCid);
         const po = new PostOffice(new Sender(task.functionRoute, flowInstance.getTraceId(), flowInstance.getTracePath()));
-        const response = await po.request(forward, subFlow.ttl);
-        const event = new EventEnvelope().setTo(TASK_EXECUTOR)
-                            .setCorrelationId(compositeCid).setStatus(response.getStatus())
-                            .setHeaders(response.getHeaders()).setBody(response.getBody());
-        await po.send(event);        
+        await po.send(forward);  
     }
 
     private async runNextTask(optionalHeaders: object, deferred: number, compositeCid: string, target: MultiLevelMap, flowInstance: FlowInstance, task: Task) {
@@ -919,13 +916,14 @@ export class TaskExecutor implements Composable {
 
     private createParentFolders(path): boolean {
         const parts = path.split('/').filter(v => v.length > 0);
-        let s = '';
+        const sb = new StringBuilder();
         let created = false;
         for (const p of parts) {
             if (p) {
-                s += `/${p}`;
-                if (!fs.existsSync(s)) {
-                    fs.mkdirSync(s);
+                sb.append(`/${p}`);
+                const filePath = sb.getValue();
+                if (!fs.existsSync(filePath)) {
+                    fs.mkdirSync(filePath);
                     created = true;
                 }
             }
@@ -1108,14 +1106,14 @@ export class TaskExecutor implements Composable {
     }
 
     private checkDynamicIndex(md: DynamicIndexMetadata, open: number, close: number, text: string, source: MultiLevelMap, isRhs: boolean) {
-        md.sb += text.substring(md.start, open+1);
+        md.sb.append(text.substring(md.start, open+1));
         const idx = text.substring(open+1, close).trim();
         if (idx.startsWith(MODEL_NAMESPACE)) {
             const ptr = util.str2int(String(source.getElement(idx)));
             if (isRhs) {
                 this.validateIndexBounds(ptr, text);
             }
-            md.sb += String(ptr);
+            md.sb.append(String(ptr));
         } else {
             if (isRhs && idx) {
                 const ptr = util.str2int(idx);
@@ -1123,13 +1121,14 @@ export class TaskExecutor implements Composable {
                     throw new Error(`Cannot set RHS to negative index - ${text}`);
                 }
             }
-            md.sb += idx;
+            md.sb.append(idx);
         }
-        md.sb += ']';
-        md.start = close + 1;        
+        md.sb.append(']');
+        md.start = close + 1;
     }
 
-    private substituteDynamicIndex(text: string, source: MultiLevelMap, isRhs: boolean): string {
+    private substituteDynamicIndex(statement: string, source: MultiLevelMap, isRhs: boolean): string {
+        const text = this.substituteRuntimeVarsIfAny(statement, source);
         if (text.includes('[') && text.includes(']')) {
             const md = new DynamicIndexMetadata();
             while (md.start < text.length) {
@@ -1138,15 +1137,55 @@ export class TaskExecutor implements Composable {
                 if (open != -1 && close > open) {
                     this.checkDynamicIndex(md, open, close, text, source, isRhs);
                 } else {
-                    md.sb += text.substring(md.start);
+                    md.sb.append(text.substring(md.start));
                     break;
                 }
             }
-            return md.sb;
+            return md.sb.getValue();
         } else {
             return text;
         }
     }
+
+    private getStringFromModelValue(obj): string {
+        return typeof obj == 'string' || typeof obj == 'number'? String(obj) : "null";
+    }
+
+    private replaceWithRuntimeVar(s: VarSegment, sb: StringBuilder, start: number, text: string, source: MultiLevelMap): number {
+        const heading = text.substring(start, s.start);
+        if (heading) {
+            sb.append(heading);
+        }
+        const middle = text.substring(s.start + 1, s.end - 1).trim();
+        if (middle.startsWith(MODEL_NAMESPACE) && !middle.endsWith(".")) {
+            sb.append(this.getStringFromModelValue(source.getElement(middle)));
+        } else {
+            sb.append(text.substring(s.start, s.end));
+        }
+        return s.end;
+    }
+
+    private substituteRuntimeVarsIfAny(text: string, source: MultiLevelMap): string {
+        if (text.includes("{") && text.includes("}")) {
+            const segments = util.extractSegments(text, "{", "}");
+            if (segments.length == 0) {
+                return text;
+            } else {
+                let start = 0;
+                const sb = new StringBuilder();
+                for (const s of segments) {
+                    start = this.replaceWithRuntimeVar(s, sb, start, text, source);
+                }
+                const lastSegment = text.substring(start);
+                if (lastSegment) {
+                    sb.append(lastSegment);
+                }
+                return sb.getValue();
+            }
+        } else {
+            return text;
+        }
+    }    
 
     private getTextValue(value): string {
         if (typeof value == 'string') {
@@ -1253,19 +1292,18 @@ export class TaskExecutor implements Composable {
         if (parts.length == 0) {
             throw new Error("parameters must be model variables and/or text constants");
         } else {
-            let sb = '';
-            const str = String(value);
-            sb += str;
+            const sb = new StringBuilder();
+            sb.append(String(value));
             for (const p of parts) {
                 if (p.startsWith(TEXT_TYPE)) {
-                    sb += p.substring(TEXT_TYPE.length, p.length-1);
+                    sb.append(p.substring(TEXT_TYPE.length, p.length-1));
                 }
                 if (p.startsWith(MODEL_NAMESPACE)) {
                     const v = String(data.getElement(p));
-                    sb += v;
+                    sb.append(v);
                 }
             }
-            return sb.toString();
+            return sb.getValue();
         }        
     }
 

@@ -4,7 +4,7 @@ export { PostOffice, Sender } from './system/post-office.js';
 export { FunctionRegistry } from './system/function-registry.js';
 export { RestAutomation } from './system/rest-automation.js';
 export { EventScriptEngine } from './automation/event-script-manager.js';
-export { Utility } from './util/utility.js';
+export { Utility, StringBuilder } from './util/utility.js';
 export { MultiLevelMap } from './util/multi-level-map.js';
 export { EventEnvelope } from './models/event-envelope.js';
 export { AsyncHttpRequest } from './models/async-http-request.js';

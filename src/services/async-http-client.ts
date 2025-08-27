@@ -9,7 +9,7 @@ import { ContentTypeResolver } from '../util/content-type-resolver.js';
 import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
 import stream from 'stream';
 import FormData from 'form-data';
-import { StringBuilder } from 'src/util/utility.js';
+import { StringBuilder } from '../util/utility.js';
 
 const log = Logger.getInstance();
 const po = new PostOffice();

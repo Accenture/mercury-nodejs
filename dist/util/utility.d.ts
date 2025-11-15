@@ -110,7 +110,7 @@ export declare class Utility {
      * @returns true if the directory exists
      */
     isDirectory(filePath: string): boolean;
-    file2bytes(filePath: string): Promise<Buffer<ArrayBufferLike>>;
+    file2bytes(filePath: string): Promise<Buffer<ArrayBuffer>>;
     appendBytes2file(filePath: string, b: Buffer): Promise<void>;
     bytes2file(filePath: string, b: Buffer): Promise<void>;
     file2str(filePath: string): Promise<string>;

@@ -182,7 +182,7 @@ export class TaskExecutor {
     }
     async checkCallBack(self, event, flowInstance, seq, flowName, refId, ref) {
         // handle callback from a task
-        const from = ref != null ? ref.processId : event.getFrom();
+        const from = ref ? ref.processId : event.getFrom();
         if (!from) {
             log.error(`Unable to process callback ${flowName}:${refId} - task does not provide 'from' address`);
             return true;
@@ -208,7 +208,7 @@ export class TaskExecutor {
     async handleException(self, event, seq, flowInstance, task) {
         const statusCode = event.getStatus();
         if (seq > 0) {
-            if (task.getExceptionTask() != null) {
+            if (task.getExceptionTask()) {
                 // Clear this specific pipeline queue when task has its own exception handler
                 delete flowInstance.pipeMap[seq];
             }
@@ -366,12 +366,13 @@ export class TaskExecutor {
             this.abortFlow(flowInstance, 500, task.functionRoute + " not defined");
             return;
         }
+        const dataset = { 'body': target.getMap() };
         if (Object.keys(optionalHeaders).length > 0) {
-            target.setElement(HEADER, optionalHeaders);
+            dataset['header'] = optionalHeaders;
         }
         const forward = new EventEnvelope().setTo(EVENT_MANAGER).setReplyTo(TASK_EXECUTOR)
             .setHeader(PARENT, flowInstance.id)
-            .setHeader(FLOW_ID, flowId).setBody(target.getMap()).setCorrelationId(compositeCid);
+            .setHeader(FLOW_ID, flowId).setBody(dataset).setCorrelationId(compositeCid);
         const po = new PostOffice(new Sender(task.functionRoute, flowInstance.getTraceId(), flowInstance.getTracePath()));
         await po.send(forward);
     }
@@ -380,9 +381,9 @@ export class TaskExecutor {
         const event = new EventEnvelope().setTo(task.functionRoute)
             .setCorrelationId(compositeCid)
             .setReplyTo(TASK_EXECUTOR).setBody(target.getMap());
-        Object.keys(optionalHeaders).forEach(k => {
+        for (const k of Object.keys(optionalHeaders)) {
             event.setHeader(k, String(optionalHeaders[k]));
-        });
+        }
         // execute task by sending event
         if (deferred > 0) {
             po.sendLater(event, deferred);

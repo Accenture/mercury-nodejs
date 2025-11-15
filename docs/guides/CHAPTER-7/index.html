@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://github.com/accenture/mercury-nodejs/guides/CHAPTER-7/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Chapter-7 - Composable for Node.js</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Chapter-7";
+        var mkdocs_page_input_path = "guides/CHAPTER-7.md";
+        var mkdocs_page_url = "/accenture/mercury-nodejs/guides/CHAPTER-7/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Composable for Node.js
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../METHODOLOGY/">Methodology</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-1/">Chapter-1</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-2/">Chapter-2</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-3/">Chapter-3</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-4/">Chapter-4</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-5/">Chapter-5</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-6/">Chapter-6</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Chapter-7</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#main-application">Main application</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#event-envelope">Event envelope</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#custom-exception-using-appexception">Custom exception using AppException</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#defining-a-user-function-in-typescript">Defining a user function in TypeScript</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#inspect-event-metadata">Inspect event metadata</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#platform-api">Platform API</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#register-a-function">Register a function</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#what-is-a-public-function">What is a public function?</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#release-a-function">Release a function</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#obtain-the-unique-application-instance-id">Obtain the unique application instance ID</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#postoffice-api">PostOffice API</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#check-if-a-function-is-available">Check if a function is available</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#obtain-the-class-instance-of-a-function">Obtain the class instance of a function</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#retrieve-routing-metadata-of-my-function">Retrieve routing metadata of my function</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#send-an-asynchronous-event-to-a-function">Send an asynchronous event to a function</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#make-a-rpc-call">Make a RPC call</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#make-a-fork-n-join-parallel-rpc">Make a fork-n-join parallel RPC</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#retrieve-trace-id-and-path">Retrieve trace ID and path</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#trace-annotation">Trace annotation</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#configuration-api">Configuration API</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#override-configuration-parameters-at-run-time">Override configuration parameters at run-time</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#logger">Logger</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#class-scanner">Class scanner</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#export-of-composable-functions">Export of composable functions</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#minimalist-api-design">Minimalist API design</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#co-existence-with-other-development-frameworks">Co-existence with other development frameworks</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#template-application-for-quick-start">Template application for quick start</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#source-code-update-frequency">Source code update frequency</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#technical-support">Technical support</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-8/">Chapter-8</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-I/">Appendix-I</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-II/">Appendix-II</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CHANGELOG/">Release notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../arch-decisions/DESIGN-NOTES/">Design notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../INCLUSIVITY/">Inclusivity</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CODE_OF_CONDUCT/">Code of Conduct</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CONTRIBUTING/">Contribution</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../TABLE-OF-CONTENTS/">Contents</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Composable for Node.js</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Chapter-7</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="api-overview">API overview</h1>
+<h2 id="main-application">Main application</h2>
+<p>Each application has an entry point. You may implement the main entry point like this:</p>
+<pre><code class="language-javascript">import { Logger, Platform, RestAutomation } from 'mercury-composable';
+import { ComposableLoader } from './preload/preload.js'; 
+
+const log = Logger.getInstance();
+
+async function main() {
+    // Load composable functions into memory and initialize configuration management
+    ComposableLoader.initialize();
+    const platform = Platform.getInstance();
+    platform.runForever();
+    log.info('Composable application started');
+}
+
+// run the application
+main();
+</code></pre>
+<p>In this example, the <code>ComposableLoader</code> will initialize the configuration management system, the REST
+automation system, and register user composable functions into the event system. The default location
+of the system files is the "src/resources" folder.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">File / bundle</th>
+<th style="text-align: left;">Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">application.yml</td>
+<td style="text-align: left;">Base configuration file is assumed to be under the "src/resources" folder</td>
+</tr>
+<tr>
+<td style="text-align: left;">rest.yaml</td>
+<td style="text-align: left;">REST endpoint configuration file is assumed to be under the "src/resources" folder</td>
+</tr>
+<tr>
+<td style="text-align: left;">HTML bundle</td>
+<td style="text-align: left;">HTML/CSS/JS files, if any, can be placed under the "src/resources/public" folder</td>
+</tr>
+</tbody>
+</table>
+<p>To tell the system to use a different application.yml, you can use this following statement before
+running the <code>ComposableLoader.initialize()</code> command.</p>
+<pre><code class="language-javascript">// resourcePath should be a fully qualified file path to the application's &quot;resources&quot; folder.
+const appConfig = AppConfig.getInstance(resourcePath);
+log.info(`Base configuration ${appConfig.getId()}`); 
+</code></pre>
+<p>You may override the file path for REST endpoint configuration and HTML bundle with the following:</p>
+<pre><code class="language-yaml">yaml.rest.automation: 'classpath:/rest.yaml'
+static.html.folder: 'classpath:/public'
+</code></pre>
+<p>The application can be stopped with Control-C in interactive mode or the Kill command at the kernel level
+by a container management system such as Kubernetes.</p>
+<h2 id="event-envelope">Event envelope</h2>
+<p>A composable application is a collection of functions that communicate with each other in events.
+Each event is transported by an event envelope. Let's examine the envelope.</p>
+<p>There are 3 elements in an event envelope:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Element</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">1</td>
+<td style="text-align: left;">metadata</td>
+<td style="text-align: left;">Includes unique ID, target function name, reply address<br/> correlation ID, status, exception, trace ID and path</td>
+</tr>
+<tr>
+<td style="text-align: center;">2</td>
+<td style="text-align: left;">headers</td>
+<td style="text-align: left;">User defined key-value pairs</td>
+</tr>
+<tr>
+<td style="text-align: center;">3</td>
+<td style="text-align: left;">body</td>
+<td style="text-align: left;">Event payload (primitive or JSON object)</td>
+</tr>
+</tbody>
+</table>
+<p>Headers and body are optional, but you must provide at least one of them.</p>
+<h2 id="custom-exception-using-appexception">Custom exception using AppException</h2>
+<p>To reject an incoming request, you can throw an AppException like this:</p>
+<pre><code class="language-java">throw new AppException(400, &quot;My custom error message&quot;);
+</code></pre>
+<p>As a best practice, we recommend using error codes that are compatible with HTTP status codes.</p>
+<h2 id="defining-a-user-function-in-typescript">Defining a user function in TypeScript</h2>
+<p>You can write a function like this:</p>
+<pre><code class="language-javascript">import { preload, Composable, EventEnvelope, AsyncHttpRequest, Logger } from 'mercury-composable';
+
+const log = Logger.getInstance();
+
+export class DemoAuth implements Composable {
+
+    @preload('v1.api.auth', 5)
+    initialize(): Composable {
+        return this;
+    }
+
+    async handleEvent(evt: EventEnvelope) {
+        const req = new AsyncHttpRequest(evt.getBody() as object);
+        const method = req.getMethod();
+        const url = req.getUrl();
+        log.info(`${method} ${url} authenticated`);
+        // this is a demo so we approve all requests
+        return true;
+    }
+}
+</code></pre>
+<p>You can define route name, instances, isPublic and interceptor in the <code>preload</code> annotation.
+The default values are instances=1, isPublic=false and interceptor=false. In the example, 
+the number of instances is set to 5. You can set the number of instances from 1 to 500.</p>
+<p>The above example is a demo "API authentication" function. The event body is an AsyncHttpRequest object
+from the user because the "rest.yaml" routes the HTTP request to the function via its unique "route name".</p>
+<h2 id="inspect-event-metadata">Inspect event metadata</h2>
+<p>There are some reserved metadata for route name ("my_route"), trace ID ("my_trace_id") and trace path ("my_trace_path")
+in the event's headers. They do not exist in the incoming event envelope. The system automatically
+insert them as read-only metadata.</p>
+<p>You may inspect other event metadata such as the replyTo address and correlation ID.</p>
+<p>Note that the "replyTo" address is optional. It only exists when the caller is making an RPC request or callback to
+your function. If the caller sends an asynchronous drop-n-forget request, the "replyTo" value is null.</p>
+<h2 id="platform-api">Platform API</h2>
+<p>You can obtain a singleton instance of the Platform object like this:</p>
+<pre><code class="language-javascript">const platform = Platform.getInstance();
+</code></pre>
+<h3 id="register-a-function">Register a function</h3>
+<p>We recommend using the ComposableLoader to search and load your functions.</p>
+<p>In some use cases where you want to create and destroy functions on demand, you can register them programmatically.
+For example,</p>
+<pre><code class="language-javascript">platform.register(HELLO_BFF_SERVICE, new HelloBff());
+
+</code></pre>
+<h3 id="what-is-a-public-function">What is a public function?</h3>
+<p>A public function is visible by any application instances in the same network. When a function is declared as
+"public", the function is reachable through the Event-over-HTTP API REST endpoint.</p>
+<p>A private function is invisible outside the memory space of the application instance that it resides.
+This allows application to encapsulate business logic according to domain boundary. You can assemble closely
+related functions as a composable application that can be deployed independently.</p>
+<h3 id="release-a-function">Release a function</h3>
+<p>In some use cases, you want to release a function on-demand when it is no longer required.</p>
+<pre><code class="language-javascript">platform.release(&quot;another.function&quot;);
+</code></pre>
+<p>The above API will unload the function from memory and release it from the "event loop".</p>
+<h3 id="obtain-the-unique-application-instance-id">Obtain the unique application instance ID</h3>
+<p>When an application instance starts, a unique ID is generated.</p>
+<pre><code class="language-javascritp">const originId = po.getId();
+</code></pre>
+<h2 id="postoffice-api">PostOffice API</h2>
+<p>You can obtain an instance of the PostOffice from the input EventEnvelope of your function.</p>
+<pre><code class="language-javascript">const po = new PostOffice(evt);
+</code></pre>
+<p>The PostOffice is the event emitter that you can use to send asynchronous events or to make RPC requests.
+The constructor uses the metadata in the "headers" argument to create a trackable instance of the event emitter.</p>
+<p>For end-to-end traceability, please use the PostOffice instance to make requests to a composable library.
+It maintains the same traceId and tracePath in the traceability graph. If your handleEvent method calls another
+method in your class, you should pass this PostOffice instance so that any event calls from the other method
+can propagate the tracing information.</p>
+<p>For Unit Tests, since a test does not start with the handleEvent of a LambdaFunction, you can use the following
+to create a PostOffice with your own traceId. The "myRoute" is the caller's route name. In this case, you can
+set it to "unit.test".</p>
+<pre><code class="language-java">// create a PostOffice instance in a Unit Test
+const po = new PostOffice(new Sender(myRoute, traceId, tracePath));
+</code></pre>
+<h3 id="check-if-a-function-is-available">Check if a function is available</h3>
+<p>You can check if a function with the named route has been deployed.</p>
+<pre><code class="language-javascript">if (po.exists(&quot;another.function&quot;)) {
+    // do something
+}
+</code></pre>
+<h3 id="obtain-the-class-instance-of-a-function">Obtain the class instance of a function</h3>
+<p>Since a composable function is executed as an anonymous function, the <code>this</code> reference is <code>undefined</code> inside the
+functional scope and thus no longer relevant to the class scope.</p>
+<p>To invoke other methods in the same class holding the composable function, the "getMyClass()" API can be used.</p>
+<pre><code class="language-javascript">async handleEvent(evt: EventEnvelope) {
+    const po = new PostOffice(evt);
+    const self = po.getMyClass() as HelloWorldService;
+    // business logic here
+    const len = await self.downloadFile(request.getStreamRoute(), request.getFileName());
+}
+</code></pre>
+<p>In the above example, <code>HelloWorldService</code> is the Composable class and the <code>downloadFile</code> is a non-static method
+in the same class. Note that you must use the event headers to instantiate the PostOffice object.</p>
+<h3 id="retrieve-routing-metadata-of-my-function">Retrieve routing metadata of my function</h3>
+<p>The following code segment demonstrates that you can retrieve the function's route name, worker number,
+optional traceId and tracePath.</p>
+<pre><code class="language-javascript">async handleEvent(evt: EventEnvelope) {
+    const po = new PostOffice(evt);
+    const route = po.getMyRoute();
+    const workerNumber = po.getMyInstance();
+    const traceId = po.getMyTraceId();
+    const tracePath = po.getMyTracePath();
+    // processing logic here
+}
+</code></pre>
+<h3 id="send-an-asynchronous-event-to-a-function">Send an asynchronous event to a function</h3>
+<p>You can send an asynchronous event like this.</p>
+<pre><code class="language-javascript">// example-1
+const event = new EventEnvelope().setTo('hello.world').setBody('test message');
+po.send(event);
+
+// example-2
+po.sendLater(event, 5000);
+</code></pre>
+<ol>
+<li>Example-1 sends the text string "test message" to the target service named "hello.world".</li>
+<li>Example-2 schedules an event to be delivered 5 seconds later.</li>
+</ol>
+<h3 id="make-a-rpc-call">Make a RPC call</h3>
+<p>You can make RPC call like this:</p>
+<pre><code class="language-javascript">// example-1
+const event = new EventEnvelope().setTo('hello.world').setBody('test message');
+// the response is a result event
+const result = await po.request(event, 5000);
+
+// example-2
+const result = await po.remoteRequest(event, 'http://peer/api/event');
+
+// API signatures
+request(event: EventEnvelope, timeout = 60000): Promise&lt;EventEnvelope&gt;
+remoteRequest(event: EventEnvelope, endpoint: string, 
+              securityHeaders: object = {}, rpc=true, timeout = 60000): Promise&lt;EventEnvelope&gt;
+</code></pre>
+<ol>
+<li>Example-1 makes a RPC call with a 5-second timeout to "hello.world".</li>
+<li>Example-2 makes an "event over HTTP" RPC call to "hello.world" in another application instance.</li>
+</ol>
+<p>"Event over HTTP" is an important topic. Please refer to <a href="../CHAPTER-6/">Chapter 6</a> for more details.</p>
+<h3 id="make-a-fork-n-join-parallel-rpc">Make a fork-n-join parallel RPC</h3>
+<p>You can make fork-n-join parallel request like this:</p>
+<pre><code class="language-javascript">// example
+const event1 = new EventEnvelope().setTo('hello.world.1').setBody('test message one');
+const event2 = new EventEnvelope().setTo('hello.world.2').setBody('test message two');
+const events = [event1, event2];
+// the response is a list of result events
+const response = await po.parallelRequest(events, 5000);
+
+// API signature
+parallelRequest(events: Array&lt;EventEnvelope&gt;, timeout = 60000): Promise&lt;Array&lt;EventEnvelope&gt;&gt;
+</code></pre>
+<ol>
+<li>Example-1 makes a RPC call with a 5-second timeout to "hello.world".</li>
+<li>Example-2 makes an "event over HTTP" RPC call to "hello.world" in another application instance.</li>
+</ol>
+<p>"Event over HTTP" is an important topic. Please refer to <a href="../CHAPTER-6/">Chapter 6</a> for more details.</p>
+<h3 id="retrieve-trace-id-and-path">Retrieve trace ID and path</h3>
+<p>If you want to know the route name and optional trace ID and path, you can inspect the incoming
+event headers.</p>
+<pre><code class="language-javascript">const po = new PostOffice(evt);
+const myRoute = po.getMyRoute();
+const traceId = po.getMyTraceId();
+const tracePath = po.getMyTracePath();
+const myInstance = po.getMyInstance();
+</code></pre>
+<h2 id="trace-annotation">Trace annotation</h2>
+<p>You can add a <em>small number of annotations</em> if the event to your function has tracing enabled.
+Annotated value can be a text string, a JSON object of key-values or a list of text strings.</p>
+<pre><code class="language-javascript">async handleEvent(evt: EventEnvelope) {
+    // business logic to handle the incoming event
+    // ...
+    // annotate the event
+    evt.annotate(&quot;hello&quot;, &quot;world&quot;);
+</code></pre>
+<p>Annotations of key-values, if any, will be recorded in the trace and they are not accessible by
+another function.</p>
+<p>The annotated key-values will be shown in the trace like this:</p>
+<pre><code class="language-json">&quot;annotations&quot;: {&quot;hello&quot;: &quot;world&quot;}
+</code></pre>
+<blockquote>
+<p><em>Note</em>: Don't annotate sensitive information or secrets such as PII, PHI, PCI data because 
+          the trace is visible in the application log. It may also be forwarded to a centralized
+          telemetry dashboard for visualization and analytics.</p>
+</blockquote>
+<h2 id="configuration-api">Configuration API</h2>
+<p>Your function can access the main application configuration management system like this:</p>
+<pre><code class="language-javascript">const config = AppConfig.getInstance();
+// the value can be string, a primitive or a JSON object
+const value = config.get('my.parameter');
+// the value can be read as a string
+const text = config.getProperty('my.parameter');
+</code></pre>
+<p>The system uses the standard dot-bracket format for a parameter name.</p>
+<blockquote>
+<p>e.g. "hello.world", "some.key[2]"</p>
+</blockquote>
+<p>You can also override the main application configuration using the <code>set</code> method.</p>
+<p>Additional configuration files can be added with the <code>ConfigReader</code> API like this:</p>
+<pre><code class="language-javascript">const myConfig = new ConfigReader(filePath);
+</code></pre>
+<p>where filePath can use the <code>classpath:/</code> or <code>file:/</code> prefix.</p>
+<p>The configuration system supports environment variable or reference to the main application configuration
+using the dollar-bracket syntax <code>${reference:default_value}</code>.</p>
+<blockquote>
+<p>e.g. "some.key=${MY_ENV_VARIABLE}", "some.key=${my.key}"</p>
+</blockquote>
+<h2 id="override-configuration-parameters-at-run-time">Override configuration parameters at run-time</h2>
+<p>You can override any configuration parameter from the command line when starting your application.</p>
+<pre><code class="language-shell">node my-app.js -Dsome.key=some_value -Danother.key=another_value
+</code></pre>
+<p>You can point your application to use a different base configuration file like this:</p>
+<pre><code class="language-shell">node my-app.js -C/opt/config/application.yml
+</code></pre>
+<p>The <code>-C</code> command line argument tells the system to use the configuration file in "/opt/config/application.yml".</p>
+<blockquote>
+<p>Exercise: try this command "node hello-world.js -Dlog.format=json" to start the demo app</p>
+</blockquote>
+<p>This will tell the Logger system to use JSON format instead of plain text output. The log output may
+look like this:</p>
+<pre><code class="language-text">{
+  &quot;time&quot;: &quot;2023-06-10 09:51:20.884&quot;,
+  &quot;level&quot;: &quot;INFO&quot;,
+  &quot;message&quot;: &quot;Event system started - 9f5c99c4d21a42cfb0115cfbaf533820&quot;,
+  &quot;module&quot;: &quot;platform.js:441&quot;
+}
+{
+  &quot;time&quot;: &quot;2023-06-10 09:51:21.037&quot;,
+  &quot;level&quot;: &quot;INFO&quot;,
+  &quot;message&quot;: &quot;REST automation service started on port 8085&quot;,
+  &quot;module&quot;: &quot;rest-automation.js:226&quot;
+}
+</code></pre>
+<h2 id="logger">Logger</h2>
+<p>The system includes a built-in logger that can log in either text or json format.</p>
+<p>The default log format is "text". You can override the value in the "src/resources/application.yml"
+config file. The following example sets the log format to "json".</p>
+<pre><code class="language-yaml">log.format: json
+</code></pre>
+<p>Alternatively you can also override it at run-time using the "-D" parameter like this:</p>
+<pre><code class="language-shell">node my-app.js -Dlog.format=json
+</code></pre>
+<p>The logger supports line-numbering. When you run your executable javascript main program, the line number
+for each log message is derived from the ".js" file compiled from the ".ts" files.</p>
+<p>If you want to show the line number in the source ".ts" file for easy debug, you may test your application
+using "nodemon".</p>
+<p>For simplicity, the logger is implemented without any additional library dependencies.</p>
+<h2 id="class-scanner">Class scanner</h2>
+<p>TypeScript supports annotations in class, method and input parameter when <code>experimentalDecorators</code> is
+turned on in tsconfig.json configuration file. However, annotation features for class, method and
+input parameter work differently.</p>
+<p>To support automatic scanning of Composable functions in your source project and compiled code in
+library packages, the system provides class scanners <code>TypeScriptClassScanner</code> and <code>JavaScriptClassScanner</code>
+for TypeScript and compiled Javascript code respectively.</p>
+<p>You can review the "preloader.js" build script in the "examples" folder to see how the system
+generates the <code>ComposableLoader</code> (preload.ts) source code in the "examples/src/preload" folder.</p>
+<p>The two class scanners extract annotation's parameters so that your application can do interesting
+thing based on the annotations. This is similar to the concept of annotated key-values in the Java
+programming language.</p>
+<p>For example, you can do something like this to scan the "preload" annotated methods of TypeScript files
+in the source folder:</p>
+<pre><code class="language-typescript">const root = getCurrentFolder();
+const src = root + 'src';
+const scanner = new TypeScriptClassScanner(src, 'preload');
+const result = await scanner.scan();
+// extract of the result set is shown below
+{
+  &quot;classes&quot;: {
+    &quot;HelloConcurrent&quot;: &quot;../services/hello-concurrent.js&quot;,
+    &quot;HelloWorld&quot;: &quot;../services/hello-world.js&quot;,
+  },
+  &quot;parents&quot;: {
+    &quot;HelloConcurrent&quot;: {
+      &quot;extends&quot;: [],
+      &quot;implements&quot;: [
+        &quot;Composable&quot;
+      ]
+    },
+    &quot;HelloWorld&quot;: {
+      &quot;extends&quot;: [],
+      &quot;implements&quot;: [
+        &quot;Composable&quot;
+      ]
+    }
+  },
+  &quot;parameters&quot;: {
+    &quot;HelloConcurrent&quot;: [
+      &quot;HelloConcurrent.routeName&quot;,
+      &quot;10&quot;
+    ],
+    &quot;HelloWorld&quot;: [
+      &quot;HelloWorld.routeName&quot;,
+      &quot;10&quot;,
+      &quot;false&quot;
+    ]
+  },
+  &quot;methods&quot;: {
+    &quot;DemoHealthCheck&quot;: &quot;initialize&quot;,
+    &quot;HelloConcurrent&quot;: &quot;initialize&quot;,
+    &quot;HelloWorld&quot;: &quot;initialize&quot;,
+  }
+}
+const map = new MultiLevelMap(result);
+// the MultiLevelMap allows you to retrieve key-value using the dot-bracket format.
+// e.g. you can validate the method name and parameters
+// 'initialize' == map.getElement(`methods.${cls}`) &amp;&amp; map.exists(`parameters.${cls}`)
+</code></pre>
+<p>To scan compiled JavaScript files in library packages, configure application.yaml with
+the web.component.scan parameter. Use a comma separated list when scanning more than one package.</p>
+<pre><code class="language-yaml">web.component.scan: 'my-package-one, my-package-two'
+</code></pre>
+<p>You can then use the JavaScriptClassScanner like this:</p>
+<pre><code class="language-typescript">const scanner = new JavaScriptClassScanner(parent, target, 'preload');
+const result = await scanner.scan();
+// sample result set below
+{
+  &quot;classes&quot;: {
+    &quot;NoOp&quot;: &quot;../node_modules/mercury-composable/dist/services/no-op.js&quot;
+  },
+  &quot;parameters&quot;: {
+    &quot;NoOp&quot;: [
+      &quot;'no.op'&quot;,
+      &quot;10&quot;
+    ]
+  },
+  &quot;methods&quot;: {
+    &quot;NoOp&quot;: &quot;initialize&quot;
+  }
+}
+</code></pre>
+<blockquote>
+<p><em>Note</em>: For simplicity, the scanners support method annotations only. Class and input parameter annotations
+          are not handled.</p>
+</blockquote>
+<h2 id="export-of-composable-functions">Export of composable functions</h2>
+<p>You can write composable modules as libraries for other composable application to use. The build script
+<code>preload.js</code> will use the TypeScriptClassScanner to scan composable functions from the source code
+of your application and use the JavaScriptClassCanner to scan composable modules from your libraries.</p>
+<p>When writing a composable library, please ensure that the composable functions in your library must export
+the composable modules in the index.ts file. Without this setup, the user application may fail to build.</p>
+<p>For the application that uses your composable libraries, it must include the package name in the 
+<code>web.component.scan</code> parameter in the application.yml configuration file.</p>
+<h2 id="minimalist-api-design">Minimalist API design</h2>
+<p>For configuration based Event Choreography, please refer to <a href="../CHAPTER-4/">Chapter-4</a> for more details.</p>
+<p>You can build powerful composable application without a lot of APIs. "Less" is always better in
+composable methodology.</p>
+<p>We do not recommend "event orchestration by code" because it would lead to tight coupling of software
+modules.</p>
+<h2 id="co-existence-with-other-development-frameworks">Co-existence with other development frameworks</h2>
+<p>Mercury libraries are designed to co-exist with your favorite frameworks and tools. Inside a class implementing
+a composable function, you can use any coding style and frameworks as you like, including sequential, object-oriented
+and reactive programming styles.</p>
+<p>Mercury has a built-in lightweight non-blocking HTTP server based on Express, but you can also use other
+application server framework with it.</p>
+<h2 id="template-application-for-quick-start">Template application for quick start</h2>
+<p>You can use the <code>composable-example</code> project as a template to start writing your own applications.</p>
+<h2 id="source-code-update-frequency">Source code update frequency</h2>
+<p>This project is licensed under the Apache 2.0 open sources license. We will update the public codebase after
+it passes regression tests and meets stability and performance benchmarks in our production systems.</p>
+<p>Mercury Composable is developed as an engine for you to build the latest cloud native applications.</p>
+<p>Composable technology is evolving rapidly. We would exercise best effort to keep the essential internals
+and core APIs stable. Please browse the latest Developer Guide, release notes and Javadoc for any breaking
+API changes.</p>
+<h2 id="technical-support">Technical support</h2>
+<p>For enterprise clients, technical support is available. Please contact your Accenture representative for details.
+<br/></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Chapter-6</th>
+<th style="text-align: center;">Home</th>
+<th style="text-align: center;">Chapter-8</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><a href="../CHAPTER-6/">Event over HTTP</a></td>
+<td style="text-align: center;"><a href="../TABLE-OF-CONTENTS/">Table of Contents</a></td>
+<td style="text-align: center;"><a href="../CHAPTER-8/">Custom Flow Adapter</a></td>
+</tr>
+</tbody>
+</table>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../CHAPTER-6/" class="btn btn-neutral float-left" title="Chapter-6"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../CHAPTER-8/" class="btn btn-neutral float-right" title="Chapter-8">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../CHAPTER-6/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../CHAPTER-8/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

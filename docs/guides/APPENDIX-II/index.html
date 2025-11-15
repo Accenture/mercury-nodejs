@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://github.com/accenture/mercury-nodejs/guides/APPENDIX-II/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Appendix-II - Composable for Node.js</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Appendix-II";
+        var mkdocs_page_input_path = "guides/APPENDIX-II.md";
+        var mkdocs_page_url = "/accenture/mercury-nodejs/guides/APPENDIX-II/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Composable for Node.js
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../METHODOLOGY/">Methodology</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-1/">Chapter-1</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-2/">Chapter-2</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-3/">Chapter-3</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-4/">Chapter-4</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-5/">Chapter-5</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-6/">Chapter-6</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-7/">Chapter-7</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-8/">Chapter-8</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-I/">Appendix-I</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Appendix-II</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#actuator-endpoints">Actuator endpoints</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#system-provided-rest-endpoints">System provided REST endpoints</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#custom-health-services">Custom health services</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#asynchttpclient-api">AsyncHttpClient API</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#send-http-request-body-for-http-put-post-and-patch-methods">Send HTTP request body for HTTP PUT, POST and PATCH methods</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#send-http-request-body-as-a-stream">Send HTTP request body as a stream</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#read-http-response-body-stream">Read HTTP response body stream</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#content-length-for-http-request">Content length for HTTP request</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#application-log-format">Application log format</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#externalize-the-applicationyml">Externalize the application.yml</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CHANGELOG/">Release notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../arch-decisions/DESIGN-NOTES/">Design notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../INCLUSIVITY/">Inclusivity</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CODE_OF_CONDUCT/">Code of Conduct</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CONTRIBUTING/">Contribution</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../TABLE-OF-CONTENTS/">Contents</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Composable for Node.js</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Appendix-II</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="actuators-and-http-client">Actuators and HTTP client</h1>
+<h2 id="actuator-endpoints">Actuator endpoints</h2>
+<p>The following are actuator endpoints:</p>
+<pre><code>GET /info
+GET /info/routes
+GET /env
+GET /health
+GET /livenessprobe
+</code></pre>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Endpoint</th>
+<th style="text-align: left;">Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">/info</td>
+<td style="text-align: left;">Describe the application</td>
+</tr>
+<tr>
+<td style="text-align: left;">/info/routes</td>
+<td style="text-align: left;">List all private and public function route names</td>
+</tr>
+<tr>
+<td style="text-align: left;">/env</td>
+<td style="text-align: left;">Show selected environment variables and application parameters</td>
+</tr>
+<tr>
+<td style="text-align: left;">/health</td>
+<td style="text-align: left;">Application health check endpoint</td>
+</tr>
+<tr>
+<td style="text-align: left;">/livenessprobe</td>
+<td style="text-align: left;">Check if application is running normally</td>
+</tr>
+</tbody>
+</table>
+<h2 id="system-provided-rest-endpoints">System provided REST endpoints</h2>
+<p>When REST automation is turned on, the following essential REST endpoints will be provided if they are
+not configured in rest.yaml. The "POST /api/event" is used for Event-Over-HTTP protocol and the others
+are actuator endpoints.</p>
+<p>To override the default parameters such as timeout, tracing and authentication, you can configure them
+in rest.yaml.</p>
+<pre><code class="language-yaml">rest:
+  - service: &quot;event.api.service&quot;
+    methods: ['POST']
+    url: &quot;/api/event&quot;
+    timeout: 60s
+    tracing: true
+
+  - service: &quot;info.actuator.service&quot;
+    methods: ['GET']
+    url: &quot;/info&quot;
+    timeout: 10s
+
+  - service: &quot;routes.actuator.service&quot;
+    methods: ['GET']
+    url: &quot;/info/routes&quot;
+    timeout: 10s    
+
+  - service: &quot;health.actuator.service&quot;
+    methods: ['GET']
+    url: &quot;/health&quot;
+    timeout: 10s
+
+  - service: &quot;liveness.actuator.service&quot;
+    methods: ['GET']
+    url: &quot;/livenessprobe&quot;
+    timeout: 10s
+
+  - service: &quot;env.actuator.service&quot;
+    methods: ['GET']
+    url: &quot;/env&quot;
+    timeout: 10s
+</code></pre>
+<h2 id="custom-health-services">Custom health services</h2>
+<p>You can extend the "/health" endpoint by implementing a composable functions to be added to the 
+"health check" dependencies.</p>
+<pre><code class="language-properties">health.dependencies=database.health, cache.health
+</code></pre>
+<p>Your custom health service must respond to the following requests:</p>
+<ol>
+<li>Info request (type=info) - it should return a map that includes service name and href (protocol, hostname and port)</li>
+<li>Health check (type=health) - it should return a text string of the health check. e.g. read/write test result. 
+   It can throw AppException with status code and error message if health check fails.</li>
+</ol>
+<blockquote>
+<p><em>Note</em>: The "href" entry in the health service's response should tell the operator about the target URL
+          if the dependency connects to a cloud platform service such as Kafka, Redis, etc.   </p>
+</blockquote>
+<p>A sample health service is available in the <code>health-check.ts</code> class of the hello world project as follows:</p>
+<pre><code class="language-javascript">import { preload, Composable, EventEnvelope, AppException } from 'mercury-composable';
+
+const TYPE = 'type';
+const INFO = 'info';
+const HEALTH = 'health';
+
+export class DemoHealthCheck implements Composable {
+
+    @preload('demo.health')
+    initialize(): Composable {
+        return this;
+    }
+
+    // Your service should be declared as an async function with input as EventEnvelope
+    async handleEvent(evt: EventEnvelope) {
+        const command = evt.getHeader(TYPE);
+        if (command == INFO) {
+          return {'service': 'demo.service', 'href': 'http://127.0.0.1'};
+        }
+        if (command == HEALTH) {
+          // this is a dummy health check
+          return {'status': 'demo.service is running fine'};
+        }
+        throw new AppException(400, 'Request type must be info or health');
+    }
+}
+</code></pre>
+<h2 id="asynchttpclient-api">AsyncHttpClient API</h2>
+<p>The "async.http.request" function can be used as a non-blocking HTTP client.</p>
+<p>To make an HTTP request to an external REST endpoint, you can create an HTTP request object using the
+<code>AsyncHttpRequest</code> class and make an async RPC call to the "async.http.request" function like this:</p>
+<pre><code class="language-javascript">const po = new PostOffice(evt.getHeaders());
+const req = new AsyncHttpRequest();
+req.setMethod(&quot;GET&quot;);
+req.setHeader(&quot;accept&quot;, &quot;application/json&quot;);
+req.setUrl(&quot;/api/hello/world?hello world=abc&quot;);
+req.setQueryParameter(&quot;x1&quot;, &quot;y&quot;);
+const list = new Array&lt;string&gt;();
+list.push(&quot;a&quot;);
+list.push(&quot;b&quot;);
+req.setQueryParameter(&quot;x2&quot;, list);
+req.setTargetHost(&quot;http://127.0.0.1:8083&quot;);
+const event = new EventEnvelope().setTo(&quot;async.http.request&quot;).setBody(req);
+const result = po.request(event, 5000);
+// the result is an EventEnvelope
+</code></pre>
+<h3 id="send-http-request-body-for-http-put-post-and-patch-methods">Send HTTP request body for HTTP PUT, POST and PATCH methods</h3>
+<p>For most cases, you can just set a JSON object into the request body and specify content-type as JSON.</p>
+<p>Example code may look like this:</p>
+<pre><code class="language-javascript">const req = new AsyncHttpRequest();
+req.setMethod(&quot;POST&quot;);
+req.setHeader(&quot;accept&quot;, &quot;application/json&quot;);
+req.setHeader(&quot;content-type&quot;, &quot;application/json&quot;);
+req.setUrl(&quot;/api/book&quot;);
+req.setTargetHost(&quot;https://service_provider_host&quot;);
+req.setBody(jsonKeyValues);
+</code></pre>
+<h2 id="send-http-request-body-as-a-stream">Send HTTP request body as a stream</h2>
+<p>For larger payload, you may use the streaming method. See sample code below:</p>
+<pre><code class="language-javascript">const stream = new ObjectStreamIO(timeoutInSeconds);
+const out = stream.getOutputStream();
+out.write(blockOne);
+out.write(blockTwo);
+// closing the output stream would send a EOF signal to the stream
+out.close();
+// tell the HTTP client to read the input stream
+req.setStreamRoute(stream.getInputStreamId());
+</code></pre>
+<p>The AsyncHttpClient service (route name <code>async.http.request</code>) uses native Node.js streams to integrate
+with the underlying Axios HTTP client. It uses the temporary local file system (folder <code>/tmp/composable/node/temp-streams</code>)
+to reduce memory footprint. This makes the producer and consumer of a stream asynchronous. i.e. The producer
+can write data blocks into a stream before a consumer is available.</p>
+<h2 id="read-http-response-body-stream">Read HTTP response body stream</h2>
+<p>If content length is not given, the response body will be received as a stream.</p>
+<p>Your application should check if the HTTP response header "stream" exists. Its value is the input "stream ID".</p>
+<p>Sample code to read a stream may look like this:</p>
+<pre><code class="language-javascript">static async downloadFile(streamId: string, filename: string) {
+   let n = 0;
+   let len = 0;
+   const stream = new ObjectStreamReader(streamId, 5000);
+   while (true) {
+      try {
+         const block = await stream.read();
+         if (block) {
+            n++;
+            if (block instanceof Buffer) {
+               len += block.length;
+               log.info(`Received ${filename}, block-${n} - ${block.length} bytes`)
+            }
+         } else {
+            log.info(&quot;EOF reached&quot;);
+            break;
+         }
+      } catch (e) {
+         const status = e instanceof AppException? e.getStatus() : 500;
+         log.error(`Exception - rc=${status}, message=${e.message}`);
+         break;
+      }
+
+   }
+   return len;
+} 
+</code></pre>
+<h2 id="content-length-for-http-request">Content length for HTTP request</h2>
+<p><em>IMPORTANT</em>: Do not set the "content-length" HTTP header because the system will automatically compute the
+correct content-length for small payload. For large payload, it will use the chunking method.</p>
+<h2 id="application-log-format">Application log format</h2>
+<p>The system supports 3 types of log formats. You can set "log.format" parameter in application.yml to
+change the log format or override it at runtime using the <code>-D</code> argument. e.g.</p>
+<pre><code class="language-shell">node myapp.js -Dlog.format=json
+</code></pre>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Format</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">text</td>
+<td style="text-align: left;">this is the default log format</td>
+</tr>
+<tr>
+<td style="text-align: left;">json</td>
+<td style="text-align: left;">application log will be printed in JSON format with line feed and indentation</td>
+</tr>
+<tr>
+<td style="text-align: left;">compact</td>
+<td style="text-align: left;">JSON format without line feed and indentation</td>
+</tr>
+</tbody>
+</table>
+<p>text and json formats are for human readers and compact format is designed for log analytics system.</p>
+<h2 id="externalize-the-applicationyml">Externalize the application.yml</h2>
+<p>If you want to externalize the application.yml configuration file, please keep a default application.yml
+in the "src/resources" folder. You can use command line to ask the system to reload a new base configuration
+file like this:</p>
+<pre><code class="language-shell">node myapp.js -Dlog.format=json -C/tmp/config/application.yml
+</code></pre>
+<blockquote>
+<p><em>Note</em>: The <code>-C</code> command argument should point to a fully qualified file path. Use relative path
+  if you know exactly the resolved path in a deployed container. You can have multiple "-D" parameters
+  but you can only configure a single "-C" argument.
+<br/></p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Appendix-I</th>
+<th style="text-align: center;">Home</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><a href="../APPENDIX-I/">Application config</a></td>
+<td style="text-align: center;"><a href="../TABLE-OF-CONTENTS/">Table of Contents</a></td>
+</tr>
+</tbody>
+</table>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../APPENDIX-I/" class="btn btn-neutral float-left" title="Appendix-I"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../../CHANGELOG/" class="btn btn-neutral float-right" title="Release notes">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../APPENDIX-I/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../../CHANGELOG/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://github.com/accenture/mercury-nodejs/guides/CHAPTER-2/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Chapter-2 - Composable for Node.js</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Chapter-2";
+        var mkdocs_page_input_path = "guides/CHAPTER-2.md";
+        var mkdocs_page_url = "/accenture/mercury-nodejs/guides/CHAPTER-2/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Composable for Node.js
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../METHODOLOGY/">Methodology</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-1/">Chapter-1</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Chapter-2</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#define-a-function">Define a function</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#non-blocking-design">Non-blocking design</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#object-serialization-consideration">Object serialization consideration</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#extensible-authentication-function">Extensible authentication function</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#number-of-workers-for-a-function">Number of workers for a function</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#functional-isolation-of-legacy-code">Functional isolation of legacy code</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-3/">Chapter-3</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-4/">Chapter-4</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-5/">Chapter-5</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-6/">Chapter-6</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-7/">Chapter-7</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-8/">Chapter-8</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-I/">Appendix-I</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-II/">Appendix-II</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CHANGELOG/">Release notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../arch-decisions/DESIGN-NOTES/">Design notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../INCLUSIVITY/">Inclusivity</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CODE_OF_CONDUCT/">Code of Conduct</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CONTRIBUTING/">Contribution</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../TABLE-OF-CONTENTS/">Contents</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Composable for Node.js</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Chapter-2</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="function-execution-strategies">Function Execution Strategies</h1>
+<h2 id="define-a-function">Define a function</h2>
+<p>In a composable application, each function is self-contained with zero dependencies with other user functions.</p>
+<p>Only flow adapter, data adapter, notification function or gateway has a single external dependency such as
+a network event system, a database or an external REST resource.</p>
+<p>A "task" or "function" is a class that implements the Composable interface. Within each function boundary, 
+it may have private methods that are fully contained within the class.</p>
+<p>As discussed in Chapter-1, a function may look like this:</p>
+<pre><code class="language-shell">export class MyFirstFunction implements Composable {
+
+    @preload(my.first.function', 10)
+    initialize(): Composable {
+        return this;
+    }
+
+    async handleEvent(evt: EventEnvelope) {
+        // your business logic here
+        return result;
+    }
+}
+</code></pre>
+<p>A function is an event listener with the "handleEvent" method. The data structures of input and output are defined
+by API interface contract in an event flow configuration.</p>
+<p>In the above example, the input is an event envelope and the output is a set of key-values as a JSON object.
+You can access event body (i.e. <code>payload</code>), headers and metadata from the event envelope.</p>
+<p>For event choreography, input body is represented as a JSON object of key-values so that you can use the dot-bracket
+convention to map a subset from one function to another if needed.</p>
+<p>In addition to the event body, you may pass additional parameters to the user function as event headers.
+We will discuss this in <a href="../CHAPTER-4/">Chapter 4 - Event Script Syntax</a>.</p>
+<h2 id="non-blocking-design">Non-blocking design</h2>
+<p>By design, Javascript libraries are usually asynchronous. With functional isolation, each composable function is
+executed through an event loop.</p>
+<p>Inside your composable function, you can apply sequential, object-oriented or reactive programming styles.
+Just make sure your code is not blocked. The composable interface enforces a function to be implemented using
+either the "Promise" or the "async" pattern. Both of these patterns are non-blocking. The <code>async</code> pattern turns
+a "Promise" function into sequential execution style to improve code readability. You should use the async/await
+pattern as much as possible unless you have reason to use the <code>Promise</code> reactive coding style.</p>
+<h2 id="object-serialization-consideration">Object serialization consideration</h2>
+<p>The system is designed to deliver primitive and JSON object of key-values through an event stream. If you pass
+JSON object or primitive such as string or Buffer, you do not need to do any serialization.</p>
+<blockquote>
+<p><em>Note</em>: You should not pass data <code>class</code> object as event body. Instead, please convert them using the JSON parser
+  API and pass a JSON object of key-values. The standard JSON library can handle serialization and deserialization
+  efficiently.</p>
+</blockquote>
+<h2 id="extensible-authentication-function">Extensible authentication function</h2>
+<p>You can add authentication function using the optional <code>authentication</code> tag in a service. In "rest.yaml", a service
+for a REST endpoint refers to a function in your application.</p>
+<p>An authentication function can be written using a Composable function that takes the input body as an
+"AsyncHttpRequest" like this:</p>
+<pre><code class="language-shell">const request = new AsyncHttpRequest(evt.getBody());
+</code></pre>
+<p>Your authentication function can return a boolean value to indicate if the request
+should be accepted or rejected.</p>
+<p>A typical authentication function may validate an HTTP header or cookie. e.g. forward the "Bearer token" from the
+"Authorization" header to your organization's OAuth 2.0 Identity Provider for validation.</p>
+<p>To approve an incoming request, your custom authentication function can return <code>true</code>.</p>
+<p>Optionally, you can add "session" key-values by returning an EventEnvelope like this:</p>
+<pre><code class="language-shell">return new EventEnvelope().setHeader(&quot;user_id&quot;, &quot;A12345&quot;).setBody(true);
+</code></pre>
+<p>The above example approves the incoming request and returns a "session" variable ("user_id": "A12345") to the
+next task.</p>
+<p>If your authentication function returns <code>false</code>, the user will receive a "HTTP-401 Unauthorized" error response.</p>
+<p>You can also control the status code and error message by throwing an <code>AppException</code> like this:</p>
+<pre><code class="language-shell">throw new AppException(401, &quot;Invalid credentials&quot;);
+</code></pre>
+<p>Alternatively, you may implement authentication as a user function in the first step of an event flow. In this case,
+the input to the function is defined by the "input data mapping" rules in the event flow configuration.</p>
+<p>The advantage of this approach is that authentication is shown as part of an event flow so that the application design
+intention is clear.</p>
+<p>A composable application is assembled from a collection of self-contained functions that are highly reusable.</p>
+<h2 id="number-of-workers-for-a-function">Number of workers for a function</h2>
+<p>In the following annotation, the execution concurrency is the second parameter in the <code>preload</code> annotation.
+It tells the system to reserve a number of workers for the function. Workers are running on-demand to handle
+concurrent user requests.</p>
+<pre><code class="language-shell">@preload(my.first.function', 10)
+initialize(): Composable {
+    return this;
+}
+</code></pre>
+<p>Note that you can use smaller number of workers to handle many concurrent users if your function finishes
+processing very quickly. If not, you should reserve more workers to handle the work load.</p>
+<p>Concurrency requires careful planning for optimal performance and throughput.</p>
+<h2 id="functional-isolation-of-legacy-code">Functional isolation of legacy code</h2>
+<p>Node.js supports "functional isolation" using "worker-threads" technology. Each worker will run in a separate
+Chromium <code>V8</code> engine with isolated memory space.</p>
+<p>For some open source or legacy libraries that you have no control to convert into Composable functions, you can
+encapsulate them into a separate worker thread and expose their capabilities as Composable functions.</p>
+<p>For more details, please refer to:</p>
+<ol>
+<li><a href="../CHAPTER-4/#using-worker-threads">Composable Developer Guide Chapter-4</a></li>
+<li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers">Mozilla Developer Guide</a></li>
+<li><a href="https://nodejs.org/api/worker_threads.html">Node.js Worker Thread API Documentation</a></li>
+</ol>
+<p>A worked example is available in <a href="https://github.com/Accenture/mercury-composable-examples">Composable-example</a></p>
+<p>The composable-worker.ts class may be used as a template:
+<a href="https://github.com/Accenture/mercury-composable-examples/blob/main/node/composable-example/src/workers/composable-worker.ts">ComposableWorker</a>
+<br/></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Chapter-1</th>
+<th style="text-align: center;">Home</th>
+<th style="text-align: center;">Chapter-3</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><a href="../CHAPTER-1/">Introduction</a></td>
+<td style="text-align: center;"><a href="../TABLE-OF-CONTENTS/">Table of Contents</a></td>
+<td style="text-align: center;"><a href="../CHAPTER-3/">REST Automation</a></td>
+</tr>
+</tbody>
+</table>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../CHAPTER-1/" class="btn btn-neutral float-left" title="Chapter-1"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../CHAPTER-3/" class="btn btn-neutral float-right" title="Chapter-3">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../CHAPTER-1/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../CHAPTER-3/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

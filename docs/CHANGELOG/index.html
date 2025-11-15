@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://github.com/accenture/mercury-nodejs/CHANGELOG/" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Release notes - Composable for Node.js</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Release notes";
+        var mkdocs_page_input_path = "CHANGELOG.md";
+        var mkdocs_page_url = "/accenture/mercury-nodejs/CHANGELOG/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Composable for Node.js
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/METHODOLOGY/">Methodology</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/CHAPTER-1/">Chapter-1</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/CHAPTER-2/">Chapter-2</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/CHAPTER-3/">Chapter-3</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/CHAPTER-4/">Chapter-4</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/CHAPTER-5/">Chapter-5</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/CHAPTER-6/">Chapter-6</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/CHAPTER-7/">Chapter-7</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/CHAPTER-8/">Chapter-8</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/APPENDIX-I/">Appendix-I</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/APPENDIX-II/">Appendix-II</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Release notes</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#version-4328-11122025">Version 4.3.28, 11/12/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-4318-8262025">Version 4.3.18, 8/26/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_1">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_1">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_1">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-4314-8192025">Version 4.3.14, 8/19/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_2">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_2">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_2">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-436-8132025">Version 4.3.6, 8/13/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_3">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_3">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_3">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-435-7142025">Version 4.3.5, 7/14/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_4">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_4">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_4">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-434-752025">Version 4.3.4, 7/5/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_5">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_5">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_5">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-433-6262025">Version 4.3.3, 6/26/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_6">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_6">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_6">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-431-6242025">Version 4.3.1, 6/24/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_7">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_7">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_7">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-430-6212025">Version 4.3.0, 6/21/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_8">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_8">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_8">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-4246-622025">Version 4.2.46, 6/2/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_9">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_9">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_9">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-4245-5312025">Version 4.2.45, 5/31/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_10">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_10">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_10">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-4241-5172025">Version 4.2.41, 5/17/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_11">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_11">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_11">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-4240-5102025">Version 4.2.40, 5/10/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_12">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_12">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_12">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-4239-532025">Version 4.2.39, 5/3/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_13">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_13">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_13">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-4238-522025">Version 4.2.38, 5/2/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_14">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_14">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_14">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-4237-4292025">Version 4.2.37, 4/29/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_15">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_15">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_15">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-4236-4282025">Version 4.2.36, 4/28/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_16">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_16">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_16">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-4235-4252025">Version 4.2.35, 4/25/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_17">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_17">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_17">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-4228-4172025">Version 4.2.28, 4/17/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_18">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_18">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_18">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-4227-3312025">Version 4.2.27, 3/31/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_19">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_19">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_19">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-4223-3122025">Version 4.2.23, 3/12/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_20">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_20">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_20">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-4222-3112025">Version 4.2.22, 3/11/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_21">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_21">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_21">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-4221-392025">Version 4.2.21, 3/9/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_22">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_22">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_22">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-4218-2212025">Version 4.2.18, 2/21/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_23">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_23">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_23">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-4217-2202025">Version 4.2.17, 2/20/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_24">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_24">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_24">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-4216-2182025">Version 4.2.16, 2/18/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_25">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_25">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_25">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-4215-2152025">Version 4.2.15, 2/15/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_26">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_26">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_26">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-4214-2142025">Version 4.2.14, 2/14/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_27">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_27">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_27">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-4213-2132025">Version 4.2.13, 2/13/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_28">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_28">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_28">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-4210-2112025">Version 4.2.10, 2/11/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_29">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_29">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_29">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-429-292025">Version 4.2.9, 2/9/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_30">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_30">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_30">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-427-242025">Version 4.2.7, 2/4/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_31">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_31">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_31">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-426-232025">Version 4.2.6, 2/3/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_32">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_32">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_32">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-425-222025">Version 4.2.5, 2/2/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_33">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_33">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_33">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-423-1282025">Version 4.2.3, 1/28/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_34">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_34">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_34">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-422-1222025">Version 4.2.2, 1/22/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_35">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_35">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_35">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-421-1212025">Version 4.2.1, 1/21/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_36">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_36">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_36">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-420-1202025">Version 4.2.0, 1/20/2025</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_37">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_37">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_37">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-411-12222024">Version 4.1.1, 12/22/2024</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_38">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_38">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_38">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-410-12202024">Version 4.1.0, 12/20/2024</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_39">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_39">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_39">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-401-12162024">Version 4.0.1, 12/16/2024</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_40">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_40">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_40">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-400-1292024">Version 4.0.0, 12/9/2024</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_41">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_41">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_41">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-300-6102023">Version 3.0.0, 6/10/2023</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_42">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_42">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_42">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-100-5302022">Version 1.0.0, 5/30/2022</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_43">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_43">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_43">Changed</a>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../arch-decisions/DESIGN-NOTES/">Design notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../INCLUSIVITY/">Inclusivity</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CODE_OF_CONDUCT/">Code of Conduct</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CONTRIBUTING/">Contribution</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/TABLE-OF-CONTENTS/">Contents</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Composable for Node.js</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Release notes</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="changelog">Changelog</h1>
+<p>All notable changes to this project will be documented in this file.</p>
+<p>The format is based on <a href="https://keepachangelog.com/en/1.0.0/">Keep a Changelog</a>,
+and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semantic Versioning</a>.</p>
+<blockquote>
+<p><em>Note</em>: Some version numbers may be skipped to align feature set with the Java version.</p>
+</blockquote>
+<hr />
+<h2 id="version-4328-11122025">Version 4.3.28, 11/12/2025</h2>
+<h3 id="added">Added</h3>
+<p>N/A</p>
+<h3 id="removed">Removed</h3>
+<p>N/A</p>
+<h3 id="changed">Changed</h3>
+<p><em>Bugfix</em>: The input data mapping behavior for regular task and subflow was inconsistent.
+Earlier, subflow's input data mapping requires the user to add a "body" namespace.</p>
+<p>This release makes subflow executes like a regular task so that the input payload
+can be mapped to the input argument of the first task of a subflow without requiring
+a redundant "body" namespace.</p>
+<p>Input headers (namespace input.header) are also mapped correctly to the first task
+of a subflow.</p>
+<p>Updated unit tests to demonstrate the consistent input data mapping behavior for subflows.</p>
+<p>Chapter 4 of developer guide is also updated.</p>
+<hr />
+<h2 id="version-4318-8262025">Version 4.3.18, 8/26/2025</h2>
+<h3 id="added_1">Added</h3>
+<p>Validation logic to filter out CR/LF for headers, cookies and session info when creating
+an AsyncHttpRequest from a map. For example, when using the "AsyncHttpClient
+by configuration" method, the AsyncHttpRequest is created by a map of key-values.
+The additional validation prevents creating headers and cookies with CR/LF accidentially.</p>
+<p>Support runtime string substitution using a model variable.</p>
+<p>StringBuilder class for easy concatenation of strings and other primitives into a single string.</p>
+<h3 id="removed_1">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_1">Changed</h3>
+<p>Streamlined subflow routing in TaskExecutor of the event-script-engine.
+Changed subflow RPC call to asynchronous callback for performance optimization.</p>
+<hr />
+<h2 id="version-4314-8192025">Version 4.3.14, 8/19/2025</h2>
+<h3 id="added_2">Added</h3>
+<p>To reduce ambiguity in event script configuration, created an alias for <code>model.parent.</code> namespace as <code>model.root.</code></p>
+<p>The alias is implemented using a memory reference for lowest memory and processing overheads.</p>
+<h3 id="removed_2">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_2">Changed</h3>
+<p>CompileFlows and TaskExecutor classes are updated to support the <code>model.root.</code> namespace alias.</p>
+<hr />
+<h2 id="version-436-8132025">Version 4.3.6, 8/13/2025</h2>
+<h3 id="added_3">Added</h3>
+<p>Support json file from classpath and local file system in input data mapping</p>
+<h3 id="removed_3">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_3">Changed</h3>
+<p>N/A</p>
+<hr />
+<h2 id="version-435-7142025">Version 4.3.5, 7/14/2025</h2>
+<h3 id="added_4">Added</h3>
+<p>N/A</p>
+<h3 id="removed_4">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_4">Changed</h3>
+<p>Rename "test" folder to "tests"</p>
+<hr />
+<h2 id="version-434-752025">Version 4.3.4, 7/5/2025</h2>
+<h3 id="added_5">Added</h3>
+<ol>
+<li>util.portReady(host, port) API to test if an external server is available</li>
+<li>Minimalist Kafka Flow adapter for inbound and outbound messages</li>
+<li>Kafka emulator for unit tests</li>
+<li>"Pseudo annotation" for unit tests</li>
+</ol>
+<h3 id="removed_5">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_5">Changed</h3>
+<p>TypeScriptClassScanner updated to support preloader generation for the test folder</p>
+<hr />
+<h2 id="version-433-6262025">Version 4.3.3, 6/26/2025</h2>
+<h3 id="added_6">Added</h3>
+<ol>
+<li>Support file "append" mode in output data mapping</li>
+<li>Dynamic fork-n-join feature for parallel processing of a list of elements by multiple instances of the same task</li>
+</ol>
+<h3 id="removed_6">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_6">Changed</h3>
+<p>Improve CompileFlow error message. The new error message will tell where the error comes from.</p>
+<hr />
+<h2 id="version-431-6242025">Version 4.3.1, 6/24/2025</h2>
+<h3 id="added_7">Added</h3>
+<p>Worked example and template to encapsulate worker thread as a composable function</p>
+<h3 id="removed_7">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_7">Changed</h3>
+<p>N/A</p>
+<hr />
+<h2 id="version-430-6212025">Version 4.3.0, 6/21/2025</h2>
+<h3 id="added_8">Added</h3>
+<p>N/A</p>
+<h3 id="removed_8">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_8">Changed</h3>
+<p>Comprehensive refactoring applies to both JavaScript and TypeScript in the whole project
+to comply with SonarQube's complexity recommendation of 15.</p>
+<p>Complex code blocks are decomposed into multiple smaller methods to improve readability.</p>
+<p>Singleton constructors are updated with the JavaScript's native double question mark
+to check for null and undefined value.</p>
+<p>Regression tests validated.</p>
+<hr />
+<h2 id="version-4246-622025">Version 4.2.46, 6/2/2025</h2>
+<h3 id="added_9">Added</h3>
+<p>N/A</p>
+<h3 id="removed_9">Removed</h3>
+<p>The "npm run pull" command is no longer required</p>
+<h3 id="changed_9">Changed</h3>
+<p>Improved negate type mapping logic</p>
+<hr />
+<h2 id="version-4245-5312025">Version 4.2.45, 5/31/2025</h2>
+<h3 id="added_10">Added</h3>
+<ol>
+<li>"Empty array index" syntax in data mapping to append an element to an array in a dataset</li>
+<li>Allow text constant in data mapping to contain any characters including the mapping signature "-&gt;"</li>
+</ol>
+<h3 id="removed_10">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_10">Changed</h3>
+<p>Bugfix for certain edge cases in detecting a non-exist key in a MultiLevelMap</p>
+<hr />
+<h2 id="version-4241-5172025">Version 4.2.41, 5/17/2025</h2>
+<h3 id="added_11">Added</h3>
+<ol>
+<li>dynamic model variable as index to address an array element (support LHS and RHS mapping)</li>
+<li>supports library resource file discovery in the configuration management system</li>
+<li>updated documentation of configuration management in Appendix-I of developer guide</li>
+</ol>
+<h3 id="removed_11">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_11">Changed</h3>
+<p>N/A</p>
+<hr />
+<h2 id="version-4240-5102025">Version 4.2.40, 5/10/2025</h2>
+<h3 id="added_12">Added</h3>
+<ol>
+<li>support of "flows" in the "modules.autostart" feature</li>
+<li>"length" type matching feature</li>
+<li>"dynamic model variables in for-loop" - model variable in comparator's left and/or right hand sides</li>
+</ol>
+<h3 id="removed_12">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_12">Changed</h3>
+<p>Simplified configuration management system to support using the "test/resources" folder
+to override the "src/resources" folder during unit tests.</p>
+<hr />
+<h2 id="version-4239-532025">Version 4.2.39, 5/3/2025</h2>
+<h3 id="added_13">Added</h3>
+<p>Automatically start main composable modules and libaries:
+When ComposableLoader initializes, it sends start commands to configured "main application"
+or "library" modules.</p>
+<h3 id="removed_13">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_13">Changed</h3>
+<p>N/A</p>
+<hr />
+<h2 id="version-4238-522025">Version 4.2.38, 5/2/2025</h2>
+<h3 id="added_14">Added</h3>
+<p>N/A</p>
+<h3 id="removed_14">Removed</h3>
+<p>examples subproject</p>
+<h3 id="changed_14">Changed</h3>
+<p>update vitest.config.ts</p>
+<hr />
+<h2 id="version-4237-4292025">Version 4.2.37, 4/29/2025</h2>
+<h3 id="added_15">Added</h3>
+<p>vitest</p>
+<h3 id="removed_15">Removed</h3>
+<p>jest</p>
+<h3 id="changed_15">Changed</h3>
+<p>minor adjustment in unit tests for vitest syntax</p>
+<hr />
+<h2 id="version-4236-4282025">Version 4.2.36, 4/28/2025</h2>
+<h3 id="added_16">Added</h3>
+<p>Express static file handler</p>
+<h3 id="removed_16">Removed</h3>
+<ol>
+<li>REST automation static file handler</li>
+<li>Custom MIME type configuration</li>
+</ol>
+<h3 id="changed_16">Changed</h3>
+<p>N/A</p>
+<hr />
+<h2 id="version-4235-4252025">Version 4.2.35, 4/25/2025</h2>
+<h3 id="added_17">Added</h3>
+<ol>
+<li>Support "matrix parameters" and "hash parameters" in HTTP request URI in platform-core</li>
+<li>Exported the FlowExecutor class in index.ts</li>
+</ol>
+<h3 id="removed_17">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_17">Changed</h3>
+<ol>
+<li>Bugfix for pipeline that contains only one task</li>
+<li>Rename variable 'flow' to 'template' in FlowInstance</li>
+<li>Apply path traversal avoidance using the Utility's getDecodedUri(path) method
+   to each incoming HTTP request</li>
+</ol>
+<hr />
+<h2 id="version-4228-4172025">Version 4.2.28, 4/17/2025</h2>
+<h3 id="added_18">Added</h3>
+<p>Support 'Classpath' parameter in LHS of output data mapping</p>
+<h3 id="removed_18">Removed</h3>
+<p>HTML escape characters in URI path handling in AsyncHttpClient</p>
+<h3 id="changed_18">Changed</h3>
+<p>N/A</p>
+<hr />
+<h2 id="version-4227-3312025">Version 4.2.27, 3/31/2025</h2>
+<h3 id="added_19">Added</h3>
+<ol>
+<li>
+<p>getError() method added in EventEnvelope to return encoded error message.
+   This is required for distributed trace processing and proper error handling of subflows.</p>
+</li>
+<li>
+<p>Generic resilience handler with alternative path and backoff features</p>
+</li>
+</ol>
+<h3 id="removed_19">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_19">Changed</h3>
+<p>Delete file when mapping a null value from the LHS to the RHS that is defined as a file,
+thus allowing clearing of temporary data files in a flow.</p>
+<hr />
+<h2 id="version-4223-3122025">Version 4.2.23, 3/12/2025</h2>
+<h3 id="added_20">Added</h3>
+<p>N/A</p>
+<h3 id="removed_20">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_20">Changed</h3>
+<p>For security, the parent state machine (namespace "model.parent") is a protected resource.
+It can only be shared by the primary flow and all sub-flow instances that are instantiated from it.</p>
+<hr />
+<h2 id="version-4222-3112025">Version 4.2.22, 3/11/2025</h2>
+<h3 id="added_21">Added</h3>
+<p>N/A</p>
+<h3 id="removed_21">Removed</h3>
+<p>Dependency for "execa" is not required</p>
+<h3 id="changed_21">Changed</h3>
+<p>All sub-flows instantiated from a primary flow can access the same parent state machine
+using the "model.parent" namespace</p>
+<hr />
+<h2 id="version-4221-392025">Version 4.2.21, 3/9/2025</h2>
+<h3 id="added_22">Added</h3>
+<ol>
+<li>Support flow and function for external state machine</li>
+<li>Parent state machine for sub-flow</li>
+<li>Validation rules to reject access to the whole model or parent namespace</li>
+</ol>
+<h3 id="removed_22">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_22">Changed</h3>
+<p>N/A</p>
+<hr />
+<h2 id="version-4218-2212025">Version 4.2.18, 2/21/2025</h2>
+<h3 id="added_23">Added</h3>
+<ol>
+<li>simple type matching feature is extended with a new string 'concat' method</li>
+<li>default REST endpoints for /api/event and actuator services</li>
+</ol>
+<h3 id="removed_23">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_23">Changed</h3>
+<ol>
+<li>Sort REST endpoints for orderly loading</li>
+<li>Drop "async.http.request" RPC traces to reduce observability noise</li>
+</ol>
+<hr />
+<h2 id="version-4217-2202025">Version 4.2.17, 2/20/2025</h2>
+<h3 id="added_24">Added</h3>
+<p>Support scanning of TypeScript source file and compiled JavaScript files
+with class scanners (TypeScriptClassScanner and JavaScriptClassScanner)</p>
+<h3 id="removed_24">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_24">Changed</h3>
+<p>preloader.js and developer guide updated</p>
+<hr />
+<h2 id="version-4216-2182025">Version 4.2.16, 2/18/2025</h2>
+<h3 id="added_25">Added</h3>
+<p>N/A</p>
+<h3 id="removed_25">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_25">Changed</h3>
+<ol>
+<li>Improved class scanner and loader</li>
+<li>Filter out event metadata to propagate as HTTP response headers</li>
+</ol>
+<hr />
+<h2 id="version-4215-2152025">Version 4.2.15, 2/15/2025</h2>
+<h3 id="added_26">Added</h3>
+<ol>
+<li>Extract version from package.json to override info.app.version in application.yml</li>
+<li>Fork-n-Join parallel RPC request API in PostOffice</li>
+</ol>
+<h3 id="removed_26">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_26">Changed</h3>
+<p>Updated Developer Guide's Chapter 5 to describe publishing mercury-composable core
+library to enterprise npm artifactory</p>
+<hr />
+<h2 id="version-4214-2142025">Version 4.2.14, 2/14/2025</h2>
+<h3 id="added_27">Added</h3>
+<ol>
+<li>Log application initialization time</li>
+<li>Two additional actuator endpoints (/info/routes and /env)</li>
+</ol>
+<h3 id="removed_27">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_27">Changed</h3>
+<ol>
+<li>use different route names for various actuator services to avoid hardcode of URLs</li>
+<li>bugfix for Singleton pattern </li>
+</ol>
+<hr />
+<h2 id="version-4213-2132025">Version 4.2.13, 2/13/2025</h2>
+<h3 id="added_28">Added</h3>
+<p>Actuator REST endpoints are now configurable in rest.yaml</p>
+<h3 id="removed_28">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_28">Changed</h3>
+<p>Update actuator services to serve REST requests directly</p>
+<hr />
+<h2 id="version-4210-2112025">Version 4.2.10, 2/11/2025</h2>
+<h3 id="added_29">Added</h3>
+<p>N/A</p>
+<h3 id="removed_29">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_29">Changed</h3>
+<p>Update Actuator function and REST automation's static HTML file handler
+to address 2 security vulnerabilities reported by a Snyk scan.</p>
+<hr />
+<h2 id="version-429-292025">Version 4.2.9, 2/9/2025</h2>
+<h3 id="added_30">Added</h3>
+<ol>
+<li>uuid v4 generator in the "simple type matching" feature</li>
+<li>event annotation feature</li>
+<li>tagging feature in the EventEnvelope</li>
+</ol>
+<h3 id="removed_30">Removed</h3>
+<p>The "extra" field has been retired from EventEnvelope</p>
+<h3 id="changed_30">Changed</h3>
+<p>Filter out protected metadata from RPC response to user functions
+(my_route, my_instance, my_trace_id, my_trace_path)</p>
+<hr />
+<h2 id="version-427-242025">Version 4.2.7, 2/4/2025</h2>
+<h3 id="added_31">Added</h3>
+<p>N/A</p>
+<h3 id="removed_31">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_31">Changed</h3>
+<p>endFlow method of TaskExecutor sends event to distributed trace instead of logging</p>
+<hr />
+<h2 id="version-426-232025">Version 4.2.6, 2/3/2025</h2>
+<h3 id="added_32">Added</h3>
+<p>Added log.always feature in logger</p>
+<h3 id="removed_32">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_32">Changed</h3>
+<p>Update distributed trace function to log in "always" mode</p>
+<hr />
+<h2 id="version-425-222025">Version 4.2.5, 2/2/2025</h2>
+<h3 id="added_33">Added</h3>
+<p>Add 3-part syntax for Event Script's data mapping processing.</p>
+<p>Supports the following data mapping syntax:</p>
+<ol>
+<li>LHS -&gt; RHS</li>
+<li>LHS -&gt; model.variable -&gt; RHS</li>
+</ol>
+<h3 id="removed_33">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_33">Changed</h3>
+<ol>
+<li>Make input event immutable to PostOffice's send and request API</li>
+<li>Consistent temporary stream folder name for Java and Node.js under /tmp/composable</li>
+</ol>
+<hr />
+<h2 id="version-423-1282025">Version 4.2.3, 1/28/2025</h2>
+<h3 id="added_34">Added</h3>
+<p>Support of negate operator of a model value in event script added to the "simple type matching" feature</p>
+<h3 id="removed_34">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_34">Changed</h3>
+<p>N/A</p>
+<hr />
+<h2 id="version-422-1222025">Version 4.2.2, 1/22/2025</h2>
+<h3 id="added_35">Added</h3>
+<p>N/A</p>
+<h3 id="removed_35">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_35">Changed</h3>
+<p>For consistency with the Composable Java version, do not use pretty JSON print when log.format=text</p>
+<hr />
+<h2 id="version-421-1212025">Version 4.2.1, 1/21/2025</h2>
+<h3 id="added_36">Added</h3>
+<p>N/A</p>
+<h3 id="removed_36">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_36">Changed</h3>
+<p>reconfigure logger to json or compact format early when app starts</p>
+<hr />
+<h2 id="version-420-1202025">Version 4.2.0, 1/20/2025</h2>
+<p>This is a milestone release for consistent features and behaviors between
+Java and Node.js versions</p>
+<h3 id="added_37">Added</h3>
+<ol>
+<li>Composable methodology in developer guide</li>
+<li>Event Script engine for event choreography</li>
+<li>Composable example application</li>
+</ol>
+<h3 id="removed_37">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_37">Changed</h3>
+<p>N/A</p>
+<hr />
+<h2 id="version-411-12222024">Version 4.1.1, 12/22/2024</h2>
+<h3 id="added_38">Added</h3>
+<ol>
+<li>Composable class scanner for the source folder</li>
+<li>Added "web.component.scan" parameter to support scanning of dependency libaries</li>
+</ol>
+<h3 id="removed_38">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_38">Changed</h3>
+<p>N/A</p>
+<hr />
+<h2 id="version-410-12202024">Version 4.1.0, 12/20/2024</h2>
+<h3 id="added_39">Added</h3>
+<p>AppConfig will resolve key-values from system properties and environment variables at startup</p>
+<h3 id="removed_39">Removed</h3>
+<p>Eliminate preload.yaml configuration file</p>
+<h3 id="changed_39">Changed</h3>
+<ol>
+<li>Streamlined configuration management</li>
+<li>Updated preload annotation for developer to define concurrency</li>
+</ol>
+<hr />
+<h2 id="version-401-12162024">Version 4.0.1, 12/16/2024</h2>
+<h3 id="added_40">Added</h3>
+<p>Support parsing of multiple environment variables and base system properties for
+a single key-value in Config Reader.</p>
+<h3 id="removed_40">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_40">Changed</h3>
+<ol>
+<li>Improved environment variable parsing logic and detection of config loops.</li>
+<li>Compatibility with Unix, Mac and Windows OS</li>
+</ol>
+<hr />
+<h2 id="version-400-1292024">Version 4.0.0, 12/9/2024</h2>
+<p>Upgraded to sync with Mercury-Composable for the foundation event-driven and Event-over-HTTP
+design. Tested with Node.js version 22.12.0 (LTS). Backward compatible to version 20.18.1 (LTS).</p>
+<p>Event-over-HTTP compatibility tests conducted with Mercury-Composable version 4.0.32.</p>
+<h3 id="added_41">Added</h3>
+<p>N/A</p>
+<h3 id="removed_41">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_41">Changed</h3>
+<ol>
+<li>Refactored Event-over-HTTP to use standardized HTTP headers X-Stream-Id and X-Ttl</li>
+<li>Updated OSS dependencies to latest version</li>
+<li>Configured for EsLint version 9.16.0</li>
+</ol>
+<hr />
+<h2 id="version-300-6102023">Version 3.0.0, 6/10/2023</h2>
+<p>Ported composable core features from Mercury 3.0 Java version</p>
+<h3 id="added_42">Added</h3>
+<ol>
+<li>Unit and end-to-end tests for Mercury 3.0 Node.js and for the example app project.</li>
+<li>For backward compatibility, added optional "setupMiddleware" method in the rest-automation module.</li>
+</ol>
+<h3 id="removed_42">Removed</h3>
+<p>Threshold feature in REST automation</p>
+<h3 id="changed_42">Changed</h3>
+<p>N/A</p>
+<hr />
+<h2 id="version-100-5302022">Version 1.0.0, 5/30/2022</h2>
+<h3 id="added_43">Added</h3>
+<p>Minimal viable product</p>
+<h3 id="removed_43">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_43">Changed</h3>
+<p>N/A</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../guides/APPENDIX-II/" class="btn btn-neutral float-left" title="Appendix-II"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../arch-decisions/DESIGN-NOTES/" class="btn btn-neutral float-right" title="Design notes">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../guides/APPENDIX-II/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../arch-decisions/DESIGN-NOTES/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

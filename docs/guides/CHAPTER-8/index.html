@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://github.com/accenture/mercury-nodejs/guides/CHAPTER-8/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Chapter-8 - Composable for Node.js</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Chapter-8";
+        var mkdocs_page_input_path = "guides/CHAPTER-8.md";
+        var mkdocs_page_url = "/accenture/mercury-nodejs/guides/CHAPTER-8/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Composable for Node.js
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../METHODOLOGY/">Methodology</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-1/">Chapter-1</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-2/">Chapter-2</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-3/">Chapter-3</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-4/">Chapter-4</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-5/">Chapter-5</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-6/">Chapter-6</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-7/">Chapter-7</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Chapter-8</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#what-is-a-flow-adapter">What is a Flow Adapter?</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#built-in-http-flow-adapter">Built-in HTTP Flow Adapter</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#minimalist-kafka-flow-adapter">Minimalist Kafka Flow Adapter</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#use-of-worker-thread-technology">Use of worker thread technology</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#sample-code">Sample code</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-I/">Appendix-I</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-II/">Appendix-II</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CHANGELOG/">Release notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../arch-decisions/DESIGN-NOTES/">Design notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../INCLUSIVITY/">Inclusivity</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CODE_OF_CONDUCT/">Code of Conduct</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CONTRIBUTING/">Contribution</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../TABLE-OF-CONTENTS/">Contents</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Composable for Node.js</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Chapter-8</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="writing-custom-flow-adapters">Writing custom Flow Adapters</h1>
+<h2 id="what-is-a-flow-adapter">What is a Flow Adapter?</h2>
+<blockquote>
+<p>Figure 1 - Event Flow Diagram</p>
+</blockquote>
+<p><img alt="Event Flow Diagram" src="../diagrams/event-flow-diagram.png" /></p>
+<p>As shown in Figure 1, a transaction flow diagram has a start point and an end point. Each processing step is called
+a "task". Some tasks would do calculation and some tasks would make decision to pass to the next steps.</p>
+<p>Each task is a composable function that is independent of each other. The system uses a user defined event "flow"
+configuration to connect the tasks together to handle a certain use case, query or transaction.</p>
+<p>A "Flow Adapter" provides a gateway between the external world and the internal world of a flow connecting the tasks.</p>
+<h2 id="built-in-http-flow-adapter">Built-in HTTP Flow Adapter</h2>
+<p>The system has a built-in "HTTP Flow Adapter" that converts a REST request into an event that is passed to
+the first task of a flow. When the flow finishes, the result of the last task will be converted as a REST response
+to the HTTP Flow Adapter for onward delivery to the caller.</p>
+<h2 id="minimalist-kafka-flow-adapter">Minimalist Kafka Flow Adapter</h2>
+<p>A minimalist Kafka Flow Adapter application is available in
+<a href="https://github.com/Accenture/mercury-composable-examples">Composable-example</a></p>
+<p>Please clone the above example repository and review the subproject "minimalist-kafka-adapter" for details.</p>
+<p>The sample Kafka Flow Adapter is written as a demo application for you to visualize how a Kafka Flow Adapter works.</p>
+<p>You may update the build script, remove the example "profile" demo classes and compile the project as a reusable
+composable library.</p>
+<p><em>Configurable setup of consumers and producer</em></p>
+<p>You can define the "topic to task/flow" mapping in the kafka-adapter.yaml file.</p>
+<p>For example, the sample kafka-adapter.yaml in the "tests" folder tells the system to route inbound messages from the
+Kafka topic "hello.world" to the flow "get-profile-kafka" and from the topic "hello.notice" to the task 
+"simple.topic.listener". Note that a flow has the "flow://" protocol prefix.</p>
+<p>If you need to publish messages to Kafka topics, turn on the producer feature with the "producer.enabled" parameter.</p>
+<pre><code class="language-yaml">consumer:
+  - topic: 'hello.world'
+    target: 'flow://get-profile-kafka'
+    group: 'group-100'
+    tracing: true
+
+  - topic: 'hello.notice'
+    target: 'simple.topic.listener'
+    group: 'group-100'
+    tracing: true    
+
+producer.enabled: true
+</code></pre>
+<p><em>Kafka emulator</em></p>
+<p>The system can emulate a Kafka server in unit tests. Just turn on the "emulate.kafka" parameter in application.yml 
+if you need it.</p>
+<pre><code class="language-yaml">#
+# To use Kafka emulator instead of a Kafka cluster or standalone Kafka server,
+# set emulate.kafka to true
+#
+emulate.kafka: true
+</code></pre>
+<p>The Kafka emulator is provided as a convenient feature for unit tests. It is not designed as a replacement of a Kafka
+broker. The emulation offers a single partition per topic and the offset is monotonically increasing for illustration
+purpose only.</p>
+<p>Topics are automatically created.</p>
+<p><em>Kafka helper scripts</em></p>
+<p>In the "helpers" folder, there are three JavaScript programs you may use when trying the minimalist Kafka Flow Adapter
+as a main application. Please follow the README file in the minimalist-kafka-adapter subproject to test it.</p>
+<h2 id="use-of-worker-thread-technology">Use of worker thread technology</h2>
+<p>The minimalist Kafka Adapter uses the Node's worker thread feature to encapsulate the KafkaJS library.
+This functional isolation runs the KafkaJS library in a sandbox memory space separated from the Kafka Flow Adapter
+itself.</p>
+<p>Since Kafka is resource intensive, this functional isolation is an architectural best practice.</p>
+<p>The composable function "kafka.adapter" encapsulates a Kafka Worker that runs in a separate "worker thread". The Kafka 
+consumers and producer are served by two composable functions using the routes <code>kafka.adapter</code> and <code>kafka.notification</code>
+respectively.</p>
+<p><em>Consumer wrapper</em>:</p>
+<pre><code class="language-javascript">import { Composable, EventEnvelope, preload } from 'mercury-composable';
+import { KafkaWorker } from '../workers/kafka-worker.js';
+
+export class KafkaAdapter implements Composable {
+
+    // Composable worker is configured as an interceptor so its responses are ignored.
+    // You can check if the incoming request has a &quot;replyTo&quot; and then send a response accordingly.
+    @preload('kafka.adapter', 10, true, true)
+    initialize(): Composable {
+        return this;
+    }
+
+    async handleEvent(evt: EventEnvelope) {
+        // deferred startup until triggered by autostart or your own setup task
+        if ('start' == evt.getHeader('type')) {
+            KafkaWorker.workerBridge();
+        }
+        // sending the original event to the worker to preserve metadata for tracing and correlation
+        KafkaWorker.sendEventToWorker(evt);
+        return null;
+    }
+}
+</code></pre>
+<p><em>Producer wrapper</em>:</p>
+<pre><code class="language-javascript">import { Composable, EventEnvelope, AppException, preload, PostOffice } from 'mercury-composable';
+
+/**
+ * This composable function sends outbound messages from the caller to any Kafka topics
+ */
+export class KafkaNotification implements Composable {
+
+    @preload('kafka.notification', 10)
+    initialize(): Composable {
+        return this;
+    }
+
+    async handleEvent(evt: EventEnvelope) {     
+        if (evt.getHeader('topic') &amp;&amp; evt.getBody() instanceof Object) {
+            const body = evt.getBody() as object;
+            if ('content' in body) {
+                // convert traceId into x-trace-id header
+                if (evt.getTraceId()) {
+                    evt.setHeader('x-trace-id', evt.getTraceId());
+                } 
+                // ask 'kafka.adapter' to send a message to a Kafka topic asynchronously
+                const req = new EventEnvelope().setTo('kafka.adapter').setBody(evt.getBody()).setHeaders(evt.getHeaders());
+                // use PostOffice without tracking to reduce observability noise when forwarding request to 'kafka.adapter'
+                const po = new PostOffice();
+                await po.send(req);
+                return {'message': 'Event sent', 'topic': evt.getHeader('topic'), 'time':  new Date()};
+            }
+        }
+        throw new AppException(400, 'Input must contain topic in headers and content in body');        
+    }
+}
+</code></pre>
+<blockquote>
+<p><em>Note</em>: The 'kafka.notification' function in turn uses the 'kafka.adapter' function to publish Kafka messages.</p>
+</blockquote>
+<h2 id="sample-code">Sample code</h2>
+<p>The minimalist Kafka Flow Adapter can be used as a template to write your own "Flow Adapters". Some flow adapters
+do not need "worker thread" technology for functional isolation if you have control of the underlying dependencies. 
+For those libraries that are complex and you have no control over its source code, "worker thread" technology is a 
+good choice.</p>
+<p><br/></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Chapter-7</th>
+<th style="text-align: center;">Home</th>
+<th style="text-align: center;">Appendix-I</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><a href="../CHAPTER-7/">API Overview</a></td>
+<td style="text-align: center;"><a href="../TABLE-OF-CONTENTS/">Table of Contents</a></td>
+<td style="text-align: center;"><a href="../APPENDIX-I/">Appendix-I</a></td>
+</tr>
+</tbody>
+</table>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../CHAPTER-7/" class="btn btn-neutral float-left" title="Chapter-7"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../APPENDIX-I/" class="btn btn-neutral float-right" title="Appendix-I">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../CHAPTER-7/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../APPENDIX-I/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

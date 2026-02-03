@@ -471,8 +471,8 @@ export class Utility {
         let text = original;
         while (true) {
             const bracketStart = text.lastIndexOf(begin);
-            const bracketEnd = text.lastIndexOf(end);
-            if (bracketStart != -1 && bracketEnd != -1 && bracketEnd > bracketStart) {
+            const bracketEnd = bracketStart == -1 ? -1 : text.indexOf(end, bracketStart);
+            if (bracketStart != -1 && bracketEnd != -1) {
                 result.push(new VarSegment(bracketStart, bracketEnd+1));
                 text = original.substring(0, bracketStart);
             } else if (bracketStart != -1) {

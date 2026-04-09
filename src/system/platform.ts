@@ -11,6 +11,7 @@ import { EventApiService } from '../services/event-api.js';
 import { TemporaryInbox } from '../services/temporary-inbox.js';
 import { EventEnvelope } from '../models/event-envelope.js';
 import { AppException } from '../models/app-exception.js';
+import { Validator } from '../models/composable.js';
 import { AppConfig, ConfigReader } from '../util/config-reader.js';
 import { ContentTypeResolver } from '../util/content-type-resolver.js';
 import { EventHttpResolver } from '../util/event-http-resolver.js';
@@ -301,10 +302,13 @@ class ServiceManager {
     private readonly route: string;
     private readonly isPrivate: boolean;
     private readonly interceptor: boolean;
+    private readonly inputSchema?: Validator;
+    private readonly outputSchema?: Validator;
     private readonly eventQueue = [];
     private readonly workers = [];
 
-    constructor(route: string, listener: object, instances=1, isPrivate=false, interceptor=false) {
+    constructor(route: string, listener: object, instances=1, isPrivate=false, interceptor=false,
+                inputSchema?: Validator, outputSchema?: Validator) {
         const hasRoute = !!route;
         const hasListener = !!listener;
         if (!hasRoute) {
@@ -319,6 +323,8 @@ class ServiceManager {
         this.route = route;
         this.isPrivate = isPrivate;
         this.interceptor = interceptor;
+        this.inputSchema = inputSchema;
+        this.outputSchema = outputSchema;
         const total = Math.max(1, instances);
         //
         // Worker event listeners
@@ -344,12 +350,43 @@ class ServiceManager {
                 if ('temporary.inbox' != route) {
                     evt.clearAnnotations();
                 }
+                // Input schema validation (strict: AppException 400 on failure)
+                if (this.inputSchema) {
+                    try {
+                        const parsed = this.inputSchema.parse(evt.getBody());
+                        evt.setBody(parsed as string | number | object | boolean | Buffer | Uint8Array);
+                    } catch (err) {
+                        const msg = err instanceof Error ? err.message : String(err);
+                        this.handleError(workerRoute, utc, evt,
+                            new AppException(400, `Input validation failed for ${route}: ${msg}`));
+                        return;
+                    }
+                }
                 const result = listener(evt);
                 // The listener must implement Composable interface.
                 // Anything else will be ignored.
-                if (Object(result).constructor == Promise) {                    
-                    result.then(v => this.handleResult(workerRoute, utc, start, evt, v))
-                          .catch(e => this.handleError(workerRoute, utc, evt, e));
+                if (Object(result).constructor == Promise) {
+                    result.then(v => {
+                        // Output schema validation (strict: AppException 500 on failure).
+                        // Interceptors are skipped because their return value is discarded.
+                        if (this.outputSchema && !this.interceptor) {
+                            try {
+                                if (v instanceof EventEnvelope) {
+                                    const parsed = this.outputSchema.parse(v.getBody());
+                                    v.setBody(parsed as string | number | object | boolean | Buffer | Uint8Array);
+                                } else {
+                                    v = this.outputSchema.parse(v);
+                                }
+                            } catch (err) {
+                                const msg = err instanceof Error ? err.message : String(err);
+                                this.handleError(workerRoute, utc, evt,
+                                    new AppException(500, `Output validation failed for ${route}: ${msg}`));
+                                return;
+                            }
+                        }
+                        this.handleResult(workerRoute, utc, start, evt, v);
+                    })
+                    .catch(e => this.handleError(workerRoute, utc, evt, e));
                 }
             });
         }
@@ -632,7 +669,11 @@ class EventSystem {
                     registry.save(route, composable, instances, isPrivate, interceptor);
                     composable.initialize();
                 }
-                const manager = new ServiceManager(route, composable.handleEvent, instances, isPrivate, interceptor);
+                const meta = registry.getMetadata(route) as Record<string, unknown> | undefined;
+                const inputSchema = meta?.['inputSchema'] as Validator | undefined;
+                const outputSchema = meta?.['outputSchema'] as Validator | undefined;
+                const manager = new ServiceManager(route, composable.handleEvent, instances, isPrivate, interceptor,
+                    inputSchema, outputSchema);
                 log.debug(`${manager.getRoute()} loaded`);
                 registry.load(route);
             } else {

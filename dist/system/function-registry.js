@@ -123,7 +123,19 @@ class SimpleRegistry {
         if (route && 'initialize' in that && 'handleEvent' in that
             && that['initialize'] instanceof Function && that['handleEvent'] instanceof Function) {
             this.registry.set(route, that);
-            this.metadata.set(route, { 'instances': instances, 'private': isPrivate, 'interceptor': interceptor });
+            const meta = {
+                'instances': instances, 'private': isPrivate, 'interceptor': interceptor
+            };
+            // Capture optional input/output schemas from the Composable instance.
+            // Duck-typed: anything exposing a .parse(value) function qualifies.
+            const anyThat = that;
+            if (anyThat['inputSchema'] && typeof anyThat['inputSchema'].parse === 'function') {
+                meta['inputSchema'] = anyThat['inputSchema'];
+            }
+            if (anyThat['outputSchema'] && typeof anyThat['outputSchema'].parse === 'function') {
+                meta['outputSchema'] = anyThat['outputSchema'];
+            }
+            this.metadata.set(route, meta);
         }
         else {
             throw new Error('Invalid Composable class');

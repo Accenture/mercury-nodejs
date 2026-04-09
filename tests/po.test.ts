@@ -1,5 +1,5 @@
 import { Logger } from '../src/util/logger';
-import { Composable } from '../src/models/composable';
+import { Composable, Validator } from '../src/models/composable';
 import { FunctionRegistry } from '../src/system/function-registry';
 import { PostOffice, Sender } from '../src/system/post-office';
 import { Platform } from '../src/system/platform';
@@ -26,6 +26,7 @@ const HELLO_DOWNLOAD = 'hello.download';
 const HELLO_CUSTOM_CONTENT_TYPE = "hello.custom.content.type";
 const DEMO_HEALTH_SERVICE = 'demo.health';
 const HELLO_INTERCEPTOR_SERVICE = 'hello.interceptor';
+const SCHEMA_VALIDATED_SERVICE = 'schema.validated.service';
 const DEMO_LIBRARY_FUNCTION = "demo.library.function";
 const DISTRIBUTED_TRACE_FORWARDER = 'distributed.trace.forwarder';
 const UNIT_TEST = 'unit.test';
@@ -103,6 +104,49 @@ class DemoHealth implements Composable {
       return {'status': 'demo.service is running fine'};
     }
     throw new AppException(400, 'Request type must be info or health');
+  }
+}
+
+// Minimal hand-rolled validators (avoids adding zod as a test dependency).
+// Any object with a .parse(value) that throws on invalid input satisfies Validator.
+interface SchemaInput { id: string; amount: number; }
+interface SchemaOutput { ok: boolean; doubled: number; }
+
+const schemaInputValidator: Validator<SchemaInput> = {
+  parse(value: unknown): SchemaInput {
+    if (!value || typeof value !== 'object') {
+      throw new Error('expected object');
+    }
+    const v = value as Record<string, unknown>;
+    if (typeof v.id !== 'string') throw new Error('id must be string');
+    if (typeof v.amount !== 'number') throw new Error('amount must be number');
+    return { id: v.id, amount: v.amount };
+  }
+};
+
+const schemaOutputValidator: Validator<SchemaOutput> = {
+  parse(value: unknown): SchemaOutput {
+    if (!value || typeof value !== 'object') {
+      throw new Error('expected object');
+    }
+    const v = value as Record<string, unknown>;
+    if (typeof v.ok !== 'boolean') throw new Error('ok must be boolean');
+    if (typeof v.doubled !== 'number') throw new Error('doubled must be number');
+    return { ok: v.ok, doubled: v.doubled };
+  }
+};
+
+class SchemaValidatedService implements Composable {
+  inputSchema = schemaInputValidator;
+  outputSchema = schemaOutputValidator;
+  initialize(): Composable { return this; }
+  async handleEvent(evt: EventEnvelope) {
+    const body = evt.getBody() as SchemaInput;
+    // Header flag to intentionally return a bad shape for output-validation test
+    if (evt.getHeader('bad_output') === 'true') {
+      return { not: 'a valid output' };
+    }
+    return { ok: true, doubled: body.amount * 2 };
   }
 }
 
@@ -248,6 +292,7 @@ describe('post office use cases', () => {
       platform.register(DEMO_HEALTH_SERVICE, new DemoHealth());
       // register the demo interceptor function
       platform.register(HELLO_INTERCEPTOR_SERVICE, new DemoInterceptor(), 1, true, true);
+      platform.register(SCHEMA_VALIDATED_SERVICE, new SchemaValidatedService());
       appConfig.set('health.dependencies', 'demo.health');
       // this tests that we can create a user defined config reader that resolves references from the base configuration
       const configMap = {'event.api.url': 'http://127.0.0.1:${server.port:8080}/api/event', 'base.url': 'http://127.0.0.1:${server.port:8080}'}
@@ -1207,7 +1252,51 @@ describe('post office use cases', () => {
       log.info({'test3': 'restore logging in TEXT format'});
       const success4 = log.setLogFormat('unknown');
       expect(success4).toBe(false);
-      log.setLevel('info');      
+      log.setLevel('info');
+    });
+
+    it('validates schema input and transforms body through parse()', async () => {
+      const po = new PostOffice(new Sender('unit.test', '900', 'TEST /schema/ok'));
+      const req = new EventEnvelope().setTo(SCHEMA_VALIDATED_SERVICE)
+          .setBody({ id: 'abc', amount: 21, extra: 'stripped' });
+      const result = await po.request(req, 3000);
+      const body = result.getBody() as { ok: boolean; doubled: number };
+      expect(body.ok).toBe(true);
+      expect(body.doubled).toBe(42);
+      // parse() strips unknown fields in our test validator
+      expect(result.getStatus()).toBe(200);
+    });
+
+    it('rejects invalid input with AppException 400', async () => {
+      const po = new PostOffice(new Sender('unit.test', '901', 'TEST /schema/bad-input'));
+      const req = new EventEnvelope().setTo(SCHEMA_VALIDATED_SERVICE)
+          .setBody({ id: 'abc', amount: 'not-a-number' });
+      try {
+        await po.request(req, 3000);
+        throw new Error('expected input validation to reject');
+      } catch (e) {
+        expect(e).toBeInstanceOf(AppException);
+        const ex = e as AppException;
+        expect(ex.getStatus()).toBe(400);
+        expect(ex.message).toContain('Input validation failed');
+        expect(ex.message).toContain('amount must be number');
+      }
+    });
+
+    it('rejects invalid output with AppException 500', async () => {
+      const po = new PostOffice(new Sender('unit.test', '902', 'TEST /schema/bad-output'));
+      const req = new EventEnvelope().setTo(SCHEMA_VALIDATED_SERVICE)
+          .setHeader('bad_output', 'true')
+          .setBody({ id: 'abc', amount: 1 });
+      try {
+        await po.request(req, 3000);
+        throw new Error('expected output validation to reject');
+      } catch (e) {
+        expect(e).toBeInstanceOf(AppException);
+        const ex = e as AppException;
+        expect(ex.getStatus()).toBe(500);
+        expect(ex.message).toContain('Output validation failed');
+      }
     });
 
   });

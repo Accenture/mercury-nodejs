@@ -1,4 +1,20 @@
 import { EventEnvelope } from "./event-envelope.js";
+/**
+ * Minimal library-agnostic validator protocol.
+ *
+ * Any object exposing a `parse(value) => T` method that throws on invalid input
+ * satisfies this interface. Zod schemas satisfy it natively. TypeBox users can
+ * wrap a schema with a small adapter:
+ *
+ *     const v: Validator<T> = { parse: (x) => { if (!Check(schema, x)) throw new Error(...); return x as T; } };
+ */
+export interface Validator<T = unknown> {
+    parse(value: unknown): T;
+}
+/**
+ * Type helper: extract the parsed type of a Validator (akin to z.infer).
+ */
+export type Infer<V> = V extends Validator<infer T> ? T : never;
 export interface Composable {
     /**
      * Annotation for the initialize() method to tell the system to preload this composable function:
@@ -25,6 +41,21 @@ export interface Composable {
      * @param evt is the incoming event containing headers and body (payload)
      */
     handleEvent(evt: EventEnvelope): Promise<string | boolean | number | object | EventEnvelope | null>;
+    /**
+     * Optional input schema. When set, the event body is validated BEFORE
+     * handleEvent() is invoked. Validation failure throws AppException(400).
+     * The parsed (and potentially coerced) value replaces evt.getBody().
+     */
+    inputSchema?: Validator;
+    /**
+     * Optional output schema. When set, the handler's resolved return value
+     * is validated AFTER handleEvent() completes. Validation failure is
+     * reported as AppException(500). Skipped for interceptors (their return
+     * value is not forwarded anyway).
+     *
+     * If the handler returns an EventEnvelope, the envelope's body is validated.
+     */
+    outputSchema?: Validator;
 }
 /**
  * Annotation for a composable class

@@ -17,7 +17,7 @@
   polyglot initiative: a lightweight Event-over-HTTP function host + thin client, repurposed
   August 2026 (the previous full-framework port, up to v4.3.28, lives in git history and on npm)
 - **last_enabled:** 2026-08-22
-- **last_session:** 2026-08-22 | agent: Claude Code (2026-08-22-171916)
+- **last_session:** 2026-08-22 | agent: Claude Code (2026-08-22-173136)
 - **last_review:** (none yet)
 - **last_invariant_check:** (none yet)
 - **repo:** ~/sandbox/mercury-nodejs (origin: github.com/Accenture/mercury-nodejs)
@@ -85,8 +85,20 @@
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
 
-- [ ] **(vision-bootstrap)** Confirm the Vision in `memory/vision.md` — set the target /
-  success criteria / non-goals; then derive the Blueprint.
+- [ ] **(blueprint) Publish behind the interop gate.** The wrapper is complete and green
+  (tests incl. the shared golden vectors; cross-wrapper interop proven both directions)
+  but **unreleased** — the Vision's "releasable on its own cadence" is unmet until 0.1.0
+  ships to npm with protocol-compat versioning and the interop gate green per release
+  (design P5/D6). Publishing itself is Eric-gated (ownership, cadence, supply-chain
+  posture; the old full-framework port already occupies the npm name history — verify the
+  version story at publish time). → serves: vision-mercury-nodejs
+  <!-- id: bp-publish-interop-gate | created: 2026-08-22 | last_used: 2026-08-22 | uses: 1 | tier: working | origin: 2026-08-22-173136 -->
+
+- [x] **(vision-bootstrap)** Vision ratified by Eric, 2026-08-22 — drafted from the
+  ratified polyglot design (D0–D8 + same-day refinements): tiny Event-over-HTTP wrapper,
+  engines own orchestration, protocol-compat releases, the scope fence (incl. never a
+  full-framework re-port) as non-goals. First Blueprint gap derived (publish behind the
+  interop gate). Detail: 2026-08-22-173136.
   <!-- id: ot-vision-bootstrap | created: 2026-08-22 | last_used: 2026-08-22 | uses: 1 | tier: working | origin: 2026-08-22-171916 -->
 - [ ] **Dedicated consumer AI surface (optional).** The root fork points consumers at
   `README.md` for now (Eric, 2026-08-22). If the team wants a dedicated version-matched

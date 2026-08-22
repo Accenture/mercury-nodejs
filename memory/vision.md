@@ -1,15 +1,10 @@
 # Vision — mercury-nodejs
 
-> ⚠️ **DRAFT — bootstrap stub. The maintainer must confirm this Vision.**
-> It was scaffolded from existing project memory: the **Current-state context** below is
-> inferred (confirm or replace it), but the **target, success criteria, and non-goals are
-> intentionally left blank** — the Vision is the human's to set, and the agent must *not*
-> infer the aspiration (code shows what *is*, not what *should be*). Until this is
-> confirmed, VBDI drift-detection stays **advisory**. Resolve the `(vision-bootstrap)`
-> Open Thread in `continuity.md` when done, then derive the Blueprint.
->
-> The north star — treated as `core` (never decays) but re-confirmed on the
-> invariant-verification cadence (a vision can go stale). The **Blueprint** (Open Threads
+> The north star: the target future state of this package. **Ratified by the maintainer
+> (Eric) on 2026-08-22**, drafted with Claude Code from the ratified polyglot-initiative
+> design (D0–D8 plus the same-day scope refinements: minimalist utilities, `resources/` +
+> `-D` config parity). Treated as `core` (never decays) but re-confirmed on the
+> invariant-verification cadence — a vision can go stale. The **Blueprint** (Open Threads
 > tagged `(blueprint)` in `continuity.md`) tracks the gap from Current State to here;
 > Designs and Implementations trace back to this `id`. See `DECAY.md` §12.
 >
@@ -17,37 +12,64 @@
 
 ## Elevator statement
 
-*(one sentence — what this project is for and the outcome it should deliver. Maintainer to set.)*
+The **Node.js doorway into Mercury Composable**: a deliberately tiny Event-over-HTTP
+wrapper that lets developers write functions in the language that genuinely earns its
+place — while the engines own all orchestration.
 
-## Current-state context  *(inferred from memory — confirm or replace)*
+## Current-state context
 
-The Node.js member of the Mercury Composable polyglot initiative (August 2026): a
-deliberately lightweight wrapper of the engines' Event-over-HTTP protocol — an Event API
-host (`POST /api/event`), a thin `PostOffice` client, the standard event-envelope codec
-(verified against the engines' shared golden vectors; int64 beyond 2^53 exact as BigInt),
-and engine-consistent utilities — so JavaScript/TypeScript functions are orchestrated by
-the Mercury engines (Java / Rust) from Event Script flows and MiniGraph graphs with no
-orchestration code in Node.js. Pre-release (0.1.0, unreleased); the previous full-framework
-port (≤ v4.3.28) lives in git history and on npm.
+The Node.js member of the Mercury Composable polyglot initiative (August 2026): an Event
+API host (`POST /api/event`), a thin `PostOffice` client, the standard event-envelope
+codec (verified against the engines' shared golden vectors; int64 beyond 2⁵³ exact as
+BigInt), and engine-consistent minimalist utilities. Pre-release (0.1.0, unreleased);
+tests green including the golden vectors; cross-wrapper interop proven; the previous
+full-framework port (≤ v4.3.28) lives in git history and on npm.
 
 **Type:** TypeScript/Node.js library — polyglot function host + client
 
-## What it should become  *(TARGET — maintainer to set; do not infer)*
+## What it should become
 
-- *(…)*
+- The **reference-quality wrapper** of the engines' documented wire format and
+  `/api/event` contract — releasable on its own cadence (npm), versioned by **protocol
+  compatibility** ("implements the standard wire format"), never coupled to engine
+  releases.
+- The **rapid-prototyping path**: `npm install` plus the `mercury-serve` one-liner; the
+  TS/JS ecosystem loads once in a long-lived service.
+- **Bidirectional and invisible in the architecture**: functions addressed from Event
+  Script flows and MiniGraph tasks as if local (declarative map, zero caller code); the
+  thin client calls engine or peer functions over the same protocol.
+- An **engine-consistent developer experience**: the vocabulary mirror (`preload()`,
+  `AppException`, `instances`) and the minimalist utilities (config, logging, telemetry —
+  `resources/`, `${ENV:default}`, `-D` parity) so knowledge transfers across languages and
+  nobody invents a second way to do foundational things.
 
-## For whom  *(maintainer to set)*
+## For whom
 
-- *(…)*
+Developers on Mercury Composable systems who want JavaScript/TypeScript for specific
+functions — the npm ecosystem, rapid prototyping — without leaving the composable
+architecture; and the engine teams, who gain polyglot reach with zero engine coupling.
 
-## Success criteria  *(how we'd know it's realized — maintainer to set)*
+## Success criteria
 
-- *(…)*
+- A function written here runs from an Event Script flow or MiniGraph task **unchanged**,
+  addressed as if local.
+- Wire compatibility is **continuously proven**: shared golden vectors green, plus the
+  live interop gate against both engines on every release.
+- The dev loop stays one-liner simple; cross-language trace continuity gives one log
+  aggregation.
 
-## Non-goals  *(what it must never become — maintainer to set)*
+## Non-goals (what it must never become)
 
-- *(…)*
+- **Never a composable foundation or full SDK** — no event bus, no flows, no graphs, no
+  orchestration (the ratified scope fence). In particular, **never a re-port of the full
+  framework** — light by design is the point of the reboot.
+- **Never subprocess or embedded-interpreter execution** (Option A shelved; helper-style
+  embedding explicitly not planned).
+- **Never coupled to engine release cadence** or versioned beyond protocol compatibility.
+- **Not a license to scatter one application across processes** — polyglot where the
+  language earns its place (the `kafka-mesh-opt-in` caution).
 
-## Mental model  *(one line — maintainer to set)*
+## Mental model
 
-> *(…)*
+> Functions in your language; orchestration in the engines — one wire format keeps
+> everyone honest.

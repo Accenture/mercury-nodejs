@@ -1,0 +1,130 @@
+# Mercury Composable — polyglot functions for Node.js
+
+Write decoupled functions in JavaScript/TypeScript and let
+[Mercury Composable](https://github.com/Accenture/mercury-composable) engines (Java, and the
+official [Rust port](https://github.com/Accenture/mercury)) orchestrate them from Event Script
+flows and MiniGraph knowledge graphs — with no orchestration code in Node.js at all.
+
+This package is a deliberately **lightweight wrapper of the Event-over-HTTP protocol**:
+
+- an **Event API host** (`POST /api/event`) that dispatches incoming event envelopes to your
+  registered functions,
+- a **thin client** (`PostOffice`) to call functions on peer applications the same way,
+- the **standard event envelope wire format** codec (language-neutral MsgPack), and
+- the **minimalist utilities** shared with the engines for consistency: configuration
+  management, logging in the engines' presentation format, and distributed-trace context.
+
+Orchestration deliberately stays in the engines. Functions written here are addressed by
+route name through the engines' declarative `yaml.event.over.http` map, so a flow or a
+graph task calls a Node.js function exactly as if it were local.
+
+> **Status: pre-release.** This repository was repurposed in August 2026 for the polyglot
+> initiative: instead of re-porting the full composable foundation to Node.js, the fresh
+> start rides the engines' Event-over-HTTP protocol — light by design. The previous
+> Node.js port (up to v4.3.28) remains available in the git history and on npm.
+
+## Quick start
+
+```javascript
+// app.mjs
+import { AppException, platform, preload } from 'mercury-composable';
+
+preload('hello.node', { instances: 10 }, async (headers, body) => {
+  if (typeof body !== 'object' || body === null || !('text' in body)) {
+    throw new AppException(400, "missing 'text'");
+  }
+  return { text: String(body.text).toUpperCase(), language: 'node.js' };
+});
+
+await platform.run(); // port from rest.server.port (default 8085)
+```
+
+Run it:
+
+```bash
+npm install && npm run build
+node dist/src/cli.js app.mjs --port 8087     # or: mercury-serve app.mjs --port 8087
+```
+
+Call it from a Mercury engine application with two configuration entries and no code —
+`application.properties`:
+
+```properties
+yaml.event.over.http=classpath:/event-over-http.yaml
+```
+
+`event-over-http.yaml`:
+
+```yaml
+event.http:
+  - route: 'hello.node'
+    target: 'http://127.0.0.1:8087/api/event'
+```
+
+Any Event Script task or MiniGraph `graph.task` node that names the route `hello.node`
+now executes the Node.js function, with trace context carried end to end.
+
+## The function contract
+
+A handler receives the same two-part input as an engine `TypedLambdaFunction` —
+`(headers, body)` — and returns the reply body (or an `EventEnvelope` for full control of
+status and reply headers). Node.js is non-blocking by nature; handlers may be async.
+
+- Throw `AppException(status, message)` for intentional errors — it becomes the portable
+  error contract on the wire (envelope status + message), handled by the calling flow's
+  exception handler or the graph's `error.*` contract.
+- `getTrace()` exposes `traceId` / `tracePath` / `cid`; `annotateTrace(k, v)` sends an
+  annotation back on the reply envelope.
+- Functions must be stateless; anything you must keep belongs to the caller's flow model
+  or state machine.
+
+## Configuration, logging, telemetry
+
+The same conventions as the engines, so a polyglot installation stays uniform:
+
+| Key | Meaning | Default |
+|-----|---------|---------|
+| `application.name` | application identity in logs | `application` |
+| `rest.server.port` | Event API port | `8085` |
+| `log.format` | `text` or `json` | `text` |
+| `log.level` | log level (`LOG_LEVEL` env var wins) | `INFO` |
+
+Configuration lives in the `resources` folder, mirroring the engines:
+`resources/application.yml` (or `.yaml` / `.properties`), or an explicit `--config` path.
+Values support `${ENV_VAR:default}` substitution. Runtime parameter overrides use the
+same `-D` syntax as the Java engine and the Rust port — checked first on every read
+(`appConfig().set(key, value)` does the same programmatically, the `f:setConfig` analog):
+
+```bash
+mercury-serve app.mjs -Drest.server.port=8087 -Dlog.format=json
+```
+
+Log lines follow the Java reference engine's pattern for one-aggregation consistency:
+
+```text
+2026-08-22 10:15:30.123 INFO  app:12 - Loaded PUBLIC hello.node, instances=10
+```
+
+## Wire compatibility
+
+The codec implements the
+[Event Envelope Wire Format](https://accenture.github.io/mercury-composable/guides/event-envelope-wire-format/)
+(standard format) and is verified against the golden conformance vectors shared by the
+Java and Rust engines (`test/vectors/vectors.json`). The classic compact format is
+detected and rejected with a teaching error — engines default to the standard format for
+Event over HTTP.
+
+Serialization notes: 64-bit integers beyond `Number.MAX_SAFE_INTEGER` decode as `BigInt`
+(exact), smaller ones as `number`; timestamps travel as ISO-8601 UTC strings with
+millisecond precision; binary payloads are `Uint8Array`.
+
+## Scope
+
+This package intentionally contains **no event bus, no flows, no graphs and no
+orchestration** — those live in the engines. It provides functions plus the minimalist
+foundation utilities, keeping Node.js fast to prototype with while the composable core
+guarantees the architecture.
+
+## License
+
+Apache 2.0 — see [LICENSE](LICENSE).

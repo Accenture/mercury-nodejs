@@ -17,7 +17,7 @@
   polyglot initiative: a lightweight Event-over-HTTP function host + thin client, repurposed
   August 2026 (the previous full-framework port, up to v4.3.28, lives in git history and on npm)
 - **last_enabled:** 2026-08-22
-- **last_session:** 2026-08-22 | agent: Claude Code (2026-08-22-173136)
+- **last_session:** 2026-08-22 | agent: Claude Code (2026-08-22-175327)
 - **last_review:** (none yet)
 - **last_invariant_check:** (none yet)
 - **repo:** ~/sandbox/mercury-nodejs (origin: github.com/Accenture/mercury-nodejs)
@@ -27,8 +27,9 @@
 > Canonical live home for the current stack — language version, dependencies, tool
 > versions. `instructions.md` keeps only a high-level descriptor and points here.
 
-- TypeScript (devDeps `typescript` + `@types/node`), compiled to `dist/` (ESM); npm package
-  `mercury-composable` v0.1.0 (unreleased); scripts: `build`, `test`, `prepack`
+- TypeScript ^5.6 (devDeps `typescript` + `@types/node` ^22), Node.js ≥ 20 (`engines`),
+  compiled to `dist/` (ESM); npm package `mercury-composable` v0.1.0 (unreleased); scripts:
+  `build`, `test`, `prepack`
   <!-- id: stack-typescript-esm | created: 2026-08-22 | last_used: 2026-08-22 | uses: 1 | tier: working | origin: 2026-08-22-171916 -->
 - Runtime deps: `@msgpack/msgpack` (envelope codec), `yaml` (config) — deliberately minimal
   <!-- id: stack-deps-msgpack-yaml | created: 2026-08-22 | last_used: 2026-08-22 | uses: 1 | tier: working | origin: 2026-08-22-171916 -->

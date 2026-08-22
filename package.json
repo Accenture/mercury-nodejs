@@ -1,61 +1,45 @@
 {
   "name": "mercury-composable",
-  "version": "4.3.28",
-  "description": "Composable foundation SDK",
+  "version": "0.1.0",
+  "description": "Lightweight Event-over-HTTP function host and client for Mercury Composable",
   "type": "module",
-  "engines": {
-    "node": ">= 20.18.1"
-  },
-  "main": "./dist/index.js",
   "license": "Apache-2.0",
+  "author": "Accenture Technology",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Accenture/mercury-nodejs.git"
+  },
+  "homepage": "https://accenture.github.io/mercury-composable",
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "bin": {
+    "mercury-serve": "dist/src/cli.js"
+  },
   "files": [
-    "dist/**/*"
+    "dist/src",
+    "LICENSE",
+    "README.md"
   ],
   "scripts": {
-    "clean": "node clean.js",
-    "prebuild": "npm run lint",
-    "build": "tsc -p tsconfig.json && node copy-resource-files.js",
-    "build:watch": "tsc -w -p tsconfig.json",
-    "lint": "eslint . --fix",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "build": "tsc -p .",
+    "test": "tsc -p . && node --test dist/test/*.test.js",
+    "prepack": "tsc -p ."
   },
   "dependencies": {
-    "@types/body-parser": "^1.19.5",
-    "@types/busboy": "^1.5.4",
-    "@types/cookie-parser": "^1.4.8",
-    "@types/express": "^5.0.0",
-    "@types/uuid": "^10.0.0",
-    "axios": "^1.18.0",
-    "body-parser": "^1.20.6",
-    "busboy": "^1.6.0",
-    "cookie-parser": "^1.4.7",
-    "events": "^3.3.0",
-    "express": "^4.22.2",
-    "form-data": "^4.0.6",
-    "msgpackr": "^1.11.2",
-    "uuid": "^14.0.0",
-    "yaml": "^2.8.3"
+    "@msgpack/msgpack": "^3.0.0",
+    "yaml": "^2.5.0"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.14",
-    "@typescript-eslint/eslint-plugin": "^8.26.1",
-    "@typescript-eslint/parser": "^8.26.1",
-    "@vitest/coverage-v8": "^4.1.8",
-    "eslint": "^9.22.0",
-    "eslint-config-prettier": "^10.1.1",
-    "prettier": "^3.5.3",
-    "ts-node": "^10.9.2",
-    "tslib": "^2.8.1",
-    "typescript": "~5.8.2",
-    "typescript-eslint": "^8.31.1",
-    "vite": "^8.0.16",
-    "vitest": "^4.1.8",
-    "glob": "^12.0.0"
-  },
-  "overrides": {
-    "test-exclude": {
-      "glob": "^12.0.0"
-    }
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
   }
 }

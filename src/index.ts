@@ -1,21 +1,24 @@
-export { Logger } from './util/logger.js';
-export { Platform } from './system/platform.js';
-export { PostOffice, Sender } from './system/post-office.js';
-export { FunctionRegistry } from './system/function-registry.js';
-export { RestAutomation } from './system/rest-automation.js';
-export { EventScriptEngine } from './automation/event-script-manager.js';
-export { Utility, StringBuilder } from './util/utility.js';
-export { MultiLevelMap } from './util/multi-level-map.js';
-export { EventEnvelope } from './models/event-envelope.js';
-export { AsyncHttpRequest } from './models/async-http-request.js';
-export { AppException } from './models/app-exception.js';
-export { Composable, preload } from './models/composable.js';
-export { ObjectStreamIO, ObjectStreamWriter, ObjectStreamReader } from './system/object-stream.js';
-export { AppConfig, ConfigReader } from './util/config-reader.js';
-export { TemplateLoader } from './util/template-loader.js';
-export { CryptoApi } from './util/crypto-api.js';
-export { TypeScriptClassScanner } from './util/ts-class-scanner.js';
-export { JavaScriptClassScanner } from './util/js-class-scanner.js';
-export { FlowExecutor } from './adapters/flow-executor.js';
-export { NoOp } from './services/no-op.js';
-export { ResilienceHandler } from './services/resilience-handler.js';
+/**
+ * Mercury Composable — polyglot functions for Node.js.
+ *
+ * A lightweight Event-over-HTTP function host and client: write decoupled
+ * functions in JavaScript/TypeScript and let Java/Rust Mercury engines
+ * orchestrate them from Event Script flows and MiniGraph knowledge graphs
+ * through the declarative yaml.event.over.http routing map. Orchestration
+ * stays in the engines; this package deliberately provides functions only,
+ * plus the minimalist utilities (configuration, logging, telemetry) shared
+ * with the engine style.
+ */
+export { PostOffice } from './client.js';
+export type { CallOptions } from './client.js';
+export { AppConfig, appConfig, loadConfig } from './config.js';
+export { EventEnvelope, isoUtc } from './envelope.js';
+export { AppException, CompactFormatError } from './exceptions.js';
+export { getLogger, Logger } from './log.js';
+export { defaultRegistry, FunctionRegistry, preload, validateRoute } from './registry.js';
+export type { Handler, ServiceDef } from './registry.js';
+export { EventApiServer, Platform, platform } from './server.js';
+export { annotateTrace, getTrace } from './trace.js';
+export type { TraceInfo } from './trace.js';
+
+export const VERSION = '0.1.0';

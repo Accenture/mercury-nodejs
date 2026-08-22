@@ -1,109 +1,130 @@
-# Mercury Composable for Node.js
+# Mercury Composable — polyglot functions for Node.js
 
-Good news! We have merged our enterprise extension ("Event Script") into the Mercury event-driven
-programming foundation codebase from version 4.2 onwards. It is a comprehensive toolkit to write
-composable applications including microservices and serverless.
+Write decoupled functions in JavaScript/TypeScript and let
+[Mercury Composable](https://github.com/Accenture/mercury-composable) engines (Java, and the
+official [Rust port](https://github.com/Accenture/mercury)) orchestrate them from Event Script
+flows and MiniGraph knowledge graphs — with no orchestration code in Node.js at all.
 
-The specification for this technology is documented under US Patent application 18/459,307. 
-The source code is provided as is under the Apache 2.0 license.
+This package is a deliberately **lightweight wrapper of the Event-over-HTTP protocol**:
 
-The project is available in both Java and Node.js languages.
+- an **Event API host** (`POST /api/event`) that dispatches incoming event envelopes to your
+  registered functions,
+- a **thin client** (`PostOffice`) to call functions on peer applications the same way,
+- the **standard event envelope wire format** codec (language-neutral MsgPack), and
+- the **minimalist utilities** shared with the engines for consistency: configuration
+  management, logging in the engines' presentation format, and distributed-trace context.
 
-For Java, please visit [Mercury Composable for Java](https://github.com/Accenture/mercury-composable)
+Orchestration deliberately stays in the engines. Functions written here are addressed by
+route name through the engines' declarative `yaml.event.over.http` map, so a flow or a
+graph task calls a Node.js function exactly as if it were local.
 
-For Node.js, please browse [Mercury Composable for Node](https://github.com/Accenture/mercury-nodejs)
-and [Composable-example](https://github.com/Accenture/mercury-composable-examples)
+> **Status: pre-release.** This repository was repurposed in August 2026 for the polyglot
+> initiative: instead of re-porting the full composable foundation to Node.js, the fresh
+> start rides the engines' Event-over-HTTP protocol — light by design. The previous
+> Node.js port (up to v4.3.28) remains available in the git history and on npm.
 
-January 2025
+## Quick start
 
-# Optimized for Human
+```javascript
+// app.mjs
+import { AppException, platform, preload } from 'mercury-composable';
 
-Composability methodology provides a clear path from Domain Driven Design (DDD), Event Driven Architecture (EDA)
-to application software design and implementation, connecting product managers, domain knowledge owners,
-architects and engineers together to deliver high quality products.
+preload('hello.node', { instances: 10 }, async (headers, body) => {
+  if (typeof body !== 'object' || body === null || !('text' in body)) {
+    throw new AppException(400, "missing 'text'");
+  }
+  return { text: String(body.text).toUpperCase(), language: 'node.js' };
+});
 
-# Optimized for AI
+await platform.run(); // port from rest.server.port (default 8085)
+```
 
-Composable methodology reduces the problem space for AI code assistant because each function is self-contained,
-independent and I/O is immutable.
+Run it:
 
-In addition, the Event Script is a Domain Specific Language (DSL) that can be understood by AI agent with some
-fine-tuning, thus making the whole ecosystem AI friendly.
+```bash
+npm install && npm run build
+node dist/src/cli.js app.mjs --port 8087     # or: mercury-serve app.mjs --port 8087
+```
 
-# Getting Started
+Call it from a Mercury engine application with two configuration entries and no code —
+`application.properties`:
 
-A composable application is designed in 3 steps:
+```properties
+yaml.event.over.http=classpath:/event-over-http.yaml
+```
 
-1. Describe your use case as an event flow diagram
-2. Create a configuration file to represent the event flow
-3. Write a user story for each user function
+`event-over-http.yaml`:
 
-To get started, please visit [Chapter 1, Developer Guide](https://accenture.github.io/mercury-nodejs/guides/CHAPTER-1/)
-and [Methodology](https://accenture.github.io/mercury-nodejs/guides/METHODOLOGY/).
+```yaml
+event.http:
+  - route: 'hello.node'
+    target: 'http://127.0.0.1:8087/api/event'
+```
 
-We will illustrate the methodology with a composable application example which is available in this
-repo: [Composable-example](https://github.com/Accenture/mercury-composable-examples)
+Any Event Script task or MiniGraph `graph.task` node that names the route `hello.node`
+now executes the Node.js function, with trace context carried end to end.
 
-# Conquer Complexity: Embrace Composable Design
+## The function contract
 
-## Introduction
+A handler receives the same two-part input as an engine `TypedLambdaFunction` —
+`(headers, body)` — and returns the reply body (or an `EventEnvelope` for full control of
+status and reply headers). Node.js is non-blocking by nature; handlers may be async.
 
-Software development is an ongoing battle against complexity. Over time, codebases can become tangled and unwieldy,
-hindering innovation and maintenance. This article introduces composable design patterns, a powerful approach to
-build applications that are modular, maintainable, and scalable.
+- Throw `AppException(status, message)` for intentional errors — it becomes the portable
+  error contract on the wire (envelope status + message), handled by the calling flow's
+  exception handler or the graph's `error.*` contract.
+- `getTrace()` exposes `traceId` / `tracePath` / `cid`; `annotateTrace(k, v)` sends an
+  annotation back on the reply envelope.
+- Functions must be stateless; anything you must keep belongs to the caller's flow model
+  or state machine.
 
-## The Perils of Spaghetti Code
+## Configuration, logging, telemetry
 
-We have all encountered it: code that resembles a plate of spaghetti – tangled dependencies, hidden logic,
-and a general sense of dread when approaching modifications. These codebases are difficult to test, debug, 
-and update. Composable design patterns offer a solution.
+The same conventions as the engines, so a polyglot installation stays uniform:
 
-## Evolution of Design Patterns
+| Key | Meaning | Default |
+|-----|---------|---------|
+| `application.name` | application identity in logs | `application` |
+| `rest.server.port` | Event API port | `8085` |
+| `log.format` | `text` or `json` | `text` |
+| `log.level` | log level (`LOG_LEVEL` env var wins) | `INFO` |
 
-Software development methodologies have evolved alongside hardware advancements. In the early days, developers 
-prized efficiency, writing code from scratch due to limited libraries. The rise of frameworks brought structure
-and boilerplate code, but also introduced potential rigidity.
+Configuration lives in the `resources` folder, mirroring the engines:
+`resources/application.yml` (or `.yaml` / `.properties`), or an explicit `--config` path.
+Values support `${ENV_VAR:default}` substitution. Runtime parameter overrides use the
+same `-D` syntax as the Java engine and the Rust port — checked first on every read
+(`appConfig().set(key, value)` does the same programmatically, the `f:setConfig` analog):
 
-## Functional Programming and Event-Driven Architecture
+```bash
+mercury-serve app.mjs -Drest.server.port=8087 -Dlog.format=json
+```
 
-Functional programming, with its emphasis on pure functions and immutable data, paved the way for composable design.
-This approach encourages building applications as chains of well-defined functions, each with a clear input and output.
+Log lines follow the Java reference engine's pattern for one-aggregation consistency:
 
-Event-driven architecture complements this approach by using events to trigger functions. This loose coupling
-promotes modularity and scalability.
+```text
+2026-08-22 10:15:30.123 INFO  app:12 - Loaded PUBLIC hello.node, instances=10
+```
 
-## The Power of Composable Design
+## Wire compatibility
 
-At its core, composable design emphasizes two principles:
+The codec implements the
+[Event Envelope Wire Format](https://accenture.github.io/mercury-composable/guides/event-envelope-wire-format/)
+(standard format) and is verified against the golden conformance vectors shared by the
+Java and Rust engines (`test/vectors/vectors.json`). The classic compact format is
+detected and rejected with a teaching error — engines default to the standard format for
+Event over HTTP.
 
-1.	*Self-Contained Functions*: Each function is a well-defined unit, handling its own logic and transformations
-    with minimal dependencies.
-2.	*Event Choreography*: Functions communicate through events, allowing for loose coupling and independent
-    execution.
+Serialization notes: 64-bit integers beyond `Number.MAX_SAFE_INTEGER` decode as `BigInt`
+(exact), smaller ones as `number`; timestamps travel as ISO-8601 UTC strings with
+millisecond precision; binary payloads are `Uint8Array`.
 
-## Benefits of Composable Design
+## Scope
 
-- *Enhanced Maintainability*: Isolated functions are easier to understand, test, and modify.
-- *Improved Reusability*: Self-contained functions can be easily reused across different parts of your application.
-- *Superior Performance*: Loose coupling reduces bottlenecks and encourages asynchronous execution.
-- *Streamlined Testing*: Well-defined functions facilitate unit testing and isolate potential issues.
-- *Simplified Debugging*: Independent functions make it easier to pinpoint the source of errors.
-- *Technology Agnostic*: You may use your preferred frameworks and tools to write composable code, 
-  allowing for easier future adaptations.
+This package intentionally contains **no event bus, no flows, no graphs and no
+orchestration** — those live in the engines. It provides functions plus the minimalist
+foundation utilities, keeping Node.js fast to prototype with while the composable core
+guarantees the architecture.
 
-## Implementing Composable Design
+## License
 
-While seemingly simple, implementing composable design can involve some initial complexity.
-
-Here's a breakdown of the approach:
-
-- *Function Design*: Each function serves a specific purpose, with clearly defined inputs and outputs.
-- *Event Communication*: Functions communicate through well-defined events, avoiding direct dependencies.
-- *Choreography*: An event manager, with a state machine and event flow configuration, sequences and triggers functions
-  based on events.
-
-## Conclusion
-
-Composable design patterns offer a powerful paradigm for building maintainable, scalable, and future-proof applications.
-By embracing the principles of self-contained functions and event-driven communication, you can conquer complexity and
-write code that is a joy to work with.
+Apache 2.0 — see [LICENSE](LICENSE).

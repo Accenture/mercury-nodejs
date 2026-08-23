@@ -49,7 +49,7 @@ async function getText(url: string): Promise<[number, string]> {
   return [response.status, await response.text()];
 }
 
-/** A health-check function speaking the engines' type=info/type=health contract. */
+/** A health check function speaking the engines' type=info/type=health contract. */
 function engineContractRegistry(): FunctionRegistry {
   const registry = new FunctionRegistry();
   registry.register('demo.health', async (headers) => {
@@ -212,6 +212,7 @@ test('elapsedTime matches the engine rendering', () => {
 });
 
 test('origin is stable and engine-shaped', () => {
-  assert.equal(appOrigin(), appOrigin()); // minted once per process
-  assert.match(appOrigin(), ORIGIN_SHAPE);
+  const minted = appOrigin();
+  assert.equal(minted, appOrigin()); // minted once per process
+  assert.match(minted, ORIGIN_SHAPE);
 });

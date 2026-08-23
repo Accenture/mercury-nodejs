@@ -11,14 +11,14 @@
  * - GET /env - selected environment variables (show.env.variables) and
  *   selected configuration parameters (show.application.properties) -
  *   opt-in lists, so secrets are never dumped wholesale (engine parity).
- * - GET /health - runs the health-check functions listed in
+ * - GET /health - runs the health check functions listed in
  *   mandatory.health.dependencies / optional.health.dependencies. All
  *   mandatory up -> UP (HTTP 200); any mandatory down -> DOWN (HTTP 400,
  *   engine parity). The outcome feeds the liveness state.
  * - GET /livenessprobe - "OK" (text) while the last health outcome is good,
  *   else HTTP 400 "Unhealthy. Please check '/health' endpoint."
  *
- * A health-check function is a normal registered function (usually private)
+ * A health check function is a normal registered function (usually private)
  * speaking the engines' interface contract - called through the same event
  * bus that serves PostOffice, first with header type=info (an advisory
  * identity map merged into its dependency entry), then with type=health (a

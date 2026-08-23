@@ -83,34 +83,24 @@
 
 ## Open Threads
 
-- [ ] (feature — **IMPLEMENTED 2026-08-23 on `feature/primitive-event-bus`, commit
-  `da8ce4c`, tests 39/39; PENDING Eric's PR gate**; lock-step twin of mercury-python
-  `957d6b7`, where the ratified design record lives: thread-primitive-event-bus)
-  **Primitive in-process event bus — the single dispatch pipeline.** Per-route FIFO
-  mailbox + `instances` worker loops (faithful); deliver (ttl → 408, dead-work skip) +
-  publish (202 ack); host and local PostOffice are thin ingress adapters; `isPrivate`
-  faithful (in-app callable, wire keeps 403); NO spill tier / NO queue cap — back-pressure
-  belongs to the engines' flows/graphs. Node-specific ruling: an in-flight RPC's deadline
-  timer is REFERENCED (pending work holds the process open); an idle bus holds no
-  handles. Live wire proof: chain → private via bus; wire → private = 403.
+- [x] (feature — RATIFIED + IMPLEMENTED + **MERGED 2026-08-23 as
+  [PR #87](https://github.com/Accenture/mercury-nodejs/pull/87), true merge `fa7b2bf`
+  carrying branch head `329c931`; tree verified identical, branches deleted both ends;
+  one PR with [[thread-actuator-endpoints-node]]**) **Primitive in-process event bus —
+  the single dispatch pipeline.** `instances`/`isPrivate` faithful; deliver + publish
+  only; the HTTP host and local PostOffice = thin ingress adapters. Durable rulings: NO
+  spill tier / NO queue cap — back-pressure belongs to the engines' flows/graphs; an
+  in-flight RPC's deadline timer is REFERENCED (pending work holds the process open), an
+  idle bus holds no handles. Full design, pins and wire proofs: origin log.
   <!-- id: thread-primitive-event-bus-node | created: 2026-08-23 | last_used: 2026-08-23 | uses: 1 | tier: working | origin: 2026-08-23-024601 -->
 
-- [ ] (feature — Eric's directive 2026-08-23, **IMPLEMENTED same day on
-  `feature/primitive-event-bus`, commits `342a854` + `7a8b12c` (twin-alignment round);
-  python twin `56c002c` + `a674198`; PENDING Eric's PR gate together with the bus**)
+- [x] (feature — Eric's directive, IMPLEMENTED + **MERGED 2026-08-23 in the same
+  [PR #87](https://github.com/Accenture/mercury-nodejs/pull/87) as the bus**)
   **Actuator endpoints — the engines' operational surface for Kubernetes PODs.**
-  GET `/info`, `/info/routes`, `/env`, `/health`, `/livenessprobe` on the Event API port;
-  shapes mirror the Rust engine's actuator (the approved minimalist port of Java
-  `ActuatorServices`), byte-symmetric with python except the runtime block. Health check
-  functions are normal registered functions speaking the engines' `type=info` /
-  `type=health` interface contract (Eric's ruling), listed in
-  `mandatory.health.dependencies` / `optional.health.dependencies` and called through the
-  event bus; `/health` = UP 200 / DOWN 400 (Java parity); `/livenessprobe` follows the
-  most recent health outcome. Engine formats verbatim (origin = UTC yyyyMMdd + 32-hex
-  uuid per the Java reference; elapsedTime boundary quirks pinned). Documented deltas:
-  no `/info/lib`, no XML, no info cache. `version.ts` = the single TS-side version
-  source. 10 pins + live demo drives on both wrappers.
-  Relates [[thread-primitive-event-bus-node]]; serves [[bp-publish-interop-gate]].
+  /info, /info/routes, /env, /health, /livenessprobe; health check functions speak the
+  engines' `type=info`/`type=health` contract through the bus; UP 200 / DOWN 400;
+  liveness follows the last health outcome. Byte-symmetric with the python twin except
+  the runtime block. Detail: origin log. Relates [[thread-primitive-event-bus-node]].
   <!-- id: thread-actuator-endpoints-node | created: 2026-08-23 | last_used: 2026-08-23 | uses: 1 | tier: working | origin: 2026-08-23-031920 -->
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to

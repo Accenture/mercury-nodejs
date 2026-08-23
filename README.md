@@ -45,7 +45,7 @@ Run it:
 
 ```bash
 npm install && npm run build
-node dist/src/cli.js app.mjs --port 8087     # or: mercury-serve app.mjs --port 8087
+node dist/src/cli.js app.mjs -Drest.server.port=8087     # or: mercury-serve app.mjs -Drest.server.port=8087
 ```
 
 Call it from a Mercury engine application with two configuration entries and no code —
@@ -106,12 +106,14 @@ The same conventions as the engines, so a polyglot installation stays uniform:
 |-----|---------|---------|
 | `application.name` | application identity in logs | `application` |
 | `rest.server.port` | Event API port | `8085` |
-| `log.format` | `text` or `json` | `text` |
+| `log.format` | `text`, `json` (pretty-printed) or `compact` (single-line JSONL) | `text` |
 | `log.level` | log level (`LOG_LEVEL` env var wins) | `INFO` |
 
 Configuration lives in the `resources` folder, mirroring the engines:
-`resources/application.yml` (or `.yaml` / `.properties`), or an explicit `--config` path.
-Values support `${ENV_VAR:default}` substitution. Runtime parameter overrides use the
+`resources/application.yml` (or `.yaml` / `.properties`) in the working directory or next
+to the application file, or an explicit `--config` path — see
+[`examples/resources/application.yml`](examples/resources/application.yml) for a worked
+sample. Values support `${ENV_VAR:default}` substitution. Runtime parameter overrides use the
 same `-D` syntax as the Java engine and the Rust port — checked first on every read
 (`appConfig().set(key, value)` does the same programmatically, the `f:setConfig` analog):
 

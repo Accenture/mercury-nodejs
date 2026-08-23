@@ -1,7 +1,11 @@
 /**
  * Demo polyglot functions.
  *
- * Run:  node dist/src/cli.js examples/demo-app.mjs --port 8087
+ * Run:  node dist/src/cli.js examples/demo-app.mjs
+ *
+ * Configuration comes from examples/resources/application.yml (the engines'
+ * "resources" convention - port 8087, the demo.health dependency, log format);
+ * override any key with -Dkey=value, e.g. -Drest.server.port=8090.
  *
  * Then map a route from a Mercury engine application (event-over-http.yaml):
  *
@@ -39,8 +43,8 @@ preload('hello.chain', { instances: 10 }, async (_headers, body) => {
 });
 
 // Health check speaking the engines' interface contract (type=info / type=health).
-// Activate it for the /health actuator endpoint:
-//   node dist/src/cli.js examples/demo-app.mjs -Dmandatory.health.dependencies=demo.health
+// Activated for the /health actuator endpoint by mandatory.health.dependencies
+// in examples/resources/application.yml (or a -D override).
 preload('demo.health', { instances: 5, isPrivate: true }, async (headers, _body) => {
   if (headers.type === 'info') {
     return { service: 'demo.service', href: 'http://127.0.0.1' };

@@ -112,8 +112,8 @@ test('trace chains through a local private sibling', async () => {
   registry.register('bus.entry', async () => {
     const info = getTrace();
     assert.ok(info);
-    const po = new PostOffice(undefined, {}, registry);
-    const inner = await po.request('bus.helper', {}, { timeoutMs: 5000 });
+    const innerPo = new PostOffice(undefined, {}, registry);
+    const inner = await innerPo.request('bus.helper', {}, { timeoutMs: 5000 });
     return { entry_trace: info.traceId, ...(inner.body as Record<string, unknown>) };
   });
   const po = new PostOffice(undefined, {}, registry);

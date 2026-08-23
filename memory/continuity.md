@@ -17,7 +17,7 @@
   polyglot initiative: a lightweight Event-over-HTTP function host + thin client, repurposed
   August 2026 (the previous full-framework port, up to v4.3.28, lives in git history and on npm)
 - **last_enabled:** 2026-08-22
-- **last_session:** 2026-08-22 | agent: Claude Code (2026-08-22-175327)
+- **last_session:** 2026-08-23 | agent: Claude Code (2026-08-23-024601)
 - **last_review:** (none yet)
 - **last_invariant_check:** (none yet)
 - **repo:** ~/sandbox/mercury-nodejs (origin: github.com/Accenture/mercury-nodejs)
@@ -82,6 +82,18 @@
   <!-- id: conv-github-flow-changelog | created: 2026-08-22 | last_used: 2026-08-22 | uses: 1 | tier: working | origin: 2026-08-22-171916 -->
 
 ## Open Threads
+
+- [ ] (feature — **IMPLEMENTED 2026-08-23 on `feature/primitive-event-bus`, commit
+  `da8ce4c`, tests 39/39; PENDING Eric's PR gate**; lock-step twin of mercury-python
+  `957d6b7`, where the ratified design record lives: thread-primitive-event-bus)
+  **Primitive in-process event bus — the single dispatch pipeline.** Per-route FIFO
+  mailbox + `instances` worker loops (faithful); deliver (ttl → 408, dead-work skip) +
+  publish (202 ack); host and local PostOffice are thin ingress adapters; `isPrivate`
+  faithful (in-app callable, wire keeps 403); NO spill tier / NO queue cap — back-pressure
+  belongs to the engines' flows/graphs. Node-specific ruling: an in-flight RPC's deadline
+  timer is REFERENCED (pending work holds the process open); an idle bus holds no
+  handles. Live wire proof: chain → private via bus; wire → private = 403.
+  <!-- id: thread-primitive-event-bus-node | created: 2026-08-23 | last_used: 2026-08-23 | uses: 1 | tier: working | origin: 2026-08-23-024601 -->
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.

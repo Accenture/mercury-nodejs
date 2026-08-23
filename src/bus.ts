@@ -54,7 +54,7 @@ interface Delivery extends TraceFields {
   headers: Record<string, string>;
   body: unknown;
   settled: boolean;
-  resolve?: (reply: EventEnvelope) => void; // absent = drop-n-forget
+  resolve?: (reply: EventEnvelope) => void; // drop-n-forget deliveries carry no resolver
 }
 
 const CLOSED: unique symbol = Symbol('bus-closed');
@@ -147,7 +147,7 @@ export class EventBus {
       if (delivery.settled) {
         continue;
       }
-      const reply = await this.execute(delivery);
+      const reply = await EventBus.execute(delivery);
       if (delivery.resolve) {
         if (!delivery.settled) {
           delivery.settled = true;
@@ -161,7 +161,7 @@ export class EventBus {
   }
 
   /** Run the handler under its trace context and shape the outcome as a reply. */
-  private async execute(delivery: Delivery): Promise<EventEnvelope> {
+  private static async execute(delivery: Delivery): Promise<EventEnvelope> {
     const info: TraceInfo = {
       traceId: delivery.traceId,
       tracePath: delivery.tracePath,

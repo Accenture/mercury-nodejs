@@ -11,8 +11,10 @@
  * The decoded reply envelope is authoritative: an error from the target rides
  * back as a normal envelope with status >= 400 — inspect reply.getStatus().
  */
+import { DeliveryTimeout } from './bus.js';
 import { EventEnvelope } from './envelope.js';
 import { AppException } from './exceptions.js';
+import { defaultRegistry, FunctionRegistry } from './registry.js';
 import { getTrace } from './trace.js';
 
 const W3C_TRACE_ID = /^[0-9a-f]{32}$/;
@@ -28,7 +30,32 @@ export interface CallOptions {
 
 export class PostOffice {
   constructor(private readonly endpoint?: string,
-              private readonly securityHeaders: Record<string, string> = {}) {}
+              private readonly securityHeaders: Record<string, string> = {},
+              private readonly registry: FunctionRegistry = defaultRegistry) {}
+
+  /** In-app delivery through the primitive event bus (private OR public). */
+  private async callLocal(route: string, body: unknown, options: CallOptions,
+                          isAsync: boolean): Promise<EventEnvelope> {
+    const service = this.registry.get(route);
+    if (!service) {
+      return new EventEnvelope().setStatus(404).setBody(`Route ${route} not found`);
+    }
+    const timeoutMs = options.timeoutMs ?? 30000;
+    const event = this.buildEvent(route, body, options);
+    const trace = { traceId: event.traceId, tracePath: event.tracePath, cid: event.cid };
+    const bus = this.registry.bus;
+    if (isAsync) {
+      return bus.publish(service, event.headers, event.body, trace);
+    }
+    try {
+      return await bus.deliver(service, event.headers, event.body, timeoutMs, trace);
+    } catch (e) {
+      if (e instanceof DeliveryTimeout) {
+        return new EventEnvelope().setStatus(408).setBody(`Timeout for ${timeoutMs} ms`);
+      }
+      throw e;
+    }
+  }
 
   private httpHeaders(timeoutMs: number, isAsync: boolean,
                       event: EventEnvelope): Record<string, string> {
@@ -65,8 +92,8 @@ export class PostOffice {
                      isAsync: boolean): Promise<EventEnvelope> {
     const url = options.endpoint ?? this.endpoint;
     if (!url) {
-      throw new Error("Missing event endpoint - " +
-        "e.g. new PostOffice('http://peer:8085/api/event')");
+      // no endpoint = local: the engines' semantics for an in-app po call
+      return this.callLocal(route, body, options, isAsync);
     }
     const timeoutMs = options.timeoutMs ?? 30000;
     const event = this.buildEvent(route, body, options);

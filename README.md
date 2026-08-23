@@ -11,6 +11,8 @@ This package is a deliberately **lightweight wrapper of the Event-over-HTTP prot
   registered functions,
 - a **thin client** (`PostOffice`) to call functions on peer applications the same way,
 - the **standard event envelope wire format** codec (language-neutral MsgPack), and
+- a **primitive in-process event bus** — the single dispatch pipeline: one FIFO mailbox
+  per route consumed by `instances` worker loops, and
 - the **minimalist utilities** shared with the engines for consistency: configuration
   management, logging in the engines' presentation format, and distributed-trace context.
 
@@ -78,6 +80,24 @@ status and reply headers). Node.js is non-blocking by nature; handlers may be as
 - Functions must be stateless; anything you must keep belongs to the caller's flow model
   or state machine.
 
+### Local function calls
+
+`PostOffice` **without an endpoint** delivers through this application's own event bus —
+the engines' semantics for an in-app `po` call:
+
+- `isPrivate: true` means exactly what it means in the engines: callable **in-app only**.
+  Local calls reach private and public routes alike; the HTTP host keeps answering 403
+  for private targets from the wire.
+- `instances` is faithful: each route has one FIFO mailbox consumed by that many worker
+  loops. RPC waits are bounded by `timeoutMs` (the standard 408 envelope on breach), and
+  a queued call whose caller already timed out is skipped, never wastefully executed.
+- There is **no spill tier and no queue cap** by design: back-pressure belongs to the tier
+  that owns recovery — the engines' flows and graphs. A leaf host fails fast by deadline
+  instead of hoarding work.
+
+Local eventing is for simple leaf-side composition. Workflow processing belongs in Event
+Script and Knowledge Graph on the engines — that boundary is the architecture.
+
 ## Configuration, logging, telemetry
 
 The same conventions as the engines, so a polyglot installation stays uniform:
@@ -120,10 +140,12 @@ millisecond precision; binary payloads are `Uint8Array`.
 
 ## Scope
 
-This package intentionally contains **no event bus, no flows, no graphs and no
-orchestration** — those live in the engines. It provides functions plus the minimalist
-foundation utilities, keeping Node.js fast to prototype with while the composable core
-guarantees the architecture.
+This package intentionally contains **no orchestration: no flows, no graphs, no
+persistence, no pub/sub broadcast** — those live in the engines. What it does carry is
+deliberately minimal: functions, a primitive in-process event bus (route mailboxes +
+workers, RPC and drop-n-forget — nothing more), and the minimalist foundation utilities,
+keeping Node.js fast to prototype with while the composable core guarantees the
+architecture.
 
 ## License
 

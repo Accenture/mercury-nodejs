@@ -25,3 +25,15 @@ preload('hello.node', { instances: 10 }, async (headers, body) => {
 preload('hello.declarative', { instances: 10 }, async (headers, body) => {
   return { body, headers, language: 'node.js' };
 });
+
+// Private helper - callable in-app only (the HTTP host answers 403 for it).
+preload('demo.suffix.helper', { instances: 10, isPrivate: true }, async (_headers, body) => {
+  return { text: `${body?.text ?? ''}!`, language: 'node.js' };
+});
+
+// Local composition: a public function calls a private sibling through the bus.
+preload('hello.chain', { instances: 10 }, async (_headers, body) => {
+  const { PostOffice } = await import('../dist/src/index.js');
+  const reply = await new PostOffice().request('demo.suffix.helper', body, { timeoutMs: 5000 });
+  return reply.body;
+});

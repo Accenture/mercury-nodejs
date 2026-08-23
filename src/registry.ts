@@ -5,6 +5,7 @@
  * TypedLambdaFunction — and return the reply body (or an EventEnvelope for
  * full control of status and reply headers).
  */
+import { EventBus } from './bus.js';
 import { EventEnvelope } from './envelope.js';
 
 export type Handler = (
@@ -32,6 +33,10 @@ export function validateRoute(route: string): string {
 }
 
 export class FunctionRegistry {
+  // the registry's own dispatch pipeline (see bus.ts) - shared by the
+  // HTTP host and the local side of PostOffice
+  readonly bus = new EventBus();
+
   private services = new Map<string, ServiceDef>();
 
   register(route: string, handler: Handler,

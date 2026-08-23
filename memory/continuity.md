@@ -103,6 +103,20 @@
   the runtime block. Detail: origin log. Relates [[thread-primitive-event-bus-node]].
   <!-- id: thread-actuator-endpoints-node | created: 2026-08-23 | last_used: 2026-08-23 | uses: 1 | tier: working | origin: 2026-08-23-031920 -->
 
+- [ ] (planned — Eric, 2026-08-23, on return from an AI workshop) **Code quality review
+  round for mercury-nodejs** — the node twin of the python quality round (mercury-python
+  PR #16 class: IDE/Sonar screenshot-driven; node has so far received only preemptive
+  mirrors of python findings, never its own review pass). After it: P4 on the polyglot
+  initiative (docs chapter + examples demo on the engine repos, interop-report extension,
+  ADR-0016 proposal, fresh CI workflows for both wrapper repos — these PRs ran only the
+  agent-memory check). Review agenda item (Eric's parting question): document in bus.ts's
+  header WHY the Mailbox is hand-built instead of EventEmitter — emitter = broadcast
+  notifier (all listeners, no backlog, no anycast, MaxListeners warning at instances>10);
+  the bus contract = anycast FIFO work queue with N bounded workers, i.e. node's missing
+  asyncio.Queue — and bare-promise waiters keep the idle bus handle-free (the lifecycle
+  ruling).
+  <!-- id: thread-node-quality-review | created: 2026-08-23 | last_used: 2026-08-23 | uses: 1 | tier: working | origin: 2026-08-23-031920 -->
+
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
 

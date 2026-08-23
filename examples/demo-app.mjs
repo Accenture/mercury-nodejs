@@ -37,3 +37,13 @@ preload('hello.chain', { instances: 10 }, async (_headers, body) => {
   const reply = await new PostOffice().request('demo.suffix.helper', body, { timeoutMs: 5000 });
   return reply.body;
 });
+
+// Health check speaking the engines' interface contract (type=info / type=health).
+// Activate it for the /health actuator endpoint:
+//   node dist/src/cli.js examples/demo-app.mjs -Dmandatory.health.dependencies=demo.health
+preload('demo.health', { instances: 5, isPrivate: true }, async (headers, _body) => {
+  if (headers.type === 'info') {
+    return { service: 'demo.service', href: 'http://127.0.0.1' };
+  }
+  return 'demo.service is running fine';
+});

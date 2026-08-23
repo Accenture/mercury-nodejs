@@ -10,8 +10,12 @@
  * Reserved header hygiene: x-event-api and transported my_* keys are removed
  * from the handler's header view; the my_cid tag is injected as the
  * read-only my_correlation_id header.
+ * The host also serves the engines' actuator endpoints (/info, /info/routes,
+ * /env, /health, /livenessprobe) for operations and Kubernetes probes - see
+ * actuator.ts.
  */
 import * as http from 'node:http';
+import { Actuator } from './actuator.js';
 import { DeliveryTimeout } from './bus.js';
 import { appConfig } from './config.js';
 import { EventEnvelope } from './envelope.js';
@@ -45,8 +49,12 @@ function handlerHeaders(event: EventEnvelope): Record<string, string> {
 }
 
 export class EventApiServer {
+  private readonly actuator: Actuator;
+
   /** Thin ingress: protocol guards + header hygiene, then the registry's bus. */
-  constructor(readonly registry: FunctionRegistry = defaultRegistry) {}
+  constructor(readonly registry: FunctionRegistry = defaultRegistry) {
+    this.actuator = new Actuator(registry);
+  }
 
   private async handleEvent(req: http.IncomingMessage, res: http.ServerResponse,
                             raw: Buffer): Promise<void> {
@@ -106,9 +114,16 @@ export class EventApiServer {
   createServer(): http.Server {
     return http.createServer((req, res) => {
       const url = new URL(req.url ?? '/', 'http://localhost');
-      if (req.method === 'GET' && url.pathname === '/health') {
-        res.writeHead(200, { 'content-type': 'text/plain' });
-        res.end('OK');
+      if (req.method === 'GET') {
+        this.actuator.handle(url.pathname, res).then((handled) => {
+          if (!handled) {
+            res.writeHead(404, { 'content-type': 'text/plain' });
+            res.end('Not found');
+          }
+        }).catch((e) => {
+          res.writeHead(500, { 'content-type': 'text/plain' });
+          res.end((e as Error).message ?? String(e));
+        });
         return;
       }
       if (req.method === 'POST' && url.pathname === '/api/event') {

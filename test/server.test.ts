@@ -160,8 +160,13 @@ test('async drop-n-forget 202 ack', async () => {
   assert.ok('time' in ack);
 });
 
-test('health endpoint', async () => {
-  const response = await fetch(`${base}/health`);
-  assert.equal(response.status, 200);
-  assert.equal(await response.text(), 'OK');
+test('actuator endpoints are wired', async () => {
+  // shapes are pinned in actuator.test.ts - this pins the host wiring only
+  const live = await fetch(`${base}/livenessprobe`);
+  assert.equal(live.status, 200);
+  assert.equal(await live.text(), 'OK');
+  const info = await fetch(`${base}/info`);
+  assert.equal(info.status, 200);
+  const body = await info.json() as { runtime: { language: string } };
+  assert.equal(body.runtime.language, 'node.js');
 });

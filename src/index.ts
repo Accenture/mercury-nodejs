@@ -20,5 +20,4 @@ export type { Handler, ServiceDef } from './registry.js';
 export { EventApiServer, Platform, platform } from './server.js';
 export { annotateTrace, getTrace } from './trace.js';
 export type { TraceInfo } from './trace.js';
-
-export const VERSION = '0.1.0';
+export { VERSION } from './version.js';

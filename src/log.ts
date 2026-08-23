@@ -6,9 +6,11 @@
  *   %d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger:%line - %msg
  *
  * Level comes from the LOG_LEVEL environment variable when set (mirroring the
- * engines), else the log.level configuration key, else INFO. log.format=json
- * switches to one JSON object per line with the same information plus
- * trace_id when a trace context is active.
+ * engines), else the log.level configuration key, else INFO. log.format
+ * carries the engines' three presentations: text (default), json
+ * (pretty-printed JSON with the same information plus trace_id when a trace
+ * context is active) and compact (the same object on a single line - JSONL -
+ * for log aggregators).
  */
 import { appConfig } from './config.js';
 import { getTrace } from './trace.js';
@@ -18,7 +20,7 @@ export type Level = (typeof LEVELS)[number];
 
 let configured = false;
 let minLevel = 1; // INFO
-let jsonFormat = false;
+let logFormat = 'text';
 
 function setup(): void {
   if (configured) return;
@@ -26,7 +28,7 @@ function setup(): void {
   const levelName = (process.env.LOG_LEVEL ?? String(config.get('log.level', 'INFO'))).toUpperCase();
   const idx = LEVELS.indexOf(levelName as Level);
   minLevel = idx === -1 ? 1 : idx;
-  jsonFormat = String(config.get('log.format', 'text')).toLowerCase() === 'json';
+  logFormat = String(config.get('log.format', 'text')).toLowerCase();
   configured = true;
 }
 
@@ -52,7 +54,7 @@ function write(level: Level, name: string | undefined, message: string, args: un
     ? `${message} ${args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ')}`
     : message;
   const logger = name ?? callSite();
-  if (jsonFormat) {
+  if (logFormat === 'json' || logFormat === 'compact') {
     const entry: Record<string, unknown> = {
       time: timestamp(),
       level,
@@ -61,7 +63,9 @@ function write(level: Level, name: string | undefined, message: string, args: un
     };
     const info = getTrace();
     if (info?.traceId) entry.trace_id = info.traceId;
-    process.stdout.write(JSON.stringify(entry) + '\n');
+    // engine presentations: json = pretty-printed, compact = one line (JSONL)
+    const indent = logFormat === 'json' ? 2 : undefined;
+    process.stdout.write(JSON.stringify(entry, null, indent) + '\n');
   } else {
     process.stdout.write(`${timestamp()} ${level.padEnd(5)} ${logger} - ${rendered}\n`);
   }

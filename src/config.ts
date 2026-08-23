@@ -10,8 +10,9 @@
  * environment first, then a base configuration key, then the default.
  *
  * Well-known keys shared with the engines: application.name,
- * rest.server.port (default 8085), log.format (text|json), log.level
- * (LOG_LEVEL environment variable wins).
+ * rest.server.port (default 8085), log.format (text | json pretty-printed |
+ * compact single-line JSONL), log.level (LOG_LEVEL environment variable
+ * wins).
  */
 import * as fs from 'node:fs';
 import YAML from 'yaml';

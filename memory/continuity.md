@@ -17,7 +17,7 @@
   polyglot initiative: a lightweight Event-over-HTTP function host + thin client, repurposed
   August 2026 (the previous full-framework port, up to v4.3.28, lives in git history and on npm)
 - **last_enabled:** 2026-08-22
-- **last_session:** 2026-08-23 | agent: Claude Code (2026-08-23-024601)
+- **last_session:** 2026-08-23 | agent: Claude Code (2026-08-23-031920)
 - **last_review:** (none yet)
 - **last_invariant_check:** (none yet)
 - **repo:** ~/sandbox/mercury-nodejs (origin: github.com/Accenture/mercury-nodejs)
@@ -94,6 +94,24 @@
   timer is REFERENCED (pending work holds the process open); an idle bus holds no
   handles. Live wire proof: chain → private via bus; wire → private = 403.
   <!-- id: thread-primitive-event-bus-node | created: 2026-08-23 | last_used: 2026-08-23 | uses: 1 | tier: working | origin: 2026-08-23-024601 -->
+
+- [ ] (feature — Eric's directive 2026-08-23, **IMPLEMENTED same day on
+  `feature/primitive-event-bus`, commits `342a854` + `7a8b12c` (twin-alignment round);
+  python twin `56c002c` + `a674198`; PENDING Eric's PR gate together with the bus**)
+  **Actuator endpoints — the engines' operational surface for Kubernetes PODs.**
+  GET `/info`, `/info/routes`, `/env`, `/health`, `/livenessprobe` on the Event API port;
+  shapes mirror the Rust engine's actuator (the approved minimalist port of Java
+  `ActuatorServices`), byte-symmetric with python except the runtime block. Health check
+  functions are normal registered functions speaking the engines' `type=info` /
+  `type=health` interface contract (Eric's ruling), listed in
+  `mandatory.health.dependencies` / `optional.health.dependencies` and called through the
+  event bus; `/health` = UP 200 / DOWN 400 (Java parity); `/livenessprobe` follows the
+  most recent health outcome. Engine formats verbatim (origin = UTC yyyyMMdd + 32-hex
+  uuid per the Java reference; elapsedTime boundary quirks pinned). Documented deltas:
+  no `/info/lib`, no XML, no info cache. `version.ts` = the single TS-side version
+  source. 10 pins + live demo drives on both wrappers.
+  Relates [[thread-primitive-event-bus-node]]; serves [[bp-publish-interop-gate]].
+  <!-- id: thread-actuator-endpoints-node | created: 2026-08-23 | last_used: 2026-08-23 | uses: 1 | tier: working | origin: 2026-08-23-031920 -->
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.

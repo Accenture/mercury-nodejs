@@ -39,11 +39,13 @@ function timestamp(): string {
     `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`;
 }
 
+const CALL_SITE = /([^/\\(\s]+?):(\d+):\d+\)?$/;
+
 function callSite(): string {
   // frame 0 = Error, 1 = callSite, 2 = Logger method, 3 = the caller
   const stack = new Error().stack?.split('\n') ?? [];
   const frame = stack[4] ?? stack[3] ?? '';
-  const match = frame.match(/([^/\\(\s]+?):(\d+):\d+\)?$/);
+  const match = CALL_SITE.exec(frame);
   return match ? `${match[1].replace(/\.[cm]?js$/, '')}:${match[2]}` : 'unknown:0';
 }
 

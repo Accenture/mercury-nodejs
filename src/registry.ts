@@ -37,7 +37,7 @@ export class FunctionRegistry {
   // HTTP host and the local side of PostOffice
   readonly bus = new EventBus();
 
-  private services = new Map<string, ServiceDef>();
+  private readonly services = new Map<string, ServiceDef>();
 
   register(route: string, handler: Handler,
            options: { instances?: number; isPrivate?: boolean } = {}): ServiceDef {

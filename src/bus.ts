@@ -61,8 +61,8 @@ const CLOSED: unique symbol = Symbol('bus-closed');
 
 /** Unbounded FIFO handing items to awaiting workers. */
 class Mailbox {
-  private items: Array<Delivery | typeof CLOSED> = [];
-  private waiters: Array<(item: Delivery | typeof CLOSED) => void> = [];
+  private readonly items: Array<Delivery | typeof CLOSED> = [];
+  private readonly waiters: Array<(item: Delivery | typeof CLOSED) => void> = [];
 
   push(item: Delivery | typeof CLOSED): void {
     const waiter = this.waiters.shift();
@@ -84,7 +84,7 @@ class Mailbox {
 
 /** Per-registry bus: one FIFO mailbox and N workers per registered route. */
 export class EventBus {
-  private mailboxes = new Map<string, Mailbox>();
+  private readonly mailboxes = new Map<string, Mailbox>();
 
   private mailbox(service: ServiceDef): Mailbox {
     let mailbox = this.mailboxes.get(service.route);

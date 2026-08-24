@@ -66,7 +66,8 @@ test('rpc success with exec_time', async () => {
   assert.equal(reply.getStatus(), 200);
   assert.deepEqual((reply.body as Record<string, unknown>).body, { a: 1 });
   assert.equal(reply.sender, 'unit.echo');
-  assert.ok(typeof reply.execTime === 'number' && reply.execTime >= 0);
+  assert.ok(typeof reply.execTime === 'number');
+  assert.ok((reply.execTime as number) >= 0);
 });
 
 test('sync handler sees trace context', async () => {
@@ -109,7 +110,8 @@ test('unexpected exception maps to 500 with stack', async () => {
   assert.equal(status, 200);
   assert.equal(reply.getStatus(), 500);
   assert.equal(reply.body, 'kaboom');
-  assert.ok(reply.stack && reply.stack.includes('Error'));
+  assert.ok(reply.stack);
+  assert.ok(reply.stack.includes('Error'));
 });
 
 test('unknown route 404 with engine message', async () => {

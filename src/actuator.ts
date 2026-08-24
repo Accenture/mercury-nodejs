@@ -130,14 +130,15 @@ function isMessageShape(body: unknown): boolean {
 }
 
 function sendText(res: http.ServerResponse, status: number, text: string): void {
-  res.writeHead(status, { 'content-type': 'text/plain' });
+  res.writeHead(status, { 'content-type': 'text/plain; charset=utf-8' });
   res.end(text);
 }
 
 function sendJson(res: http.ServerResponse, status: number, body: unknown): void {
   // the engines' default serializer presentation: pretty-printed JSON
   const bytes = Buffer.from(JSON.stringify(body, null, 2));
-  res.writeHead(status, { 'content-type': 'application/json', 'content-length': bytes.length });
+  res.writeHead(status,
+    { 'content-type': 'application/json; charset=utf-8', 'content-length': bytes.length });
   res.end(bytes);
 }
 
@@ -148,7 +149,8 @@ export function sendError(res: http.ServerResponse, status: number, message: str
 
 function sendHtml(res: http.ServerResponse, page: string): void {
   const bytes = Buffer.from(page);
-  res.writeHead(200, { 'content-type': 'text/html', 'content-length': bytes.length });
+  res.writeHead(200,
+    { 'content-type': 'text/html; charset=utf-8', 'content-length': bytes.length });
   res.end(bytes);
 }
 

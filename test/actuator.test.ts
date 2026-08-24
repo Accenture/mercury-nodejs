@@ -222,7 +222,7 @@ test('index page lists the actuator endpoints', async () => {
   try {
     const response = await fetch(`${base}/`);
     assert.equal(response.status, 200);
-    assert.match(response.headers.get('content-type') ?? '', /text\/html/);
+    assert.equal(response.headers.get('content-type'), 'text/html; charset=utf-8');
     const page = await response.text();
     for (const link of ['/info', '/info/routes', '/env', '/health', '/livenessprobe']) {
       assert.ok(page.includes(`href="${link}"`));
@@ -252,7 +252,9 @@ test('json responses are pretty-printed', async () => {
   // the engines' default serializer presentation (SimpleMapper pretty Gson)
   const { base, stop } = await start(new FunctionRegistry());
   try {
-    const text = await (await fetch(`${base}/info`)).text();
+    const response = await fetch(`${base}/info`);
+    assert.equal(response.headers.get('content-type'), 'application/json; charset=utf-8');
+    const text = await response.text();
     assert.ok(text.startsWith('{\n  "app": {\n'));
   } finally {
     await stop();

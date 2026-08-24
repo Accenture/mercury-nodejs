@@ -41,10 +41,19 @@ function timestamp(): string {
 
 function callSite(): string {
   // frame 0 = Error, 1 = callSite, 2 = Logger method, 3 = the caller
-  const stack = new Error().stack?.split('\n') ?? [];
+  const stack = new Error('log call site').stack?.split('\n') ?? [];
   const frame = stack[4] ?? stack[3] ?? '';
-  const match = frame.match(/([^/\\(\s]+?):(\d+):\d+\)?$/);
-  return match ? `${match[1].replace(/\.[cm]?js$/, '')}:${match[2]}` : 'unknown:0';
+  // right-to-left parse of ".../name.js:LINE:COL[)]" - linear, no regex scanning
+  const end = frame.endsWith(')') ? frame.length - 1 : frame.length;
+  const colCut = frame.lastIndexOf(':', end - 1);
+  const lineCut = colCut > 0 ? frame.lastIndexOf(':', colCut - 1) : -1;
+  if (lineCut <= 0) return 'unknown:0';
+  const line = frame.slice(lineCut + 1, colCut);
+  if (!/^\d+$/.test(line)) return 'unknown:0';
+  const start = Math.max(frame.lastIndexOf('/', lineCut), frame.lastIndexOf('\\', lineCut),
+                         frame.lastIndexOf('(', lineCut), frame.lastIndexOf(' ', lineCut)) + 1;
+  const name = frame.slice(start, lineCut).replace(/\.[cm]?js$/, '');
+  return `${name}:${line}`;
 }
 
 function write(level: Level, name: string | undefined, message: string, args: unknown[]): void {

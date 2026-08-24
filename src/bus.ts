@@ -15,6 +15,20 @@
  *   deadline (the 408 envelope) instead of hoarding work.
  * - In-memory only; no orchestration, no flows, no persistence, no broadcast.
  *
+ * Why a hand-built Mailbox instead of Node's EventEmitter: this contract is
+ * an ANYCAST WORK QUEUE - each delivery goes to exactly one of N workers and
+ * waits its FIFO turn while all are busy. EventEmitter is a broadcast
+ * notifier - emit() invokes every listener synchronously and buffers
+ * nothing - so a bounded-concurrency bus would still need this queue in
+ * front of it (the emitter demoted to a wake-up bell), and once()-based
+ * bridging re-registers a listener per iteration, can drop emissions
+ * between iterations, and trips MaxListenersExceededWarning right at the
+ * default instances=10. Bare promise waiters also hold no event-loop
+ * handles, which is what makes the lifecycle contract exactly true (an idle
+ * bus lets the process exit; only an in-flight RPC's deadline timer holds
+ * it). The Mailbox is node's missing asyncio.Queue, keeping the python and
+ * node twins structurally identical.
+ *
  * The bus is internal: application code uses preload() and PostOffice, never
  * this module - the same way engine developers never touch the engine bus.
  */
@@ -61,8 +75,8 @@ const CLOSED: unique symbol = Symbol('bus-closed');
 
 /** Unbounded FIFO handing items to awaiting workers. */
 class Mailbox {
-  private items: Array<Delivery | typeof CLOSED> = [];
-  private waiters: Array<(item: Delivery | typeof CLOSED) => void> = [];
+  private readonly items: Array<Delivery | typeof CLOSED> = [];
+  private readonly waiters: Array<(item: Delivery | typeof CLOSED) => void> = [];
 
   push(item: Delivery | typeof CLOSED): void {
     const waiter = this.waiters.shift();
@@ -84,7 +98,7 @@ class Mailbox {
 
 /** Per-registry bus: one FIFO mailbox and N workers per registered route. */
 export class EventBus {
-  private mailboxes = new Map<string, Mailbox>();
+  private readonly mailboxes = new Map<string, Mailbox>();
 
   private mailbox(service: ServiceDef): Mailbox {
     let mailbox = this.mailboxes.get(service.route);

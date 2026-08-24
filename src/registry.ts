@@ -6,12 +6,17 @@
  * full control of status and reply headers).
  */
 import { EventBus } from './bus.js';
-import { EventEnvelope } from './envelope.js';
 
+/**
+ * A function handler returns the reply body, an EventEnvelope for full
+ * control of status and reply headers, or a promise of either - the bus
+ * awaits the result and discriminates with instanceof, so the honest
+ * static type is simply unknown.
+ */
 export type Handler = (
   headers: Record<string, string>,
   body: unknown
-) => unknown | EventEnvelope | Promise<unknown | EventEnvelope>;
+) => unknown;
 
 export interface ServiceDef {
   route: string;
@@ -37,7 +42,7 @@ export class FunctionRegistry {
   // HTTP host and the local side of PostOffice
   readonly bus = new EventBus();
 
-  private services = new Map<string, ServiceDef>();
+  private readonly services = new Map<string, ServiceDef>();
 
   register(route: string, handler: Handler,
            options: { instances?: number; isPrivate?: boolean } = {}): ServiceDef {

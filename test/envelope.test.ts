@@ -97,7 +97,8 @@ test('golden vectors conformance', () => {
   const catalog = JSON.parse(fs.readFileSync(VECTORS, 'utf-8')) as { vectors: Vector[] };
   const standard = catalog.vectors.filter((v) => v.format === 'standard');
   const compact = catalog.vectors.filter((v) => v.format === 'compact');
-  assert.ok(standard.length > 0 && compact.length > 0);
+  assert.ok(standard.length > 0);
+  assert.ok(compact.length > 0);
   for (const vector of standard) {
     const raw = new Uint8Array(Buffer.from(vector.base64, 'base64'));
     const decoded = EventEnvelope.fromBytes(raw);

@@ -16,8 +16,11 @@
  */
 import * as fs from 'node:fs';
 import YAML from 'yaml';
+import { asText } from './envelope.js';
 
 const REF = /\$\{([^}]+)\}/g;
+
+const WHOLE_REF = /^\$\{([^}]+)\}$/;
 
 export const DEFAULT_CANDIDATES = [
   'resources/application.yml',
@@ -61,7 +64,7 @@ function parseProperties(text: string): Map<string, unknown> {
 
 export class AppConfig {
   private store = new Map<string, unknown>();
-  private overrides: Map<string, unknown>;
+  private readonly overrides: Map<string, unknown>;
   readonly source: string;
 
   constructor(path?: string, argv?: string[]) {
@@ -95,7 +98,7 @@ export class AppConfig {
 
   /** Runtime override, checked first on every read (f:setConfig analog). */
   set(key: string, value: unknown): void {
-    if (!key || !key.trim()) {
+    if (!key?.trim()) {
       throw new Error('Config key must not be empty');
     }
     this.overrides.set(key, value);
@@ -112,7 +115,7 @@ export class AppConfig {
 
   getProperty(key: string, defaultValue?: string): string | undefined {
     const value = this.get(key, defaultValue);
-    return value === undefined || value === null ? undefined : String(value);
+    return value === undefined || value === null ? undefined : asText(value);
   }
 
   exists(key: string): boolean {
@@ -120,14 +123,14 @@ export class AppConfig {
   }
 
   private substitute(value: string, defaultValue: unknown): unknown {
-    const whole = value.trim().match(/^\$\{([^}]+)\}$/);
+    const whole = WHOLE_REF.exec(value.trim());
     if (whole) {
       const resolved = this.resolveRef(whole[1]);
       return resolved === undefined ? defaultValue : resolved;
     }
     return value.replace(REF, (_m, ref: string) => {
       const resolved = this.resolveRef(ref);
-      return resolved === undefined || resolved === null ? '' : String(resolved);
+      return resolved === undefined || resolved === null ? '' : asText(resolved);
     });
   }
 
@@ -151,7 +154,7 @@ let instance: AppConfig | undefined;
 
 /** The shared AppConfig singleton (created on first use). */
 export function appConfig(): AppConfig {
-  if (!instance) instance = new AppConfig();
+  instance ??= new AppConfig();
   return instance;
 }
 

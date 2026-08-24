@@ -40,7 +40,7 @@ import { randomUUID } from 'node:crypto';
 import * as http from 'node:http';
 import { DeliveryTimeout } from './bus.js';
 import { appConfig } from './config.js';
-import { isoUtc } from './envelope.js';
+import { asText, isoUtc } from './envelope.js';
 import { getLogger } from './log.js';
 import { FunctionRegistry } from './registry.js';
 import { VERSION } from './version.js';
@@ -50,6 +50,23 @@ const log = getLogger('mercury.actuator');
 const INFO_TIMEOUT_MS = 3000; // engine value for the advisory type=info lookup
 const HEALTH_TIMEOUT_MS = 10000; // engine value for the type=health probe
 const UNHEALTHY = "Unhealthy. Please check '/health' endpoint.";
+
+// The engines' minimal landing page (platform-core public/index.html style);
+// the wrappers embed it - no static file service by design.
+const INDEX_HTML = `<!DOCTYPE html>
+<html>
+<body>
+
+<h2>Welcome</h2>
+
+<p><a href="/info">INFO endpoint</a></p>
+<p><a href="/info/routes">Service list</a></p>
+<p><a href="/env">Environment endpoint</a></p>
+<p><a href="/health">Health endpoint</a></p>
+<p><a href="/livenessprobe">Liveness probe</a></p>
+
+</body>
+</html>`;
 
 let origin: string | undefined;
 
@@ -101,8 +118,8 @@ export function elapsedTime(milliseconds: number): string {
 /** A comma/space-separated string (engine syntax) or a YAML list. */
 function asList(value: unknown): string[] {
   const items = Array.isArray(value)
-    ? value.map((item) => String(item).trim())
-    : String(value ?? '').split(/[,\s]+/);
+    ? value.map((item) => asText(item).trim())
+    : asText(value ?? '').split(/[,\s]+/);
   return items.filter((item) => item.length > 0);
 }
 
@@ -113,13 +130,27 @@ function isMessageShape(body: unknown): boolean {
 }
 
 function sendText(res: http.ServerResponse, status: number, text: string): void {
-  res.writeHead(status, { 'content-type': 'text/plain' });
+  res.writeHead(status, { 'content-type': 'text/plain; charset=utf-8' });
   res.end(text);
 }
 
 function sendJson(res: http.ServerResponse, status: number, body: unknown): void {
-  const bytes = Buffer.from(JSON.stringify(body));
-  res.writeHead(status, { 'content-type': 'application/json', 'content-length': bytes.length });
+  // the engines' default serializer presentation: pretty-printed JSON
+  const bytes = Buffer.from(JSON.stringify(body, null, 2));
+  res.writeHead(status,
+    { 'content-type': 'application/json; charset=utf-8', 'content-length': bytes.length });
+  res.end(bytes);
+}
+
+/** The engines' host-level error shape (SimpleHttpUtility signature). */
+export function sendError(res: http.ServerResponse, status: number, message: string): void {
+  sendJson(res, status, { status, message, type: 'error' });
+}
+
+function sendHtml(res: http.ServerResponse, page: string): void {
+  const bytes = Buffer.from(page);
+  res.writeHead(200,
+    { 'content-type': 'text/html; charset=utf-8', 'content-length': bytes.length });
   res.end(bytes);
 }
 
@@ -153,6 +184,9 @@ export class Actuator {
   /** Route a GET to its actuator endpoint; false when the path is not ours. */
   async handle(pathname: string, res: http.ServerResponse): Promise<boolean> {
     switch (pathname) {
+      case '/':
+        sendHtml(res, INDEX_HTML);
+        return true;
       case '/info':
         sendJson(res, 200, this.info());
         return true;
@@ -240,40 +274,44 @@ export class Actuator {
     for (const route of services) {
       const entry: Record<string, unknown> = { route, required };
       dependency.push(entry);
-      const service = this.registry.get(route);
-      if (!service) {
+      if (!await this.checkService(route, entry)) {
         allUp = false;
-        entry.status_code = 404;
-        entry.message = `Please check - Route ${route} not found`;
-        continue;
-      }
-      const bus = this.registry.bus;
-      // info is advisory - merge whatever the service reports about itself;
-      // the health probe below decides the status
-      try {
-        const info = await bus.deliver(service, { type: 'info' }, null, INFO_TIMEOUT_MS);
-        if (info.body !== null && typeof info.body === 'object' && !Array.isArray(info.body)) {
-          Object.assign(entry, info.body);
-        }
-      } catch (e) {
-        if (!(e instanceof DeliveryTimeout)) throw e;
-      }
-      try {
-        const reply = await bus.deliver(service, { type: 'health' }, null, HEALTH_TIMEOUT_MS);
-        entry.status_code = reply.getStatus();
-        if (isMessageShape(reply.body)) {
-          entry.message = reply.body;
-        }
-        if (reply.hasError()) {
-          allUp = false;
-        }
-      } catch (e) {
-        if (!(e instanceof DeliveryTimeout)) throw e;
-        allUp = false;
-        entry.status_code = 408;
-        entry.message = `Please check - ${e.message}`;
       }
     }
     return allUp;
+  }
+
+  /** Probe one health-check function; false when it is missing or down. */
+  private async checkService(route: string, entry: Record<string, unknown>): Promise<boolean> {
+    const service = this.registry.get(route);
+    if (!service) {
+      entry.status_code = 404;
+      entry.message = `Please check - Route ${route} not found`;
+      return false;
+    }
+    const bus = this.registry.bus;
+    // info is advisory - merge whatever the service reports about itself;
+    // the health probe below decides the status
+    try {
+      const info = await bus.deliver(service, { type: 'info' }, null, INFO_TIMEOUT_MS);
+      if (info.body !== null && typeof info.body === 'object' && !Array.isArray(info.body)) {
+        Object.assign(entry, info.body);
+      }
+    } catch (e) {
+      if (!(e instanceof DeliveryTimeout)) throw e;
+    }
+    try {
+      const reply = await bus.deliver(service, { type: 'health' }, null, HEALTH_TIMEOUT_MS);
+      entry.status_code = reply.getStatus();
+      if (isMessageShape(reply.body)) {
+        entry.message = reply.body;
+      }
+      return !reply.hasError();
+    } catch (e) {
+      if (!(e instanceof DeliveryTimeout)) throw e;
+      entry.status_code = 408;
+      entry.message = `Please check - ${e.message}`;
+      return false;
+    }
   }
 }

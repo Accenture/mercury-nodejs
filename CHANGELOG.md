@@ -2,6 +2,11 @@
 
 ## 0.1.0 (unreleased)
 
+- Host polish for engine parity: `GET /` serves the engines' minimal index page linking
+  the actuator endpoints (embedded - no static file service by design); actuator JSON
+  responses are pretty-printed (the engines' default-serializer presentation); unknown
+  paths and non-GET methods answer the engines' error shape
+  `{"status": 404, "message": "Resource not found", "type": "error"}`.
 - Actuator endpoints `/info`, `/info/routes`, `/env`, `/health` and `/livenessprobe` -
   the engines' operational surface, for Kubernetes probes and one-dashboard monitoring
   of polyglot installations. Health check functions are normal registered functions

@@ -62,9 +62,15 @@ function normalize(value: unknown): unknown {
 
 /** Render a scalar as text: primitives via String, structures via JSON. */
 export function asText(value: unknown): string {
-  if (typeof value === 'object') return JSON.stringify(value);
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'bigint'
+      || typeof value === 'boolean' || typeof value === 'symbol') {
+    // positively narrowed to primitives - negating typeof on 'unknown' would
+    // widen to '{}' and re-admit objects (the S6551 trap)
+    return String(value);
+  }
   if (typeof value === 'function') return value.toString();
-  return String(value);
+  return value === undefined ? 'undefined' : JSON.stringify(value);
 }
 
 function asStringMap(value: unknown): Record<string, string> {

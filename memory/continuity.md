@@ -17,7 +17,7 @@
   polyglot initiative: a lightweight Event-over-HTTP function host + thin client, repurposed
   August 2026 (the previous full-framework port, up to v4.3.28, lives in git history and on npm)
 - **last_enabled:** 2026-08-22
-- **last_session:** 2026-08-23 | agent: Claude Code (2026-08-23-031920)
+- **last_session:** 2026-08-24 | agent: Claude Code (2026-08-24-013450)
 - **last_review:** (none yet)
 - **last_invariant_check:** (none yet)
 - **repo:** ~/sandbox/mercury-nodejs (origin: github.com/Accenture/mercury-nodejs)
@@ -41,9 +41,11 @@
 
 > Hard constraints that must never change. These never decay (treated as `core`).
 
-- **Wrapper only — no orchestration.** This package intentionally contains no event bus,
-  no flows, no graphs and no orchestration; those live in the Mercury engines. It provides
-  functions plus minimalist foundation utilities (README "Scope").
+- **Wrapper only — no orchestration.** This package intentionally contains no flows, no
+  graphs, no persistence and no pub/sub broadcast; orchestration lives in the Mercury
+  engines. It provides functions, the primitive in-process event bus (route mailboxes +
+  workers — dispatch, not orchestration; ratified 2026-08-23), and minimalist foundation
+  utilities (README "Scope", amended with the bus).
   <!-- id: scope-wrapper-no-orchestration | created: 2026-08-22 | last_used: 2026-08-22 | uses: 1 | tier: core | origin: 2026-08-22-171916 -->
 - **Standard wire format, proven by shared vectors.** The codec implements the standard
   event-envelope wire format, verified against the golden conformance vectors shared with
@@ -103,8 +105,15 @@
   the runtime block. Detail: origin log. Relates [[thread-primitive-event-bus-node]].
   <!-- id: thread-actuator-endpoints-node | created: 2026-08-23 | last_used: 2026-08-23 | uses: 1 | tier: working | origin: 2026-08-23-031920 -->
 
-- [ ] (planned — Eric, 2026-08-23, on return from an AI workshop) **Code quality review
-  round for mercury-nodejs** — the node twin of the python quality round (mercury-python
+- [x] (planned — Eric, 2026-08-23; **EXECUTED 2026-08-24 and MERGED same day as
+  [PR #88](https://github.com/Accenture/mercury-nodejs/pull/88), true merge `2a0d8f8`
+  carrying `a73332f` (17 commits, tree verified, branches deleted both ends);
+  51/51 green throughout — 12 Sonar rules cleared incl. the shared asText
+  (positive-narrowing lesson), two S3776 extractions, the linear call-site parse, and
+  the EventEmitter rationale now in bus.ts's header; + the loose-ends round: engine-
+  parity index page, pretty JSON, {status, message, type: error} host errors
+  (`956c706`, 51/51); PENDING Eric's PR gate**)
+  **Code quality review round for mercury-nodejs** — the node twin of the python quality round (mercury-python
   PR #16 class: IDE/Sonar screenshot-driven; node has so far received only preemptive
   mirrors of python findings, never its own review pass). After it: P4 on the polyglot
   initiative (docs chapter + examples demo on the engine repos, interop-report extension,

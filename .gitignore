@@ -36,3 +36,6 @@ npm-debug.log*
 review-scratch/
 __pycache__/
 *.py[cod]
+
+# mkdocs build output
+site/

@@ -20,6 +20,10 @@ Orchestration deliberately stays in the engines. Functions written here are addr
 route name through the engines' declarative `yaml.event.over.http` map, so a flow or a
 graph task calls a Node.js function exactly as if it were local.
 
+**Documentation:** <https://accenture.github.io/mercury-nodejs/> — including the
+[AI Agent Guide](https://accenture.github.io/mercury-nodejs/guides/ai-agent-guide/)
+for deterministic function generation.
+
 > **Status: pre-release.** This repository was repurposed in August 2026 for the polyglot
 > initiative: instead of re-porting the full composable foundation to Node.js, the fresh
 > start rides the engines' Event-over-HTTP protocol — light by design. The previous

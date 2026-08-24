@@ -18,12 +18,13 @@ import { AppException, annotateTrace, getLogger, preload } from '../dist/src/ind
 const log = getLogger('demo-app');
 
 preload('hello.node', { instances: 10 }, async (headers, body) => {
-  if (typeof body !== 'object' || body === null || !('text' in body)) {
+  if (typeof body !== 'object' || body === null
+      || !('text' in body) || typeof body.text !== 'string') {
     throw new AppException(400, "missing 'text'");
   }
   annotateTrace('language', 'node.js');
-  log.info(`Transforming text of length ${String(body.text).length}`);
-  return { text: String(body.text).toUpperCase(), language: 'node.js' };
+  log.info(`Transforming text of length ${body.text.length}`);
+  return { text: body.text.toUpperCase(), language: 'node.js' };
 });
 
 preload('hello.declarative', { instances: 10 }, async (headers, body) => {
@@ -32,7 +33,8 @@ preload('hello.declarative', { instances: 10 }, async (headers, body) => {
 
 // Private helper - callable in-app only (the HTTP host answers 403 for it).
 preload('demo.suffix.helper', { instances: 10, isPrivate: true }, async (_headers, body) => {
-  return { text: `${body?.text ?? ''}!`, language: 'node.js' };
+  const text = typeof body?.text === 'string' ? body.text : '';
+  return { text: `${text}!`, language: 'node.js' };
 });
 
 // Local composition: a public function calls a private sibling through the bus.

@@ -15,6 +15,20 @@
  *   deadline (the 408 envelope) instead of hoarding work.
  * - In-memory only; no orchestration, no flows, no persistence, no broadcast.
  *
+ * Why a hand-built Mailbox instead of Node's EventEmitter: this contract is
+ * an ANYCAST WORK QUEUE - each delivery goes to exactly one of N workers and
+ * waits its FIFO turn while all are busy. EventEmitter is a broadcast
+ * notifier - emit() invokes every listener synchronously and buffers
+ * nothing - so a bounded-concurrency bus would still need this queue in
+ * front of it (the emitter demoted to a wake-up bell), and once()-based
+ * bridging re-registers a listener per iteration, can drop emissions
+ * between iterations, and trips MaxListenersExceededWarning right at the
+ * default instances=10. Bare promise waiters also hold no event-loop
+ * handles, which is what makes the lifecycle contract exactly true (an idle
+ * bus lets the process exit; only an in-flight RPC's deadline timer holds
+ * it). The Mailbox is node's missing asyncio.Queue, keeping the python and
+ * node twins structurally identical.
+ *
  * The bus is internal: application code uses preload() and PostOffice, never
  * this module - the same way engine developers never touch the engine bus.
  */

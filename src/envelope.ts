@@ -60,11 +60,16 @@ function normalize(value: unknown): unknown {
   return value;
 }
 
+/** Render a wire scalar as text: primitives via String, structures via JSON. */
+function asText(value: unknown): string {
+  return typeof value === 'object' ? JSON.stringify(value) : String(value);
+}
+
 function asStringMap(value: unknown): Record<string, string> {
   const result: Record<string, string> = {};
   if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      result[String(k)] = String(v);
+      result[k] = asText(v);
     }
   }
   return result;
@@ -136,9 +141,8 @@ export class EventEnvelope {
     return new Uint8Array(encoder.encode(this.toMap()));
   }
 
-  static fromMap(data: Record<string, unknown>): EventEnvelope {
-    const event = new EventEnvelope();
-    if (data.id !== undefined && data.id !== null) event.id = String(data.id);
+  /** The optional wire fields that arrive as strings (wire key -> assignment). */
+  private static copyStringFields(data: Record<string, unknown>, event: EventEnvelope): void {
     if (typeof data.to === 'string') event.to = data.to;
     if (typeof data.from === 'string') event.sender = data.from;
     if (typeof data.reply_to === 'string') event.replyTo = data.reply_to;
@@ -146,17 +150,32 @@ export class EventEnvelope {
     if (typeof data.trace_id === 'string') event.traceId = data.trace_id;
     if (typeof data.trace_path === 'string') event.tracePath = data.trace_path;
     if (typeof data.span_id === 'string') event.spanId = data.span_id;
+    if (typeof data.stack === 'string') event.stack = data.stack;
+    if (typeof data.obj_type === 'string') event.objType = data.obj_type;
+  }
+
+  /** The optional numeric fields (absent and nil are equivalent on the wire). */
+  private static copyNumericFields(data: Record<string, unknown>, event: EventEnvelope): void {
     if (data.status !== undefined && data.status !== null) event.status = Number(data.status);
+    if (data.exec_time !== undefined && data.exec_time !== null) {
+      event.execTime = Number(data.exec_time);
+    }
+    if (data.round_trip !== undefined && data.round_trip !== null) {
+      event.roundTrip = Number(data.round_trip);
+    }
+  }
+
+  static fromMap(data: Record<string, unknown>): EventEnvelope {
+    const event = new EventEnvelope();
+    if (data.id !== undefined && data.id !== null) event.id = asText(data.id);
+    EventEnvelope.copyStringFields(data, event);
+    EventEnvelope.copyNumericFields(data, event);
     event.headers = asStringMap(data.headers);
     if (data.body !== undefined) event.body = normalize(data.body);
-    if (data.exec_time !== undefined && data.exec_time !== null) event.execTime = Number(data.exec_time);
-    if (data.round_trip !== undefined && data.round_trip !== null) event.roundTrip = Number(data.round_trip);
     if (data.tags !== undefined && data.tags !== null) event.tags = asStringMap(data.tags);
     if (data.annotations !== undefined && data.annotations !== null) {
       event.annotations = normalize(data.annotations) as Record<string, unknown>;
     }
-    if (typeof data.stack === 'string') event.stack = data.stack;
-    if (typeof data.obj_type === 'string') event.objType = data.obj_type;
     if (data.exception instanceof Uint8Array) event.exception = data.exception;
     return event;
   }

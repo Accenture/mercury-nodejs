@@ -15,7 +15,7 @@ function parseArgs(argv: string[]): { app?: string; port?: number; host: string;
   };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg === '--port') result.port = parseInt(argv[++i], 10);
+    if (arg === '--port') result.port = Number.parseInt(argv[++i], 10);
     else if (arg === '--host') result.host = argv[++i];
     else if (arg === '--config') result.config = argv[++i];
     else if (!arg.startsWith('-') && !result.app) result.app = arg;

@@ -58,7 +58,7 @@ export class EventApiServer {
 
   private async handleEvent(req: http.IncomingMessage, res: http.ServerResponse,
                             raw: Buffer): Promise<void> {
-    const ttl = Math.max(1000, parseInt(String(req.headers['x-ttl'] ?? '0'), 10) || 0);
+    const ttl = Math.max(1000, Number.parseInt(String(req.headers['x-ttl'] ?? '0'), 10) || 0);
     const isAsync = req.headers['x-async'] === 'true';
     let event: EventEnvelope;
     try {

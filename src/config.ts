@@ -16,15 +16,11 @@
  */
 import * as fs from 'node:fs';
 import YAML from 'yaml';
+import { asText } from './envelope.js';
 
 const REF = /\$\{([^}]+)\}/g;
 
 const WHOLE_REF = /^\$\{([^}]+)\}$/;
-
-/** Render a config value as text: primitives via String, structures via JSON. */
-function asText(value: unknown): string {
-  return typeof value === 'object' ? JSON.stringify(value) : String(value);
-}
 
 export const DEFAULT_CANDIDATES = [
   'resources/application.yml',

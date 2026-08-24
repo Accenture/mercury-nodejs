@@ -40,7 +40,7 @@ import { randomUUID } from 'node:crypto';
 import * as http from 'node:http';
 import { DeliveryTimeout } from './bus.js';
 import { appConfig } from './config.js';
-import { isoUtc } from './envelope.js';
+import { asText, isoUtc } from './envelope.js';
 import { getLogger } from './log.js';
 import { FunctionRegistry } from './registry.js';
 import { VERSION } from './version.js';
@@ -101,8 +101,8 @@ export function elapsedTime(milliseconds: number): string {
 /** A comma/space-separated string (engine syntax) or a YAML list. */
 function asList(value: unknown): string[] {
   const items = Array.isArray(value)
-    ? value.map((item) => String(item).trim())
-    : String(value ?? '').split(/[,\s]+/);
+    ? value.map((item) => asText(item).trim())
+    : asText(value ?? '').split(/[,\s]+/);
   return items.filter((item) => item.length > 0);
 }
 
@@ -240,40 +240,44 @@ export class Actuator {
     for (const route of services) {
       const entry: Record<string, unknown> = { route, required };
       dependency.push(entry);
-      const service = this.registry.get(route);
-      if (!service) {
+      if (!await this.checkService(route, entry)) {
         allUp = false;
-        entry.status_code = 404;
-        entry.message = `Please check - Route ${route} not found`;
-        continue;
-      }
-      const bus = this.registry.bus;
-      // info is advisory - merge whatever the service reports about itself;
-      // the health probe below decides the status
-      try {
-        const info = await bus.deliver(service, { type: 'info' }, null, INFO_TIMEOUT_MS);
-        if (info.body !== null && typeof info.body === 'object' && !Array.isArray(info.body)) {
-          Object.assign(entry, info.body);
-        }
-      } catch (e) {
-        if (!(e instanceof DeliveryTimeout)) throw e;
-      }
-      try {
-        const reply = await bus.deliver(service, { type: 'health' }, null, HEALTH_TIMEOUT_MS);
-        entry.status_code = reply.getStatus();
-        if (isMessageShape(reply.body)) {
-          entry.message = reply.body;
-        }
-        if (reply.hasError()) {
-          allUp = false;
-        }
-      } catch (e) {
-        if (!(e instanceof DeliveryTimeout)) throw e;
-        allUp = false;
-        entry.status_code = 408;
-        entry.message = `Please check - ${e.message}`;
       }
     }
     return allUp;
+  }
+
+  /** Probe one health-check function; false when it is missing or down. */
+  private async checkService(route: string, entry: Record<string, unknown>): Promise<boolean> {
+    const service = this.registry.get(route);
+    if (!service) {
+      entry.status_code = 404;
+      entry.message = `Please check - Route ${route} not found`;
+      return false;
+    }
+    const bus = this.registry.bus;
+    // info is advisory - merge whatever the service reports about itself;
+    // the health probe below decides the status
+    try {
+      const info = await bus.deliver(service, { type: 'info' }, null, INFO_TIMEOUT_MS);
+      if (info.body !== null && typeof info.body === 'object' && !Array.isArray(info.body)) {
+        Object.assign(entry, info.body);
+      }
+    } catch (e) {
+      if (!(e instanceof DeliveryTimeout)) throw e;
+    }
+    try {
+      const reply = await bus.deliver(service, { type: 'health' }, null, HEALTH_TIMEOUT_MS);
+      entry.status_code = reply.getStatus();
+      if (isMessageShape(reply.body)) {
+        entry.message = reply.body;
+      }
+      return !reply.hasError();
+    } catch (e) {
+      if (!(e instanceof DeliveryTimeout)) throw e;
+      entry.status_code = 408;
+      entry.message = `Please check - ${e.message}`;
+      return false;
+    }
   }
 }

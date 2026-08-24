@@ -60,9 +60,11 @@ function normalize(value: unknown): unknown {
   return value;
 }
 
-/** Render a wire scalar as text: primitives via String, structures via JSON. */
-function asText(value: unknown): string {
-  return typeof value === 'object' ? JSON.stringify(value) : String(value);
+/** Render a scalar as text: primitives via String, structures via JSON. */
+export function asText(value: unknown): string {
+  if (typeof value === 'object') return JSON.stringify(value);
+  if (typeof value === 'function') return value.toString();
+  return String(value);
 }
 
 function asStringMap(value: unknown): Record<string, string> {

@@ -61,9 +61,10 @@ async function main(): Promise<number> {
   return 0;
 }
 
-main().then((code) => {
+try {
+  const code = await main();
   if (code !== 0) process.exit(code);
-}).catch((e) => {
+} catch (e) {
   process.stderr.write(`${(e as Error).message}\n`);
   process.exit(1);
-});
+}

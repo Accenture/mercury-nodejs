@@ -51,6 +51,23 @@ const INFO_TIMEOUT_MS = 3000; // engine value for the advisory type=info lookup
 const HEALTH_TIMEOUT_MS = 10000; // engine value for the type=health probe
 const UNHEALTHY = "Unhealthy. Please check '/health' endpoint.";
 
+// The engines' minimal landing page (platform-core public/index.html style);
+// the wrappers embed it - no static file service by design.
+const INDEX_HTML = `<!DOCTYPE html>
+<html>
+<body>
+
+<h2>Welcome</h2>
+
+<p><a href="/info">INFO endpoint</a></p>
+<p><a href="/info/routes">Service list</a></p>
+<p><a href="/env">Environment endpoint</a></p>
+<p><a href="/health">Health endpoint</a></p>
+<p><a href="/livenessprobe">Liveness probe</a></p>
+
+</body>
+</html>`;
+
 let origin: string | undefined;
 
 /**
@@ -118,8 +135,20 @@ function sendText(res: http.ServerResponse, status: number, text: string): void 
 }
 
 function sendJson(res: http.ServerResponse, status: number, body: unknown): void {
-  const bytes = Buffer.from(JSON.stringify(body));
+  // the engines' default serializer presentation: pretty-printed JSON
+  const bytes = Buffer.from(JSON.stringify(body, null, 2));
   res.writeHead(status, { 'content-type': 'application/json', 'content-length': bytes.length });
+  res.end(bytes);
+}
+
+/** The engines' host-level error shape (SimpleHttpUtility signature). */
+export function sendError(res: http.ServerResponse, status: number, message: string): void {
+  sendJson(res, status, { status, message, type: 'error' });
+}
+
+function sendHtml(res: http.ServerResponse, page: string): void {
+  const bytes = Buffer.from(page);
+  res.writeHead(200, { 'content-type': 'text/html', 'content-length': bytes.length });
   res.end(bytes);
 }
 
@@ -153,6 +182,9 @@ export class Actuator {
   /** Route a GET to its actuator endpoint; false when the path is not ours. */
   async handle(pathname: string, res: http.ServerResponse): Promise<boolean> {
     switch (pathname) {
+      case '/':
+        sendHtml(res, INDEX_HTML);
+        return true;
       case '/info':
         sendJson(res, 200, this.info());
         return true;

@@ -15,7 +15,7 @@
  * actuator.ts.
  */
 import * as http from 'node:http';
-import { Actuator } from './actuator.js';
+import { Actuator, sendError } from './actuator.js';
 import { DeliveryTimeout } from './bus.js';
 import { appConfig } from './config.js';
 import { EventEnvelope } from './envelope.js';
@@ -117,12 +117,10 @@ export class EventApiServer {
       if (req.method === 'GET') {
         this.actuator.handle(url.pathname, res).then((handled) => {
           if (!handled) {
-            res.writeHead(404, { 'content-type': 'text/plain' });
-            res.end('Not found');
+            sendError(res, 404, 'Resource not found');
           }
         }).catch((e) => {
-          res.writeHead(500, { 'content-type': 'text/plain' });
-          res.end((e as Error).message ?? String(e));
+          sendError(res, 500, (e as Error).message ?? String(e));
         });
         return;
       }
@@ -137,8 +135,7 @@ export class EventApiServer {
         req.on('error', () => res.destroy());
         return;
       }
-      res.writeHead(404, { 'content-type': 'text/plain' });
-      res.end('Not found');
+      sendError(res, 404, 'Resource not found');
     });
   }
 }

@@ -216,3 +216,45 @@ test('origin is stable and engine-shaped', () => {
   assert.equal(minted, appOrigin()); // minted once per process
   assert.match(minted, ORIGIN_SHAPE);
 });
+
+test('index page lists the actuator endpoints', async () => {
+  const { base, stop } = await start(new FunctionRegistry());
+  try {
+    const response = await fetch(`${base}/`);
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-type') ?? '', /text\/html/);
+    const page = await response.text();
+    for (const link of ['/info', '/info/routes', '/env', '/health', '/livenessprobe']) {
+      assert.ok(page.includes(`href="${link}"`));
+    }
+  } finally {
+    await stop();
+  }
+});
+
+test('unknown path answers the engine error shape', async () => {
+  const { base, stop } = await start(new FunctionRegistry());
+  try {
+    const [status, body] = await getJson(`${base}/no/such/page`);
+    assert.equal(status, 404);
+    assert.deepEqual(body, { status: 404, message: 'Resource not found', type: 'error' });
+    // non-GET on a known path is equally not a resource (engine semantics)
+    const post = await fetch(`${base}/info`, { method: 'POST' });
+    assert.equal(post.status, 404);
+    assert.deepEqual(await post.json(),
+      { status: 404, message: 'Resource not found', type: 'error' });
+  } finally {
+    await stop();
+  }
+});
+
+test('json responses are pretty-printed', async () => {
+  // the engines' default serializer presentation (SimpleMapper pretty Gson)
+  const { base, stop } = await start(new FunctionRegistry());
+  try {
+    const text = await (await fetch(`${base}/info`)).text();
+    assert.ok(text.startsWith('{\n  "app": {\n'));
+  } finally {
+    await stop();
+  }
+});

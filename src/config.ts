@@ -118,6 +118,15 @@ export class AppConfig {
     return value === undefined || value === null ? undefined : asText(value);
   }
 
+  /**
+   * Resolve ${ENV:default} substitution in a text value - the same rules as
+   * configuration values (used by companion config files such as
+   * app-log-context.yaml).
+   */
+  resolveText(value: string): unknown {
+    return this.substitute(value, undefined);
+  }
+
   exists(key: string): boolean {
     return this.overrides.has(key) || this.store.has(key);
   }

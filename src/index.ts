@@ -13,11 +13,23 @@ export { PostOffice } from './client.js';
 export type { CallOptions } from './client.js';
 export { AppConfig, appConfig, loadConfig } from './config.js';
 export { EventEnvelope, isoUtc } from './envelope.js';
+export {
+  DATA,
+  ENVELOPE,
+  EOF,
+  EventStreamWriter,
+  EXCEPTION,
+  SseParser,
+  streamEventName,
+  streamSignal,
+  X_EVENT_NAME,
+  X_EVENT_STREAM
+} from './event-stream.js';
 export { AppException, CompactFormatError } from './exceptions.js';
 export { getLogger, Logger } from './log.js';
 export { defaultRegistry, FunctionRegistry, preload, validateRoute } from './registry.js';
 export type { Handler, ServiceDef } from './registry.js';
 export { EventApiServer, Platform, platform } from './server.js';
-export { annotateTrace, getTrace } from './trace.js';
+export { annotateTrace, getTrace, runWithTrace, updateContext } from './trace.js';
 export type { TraceInfo } from './trace.js';
 export { VERSION } from './version.js';

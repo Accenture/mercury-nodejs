@@ -161,7 +161,9 @@
   aligns with the engine lock-step line and clears the legacy npm 4.3.x history,
   resolving the version-story question), with the interop gate green (the
   progressive-rendering interop report). The Vision's "releasable on its own cadence" is
-  unmet until it ships to npm; publishing itself stays Eric-gated (ownership, cadence,
+  unmet until it ships to npm; publishing is SEQUENCED (Eric,
+  2026-08-30): after the first iteration of the AI SDLC feature completes; it stays
+  Eric-gated (ownership, cadence,
   supply-chain posture; design P5/D6). → serves: vision-mercury-nodejs
   <!-- id: bp-publish-interop-gate | created: 2026-08-22 | last_used: 2026-08-22 | uses: 1 | tier: working | origin: 2026-08-22-173136 -->
 

@@ -8,11 +8,13 @@
  * Level comes from the LOG_LEVEL environment variable when set (mirroring the
  * engines), else the log.level configuration key, else INFO. log.format
  * carries the engines' three presentations: text (default), json
- * (pretty-printed JSON with the same information plus trace_id when a trace
- * context is active) and compact (the same object on a single line - JSONL -
- * for log aggregators).
+ * (pretty-printed) and compact (the same object on a single line - JSONL -
+ * for log aggregators). Inside a traced request, the JSON presentations add
+ * the application log "context" block (the engines' app-log-context feature -
+ * see log-context.ts).
  */
 import { appConfig } from './config.js';
+import { logContextConfig } from './log-context.js';
 import { getTrace } from './trace.js';
 
 const LEVELS = ['DEBUG', 'INFO', 'WARN', 'ERROR'] as const;
@@ -56,12 +58,25 @@ function callSite(): string {
   return `${name}:${line}`;
 }
 
-function write(level: Level, name: string | undefined, message: string, args: unknown[]): void {
+type LogMessage = string | Record<string, unknown>;
+
+function renderMessage(message: LogMessage, args: unknown[]): LogMessage {
+  // a structured (object) message stays structural in the JSON presentations
+  // and renders as compact JSON in text mode - used by the distributed-trace
+  // dataset records, which stdout log-ingest agents parse
+  if (typeof message === 'object' && message !== null && !args.length) {
+    return message;
+  }
+  const head = typeof message === 'string' ? message : JSON.stringify(message);
+  return args.length
+    ? `${head} ${args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ')}`
+    : head;
+}
+
+function write(level: Level, name: string | undefined, message: LogMessage, args: unknown[]): void {
   setup();
   if (LEVELS.indexOf(level) < minLevel) return;
-  const rendered = args.length
-    ? `${message} ${args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ')}`
-    : message;
+  const rendered = renderMessage(message, args);
   const logger = name ?? callSite();
   if (logFormat === 'json' || logFormat === 'compact') {
     const entry: Record<string, unknown> = {
@@ -70,22 +85,31 @@ function write(level: Level, name: string | undefined, message: string, args: un
       logger,
       message: rendered
     };
+    // the application log context (the engines' app-log-context feature):
+    // a "context" block on every structured line inside a traced request,
+    // correlating app logs with the distributed-trace telemetry stream
     const info = getTrace();
-    if (info?.traceId) entry.trace_id = info.traceId;
+    if (info?.traceId) {
+      const contextConfig = logContextConfig();
+      if (contextConfig.enabled) {
+        entry.context = contextConfig.render(info);
+      }
+    }
     // engine presentations: json = pretty-printed, compact = one line (JSONL)
     const indent = logFormat === 'json' ? 2 : undefined;
     process.stdout.write(JSON.stringify(entry, null, indent) + '\n');
   } else {
-    process.stdout.write(`${timestamp()} ${level.padEnd(5)} ${logger} - ${rendered}\n`);
+    const text = typeof rendered === 'string' ? rendered : JSON.stringify(rendered);
+    process.stdout.write(`${timestamp()} ${level.padEnd(5)} ${logger} - ${text}\n`);
   }
 }
 
 export class Logger {
   constructor(private readonly name?: string) {}
-  debug(message: string, ...args: unknown[]): void { write('DEBUG', this.name, message, args); }
-  info(message: string, ...args: unknown[]): void { write('INFO', this.name, message, args); }
-  warn(message: string, ...args: unknown[]): void { write('WARN', this.name, message, args); }
-  error(message: string, ...args: unknown[]): void { write('ERROR', this.name, message, args); }
+  debug(message: LogMessage, ...args: unknown[]): void { write('DEBUG', this.name, message, args); }
+  info(message: LogMessage, ...args: unknown[]): void { write('INFO', this.name, message, args); }
+  warn(message: LogMessage, ...args: unknown[]): void { write('WARN', this.name, message, args); }
+  error(message: LogMessage, ...args: unknown[]): void { write('ERROR', this.name, message, args); }
 }
 
 /** A logger writing engine-consistent log lines. */

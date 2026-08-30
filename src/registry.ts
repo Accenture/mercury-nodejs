@@ -6,12 +6,20 @@
  * full control of status and reply headers).
  */
 import { EventBus } from './bus.js';
+import type { EventEnvelope } from './envelope.js';
 
 /**
  * A function handler returns the reply body, an EventEnvelope for full
  * control of status and reply headers, or a promise of either - the bus
  * awaits the result and discriminates with instanceof, so the honest
  * static type is simply unknown.
+ *
+ * An INTERCEPTOR handler (the engines' EventInterceptor contract) receives
+ * the raw EventEnvelope as its second argument - reply_to and the
+ * correlation id travel the engines' way - replies manually via reply_to,
+ * and its return value is discarded. Streaming producers and relay
+ * functions are interceptors. The runtime discriminates by the service's
+ * interceptor flag, so one structural type covers both flavors.
  */
 export type Handler = (
   headers: Record<string, string>,
@@ -23,6 +31,7 @@ export interface ServiceDef {
   handler: Handler;
   instances: number;
   isPrivate: boolean;
+  interceptor: boolean;
 }
 
 const ROUTE_PATTERN = /^[a-z0-9][a-z0-9._-]*$/;
@@ -44,17 +53,47 @@ export class FunctionRegistry {
 
   private readonly services = new Map<string, ServiceDef>();
 
+  constructor() {
+    // reply routing for the bus's interceptor error contract
+    this.bus.bindRouter((event) => this.sendEvent(event));
+  }
+
   register(route: string, handler: Handler,
-           options: { instances?: number; isPrivate?: boolean } = {}): ServiceDef {
+           options: { instances?: number; isPrivate?: boolean;
+                      interceptor?: boolean } = {}): ServiceDef {
     const validated = validateRoute(route);
     const service: ServiceDef = {
       route: validated,
       handler,
       instances: Math.max(1, Math.trunc(options.instances ?? 10)),
-      isPrivate: options.isPrivate ?? false
+      isPrivate: options.isPrivate ?? false,
+      interceptor: options.interceptor ?? false
     };
     this.services.set(validated, service);
     return service;
+  }
+
+  /**
+   * The reply_to mechanism: deliver one envelope to a LOCAL reply sink or
+   * registered function, drop-n-forget (simple routing, never across the
+   * wire - cross-wire replies ride the Event-over-HTTP SSE response).
+   * Returns false when the target no longer exists, so a late segment is a
+   * no-op drop, the engines' semantics.
+   */
+  sendEvent(event: EventEnvelope): boolean {
+    const route = event.to;
+    if (!route) {
+      return false;
+    }
+    if (this.bus.offerSink(route, event)) {
+      return true;
+    }
+    const service = this.services.get(route);
+    if (!service) {
+      return false;
+    }
+    this.bus.publishEnvelope(service, event);
+    return true;
   }
 
   get(route: string): ServiceDef | undefined {
@@ -79,7 +118,8 @@ export const defaultRegistry = new FunctionRegistry();
  *   preload('hello.node', { instances: 10 }, async (headers, body) => ({ ok: true }));
  */
 export function preload(route: string,
-                        options: { instances?: number; isPrivate?: boolean },
+                        options: { instances?: number; isPrivate?: boolean;
+                                   interceptor?: boolean },
                         handler: Handler): void {
   defaultRegistry.register(route, handler, options);
 }

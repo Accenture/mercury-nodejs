@@ -121,6 +121,11 @@ export class EventEnvelope {
     this.tracePath = tracePath;
     return this;
   }
+
+  setSpanId(spanId: string): this {
+    this.spanId = spanId;
+    return this;
+  }
   setReplyTo(route?: string): this { this.replyTo = route; return this; }
 
   getStatus(): number { return this.status ?? 200; }

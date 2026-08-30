@@ -1,6 +1,6 @@
 {
   "name": "mercury-composable",
-  "version": "0.1.0",
+  "version": "4.12.0",
   "description": "Lightweight Event-over-HTTP function host and client for Mercury Composable",
   "type": "module",
   "license": "Apache-2.0",
@@ -30,9 +30,9 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc -p .",
-    "test": "tsc -p . && node --test dist/test/*.test.js",
-    "prepack": "tsc -p ."
+    "build": "tsc -p . && node -e \"require('node:fs').cpSync('src/default-log-context.yaml','dist/src/default-log-context.yaml')\"",
+    "test": "npm run build && node --test dist/test/*.test.js",
+    "prepack": "npm run build"
   },
   "dependencies": {
     "@msgpack/msgpack": "^3.0.0",

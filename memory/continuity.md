@@ -13,11 +13,13 @@
 ## Project State
 
 - **project:** mercury-nodejs (npm: `mercury-composable`)
-- **status:** pre-release 0.1.0 (unreleased) — the Node.js member of the Mercury Composable
-  polyglot initiative: a lightweight Event-over-HTTP function host + thin client, repurposed
-  August 2026 (the previous full-framework port, up to v4.3.28, lives in git history and on npm)
+- **status:** v4.12.0 merged to main (the progressive-rendering milestone, engine lock-step
+  version line, jumping the npm lineage past the legacy 4.3.x; npm publish still pending) —
+  the Node.js member of the Mercury Composable polyglot initiative: a lightweight
+  Event-over-HTTP function host + thin client, repurposed August 2026 (the previous
+  full-framework port, up to v4.3.28, lives in git history and on npm)
 - **last_enabled:** 2026-08-22
-- **last_session:** 2026-08-26 | agent: Claude Code (2026-08-26-003024)
+- **last_session:** 2026-08-30 | agent: Claude Code (2026-08-30-045557)
 - **last_review:** (none yet)
 - **last_invariant_check:** (none yet)
 - **repo:** ~/sandbox/mercury-nodejs (origin: github.com/Accenture/mercury-nodejs)
@@ -28,8 +30,9 @@
 > versions. `instructions.md` keeps only a high-level descriptor and points here.
 
 - TypeScript ^5.6 (devDeps `typescript` + `@types/node` ^22), Node.js ≥ 20 (`engines`),
-  compiled to `dist/` (ESM); npm package `mercury-composable` v0.1.0 (unreleased); scripts:
-  `build`, `test`, `prepack`
+  compiled to `dist/` (ESM); npm package `mercury-composable` v4.12.0 (merged 2026-08-30,
+  engine lock-step version line; npm publish pending; build copies
+  default-log-context.yaml into dist/src); scripts: `build`, `test`, `prepack`
   <!-- id: stack-typescript-esm | created: 2026-08-22 | last_used: 2026-08-22 | uses: 1 | tier: working | origin: 2026-08-22-171916 -->
 - Runtime deps: `@msgpack/msgpack` (envelope codec), `yaml` (config) — deliberately minimal
   <!-- id: stack-deps-msgpack-yaml | created: 2026-08-22 | last_used: 2026-08-22 | uses: 1 | tier: working | origin: 2026-08-22-171916 -->
@@ -140,13 +143,26 @@
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
 
+- [x] (feature — **MERGED 2026-08-30 as
+  [PR #90](https://github.com/Accenture/mercury-nodejs/pull/90) true merge `40a9f8f`
+  carrying `c0c28a6`; tree verified; v4.12.0 milestone, all four repos lock-step)
+  **The progressive-rendering round: event streaming (engines' envelope-mode SSE
+  contract, reply_to bus mechanism, stream/streamTo consumers), business
+  correlation-id continuity, full span lineage with the engines' distributed-trace
+  dataset on stdout, app-log-context with the packaged default template, sender
+  attribution.** Lessons: tee (never swallow) process.stdout patches - the test
+  runner's records ride it; detach worker loops from the creating caller's
+  AsyncLocalStorage; RPC legs emit no dataset (engine parity).
+  origin: 2026-08-30-045557.
+  <!-- id: ot-streaming-telemetry-round-20260830 | created: 2026-08-30 | last_used: 2026-08-30 | uses: 1 | tier: working | origin: 2026-08-30-045557 -->
+
 - [ ] **(blueprint) Publish behind the interop gate.** The wrapper is complete and green
-  (tests incl. the shared golden vectors; cross-wrapper interop proven both directions)
-  but **unreleased** — the Vision's "releasable on its own cadence" is unmet until 0.1.0
-  ships to npm with protocol-compat versioning and the interop gate green per release
-  (design P5/D6). Publishing itself is Eric-gated (ownership, cadence, supply-chain
-  posture; the old full-framework port already occupies the npm name history — verify the
-  version story at publish time). → serves: vision-mercury-nodejs
+  and now versioned **v4.12.0 on main** (the milestone merge, 2026-08-30 — the version
+  aligns with the engine lock-step line and clears the legacy npm 4.3.x history,
+  resolving the version-story question), with the interop gate green (the
+  progressive-rendering interop report). The Vision's "releasable on its own cadence" is
+  unmet until it ships to npm; publishing itself stays Eric-gated (ownership, cadence,
+  supply-chain posture; design P5/D6). → serves: vision-mercury-nodejs
   <!-- id: bp-publish-interop-gate | created: 2026-08-22 | last_used: 2026-08-22 | uses: 1 | tier: working | origin: 2026-08-22-173136 -->
 
 - [x] **(vision-bootstrap)** Vision ratified by Eric, 2026-08-22 — drafted from the

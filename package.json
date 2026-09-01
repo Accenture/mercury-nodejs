@@ -1,6 +1,6 @@
 {
   "name": "mercury-composable",
-  "version": "4.12.0",
+  "version": "4.12.1",
   "description": "Lightweight Event-over-HTTP function host and client for Mercury Composable",
   "type": "module",
   "license": "Apache-2.0",
@@ -9,7 +9,17 @@
     "type": "git",
     "url": "git+https://github.com/Accenture/mercury-nodejs.git"
   },
-  "homepage": "https://accenture.github.io/mercury-composable",
+  "homepage": "https://accenture.github.io/mercury-nodejs",
+  "bugs": {
+    "url": "https://github.com/Accenture/mercury-nodejs/issues"
+  },
+  "keywords": [
+    "event-driven",
+    "composable",
+    "microservices",
+    "event-over-http",
+    "mercury"
+  ],
   "engines": {
     "node": ">=20"
   },

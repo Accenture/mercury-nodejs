@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.12.1 (2026-09-01)
+
+The first npm publication of the composable line: `npm install mercury-composable`.
+No functional change over 4.12.0 - this release carries the publication metadata
+(corrected homepage, bugs URL, keywords) on the lock-step version line. The npm
+version lineage resumes here: the name's earlier third-party versions were fully
+unpublished upstream, and the legacy pre-composable 4.3.x line is retired.
+
 ## 4.12.0 (2026-08-30)
 
 The progressive-rendering milestone release. The version aligns with the Mercury

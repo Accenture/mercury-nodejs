@@ -13,11 +13,12 @@
 ## Project State
 
 - **project:** mercury-nodejs (npm: `mercury-composable`)
-- **status:** v4.12.0 merged to main (the progressive-rendering milestone, engine lock-step
-  version line, jumping the npm lineage past the legacy 4.3.x; GitHub release v4.12.0 published 2026-08-30; npm package publish still pending) —
-  the Node.js member of the Mercury Composable polyglot initiative: a lightweight
-  Event-over-HTTP function host + thin client, repurposed August 2026 (the previous
-  full-framework port, up to v4.3.28, lives in git history and on npm)
+- **status:** **v4.12.1 PUBLISHED to npm 2026-09-01** (`npm install mercury-composable` —
+  the first public package of the composable line; tag v4.12.1; the name was a
+  fully-unpublished third-party tombstone, reclaimed per npm policy; the legacy
+  pre-composable 4.3.x line lives in git history only, NOT on the registry) — the
+  Node.js member of the Mercury Composable polyglot initiative: a lightweight
+  Event-over-HTTP function host + thin client, repurposed August 2026
 - **last_enabled:** 2026-08-22
 - **last_review:** (none yet)
 - **last_invariant_check:** (none yet)

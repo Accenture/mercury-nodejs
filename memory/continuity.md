@@ -16,7 +16,7 @@
 - **status:** v4.12.1 on npm (`npm install mercury-composable`); Event-over-HTTP
   function host + thin client; engines own orchestration
 - **last_enabled:** 2026-08-22
-- **last_review:** (none yet)
+- **last_review:** 2026-09-05 | through 2026-09-05-210103
 - **last_invariant_check:** (none yet)
 - **repo:** ~/sandbox/mercury-nodejs (origin: github.com/Accenture/mercury-nodejs)
 
@@ -29,7 +29,7 @@
   compiled to `dist/` (ESM); npm package `mercury-composable` v4.12.1 (published
   2026-09-01; engine lock-step version line; build copies default-log-context.yaml
   into dist/src); scripts: `build`, `test`, `prepack`
-  <!-- id: stack-typescript-esm | created: 2026-08-22 | last_used: 2026-08-30 | uses: 3 | tier: active | origin: 2026-08-22-171916 -->
+  <!-- id: stack-typescript-esm | created: 2026-08-22 | last_used: 2026-09-05 | uses: 4 | tier: active | origin: 2026-08-22-171916 -->
 - Runtime deps: `@msgpack/msgpack` (envelope codec), `yaml` (config) — deliberately minimal
   <!-- id: stack-deps-msgpack-yaml | created: 2026-08-22 | last_used: 2026-08-22 | uses: 1 | tier: archive-candidate | origin: 2026-08-22-171916 -->
 - Developer runner: `mercury-serve` (`node dist/src/cli.js app.mjs --port <n>`), with the
@@ -68,12 +68,7 @@
 - **Polyglot reboot (August 2026):** instead of re-porting the full composable foundation
   to Node.js, the fresh start rides the engines' Event-over-HTTP protocol — light by
   design; the previous port (≤ v4.3.28) remains in git history only (CHANGELOG 0.1.0).
-  <!-- id: decision-polyglot-reboot | created: 2026-08-22 | last_used: 2026-08-22 | uses: 2 | tier: archive-candidate | origin: 2026-08-22-171916 -->
-- **Two-audience root fork (Eric, 2026-08-22):** root `AGENTS.md` routes contributors to
-  `memory/PROTOCOL.md` and consumers (developers writing polyglot functions — the "AI
-  grammar" path) to `README.md`, which carries the quick start, function contract, and
-  wire-format guide. **Superseded 2026-09-05** — consumer path is now `system/AGENTS.md`.
-  <!-- id: decision-consumer-fork-readme | created: 2026-08-22 | last_used: 2026-08-22 | uses: 1 | tier: superseded | origin: 2026-08-22-171916 | superseded-by: decision-consumer-fork-system-agents -->
+  <!-- id: decision-polyglot-reboot | created: 2026-08-22 | last_used: 2026-09-05 | uses: 3 | tier: active | origin: 2026-08-22-171916 -->
 - **Consumer fork → `system/AGENTS.md` (2026-09-01):** root `AGENTS.md` routes contributors
   to `memory/PROTOCOL.md` and consumers to `system/AGENTS.md` (family pattern with the
   engine repos). README remains the human quick start.
@@ -88,7 +83,7 @@
 - Engine-mirrored configuration/logging/trace conventions (see the invariant above and
   `instructions.md`); GitHub flow with tests + a CHANGELOG entry per change
   (CONTRIBUTING.md).
-  <!-- id: conv-github-flow-changelog | created: 2026-08-22 | last_used: 2026-08-24 | uses: 2 | tier: active | origin: 2026-08-22-171916 -->
+  <!-- id: conv-github-flow-changelog | created: 2026-08-22 | last_used: 2026-08-24 | uses: 2 | tier: archive-candidate | origin: 2026-08-22-171916 -->
 
 ## Open Threads
 

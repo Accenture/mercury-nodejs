@@ -3,7 +3,9 @@
 > The north star: the target future state of this package. **Ratified by the maintainer
 > (Eric) on 2026-08-22**, drafted with Claude Code from the ratified polyglot-initiative
 > design (D0–D8 plus the same-day scope refinements: minimalist utilities, `resources/` +
-> `-D` config parity). Treated as `core` (never decays) but re-confirmed on the
+> `-D` config parity). **Non-goals amended 2026-09-05 (Eric):** the primitive in-process
+> event bus is in scope as dispatch, matching the 2026-08-23 invariant and the shipped
+> bus. Treated as `core` (never decays) but re-confirmed on the
 > invariant-verification cadence — a vision can go stale. The **Blueprint** (Open Threads
 > tagged `(blueprint)` in `continuity.md`) tracks the gap from Current State to here;
 > Designs and Implementations trace back to this `id`. See `DECAY.md` §12.
@@ -61,9 +63,12 @@ architecture; and the engine teams, who gain polyglot reach with zero engine cou
 
 ## Non-goals (what it must never become)
 
-- **Never a composable foundation or full SDK** — no event bus, no flows, no graphs, no
-  orchestration (the ratified scope fence). In particular, **never a re-port of the full
-  framework** — light by design is the point of the reboot.
+- **Never a composable foundation or full SDK** — no flows, no graphs, no persistence,
+  no pub/sub broadcast, no orchestration (the ratified scope fence). A **primitive
+  in-process event bus** (route mailboxes + workers — dispatch, not orchestration) is
+  in scope and shipped; it must never grow spill, queue caps, or engine-style
+  orchestration. In particular, **never a re-port of the full framework** — light by
+  design is the point of the reboot.
 - **Never subprocess or embedded-interpreter execution** (Option A shelved; helper-style
   embedding explicitly not planned).
 - **Never coupled to engine release cadence** or versioned beyond protocol compatibility.

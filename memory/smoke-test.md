@@ -47,3 +47,4 @@ review. Don't edit the questions to make them pass.
 |---|---|---|---|
 | 2026-08-22 | (enable) | — | baseline — run the test to populate |
 | 2026-08-22 | 2026-08-22-173136 | 11/12 | Q9: engine-side wiring (`yaml.event.over.http` route→URL map) was only in README, not memory → added "How an engine calls a function here" to instructions.md. Q2 passed with a noted partial (no pinned versions) → Stack & Tools now records TS ^5.6 / @types/node ^22 / Node ≥ 20. Fresh-context agent, memory files only. |
+| 2026-09-05 | 2026-09-05-210103 | 12/12 | First review. Q5: only live work is the Vision wording drift thread. Q8: `decision-consumer-fork-readme` superseded by `decision-consumer-fork-system-agents` (archive 2026-Q3). Q12: consumer path is `system/AGENTS.md`. |

@@ -4,4 +4,4 @@
   name was a third-party tombstone; Accenture 4.3.x never lived on the public registry.
   Lesson: trust `registry.npmjs.org/<name>` over website search. origin: 2026-09-01-225325
   → serves: vision-mercury-nodejs
-  <!-- id: bp-publish-interop-gate | created: 2026-08-22 | last_used: 2026-08-30 | uses: 5 | tier: working | origin: 2026-08-22-173136 -->
+  <!-- id: bp-publish-interop-gate | created: 2026-08-22 | last_used: 2026-09-05 | uses: 6 | tier: active | origin: 2026-08-22-173136 -->

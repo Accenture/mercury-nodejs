@@ -1,10 +1,7 @@
-- [ ] **(blueprint) Publish behind the interop gate.** The wrapper is complete and green
-  and now versioned **v4.12.0 on main** (the milestone merge, 2026-08-30 — the version
-  aligns with the engine lock-step line and clears the legacy npm 4.3.x history,
-  resolving the version-story question), with the interop gate green (the
-  progressive-rendering interop report). The Vision's "releasable on its own cadence" is
-  unmet until it ships to npm; publishing is SEQUENCED (Eric,
-  2026-08-30): after the first iteration of the AI SDLC feature completes; it stays
-  Eric-gated (ownership, cadence,
-  supply-chain posture; design P5/D6). → serves: vision-mercury-nodejs
+- [x] **(blueprint) Publish behind the interop gate.** Closed: v4.12.1 published to npm
+  2026-09-01 (`npm install mercury-composable`; tag v4.12.1; PR #94 merge `9818565`
+  carrying `2becdee`). Interop gate was already green at the v4.12.0 milestone. The
+  name was a third-party tombstone; Accenture 4.3.x never lived on the public registry.
+  Lesson: trust `registry.npmjs.org/<name>` over website search. origin: 2026-09-01-225325
+  → serves: vision-mercury-nodejs
   <!-- id: bp-publish-interop-gate | created: 2026-08-22 | last_used: 2026-08-30 | uses: 5 | tier: working | origin: 2026-08-22-173136 -->

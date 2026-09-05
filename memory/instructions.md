@@ -30,8 +30,10 @@ to v4.3.28) lives in git history and on npm.
 - `test/` — the test suite; golden conformance vectors shared with the Java and Rust
   engines prove wire compatibility.
 - `examples/demo-app.mjs` — minimal runnable function app.
-- Root `README.md` — the consumer-facing guide (quick start, function contract,
-  configuration, wire compatibility); the root `AGENTS.md` fork routes consumers there.
+- `system/AGENTS.md` — consumer AI starting point (guide index, key references,
+  lookup strategy); the root `AGENTS.md` fork routes consumers there.
+- Root `README.md` — the human-facing consumer guide (quick start, function contract,
+  configuration, wire compatibility).
 
 ## How an engine calls a function here (the wiring)
 
@@ -45,7 +47,7 @@ if it were local, with trace context carried end to end.
 
 Root `AGENTS.md` forks readers: **contributors** follow `memory/PROTOCOL.md` (this memory
 layer); **consumers** — developers writing polyglot functions against this package — start
-at `README.md` and never load contributor memory.
+at `system/AGENTS.md` and never load contributor memory.
 
 ## Conventions Observed
 
@@ -82,8 +84,9 @@ compatibility contract, not ordinary fixtures. Build with `npm run build` (tsc).
 
 ## CI / CD
 
-No package build/test workflow yet (pre-release). The agent-memory advisory CI floor
-(`.github/workflows/agent-memory.yml`) is installed; it checks the memory layer only.
+Package quality gate is `.github/workflows/ci.yml` (tsc + `node --test`, strict MkDocs
+build, gh-pages on push to main). The agent-memory advisory CI floor
+(`.github/workflows/agent-memory.yml`) checks the memory layer.
 
 ## Editing These Instructions
 

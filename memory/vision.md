@@ -21,9 +21,10 @@ place — while the engines own all orchestration.
 The Node.js member of the Mercury Composable polyglot initiative (August 2026): an Event
 API host (`POST /api/event`), a thin `PostOffice` client, the standard event-envelope
 codec (verified against the engines' shared golden vectors; int64 beyond 2⁵³ exact as
-BigInt), and engine-consistent minimalist utilities. Pre-release (0.1.0, unreleased);
-tests green including the golden vectors; cross-wrapper interop proven; the previous
-full-framework port (≤ v4.3.28) lives in git history and on npm.
+BigInt), engine-consistent minimalist utilities, a primitive in-process event bus, and
+actuator endpoints. **v4.12.1 is on npm** (`npm install mercury-composable`, 2026-09-01);
+tests and golden vectors green; the previous full-framework port (≤ v4.3.28) lives in
+git history only — it never occupied this name on the public registry.
 
 **Type:** TypeScript/Node.js library — polyglot function host + client
 

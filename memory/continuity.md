@@ -13,12 +13,8 @@
 ## Project State
 
 - **project:** mercury-nodejs (npm: `mercury-composable`)
-- **status:** **v4.12.1 PUBLISHED to npm 2026-09-01** (`npm install mercury-composable` —
-  the first public package of the composable line; tag v4.12.1; the name was a
-  fully-unpublished third-party tombstone, reclaimed per npm policy; the legacy
-  pre-composable 4.3.x line lives in git history only, NOT on the registry) — the
-  Node.js member of the Mercury Composable polyglot initiative: a lightweight
-  Event-over-HTTP function host + thin client, repurposed August 2026
+- **status:** v4.12.1 on npm (`npm install mercury-composable`); Event-over-HTTP
+  function host + thin client; engines own orchestration
 - **last_enabled:** 2026-08-22
 - **last_review:** (none yet)
 - **last_invariant_check:** (none yet)
@@ -30,9 +26,9 @@
 > versions. `instructions.md` keeps only a high-level descriptor and points here.
 
 - TypeScript ^5.6 (devDeps `typescript` + `@types/node` ^22), Node.js ≥ 20 (`engines`),
-  compiled to `dist/` (ESM); npm package `mercury-composable` v4.12.0 (merged 2026-08-30,
-  engine lock-step version line; npm publish pending; build copies
-  default-log-context.yaml into dist/src); scripts: `build`, `test`, `prepack`
+  compiled to `dist/` (ESM); npm package `mercury-composable` v4.12.1 (published
+  2026-09-01; engine lock-step version line; build copies default-log-context.yaml
+  into dist/src); scripts: `build`, `test`, `prepack`
   <!-- id: stack-typescript-esm | created: 2026-08-22 | last_used: 2026-08-30 | uses: 3 | tier: active | origin: 2026-08-22-171916 -->
 - Runtime deps: `@msgpack/msgpack` (envelope codec), `yaml` (config) — deliberately minimal
   <!-- id: stack-deps-msgpack-yaml | created: 2026-08-22 | last_used: 2026-08-22 | uses: 1 | tier: archive-candidate | origin: 2026-08-22-171916 -->
@@ -71,13 +67,21 @@
 
 - **Polyglot reboot (August 2026):** instead of re-porting the full composable foundation
   to Node.js, the fresh start rides the engines' Event-over-HTTP protocol — light by
-  design; the previous port (≤ v4.3.28) remains in git history and on npm (CHANGELOG 0.1.0).
+  design; the previous port (≤ v4.3.28) remains in git history only (CHANGELOG 0.1.0).
   <!-- id: decision-polyglot-reboot | created: 2026-08-22 | last_used: 2026-08-22 | uses: 2 | tier: archive-candidate | origin: 2026-08-22-171916 -->
 - **Two-audience root fork (Eric, 2026-08-22):** root `AGENTS.md` routes contributors to
   `memory/PROTOCOL.md` and consumers (developers writing polyglot functions — the "AI
   grammar" path) to `README.md`, which carries the quick start, function contract, and
-  wire-format guide.
-  <!-- id: decision-consumer-fork-readme | created: 2026-08-22 | last_used: 2026-08-22 | uses: 1 | tier: archive-candidate | origin: 2026-08-22-171916 -->
+  wire-format guide. **Superseded 2026-09-05** — consumer path is now `system/AGENTS.md`.
+  <!-- id: decision-consumer-fork-readme | created: 2026-08-22 | last_used: 2026-08-22 | uses: 1 | tier: superseded | origin: 2026-08-22-171916 | superseded-by: decision-consumer-fork-system-agents -->
+- **Consumer fork → `system/AGENTS.md` (2026-09-01):** root `AGENTS.md` routes contributors
+  to `memory/PROTOCOL.md` and consumers to `system/AGENTS.md` (family pattern with the
+  engine repos). README remains the human quick start.
+  <!-- id: decision-consumer-fork-system-agents | created: 2026-09-05 | last_used: 2026-09-05 | uses: 1 | tier: working | origin: 2026-09-05-205441 | supersedes: decision-consumer-fork-readme -->
+- **First npm publication (2026-09-01):** `mercury-composable` v4.12.1 is live; the name
+  was a fully-unpublished third-party tombstone (burned versions 3.4.3 / 5.0.8 / 5.0.9);
+  Accenture 4.3.x never lived on the public registry under this name.
+  <!-- id: decision-npm-first-publish-4-12-1 | created: 2026-09-05 | last_used: 2026-09-05 | uses: 1 | tier: working | origin: 2026-09-05-205441 -->
 
 ## Conventions
 

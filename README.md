@@ -24,10 +24,12 @@ graph task calls a Node.js function exactly as if it were local.
 [AI Agent Guide](https://accenture.github.io/mercury-nodejs/guides/ai-agent-guide/)
 for deterministic function generation.
 
-> **Status: pre-release.** This repository was repurposed in August 2026 for the polyglot
-> initiative: instead of re-porting the full composable foundation to Node.js, the fresh
-> start rides the engines' Event-over-HTTP protocol — light by design. The previous
-> Node.js port (up to v4.3.28) remains available in the git history and on npm.
+> **Published on npm.** `mercury-composable` v4.12.1 is live —
+> `npm install mercury-composable`. This repository was repurposed in August 2026 for the
+> polyglot initiative: instead of re-porting the full composable foundation to Node.js, the
+> fresh start rides the engines' Event-over-HTTP protocol — light by design. The previous
+> Node.js port (up to v4.3.28) remains available in the git history only — it never
+> occupied this name on the public registry.
 
 ## Quick start
 
@@ -48,8 +50,8 @@ await platform.run(); // port from rest.server.port (default 8085)
 Run it:
 
 ```bash
-npm install && npm run build
-node dist/src/cli.js app.mjs -Drest.server.port=8087     # or: mercury-serve app.mjs -Drest.server.port=8087
+npm install mercury-composable
+mercury-serve app.mjs -Drest.server.port=8087
 ```
 
 Call it from a Mercury engine application with two configuration entries and no code —

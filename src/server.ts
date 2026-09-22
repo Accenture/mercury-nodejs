@@ -35,6 +35,7 @@ import {
 } from './event-stream.js';
 import { CompactFormatError } from './exceptions.js';
 import { getLogger } from './log.js';
+import { activate as activateOtelForwarder } from './otel/index.js';
 import { defaultRegistry, FunctionRegistry, ServiceDef } from './registry.js';
 import { MY_CID_TAG, MY_CORRELATION_ID } from './trace.js';
 
@@ -355,6 +356,9 @@ export class Platform {
     const appName = config.getProperty('application.name', 'application');
     const port = options.port ?? Number(config.get('rest.server.port', 8085));
     const host = options.host ?? '127.0.0.1';
+    // the opt-in OpenTelemetry forwarder registers on the extension route before
+    // the route list is announced
+    activateOtelForwarder(config, this.registry);
     for (const service of this.registry.routes()) {
       const visibility = service.isPrivate ? 'PRIVATE' : 'PUBLIC';
       log.info(`Loaded ${visibility} ${service.route}, instances=${service.instances}`);

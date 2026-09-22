@@ -16,6 +16,9 @@ export const MY_CORRELATION_ID = 'my_correlation_id';
 // (its metrics fold into the caller's view), so the client stamps it on
 // request() calls and the bus honors it at delivery.
 export const RPC_TAG = 'rpc';
+// the engines' distributed-trace extension route: a function registered here
+// receives every trace dataset the host emits (the OpenTelemetry forwarder lives there)
+export const DISTRIBUTED_TRACE_FORWARDER = 'distributed.trace.forwarder';
 // Reserved application log-context tokens (the engines' LogContext contract):
 // resolved live per log line; a developer cannot override them via
 // updateContext. The output key names in app-log-context.yaml are the

@@ -16,7 +16,7 @@
  * | `service` (route) | span name (`path`, then `task`, when absent) |
  * | `start` + `exec_time` | start / end timestamps |
  * | `success` / `status` / `exception` | status OK, or ERROR with a description |
- * | `from` = `http.request` | kind SERVER (else INTERNAL) |
+ * | `service` = `http.request` (the edge's round-trip record) | kind SERVER (every function execution is INTERNAL) |
  * | `path`, `from`, `origin`, `status`, `exec_time_ms`, `round_trip_ms`, `exception` | attributes |
  * | `service` | the `route` attribute |
  * | `annotations` entries | `annotation.<key>` attributes |
@@ -92,7 +92,10 @@ export function spanFromDataset(dataset: unknown): Span | undefined {
   const service = display(trace.service);
   const path = display(trace.path);
   const name = service ?? path ?? 'task';
-  const kind = display(trace.from) === HTTP_REQUEST ? KIND_SERVER : KIND_INTERNAL;
+  // the edge's round-trip record (service "http.request", emitted by an engine's REST
+  // automation when the response completes) is the SERVER span; every function execution
+  // - including the first one, whose "from" is http.request - is an INTERNAL hop under it
+  const kind = service === HTTP_REQUEST ? KIND_SERVER : KIND_INTERNAL;
   const attributes: Array<[string, AttributeValue]> = [];
   const putStr = (key: string, value: string | undefined): void => {
     if (value !== undefined) attributes.push([key, { type: 'string', value }]);

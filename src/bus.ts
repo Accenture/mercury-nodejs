@@ -38,7 +38,7 @@ import { getLogger } from './log.js';
 import type { ServiceDef } from './registry.js';
 import { randomBytes } from 'node:crypto';
 import { appOrigin } from './actuator.js';
-import { MY_CID_TAG, MY_CORRELATION_ID, RPC_TAG, runWithTrace, TraceInfo } from './trace.js';
+import { DISTRIBUTED_TRACE_FORWARDER, MY_CID_TAG, MY_CORRELATION_ID, RPC_TAG, runWithTrace, TraceInfo } from './trace.js';
 
 const log = getLogger('mercury.bus');
 
@@ -135,9 +135,9 @@ function isRpc(delivery: Delivery): boolean {
  */
 function emitTrace(delivery: Delivery, info: TraceInfo, start: string,
                    execTime: number, status: number, success: boolean,
-                   exception: string | undefined): void {
+                   exception: string | undefined): Record<string, unknown> | undefined {
   if (!info.traceId || isRpc(delivery)) {
-    return;
+    return undefined;
   }
   const trace: Record<string, unknown> = {
     origin: appOrigin(),
@@ -164,6 +164,7 @@ function emitTrace(delivery: Delivery, info: TraceInfo, start: string,
     dataset.annotations = { ...info.annotations };
   }
   telemetryLog.info(dataset);
+  return dataset;
 }
 
 const CLOSED: unique symbol = Symbol('bus-closed');
@@ -335,7 +336,7 @@ export class EventBus {
       }
       const reply = delivery.service.interceptor
         ? await this.executeInterceptor(delivery)
-        : await EventBus.execute(delivery);
+        : await this.execute(delivery);
       if (delivery.resolve) {
         if (!delivery.settled) {
           delivery.settled = true;
@@ -349,7 +350,7 @@ export class EventBus {
   }
 
   /** Run the handler under its trace context and shape the outcome as a reply. */
-  private static async execute(delivery: Delivery): Promise<EventEnvelope> {
+  private async execute(delivery: Delivery): Promise<EventEnvelope> {
     const myCid = businessCid(delivery);
     const headers = headersView(delivery, myCid);
     const info = traceInfoOf(delivery, myCid);
@@ -378,8 +379,8 @@ export class EventBus {
     if (Object.keys(info.annotations).length) {
       reply.annotations = { ...info.annotations, ...reply.annotations };
     }
-    emitTrace(delivery, info, startIso, reply.execTime, reply.getStatus(),
-      !reply.hasError(), reply.hasError() ? String(reply.body) : undefined);
+    this.forward(emitTrace(delivery, info, startIso, reply.execTime, reply.getStatus(),
+      !reply.hasError(), reply.hasError() ? String(reply.body) : undefined));
     return reply;
   }
 
@@ -408,10 +409,23 @@ export class EventBus {
     }
     const status = error instanceof AppException ? error.status : (error ? 500 : 200);
     const execTime = Math.round(Number(process.hrtime.bigint() - start) / 1000) / 1000;
-    emitTrace(delivery, info, startIso, execTime, status, !error,
-      error ? String((error as Error).message ?? error) : undefined);
+    this.forward(emitTrace(delivery, info, startIso, execTime, status, !error,
+      error ? String((error as Error).message ?? error) : undefined));
     // an interceptor's own outcome is never auto-replied
     return new EventEnvelope();
+  }
+
+  /**
+   * Hand an emitted dataset to the engines' extension route when a function is
+   * registered there (the OpenTelemetry forwarder, or an application's own): a
+   * drop-n-forget envelope routed like a reply, carrying no trace - so the
+   * forwarder's own execution emits no dataset, the engines' zero-tracing forwarder.
+   */
+  private forward(dataset: Record<string, unknown> | undefined): void {
+    if (!dataset || !this.router) {
+      return;
+    }
+    this.router(new EventEnvelope(DISTRIBUTED_TRACE_FORWARDER, dataset));
   }
 
   private replyInterceptorError(route: string, event: EventEnvelope, e: unknown): void {

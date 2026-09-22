@@ -41,7 +41,7 @@
   ],
   "scripts": {
     "build": "tsc -p . && node -e \"require('node:fs').cpSync('src/default-log-context.yaml','dist/src/default-log-context.yaml')\"",
-    "test": "npm run build && node --test dist/test/*.test.js",
+    "test": "npm run build && node --test dist/test/*.test.js test/*.test.mjs",
     "prepack": "npm run build"
   },
   "dependencies": {

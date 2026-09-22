@@ -16,7 +16,10 @@ This package is a deliberately **lightweight wrapper of the Event-over-HTTP prot
 - the **minimalist utilities** shared with the engines for consistency: configuration
   management, logging in the engines' presentation format, and distributed-trace context, and
 - the **OpenTelemetry forwarder** (opt-in, `otel.forwarding=true`): the host's trace spans
-  exported over OTLP/HTTP to Dynatrace, Splunk or a collector — no SDK, no new dependency.
+  exported over OTLP/HTTP to Dynatrace, Splunk or a collector — no SDK, no new dependency, and
+- the **AI nodes** `llm.chat` / `llm.stream` in the demo (`examples/llm-nodes.mjs`): provider-neutral
+  Gemini and Anthropic adapters over their REST APIs through `fetch` — the graph decides, the model
+  advises; `llm.stream` relays the provider's real token stream progressively.
 
 Orchestration deliberately stays in the engines. Functions written here are addressed by
 route name through the engines' declarative `yaml.event.over.http` map, so a flow or a

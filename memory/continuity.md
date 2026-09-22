@@ -14,7 +14,8 @@
 
 - **project:** mercury-nodejs (npm: `mercury-composable`)
 - **status:** v4.12.1 on npm (`npm install mercury-composable`); Event-over-HTTP
-  function host + thin client; engines own orchestration
+  function host + thin client; engines own orchestration. **2026-09-22: the OpenTelemetry forwarder implemented on
+  `feat/otel-forwarder` (PR pending) for Eric's v4.12.15 lock-step milestone.**
 - **last_enabled:** 2026-08-22
 - **last_review:** 2026-09-05 | through 2026-09-05-210103
 - **last_invariant_check:** (none yet)
@@ -77,6 +78,18 @@
   was a fully-unpublished third-party tombstone (burned versions 3.4.3 / 5.0.8 / 5.0.9);
   Accenture 4.3.x never lived on the public registry under this name.
   <!-- id: decision-npm-first-publish-4-12-1 | created: 2026-09-05 | last_used: 2026-09-05 | uses: 1 | tier: working | origin: 2026-09-05-205441 -->
+
+- **The OpenTelemetry forwarder is a zero-dependency port of the Rust engine's hand-written OTLP encoder, attached
+  at the engines' extension route (Eric, 2026-09-22; the mercury-python twin merged the same day).** `src/otel/`
+  (the `otel` namespace): with `otel.forwarding=true` the bus routes every emitted trace dataset to
+  `distributed.trace.forwarder` through the registry's envelope router — WITHOUT a trace, so the forwarder's own
+  execution emits none — and the built-in forwarder (private, two workers; an application's own function on the
+  route wins) maps it to one span with the host's exact W3C ids and exports it over OTLP/HTTP protobuf through the
+  runtime's `fetch`, retrying transport failures and 408/429/502/503/504 on the SDK backoff and re-reading the
+  credential headers per export. Same `otel.*` keys as Java/Rust/Python; deltas: `otel.exporter.otlp.connect.timeout`
+  has no effect (one overall fetch timeout), scope `mercury-composable-nodejs`. Rejected: the OTel SDKs as an
+  optional dependency (~ten packages against this package's two). Branch `feat/otel-forwarder` (`3c3388b`).
+  <!-- id: otel-forwarder-nodejs | created: 2026-09-22 | last_used: 2026-09-22 | uses: 1 | tier: working | origin: 2026-09-22-165807 -->
 
 ## Conventions
 

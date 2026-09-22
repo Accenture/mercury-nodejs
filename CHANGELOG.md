@@ -12,6 +12,15 @@
   span mapping, per-export credential headers, retry policy and failure diagnostics as the Java and
   Rust forwarders. No OpenTelemetry SDK and no new dependency: the encoder is the Rust port's
   hand-written OTLP writer, ported. Off by default.
+- The **AI nodes** `llm.chat` and `llm.stream` (`examples/llm-nodes.mjs`, joined to the demo app) - the
+  Node.js twins of the Python demo's AI nodes of the agent-orchestration experiment E0: provider-neutral
+  LLM adapters (Gemini and Anthropic behind one contract; select with `params.provider` /
+  `-Dllm.provider=gemini`) spoken over their REST APIs through the runtime's `fetch` - no SDK, no
+  dependency. `llm.stream` relays the provider's real token stream over the multi-shot reply contract,
+  so a calling engine renders it progressively out its own HTTP edge; the terminal metadata carries
+  model, stop_reason, usage and the trace / business correlation ids. Credentials: `GEMINI_API_KEY`
+  (or `GOOGLE_API_KEY`), `ANTHROPIC_API_KEY`. The default Gemini model is the stable alias
+  `gemini-flash-latest`.
 - The `distributed.trace.forwarder` extension route itself (`DISTRIBUTED_TRACE_FORWARDER`): a
   function an application registers under that name receives every emitted dataset (routed without
   a trace, so the forwarder's own execution emits none) - the engines' zero-tracing forwarder contract.

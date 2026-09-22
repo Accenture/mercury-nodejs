@@ -89,6 +89,9 @@
   credential headers per export. Same `otel.*` keys as Java/Rust/Python; deltas: `otel.exporter.otlp.connect.timeout`
   has no effect (one overall fetch timeout), scope `mercury-composable-nodejs`. Rejected: the OTel SDKs as an
   optional dependency (~ten packages against this package's two). Shipped: PR #101, merge `586c3f63` (2026-09-22).
+  **Kind rule since 2026-09-22 (branch `fix/otel-span-kind-edge`):** SERVER iff the record's `service` is `http.request` — an
+  engine edge's round-trip record — and every function execution is INTERNAL; a record's `from` no longer decides the kind
+  (the engines' connected-span-tree fix, mercury-composable/mercury `fix/connected-edge-spans`).
   <!-- id: otel-forwarder-nodejs | created: 2026-09-22 | last_used: 2026-09-22 | uses: 1 | tier: working | origin: 2026-09-22-165807 -->
 
 ## Conventions

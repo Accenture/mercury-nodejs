@@ -238,7 +238,8 @@ test('span mapping preserves the ids and the metrics', () => {
   assert.equal(Buffer.from(span.spanId).toString('hex'), SPAN_ID);
   assert.equal(Buffer.from(span.parentSpanId!).toString('hex'), PARENT_SPAN_ID);
   assert.equal(span.name, 'hello.world');
-  assert.equal(span.kind, KIND_SERVER);
+  // a function execution is an INTERNAL hop, even the first one (from=http.request)
+  assert.equal(span.kind, KIND_INTERNAL);
   assert.equal(span.statusCode, STATUS_OK);
   assert.equal(span.startUnixNano, 1_782_295_200_000_000_000n);
   assert.equal(span.endUnixNano - span.startUnixNano, 12_500_000n);
@@ -294,7 +295,8 @@ test('encoding round-trips through the reader', () => {
   const got = decoded.spans[0];
   assert.deepEqual([got.traceId, got.spanId, got.parentSpanId], [TRACE_ID, SPAN_ID, PARENT_SPAN_ID]);
   assert.equal(got.name, 'hello.world');
-  assert.equal(got.kind, 2);
+  // a function execution encodes as kind 1 (INTERNAL); only the edge's round-trip record is SERVER
+  assert.equal(got.kind, 1);
   assert.equal(got.statusCode, 1);
   assert.equal(got.flags, SPAN_FLAGS_SAMPLED_LOCAL);
   assert.equal(got.startUnixNano, 1_782_295_200_000_000_000n);
@@ -466,4 +468,19 @@ test('the host hands every dataset to the forwarder', async () => {
   // the forwarder's own execution is untraced: exactly one span reached the collector
   await new Promise((resolve) => setTimeout(resolve, 200));
   assert.equal(collector.captured.length, 1);
+});
+
+test('the edge round-trip record is the SERVER span', () => {
+  // an engine's REST automation emits one record per traced request with service
+  // "http.request" - the round trip from receipt to the completed response; it is the
+  // SERVER span and the first function's parent (the same rule as the engines' forwarders)
+  const dataset = sampleDataset({ service: 'http.request', path: 'GET /api/hello', exec_time: 2016 });
+  delete (dataset.trace as Record<string, unknown>).from;
+  const span = spanFromDataset(dataset);
+  assert.ok(span);
+  assert.equal(span.name, 'http.request');
+  assert.equal(span.kind, KIND_SERVER);
+  assert.equal(span.endUnixNano - span.startUnixNano, 2_016_000_000n);
+  assert.equal(attribute(span, 'path'), 'GET /api/hello');
+  assert.equal(attribute(span, 'from'), undefined);
 });

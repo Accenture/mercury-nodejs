@@ -14,8 +14,8 @@
 
 - **project:** mercury-nodejs (npm: `mercury-composable`)
 - **status:** v4.12.1 on npm (`npm install mercury-composable`); Event-over-HTTP
-  function host + thin client; engines own orchestration. **2026-09-22: the OpenTelemetry forwarder implemented on
-  `feat/otel-forwarder` (PR pending) for Eric's v4.12.15 lock-step milestone.**
+  function host + thin client; engines own orchestration. **2026-09-22: the OpenTelemetry forwarder MERGED (PR #101, `586c3f63`) on main for Eric's
+  v4.12.15 lock-step milestone; unreleased until the 4.12.15 cut.**
 - **last_enabled:** 2026-08-22
 - **last_review:** 2026-09-05 | through 2026-09-05-210103
 - **last_invariant_check:** (none yet)
@@ -88,7 +88,7 @@
   runtime's `fetch`, retrying transport failures and 408/429/502/503/504 on the SDK backoff and re-reading the
   credential headers per export. Same `otel.*` keys as Java/Rust/Python; deltas: `otel.exporter.otlp.connect.timeout`
   has no effect (one overall fetch timeout), scope `mercury-composable-nodejs`. Rejected: the OTel SDKs as an
-  optional dependency (~ten packages against this package's two). Branch `feat/otel-forwarder` (`3c3388b`).
+  optional dependency (~ten packages against this package's two). Shipped: PR #101, merge `586c3f63` (2026-09-22).
   <!-- id: otel-forwarder-nodejs | created: 2026-09-22 | last_used: 2026-09-22 | uses: 1 | tier: working | origin: 2026-09-22-165807 -->
 
 ## Conventions

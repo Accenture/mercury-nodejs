@@ -29,7 +29,7 @@ graph task calls a Node.js function exactly as if it were local.
 [AI Agent Guide](https://accenture.github.io/mercury-nodejs/guides/ai-agent-guide/)
 for deterministic function generation.
 
-> **Published on npm.** `mercury-composable` v4.12.1 is live —
+> **Published on npm.** `mercury-composable` v4.12.15 is live —
 > `npm install mercury-composable`. This repository was repurposed in August 2026 for the
 > polyglot initiative: instead of re-porting the full composable foundation to Node.js, the
 > fresh start rides the engines' Event-over-HTTP protocol — light by design. The previous

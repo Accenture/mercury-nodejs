@@ -13,9 +13,10 @@
 ## Project State
 
 - **project:** mercury-nodejs (npm: `mercury-composable`)
-- **status:** v4.12.1 on npm (`npm install mercury-composable`); Event-over-HTTP
-  function host + thin client; engines own orchestration. **2026-09-22: the OpenTelemetry forwarder MERGED (PR #101, `586c3f63`) on main for Eric's
-  v4.12.15 lock-step milestone; unreleased until the 4.12.15 cut.**
+- **status:** **v4.12.15 on npm (published 2026-09-23 02:34Z; `npm install mercury-composable`; tag `v4.12.15` → `4c43ffe`, PR #105
+  merge `13426732`, GitHub release 01:39Z — the lock-step round with both engines, adopting the Java number; the 4.12.15 line adds
+  the OpenTelemetry forwarder (opt-in, no SDK), the `llm.chat`/`llm.stream` AI nodes and the SERVER-iff-`http.request` span-kind
+  rule)**; Event-over-HTTP function host + thin client; engines own orchestration.
 - **last_enabled:** 2026-08-22
 - **last_review:** 2026-09-05 | through 2026-09-05-210103
 - **last_invariant_check:** (none yet)
@@ -27,12 +28,12 @@
 > versions. `instructions.md` keeps only a high-level descriptor and points here.
 
 - TypeScript ^5.6 (devDeps `typescript` + `@types/node` ^22), Node.js ≥ 20 (`engines`),
-  compiled to `dist/` (ESM); npm package `mercury-composable` v4.12.1 (published
+  compiled to `dist/` (ESM); npm package `mercury-composable` v4.12.15 (2026-09-23; the first publication v4.12.1 was
   2026-09-01; engine lock-step version line; build copies default-log-context.yaml
   into dist/src); scripts: `build`, `test`, `prepack`
-  <!-- id: stack-typescript-esm | created: 2026-08-22 | last_used: 2026-09-05 | uses: 4 | tier: active | origin: 2026-08-22-171916 -->
+  <!-- id: stack-typescript-esm | created: 2026-08-22 | last_used: 2026-09-22 | uses: 5 | tier: active | origin: 2026-08-22-171916 -->
 - Runtime deps: `@msgpack/msgpack` (envelope codec), `yaml` (config) — deliberately minimal
-  <!-- id: stack-deps-msgpack-yaml | created: 2026-08-22 | last_used: 2026-08-22 | uses: 1 | tier: archive-candidate | origin: 2026-08-22-171916 -->
+  <!-- id: stack-deps-msgpack-yaml | created: 2026-08-22 | last_used: 2026-09-22 | uses: 2 | tier: active | origin: 2026-08-22-171916 -->
 - Developer runner: `mercury-serve` (`node dist/src/cli.js app.mjs --port <n>`), with the
   engines' `-D` runtime-override syntax; trace context rides AsyncLocalStorage
   <!-- id: stack-mercury-serve-node | created: 2026-08-22 | last_used: 2026-08-22 | uses: 1 | tier: archive-candidate | origin: 2026-08-22-171916 -->
@@ -69,15 +70,15 @@
 - **Polyglot reboot (August 2026):** instead of re-porting the full composable foundation
   to Node.js, the fresh start rides the engines' Event-over-HTTP protocol — light by
   design; the previous port (≤ v4.3.28) remains in git history only (CHANGELOG 0.1.0).
-  <!-- id: decision-polyglot-reboot | created: 2026-08-22 | last_used: 2026-09-05 | uses: 3 | tier: active | origin: 2026-08-22-171916 -->
+  <!-- id: decision-polyglot-reboot | created: 2026-08-22 | last_used: 2026-09-05 | uses: 3 | tier: archive-candidate | origin: 2026-08-22-171916 -->
 - **Consumer fork → `system/AGENTS.md` (2026-09-01):** root `AGENTS.md` routes contributors
   to `memory/PROTOCOL.md` and consumers to `system/AGENTS.md` (family pattern with the
   engine repos). README remains the human quick start.
-  <!-- id: decision-consumer-fork-system-agents | created: 2026-09-05 | last_used: 2026-09-05 | uses: 1 | tier: working | origin: 2026-09-05-205441 | supersedes: decision-consumer-fork-readme -->
+  <!-- id: decision-consumer-fork-system-agents | created: 2026-09-05 | last_used: 2026-09-05 | uses: 1 | tier: archive-candidate | origin: 2026-09-05-205441 | supersedes: decision-consumer-fork-readme -->
 - **First npm publication (2026-09-01):** `mercury-composable` v4.12.1 is live; the name
   was a fully-unpublished third-party tombstone (burned versions 3.4.3 / 5.0.8 / 5.0.9);
   Accenture 4.3.x never lived on the public registry under this name.
-  <!-- id: decision-npm-first-publish-4-12-1 | created: 2026-09-05 | last_used: 2026-09-05 | uses: 1 | tier: working | origin: 2026-09-05-205441 -->
+  <!-- id: decision-npm-first-publish-4-12-1 | created: 2026-09-05 | last_used: 2026-09-05 | uses: 1 | tier: archive-candidate | origin: 2026-09-05-205441 -->
 
 - **The OpenTelemetry forwarder is a zero-dependency port of the Rust engine's hand-written OTLP encoder, attached
   at the engines' extension route (Eric, 2026-09-22; the mercury-python twin merged the same day).** `src/otel/`
@@ -92,14 +93,14 @@
   **Kind rule since 2026-09-22 (PR #104 MERGED, `5569357c`):** SERVER iff the record's `service` is `http.request` — an
   engine edge's round-trip record — and every function execution is INTERNAL; a record's `from` no longer decides the kind
   (the engines' connected-span-tree fix, mercury-composable/mercury `fix/connected-edge-spans`).
-  <!-- id: otel-forwarder-nodejs | created: 2026-09-22 | last_used: 2026-09-22 | uses: 1 | tier: working | origin: 2026-09-22-165807 -->
+  <!-- id: otel-forwarder-nodejs | created: 2026-09-22 | last_used: 2026-09-22 | uses: 2 | tier: active | origin: 2026-09-22-165807 -->
 
 ## Conventions
 
 - Engine-mirrored configuration/logging/trace conventions (see the invariant above and
   `instructions.md`); GitHub flow with tests + a CHANGELOG entry per change
   (CONTRIBUTING.md).
-  <!-- id: conv-github-flow-changelog | created: 2026-08-22 | last_used: 2026-08-24 | uses: 2 | tier: archive-candidate | origin: 2026-08-22-171916 -->
+  <!-- id: conv-github-flow-changelog | created: 2026-08-22 | last_used: 2026-09-22 | uses: 3 | tier: active | origin: 2026-08-22-171916 -->
 
 ## Open Threads
 

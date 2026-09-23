@@ -1,5 +1,8 @@
-- [ ] **OpenTelemetry forwarder lock-step and the v4.12.15 milestone (Eric's plan, 2026-09-22).** This host's
-  forwarder is MERGED (PR #101, `586c3f63`, 2026-09-22), as is the mercury-python twin (#33). The `llm.chat` /
-  `llm.stream` demo nodes are MERGED (PR #102, `7ab3c621`, fetch-based, no SDK — Eric's ruling) and the four-runtime Dynatrace drive ran 2026-09-22 (this host's traces `888a3f72…`, `1232ab83…`; report MERGED, PR #103 `82adef92`). Remaining: Eric's Dynatrace confirmation, then v4.12.15 on all four repos (this package
-  jumps from 4.12.1, adopting the Java number). **2026-09-22 (later):** the span kind rule follows the engines' connected-span-tree fix (SERVER iff `service == http.request`, functions INTERNAL) on branch `fix/otel-span-kind-edge` (`c95144f`) — **PR #104 MERGED 2026-09-22 (`5569357c`)**, confirmed in Dynatrace as an Internal span under the engine's `http.request` root — ships with 4.12.15. origin: 2026-09-22-165807, 2026-09-22-194836
-  <!-- id: otel-forwarder-lockstep | created: 2026-09-22 | last_used: 2026-09-22 | uses: 1 | tier: working | origin: 2026-09-22-165807 -->
+- [x] **OpenTelemetry forwarder lock-step and the v4.12.15 milestone — CLOSED 2026-09-23: v4.12.15 PUBLISHED.** PR #105 merge
+  `13426732`, tag `v4.12.15` → `4c43ffe`, GitHub release 01:39Z, npm 2026-09-23T02:34:09Z (`latest`, 44 files; a first attempt failed
+  404 on an expired token — npm answers an unauthenticated PUT with 404, `npm login` fixed it). Ships the forwarder (#101), the
+  `llm.chat`/`llm.stream` AI nodes (#102), the four-runtime certification report (#103) and the span-kind rule (#104) — certified
+  in the 2026-09-22 Dynatrace drive and confirmed in the UI; one number on all four runtimes (crates.io 12/12 01:57Z, PyPI 02:34Z).
+  Lesson: the LLM provider, not the pipeline, decides which calls succeed — probe and pin the model per drive.
+  origin: 2026-09-22-165807, 2026-09-22-194836; close 2026-09-23-004556.
+  <!-- id: otel-forwarder-lockstep | created: 2026-09-22 | last_used: 2026-09-23 | uses: 3 | tier: active | origin: 2026-09-22-165807 -->

@@ -18,7 +18,9 @@
   the OpenTelemetry forwarder (opt-in, no SDK), the `llm.chat`/`llm.stream` AI nodes and the SERVER-iff-`http.request` span-kind
   rule)**; Event-over-HTTP function host + thin client; engines own orchestration.
 - **last_enabled:** 2026-08-22
-- **last_review:** 2026-09-05 | through 2026-09-05-210103
+- **last_review:** 2026-09-23 | through 2026-09-23-004556.md (cadence — 11 sessions since; archived 1 faded fact
+  `stack-mercury-serve-node` + swept 5 completed threads past `archive_window` → 2026-Q3; tier changes via `refresh-metadata`;
+  invariants not due (29 sessions, cadence 40, none yet); stalled none — no unchecked thread). Prior: 2026-09-05 | through 2026-09-05-210103
 - **last_invariant_check:** (none yet)
 - **repo:** ~/sandbox/mercury-nodejs (origin: github.com/Accenture/mercury-nodejs)
 
@@ -34,10 +36,6 @@
   <!-- id: stack-typescript-esm | created: 2026-08-22 | last_used: 2026-09-22 | uses: 5 | tier: active | origin: 2026-08-22-171916 -->
 - Runtime deps: `@msgpack/msgpack` (envelope codec), `yaml` (config) — deliberately minimal
   <!-- id: stack-deps-msgpack-yaml | created: 2026-08-22 | last_used: 2026-09-22 | uses: 2 | tier: active | origin: 2026-08-22-171916 -->
-- Developer runner: `mercury-serve` (`node dist/src/cli.js app.mjs --port <n>`), with the
-  engines' `-D` runtime-override syntax; trace context rides AsyncLocalStorage
-  <!-- id: stack-mercury-serve-node | created: 2026-08-22 | last_used: 2026-08-22 | uses: 1 | tier: archive-candidate | origin: 2026-08-22-171916 -->
-
 ## Architectural Invariants
 
 > Hard constraints that must never change. These never decay (treated as `core`).

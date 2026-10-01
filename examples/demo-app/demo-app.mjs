@@ -1,14 +1,11 @@
 /**
  * Demo polyglot functions.
  *
- * Run:  node dist/src/cli.js examples/demo-app.mjs
+ * Run:  node dist/src/cli.js examples/demo-app/demo-app.mjs
  *
- * The AI nodes llm.chat / llm.stream (examples/llm-nodes.mjs) join the demo: set
- * GEMINI_API_KEY (with -Dllm.provider=gemini) or ANTHROPIC_API_KEY in the environment.
- *
- * Configuration comes from examples/resources/application.yml (the engines'
- * "resources" convention - port 8087, the demo.health dependency, log format);
- * override any key with -Dkey=value, e.g. -Drest.server.port=8090.
+ * Configuration comes from examples/demo-app/resources/application.yml (the
+ * engines' "resources" convention - port 8087, the demo.health dependency, log
+ * format); override any key with -Dkey=value, e.g. -Drest.server.port=8090.
  *
  * Then map a route from a Mercury engine application (event-over-http.yaml):
  *
@@ -17,9 +14,8 @@
  *       target: 'http://127.0.0.1:8087/api/event'
  */
 import {
-  AppException, annotateTrace, EventStreamWriter, getLogger, getTrace, preload
-} from '../dist/src/index.js';
-import { registerLlmNodes } from './llm-nodes.mjs';
+  AppException, annotateTrace, EventStreamWriter, getLogger, getTrace, PostOffice, preload
+} from 'mercury-composable';
 
 const log = getLogger('demo-app');
 
@@ -45,7 +41,6 @@ preload('demo.suffix.helper', { instances: 10, isPrivate: true }, async (_header
 
 // Local composition: a public function calls a private sibling through the bus.
 preload('hello.chain', { instances: 10 }, async (_headers, body) => {
-  const { PostOffice } = await import('../dist/src/index.js');
   const reply = await new PostOffice().request('demo.suffix.helper', body, { timeoutMs: 5000 });
   return reply.body;
 });
@@ -78,13 +73,10 @@ preload('hello.tokens', { instances: 10, interceptor: true }, async (headers, ev
 
 // Health check speaking the engines' interface contract (type=info / type=health).
 // Activated for the /health actuator endpoint by mandatory.health.dependencies
-// in examples/resources/application.yml (or a -D override).
+// in examples/demo-app/resources/application.yml (or a -D override).
 preload('demo.health', { instances: 5, isPrivate: true }, async (headers, _body) => {
   if (headers.type === 'info') {
     return { service: 'demo.service', href: 'http://127.0.0.1' };
   }
   return 'demo.service is running fine';
 });
-
-// the AI nodes of the agent-orchestration experiment (see examples/llm-nodes.mjs)
-registerLlmNodes();

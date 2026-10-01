@@ -17,9 +17,9 @@ This package is a deliberately **lightweight wrapper of the Event-over-HTTP prot
   management, logging in the engines' presentation format, and distributed-trace context, and
 - the **OpenTelemetry forwarder** (opt-in, `otel.forwarding=true`): the host's trace spans
   exported over OTLP/HTTP to Dynatrace, Splunk or a collector — no SDK, no new dependency, and
-- the **AI nodes** `llm.chat` / `llm.stream` in the demo (`examples/llm-nodes.mjs`): provider-neutral
-  Gemini and Anthropic adapters over their REST APIs through `fetch` — the graph decides, the model
-  advises; `llm.stream` relays the provider's real token stream progressively.
+- the **LLM helper** app (`examples/llm-helper`): `llm.chat`, `llm.stream` and `llm.health` on the
+  official Anthropic SDK — the graph decides, the model advises; `llm.stream` relays the model's
+  token batches as they are produced.
 
 Orchestration deliberately stays in the engines. Functions written here are addressed by
 route name through the engines' declarative `yaml.event.over.http` map, so a flow or a
@@ -123,7 +123,7 @@ The same conventions as the engines, so a polyglot installation stays uniform:
 Configuration lives in the `resources` folder, mirroring the engines:
 `resources/application.yml` (or `.yaml` / `.properties`) in the working directory or next
 to the application file, or an explicit `--config` path — see
-[`examples/resources/application.yml`](examples/resources/application.yml) for a worked
+[`examples/demo-app/resources/application.yml`](examples/demo-app/resources/application.yml) for a worked
 sample. Values support `${ENV_VAR:default}` substitution. Runtime parameter overrides use the
 same `-D` syntax as the Java engine and the Rust port — checked first on every read
 (`appConfig().set(key, value)` does the same programmatically, the `f:setConfig` analog):

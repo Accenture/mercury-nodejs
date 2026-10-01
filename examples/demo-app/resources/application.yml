@@ -2,7 +2,7 @@
 # mercury-serve loads resources/application.yml from the working directory, or from
 # the resources folder next to the application file (this one). Any key can be
 # overridden at run time with the engines' -D syntax, e.g.:
-#   node dist/src/cli.js examples/demo-app.mjs -Drest.server.port=8090 -Dlog.format=compact
+#   node dist/src/cli.js examples/demo-app/demo-app.mjs -Drest.server.port=8090 -Dlog.format=compact
 
 application.name: 'demo-app'
 info.app.description: 'Mercury Composable polyglot demo'

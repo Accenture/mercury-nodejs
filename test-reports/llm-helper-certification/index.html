@@ -10,13 +10,11 @@
       
       
       
-        <link rel="canonical" href="https://accenture.github.io/mercury-nodejs/guides/getting-started/">
+        <link rel="canonical" href="https://accenture.github.io/mercury-nodejs/test-reports/llm-helper-certification/">
       
       
-        <link rel="prev" href="../..">
+        <link rel="prev" href="../otel-dynatrace-certification/">
       
-      
-        <link rel="next" href="../../mercury-family/">
       
       
         
@@ -27,7 +25,7 @@
     
     
       
-        <title>Getting Started - Composable for Node.js</title>
+        <title>Test Report — The LLM helper in the Node.js host - Composable for Node.js</title>
       
     
     
@@ -80,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#getting-started" class="md-skip">
+        <a href="#test-report-the-llm-helper-in-the-nodejs-host" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Getting Started
+              Test Report — The LLM helper in the Node.js host
             
           </span>
         </div>
@@ -254,13 +252,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="./" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../../guides/getting-started/" class="md-tabs__link">
           
   
   
@@ -282,7 +278,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../rationale/" class="md-tabs__link">
+        <a href="../../guides/rationale/" class="md-tabs__link">
           
   
   
@@ -304,7 +300,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../function-patterns/" class="md-tabs__link">
+        <a href="../../guides/function-patterns/" class="md-tabs__link">
           
   
   
@@ -326,7 +322,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../join-event-script/" class="md-tabs__link">
+        <a href="../../guides/join-event-script/" class="md-tabs__link">
           
   
   
@@ -348,7 +344,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../ai-agent-guide/" class="md-tabs__link">
+        <a href="../../guides/ai-agent-guide/" class="md-tabs__link">
           
   
   
@@ -366,11 +362,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../configuration-reference/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../guides/configuration-reference/" class="md-tabs__link">
           
   
   
@@ -460,10 +458,8 @@
       
   
   
-    
   
   
-  
     
     
       
@@ -475,22 +471,19 @@
     
     
       
-        
-        
-      
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
             
   
   
@@ -508,7 +501,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -523,37 +516,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Getting Started
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../guides/getting-started/" class="md-nav__link">
         
   
   
@@ -569,103 +535,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#1-install" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. Install
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#2-write-a-function" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. Write a function
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#3-configure-the-engines-convention" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. Configure (the engines' convention)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#4-serve-it" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4. Serve it
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#5-call-it-from-an-engine" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        5. Call it from an engine
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#6-or-call-it-from-a-script" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6. Or call it from a script
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#next" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Next
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -771,7 +640,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../rationale/" class="md-nav__link">
+      <a href="../../guides/rationale/" class="md-nav__link">
         
   
   
@@ -799,7 +668,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../design/" class="md-nav__link">
+      <a href="../../guides/design/" class="md-nav__link">
         
   
   
@@ -896,7 +765,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../function-patterns/" class="md-nav__link">
+      <a href="../../guides/function-patterns/" class="md-nav__link">
         
   
   
@@ -924,7 +793,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../streaming/" class="md-nav__link">
+      <a href="../../guides/streaming/" class="md-nav__link">
         
   
   
@@ -952,7 +821,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../config-logging-actuators/" class="md-nav__link">
+      <a href="../../guides/config-logging-actuators/" class="md-nav__link">
         
   
   
@@ -980,7 +849,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../testing/" class="md-nav__link">
+      <a href="../../guides/testing/" class="md-nav__link">
         
   
   
@@ -1073,7 +942,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../join-event-script/" class="md-nav__link">
+      <a href="../../guides/join-event-script/" class="md-nav__link">
         
   
   
@@ -1101,7 +970,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../join-knowledge-graph/" class="md-nav__link">
+      <a href="../../guides/join-knowledge-graph/" class="md-nav__link">
         
   
   
@@ -1192,7 +1061,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ai-agent-guide/" class="md-nav__link">
+      <a href="../../guides/ai-agent-guide/" class="md-nav__link">
         
   
   
@@ -1224,8 +1093,10 @@
       
   
   
+    
   
   
+  
     
     
       
@@ -1247,19 +1118,22 @@
     
     
       
+        
+        
+      
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
         
           
-          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
             
   
   
@@ -1277,7 +1151,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_7">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1295,7 +1169,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../configuration-reference/" class="md-nav__link">
+      <a href="../../guides/configuration-reference/" class="md-nav__link">
         
   
   
@@ -1323,7 +1197,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../http-surface-reference/" class="md-nav__link">
+      <a href="../../guides/http-surface-reference/" class="md-nav__link">
         
   
   
@@ -1351,7 +1225,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../test-reports/progressive-rendering-interop/" class="md-nav__link">
+      <a href="../progressive-rendering-interop/" class="md-nav__link">
         
   
   
@@ -1379,7 +1253,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../test-reports/otel-dynatrace-certification/" class="md-nav__link">
+      <a href="../otel-dynatrace-certification/" class="md-nav__link">
         
   
   
@@ -1404,10 +1278,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../test-reports/llm-helper-certification/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Report — The LLM helper
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1423,6 +1324,70 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#verified-without-a-credential" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verified without a credential
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verified-live" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verified live
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-the-nodejs-sdk-needed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the Node.js SDK needed
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reproduce" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reproduce
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1518,10 +1483,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#1-install" class="md-nav__link">
+  <a href="#verified-without-a-credential" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Install
+        Verified without a credential
       
     </span>
   </a>
@@ -1529,10 +1494,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-write-a-function" class="md-nav__link">
+  <a href="#verified-live" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Write a function
+        Verified live
       
     </span>
   </a>
@@ -1540,10 +1505,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-configure-the-engines-convention" class="md-nav__link">
+  <a href="#what-the-nodejs-sdk-needed" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Configure (the engines' convention)
+        What the Node.js SDK needed
       
     </span>
   </a>
@@ -1551,43 +1516,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4-serve-it" class="md-nav__link">
+  <a href="#reproduce" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. Serve it
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#5-call-it-from-an-engine" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        5. Call it from an engine
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#6-or-call-it-from-a-script" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6. Or call it from a script
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#next" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Next
+        Reproduce
       
     </span>
   </a>
@@ -1614,85 +1546,96 @@
   
 
 
-<h1 id="getting-started">Getting Started<a class="headerlink" href="#getting-started" title="Permanent link">&para;</a></h1>
-<p><em>Guide: from zero to a Node.js function an engine can orchestrate.</em></p>
-<blockquote>
-<p><strong>At a glance</strong></p>
+<h1 id="test-report-the-llm-helper-in-the-nodejs-host">Test Report — The LLM helper in the Node.js host<a class="headerlink" href="#test-report-the-llm-helper-in-the-nodejs-host" title="Permanent link">&para;</a></h1>
+<p><em>This pack's view of the live certification of 2026-10-01 (UTC). The full report — all four engine and host
+pairs, the three layers, the progressive-rendering evidence and the findings — is the
+<a href="https://accenture.github.io/mercury-composable/test-reports/llm-helper-certification/">engine report</a>, which the
+Rust engine's docs carry too. The helper is
+<a href="https://github.com/Accenture/mercury-nodejs/tree/main/examples/llm-helper"><code>examples/llm-helper</code></a>; its README holds the contract.</em></p>
+<h2 id="verified-without-a-credential">Verified without a credential<a class="headerlink" href="#verified-without-a-credential" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>What</strong> — install the package, write one function, serve it, call it — first from
-  a client script, then from a real engine flow.</li>
-<li><strong>Time</strong> — about five minutes.</li>
+<li><strong>88 helper tests, no token spent</strong> (the whole suite: 182). <code>test/llm-helper.test.mjs</code> runs a fake of the Node.js SDK
+  that builds the SDK's own error objects, so the status codes and messages are the real ones.</li>
+<li><strong>One contract, shared with the Python twin.</strong> <code>test/vectors/llm-helper-vectors.json</code> is byte-identical in both packs (SHA-256 <code>1f4823d9…8fa0</code>, pinned by
+  a test in each) and holds 63 cases: 22 request validations, 29 chat outcomes and 12 stream outcomes, each fixing the exact SDK
+  call, the reply or the error, and the segments. A change that drifts one helper away from the other fails a case.</li>
+<li><strong>The tests can fail.</strong> A helper mutated to gather the token batches and send them at the end fails the sentinel test (the
+  fake model refuses to produce batch <em>k</em> until the caller holds batches 0 to <em>k</em>-1) and the vector for tokens delivered before a
+  mid-stream error; a helper whose default model is changed fails 13 cases. The unmutated helper passes all of them.</li>
+<li><strong>Static checks:</strong> <code>npm test</code> (build and every suite) 182 passed; <code>@anthropic-ai/sdk</code> is a dev dependency, so the published package keeps its two runtime dependencies.</li>
 </ul>
-</blockquote>
-<h2 id="1-install">1. Install<a class="headerlink" href="#1-install" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/Accenture/mercury-nodejs.git
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>mercury-nodejs
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>npm<span class="w"> </span>ci<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>npm<span class="w"> </span>run<span class="w"> </span>build
-</code></pre></div>
-<p><em>(Pre-release: the package installs from source until the npm release.)</em></p>
-<h2 id="2-write-a-function">2. Write a function<a class="headerlink" href="#2-write-a-function" title="Permanent link">&para;</a></h2>
-<p>A function is a plain handler registered under a <strong>route name</strong> — the only address the
-rest of the system will ever know it by.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1">// app.mjs</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">AppException</span><span class="p">,</span><span class="w"> </span><span class="nx">platform</span><span class="p">,</span><span class="w"> </span><span class="nx">preload</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">'./dist/src/index.js'</span><span class="p">;</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="nx">preload</span><span class="p">(</span><span class="s1">'hello.node'</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">instances</span><span class="o">:</span><span class="w"> </span><span class="mf">10</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="p">(</span><span class="nx">headers</span><span class="p">,</span><span class="w"> </span><span class="nx">body</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="ow">typeof</span><span class="w"> </span><span class="nx">body</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="s1">'object'</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nx">body</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="kc">null</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="ow">typeof</span><span class="w"> </span><span class="nx">body</span><span class="p">.</span><span class="nx">text</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="s1">'string'</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="k">throw</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">AppException</span><span class="p">(</span><span class="mf">400</span><span class="p">,</span><span class="w"> </span><span class="s2">"missing 'text'"</span><span class="p">);</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span><span class="p">}</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">text</span><span class="o">:</span><span class="w"> </span><span class="nx">body</span><span class="p">.</span><span class="nx">text</span><span class="p">.</span><span class="nx">toUpperCase</span><span class="p">(),</span><span class="w"> </span><span class="nx">language</span><span class="o">:</span><span class="w"> </span><span class="s1">'node.js'</span><span class="w"> </span><span class="p">};</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="p">});</span>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="k">await</span><span class="w"> </span><span class="nx">platform</span><span class="p">.</span><span class="nx">run</span><span class="p">();</span>
-</code></pre></div>
-<p>The <a href="../function-patterns/">Function Writing Patterns</a> guide covers the full contract.</p>
-<h2 id="3-configure-the-engines-convention">3. Configure (the engines' convention)<a class="headerlink" href="#3-configure-the-engines-convention" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># resources/application.yml</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">application.name</span><span class="p">:</span><span class="w"> </span><span class="s">'hello-app'</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nt">rest.server.port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">8087</span>
-</code></pre></div>
-<p>Configuration lives in a <code>resources</code> folder, exactly like the engines, and any key can
-be overridden at run time with the engines' <code>-D</code> syntax.</p>
-<h2 id="4-serve-it">4. Serve it<a class="headerlink" href="#4-serve-it" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>node<span class="w"> </span>dist/src/cli.js<span class="w"> </span>app.mjs<span class="w">        </span><span class="c1"># or the mercury-serve bin once installed</span>
-</code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>2026-08-24 10:15:30.123 INFO  mercury.server - Loaded PUBLIC hello.node, instances=10
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>2026-08-24 10:15:30.124 INFO  mercury.server - hello-app - Event API service started on port 8087
-</code></pre></div>
-<p>Open <a href="http://127.0.0.1:8087/">http://127.0.0.1:8087/</a> — the host serves the engines' familiar index page, and
-the same actuator endpoints (<code>/info</code>, <code>/health</code>, <code>/livenessprobe</code>, …) your operations
-team already monitors on engine apps.</p>
-<h2 id="5-call-it-from-an-engine">5. Call it from an engine<a class="headerlink" href="#5-call-it-from-an-engine" title="Permanent link">&para;</a></h2>
-<p>One declarative entry in the engine application tells it where the route lives —
-<code>application.properties</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="na">yaml.event.over.http</span><span class="o">=</span><span class="s">classpath:/event-over-http.yaml</span>
-</code></pre></div>
-<p><code>event-over-http.yaml</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nt">event.http</span><span class="p">:</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">route</span><span class="p">:</span><span class="w"> </span><span class="s">'hello.node'</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="nt">target</span><span class="p">:</span><span class="w"> </span><span class="s">'http://127.0.0.1:8087/api/event'</span>
-</code></pre></div>
-<p>Any Event Script task or MiniGraph <code>graph.task</code> node that names <code>hello.node</code> now
-executes your Node.js function — trace context, correlation id and error contract
-carried end to end. <a href="../join-event-script/">Join an Event Script Flow</a> walks through a
-complete flow; <a href="../join-knowledge-graph/">Join a Knowledge Graph</a> does the same for a
-graph.</p>
-<h2 id="6-or-call-it-from-a-script">6. Or call it from a script<a class="headerlink" href="#6-or-call-it-from-a-script" title="Permanent link">&para;</a></h2>
-<p>The host speaks the engines' Event API protocol, so the natural ad-hoc client is the
-package itself:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">PostOffice</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">'./dist/src/index.js'</span><span class="p">;</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="kd">const</span><span class="w"> </span><span class="nx">po</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">PostOffice</span><span class="p">(</span><span class="s1">'http://127.0.0.1:8087/api/event'</span><span class="p">);</span>
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="kd">const</span><span class="w"> </span><span class="nx">reply</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">po</span><span class="p">.</span><span class="nx">request</span><span class="p">(</span><span class="s1">'hello.node'</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">text</span><span class="o">:</span><span class="w"> </span><span class="s1">'polyglot'</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">timeoutMs</span><span class="o">:</span><span class="w"> </span><span class="mf">5000</span><span class="w"> </span><span class="p">});</span>
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">reply</span><span class="p">.</span><span class="nx">getStatus</span><span class="p">(),</span><span class="w"> </span><span class="nx">reply</span><span class="p">.</span><span class="nx">body</span><span class="p">);</span>
-<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="c1">// 200 { text: 'POLYGLOT', language: 'node.js' }</span>
-</code></pre></div>
-<h2 id="next">Next<a class="headerlink" href="#next" title="Permanent link">&para;</a></h2>
+<h2 id="verified-live">Verified live<a class="headerlink" href="#verified-live" title="Permanent link">&para;</a></h2>
+<p>Behind the Java engine and behind the Rust engine, the Node.js helper answered every scenario: 40 results per pair and no
+failed check, across a streaming service (Layer 1), an Event Script flow (Layer 2) and two graphs (Layer 3), on
+<code>claude-opus-5-5</code> and, where a request named it, <code>claude-haiku-4-5</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Progressive stream</th>
+<th>Helper batches</th>
+<th>Edge frames</th>
+<th>Offset, median / spread</th>
+<th>Longest gap</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Java → Node.js, Opus 5.5</td>
+<td>51</td>
+<td>51</td>
+<td>11 / 5 ms</td>
+<td>924 / 925 ms</td>
+</tr>
+<tr>
+<td>Java → Node.js, Haiku 4.5</td>
+<td>81</td>
+<td>81</td>
+<td>10 / 6 ms</td>
+<td>181 / 178 ms</td>
+</tr>
+<tr>
+<td>Rust → Node.js, Opus 5.5</td>
+<td>55</td>
+<td>55</td>
+<td>5 / 5 ms</td>
+<td>1125 / 1124 ms</td>
+</tr>
+<tr>
+<td>Rust → Node.js, Haiku 4.5</td>
+<td>96</td>
+<td>96</td>
+<td>3 / 4 ms</td>
+<td>303 / 302 ms</td>
+</tr>
+</tbody>
+</table>
+<p>Every batch the helper forwarded reached the engine's HTTP edge as its own frame, within a few milliseconds and without drift:
+nothing is gathered or sent once. The long gaps are the API's own pacing, the same at both ends; Haiku 4.5 streams continuously
+(a batch about every 25 ms) while Opus 5.5 arrives in bursts about every 600 ms. Credential states, measured on the real SDK:
+an invalid key gave Anthropic's 401 with its request id through Rust on all three layers and through Java on the graph, and no credential gave 503 when this pack's helper was called directly. The same message came from both helpers, through every layer. All traces that touched this helper rebuild
+as one connected tree.</p>
+<h2 id="what-the-nodejs-sdk-needed">What the Node.js SDK needed<a class="headerlink" href="#what-the-nodejs-sdk-needed" title="Permanent link">&para;</a></h2>
 <ul>
-<li>The <strong>why</strong>: <a href="../rationale/">Rationale — Externalized Functions</a></li>
-<li>The <strong>how, in depth</strong>: <a href="../function-patterns/">Function Writing Patterns</a></li>
-<li>The <strong>wiring</strong>: <a href="../join-event-script/">Join an Event Script Flow</a></li>
+<li><strong>No credential is not an API error.</strong> <code>@anthropic-ai/sdk</code> raises a plain <code>Error</code> (an <code>AnthropicError</code> on a stream) before anything
+  is sent, so the helper maps it by its text to a 503 <code>LLM provider credential missing - set ANTHROPIC_API_KEY in the environment</code>.
+  <code>llm.health</code> reports it from the client's <code>apiKey</code>, <code>authToken</code> and <code>credentials</code>, with no network traffic.</li>
+<li><strong>A typed error carries what the message needs.</strong> <code>status</code>, <code>type</code>, <code>requestID</code> and the parsed body; its own <code>message</code> wraps the raw JSON,
+  so the helper builds the same <code>{status} {type}: {message} (request_id …)</code> text as the Python helper from the structured fields.</li>
+<li><strong>A stream exposes <code>request_id</code></strong>, read after <code>finalMessage()</code>; every reply and terminal event carries it.</li>
+<li><strong>The deadline is an abort signal</strong> (<code>AbortSignal.timeout</code>) passed with the request, so the SDK cancels the call; a stream gets none,
+  because <code>timeout_ms</code> is its idle allowance. A test fake that waits on the signal must hold the event loop open itself: those timers
+  are unref'd, which a running server never notices.</li>
+<li><strong>The types still carry sampling parameters</strong>, but the current models reject them, so the contract refuses them, as in the Python helper.
+  <code>fallbacks: 'default'</code> is typed on the beta namespace and the API accepted it on Opus 5.5.</li>
 </ul>
+<h2 id="reproduce">Reproduce<a class="headerlink" href="#reproduce" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>npm<span class="w"> </span>install<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>npm<span class="w"> </span>run<span class="w"> </span>build
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>node<span class="w"> </span>--test<span class="w"> </span>test/llm-helper.test.mjs<span class="w">                          </span><span class="c1"># token-free</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ANTHROPIC_API_KEY</span><span class="o">=</span>...<span class="w">                                  </span><span class="c1"># live: the credential reaches the helper only</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>node<span class="w"> </span>dist/src/cli.js<span class="w"> </span>examples/llm-helper/llm-helper.mjs<span class="w"> </span>-Dlog.format<span class="o">=</span>compact<span class="w"> </span>-Dllm.log.batches<span class="o">=</span><span class="nb">true</span>
+</code></pre></div>
+<p>The commands for the engines, the deploy folder and the <code>curl</code> calls for each layer are in the
+<a href="https://accenture.github.io/mercury-composable/test-reports/llm-helper-certification/#reproduce">engine report</a>.</p>
 
 
 
@@ -1733,7 +1676,7 @@ package itself:</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../.." class="md-footer__link md-footer__link--prev" aria-label="Previous: Home">
+          <a href="../otel-dynatrace-certification/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Test Report — OpenTelemetry Certification">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1743,27 +1686,11 @@ package itself:</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Home
+                Test Report — OpenTelemetry Certification
               </div>
             </div>
           </a>
         
-        
-          
-          <a href="../../mercury-family/" class="md-footer__link md-footer__link--next" aria-label="Next: The Mercury Family">
-            <div class="md-footer__title">
-              <span class="md-footer__direction">
-                Next
-              </span>
-              <div class="md-ellipsis">
-                The Mercury Family
-              </div>
-            </div>
-            <div class="md-footer__button md-icon">
-              
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
-            </div>
-          </a>
         
       </nav>
     

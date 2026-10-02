@@ -34,7 +34,9 @@
   2026-09-01; engine lock-step version line; build copies default-log-context.yaml
   into dist/src); scripts: `build`, `test`, `prepack`
   <!-- id: stack-typescript-esm | created: 2026-08-22 | last_used: 2026-09-22 | uses: 5 | tier: active | origin: 2026-08-22-171916 -->
-- Runtime deps: `@msgpack/msgpack` (envelope codec), `yaml` (config) — deliberately minimal
+- Runtime deps: `@msgpack/msgpack` (envelope codec), `yaml` (config) — deliberately minimal; dev dependency
+  `@anthropic-ai/sdk` (the LLM helper app's SDK and the tests' error classes; the published package stays free of any
+  LLM SDK — 2026-10-01, PR #106)
   <!-- id: stack-deps-msgpack-yaml | created: 2026-08-22 | last_used: 2026-09-22 | uses: 2 | tier: active | origin: 2026-08-22-171916 -->
 ## Architectural Invariants
 
@@ -93,12 +95,45 @@
   (the engines' connected-span-tree fix, mercury-composable/mercury `fix/connected-edge-spans`).
   <!-- id: otel-forwarder-nodejs | created: 2026-09-22 | last_used: 2026-09-22 | uses: 2 | tier: active | origin: 2026-09-22-165807 -->
 
+- **The LLM helper is a dedicated function host on the Anthropic SDK: the engines stay LLM-free, the AI node is a bounded
+  function, and one contract is proven by a vector file shared with the Python pack (Eric's rulings, 2026-10-01; PR #106, merge
+  `d9adcae6`).** `examples/llm-helper/llm-helper.mjs` serves `llm.chat` (one answer, optional JSON-schema structured output
+  returned as `data`), `llm.stream` (the model's token batches over the multi-shot reply contract) and `llm.health` (a credential
+  check, no network traffic); it imports `mercury-composable` by name, so the same file runs from a copy outside the repository
+  (verified against the packed package). Claude only: `examples/llm-nodes.mjs` (provider REST through `fetch`) and the Gemini
+  provider are gone (the contract stays provider-neutral through `params.provider`, which accepts only `anthropic`). Default model
+  `claude-opus-5-5` (`llm.model`), server-side refusal fallbacks on (`llm.fallbacks=off`), and a backend seam (`defaultBackend()`,
+  `anthropicBackend()`) for the planned AWS Bedrock route (`llm-helper-bedrock-iam`). **The contract:** a `params` allowlist
+  (`provider`, `model`, `max_tokens`, `timeout_ms`, `effort`, `stop_sequences`; anything else is a 400 and no sampling parameter is
+  forwarded), a schema on `llm.stream` is a 400, **a reply that carries nothing usable is a 422 and never an empty success**, and
+  every failure is an `AppException` whose message the Python twin repeats. **Progressive rendering is never buffered** (Eric's
+  requirement): each batch leaves as its own segment the moment it arrives, a test pins it (the fake model refuses batch k until the
+  caller holds batches 0..k-1), and the certified drives showed the helper and both engines add nothing (batches equal frames,
+  4-10 ms offset). The cadence a viewer sees is the API's and depends on the model (Haiku 4.5 about 25 ms continuous, Sonnet 5.5
+  about 350 ms bursts, Opus 5.5 about 600 ms bursts). **Opus 5.5 thinks first and thinking tokens count against `max_tokens`:** a
+  few hundred can end with no text (the 422), so the engines' demos ask for 2000, the helper's default is 16000, and Haiku
+  (`llm.model: claude-haiku-4-5`) is the documented choice for smooth rendering; the default STAYS Opus (Eric, 2026-10-01).
+  **Proof:** `test/vectors/llm-helper-vectors.json` (byte-identical in mercury-python, 63 cases against SDK fakes) plus
+  `test/llm-helper.test.mjs` (88 tests; the fake holds the event loop open, because `AbortSignal.timeout` timers are unref'd), and a
+  live certification through the Java and Rust engines (`docs/test-reports/llm-helper-certification.md`: 124 model calls, every
+  batch its own frame, every trace one tree). The Node SDK raises a plain `Error` (an `AnthropicError` on a stream) for a missing
+  credential, before anything is sent; the helper maps it to a 503 by its text. No prompt or completion text reaches a log.
+  <!-- id: llm-helper-app | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: working | origin: 2026-10-02-001255 -->
+
 ## Conventions
 
 - Engine-mirrored configuration/logging/trace conventions (see the invariant above and
   `instructions.md`); GitHub flow with tests + a CHANGELOG entry per change
   (CONTRIBUTING.md).
   <!-- id: conv-github-flow-changelog | created: 2026-08-22 | last_used: 2026-09-22 | uses: 3 | tier: active | origin: 2026-08-22-171916 -->
+- **Each example app lives in a folder of its own, with a README and its own `resources/` (Eric, 2026-10-01; PR #106).**
+  `examples/demo-app/` (the minimal polyglot app: `hello.node`, `hello.declarative`, `hello.chain`, `hello.tokens`, the private
+  `demo.suffix.helper` and `demo.health`) and `examples/llm-helper/`; run one as
+  `node dist/src/cli.js examples/<app>/<file>.mjs` (the sample config is read from the `resources` folder next to the app file).
+  The Python pack mirrors the layout (and keeps a `hello.sync.chain` that JavaScript has no need of). The demo and the helper
+  share the default port 8087, so give one of them another with `-Drest.server.port` to run both. The demo stays provider-free and
+  credential-free: no LLM code goes into it.
+  <!-- id: examples-one-folder-per-app | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: working | origin: 2026-10-02-001255 -->
 
 ## Open Threads
 

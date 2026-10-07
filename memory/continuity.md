@@ -14,7 +14,9 @@
 
 - **project:** mercury-nodejs (npm: `mercury-composable`)
 - **status:** **v4.12.21 TAGGED 2026-10-07 (PR #110 merge `80d4889`, tag `v4.12.21` → `279e784` one memory commit past it, the version
-  at the tag, the GitHub release published 02:36:40Z, CI green on the tag commit; **npm PUBLISHED 02:43:40Z and VERIFIED** - npm  4.12.21 as , published 02)** · **v4.12.15 on npm (published 2026-09-23 02:34Z; `npm install mercury-composable`; tag `v4.12.15` → `4c43ffe`, PR #105
+  at the tag, the GitHub release published 02:36:40Z, CI green on the tag commit; **npm PUBLISHED 02:43:40Z and VERIFIED** - `mercury-composable` 4.12.21 as `latest`; `package.json` and the README identical to the
+  tag, and all 41 compiled files identical to a build of the tag (`dist/` is not tracked, so the tag was built with `npm ci` and
+  `npm run build` and compared file by file); dependencies only `@msgpack/msgpack` and `yaml`, no LLM SDK)** · **v4.12.15 on npm (published 2026-09-23 02:34Z; `npm install mercury-composable`; tag `v4.12.15` → `4c43ffe`, PR #105
   merge `13426732`, GitHub release 01:39Z — the lock-step round with both engines, adopting the Java number; the 4.12.15 line adds
   the OpenTelemetry forwarder (opt-in, no SDK), the `llm.chat`/`llm.stream` AI nodes and the SERVER-iff-`http.request` span-kind
   rule)**; Event-over-HTTP function host + thin client; engines own orchestration.

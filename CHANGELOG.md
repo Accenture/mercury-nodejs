@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+Nothing yet.
+
+## 4.12.21 (2026-10-07)
+
+The lock-step round with the engines: the pack moves from 4.12.15 to 4.12.21, the number the Java engine and the
+Rust port ship in the same round (a version names content, not a cadence). This release carries the LLM helper app -
+`llm.chat`, `llm.stream` and `llm.health` on the official Anthropic SDK, certified in front of both engines with real
+Claude calls (`docs/test-reports/llm-helper-certification.md` in the engine repositories) - and the stricter contract
+and the example layout that came with it; read the two READ notes under *Changed* before upgrading an example.
+
 ### Added
 
 - The **LLM helper app** (`examples/llm-helper/`): a dedicated function host for the AI nodes of the

@@ -1363,6 +1363,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#verified-live-on-aws-bedrock-2026-10-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verified live on AWS Bedrock (2026-10-14)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-the-nodejs-sdk-needed-on-bedrock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the Node.js SDK needed on Bedrock
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#what-the-nodejs-sdk-needed" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1505,6 +1527,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#verified-live-on-aws-bedrock-2026-10-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verified live on AWS Bedrock (2026-10-14)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-the-nodejs-sdk-needed-on-bedrock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the Node.js SDK needed on Bedrock
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#what-the-nodejs-sdk-needed" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1614,6 +1658,63 @@ nothing is gathered or sent once. The long gaps are the API's own pacing, the sa
 (a batch about every 25 ms) while Opus 5.5 arrives in bursts about every 600 ms. Credential states, measured on the real SDK:
 an invalid key gave Anthropic's 401 with its request id through Rust on all three layers and through Java on the graph, and no credential gave 503 when this pack's helper was called directly. The same message came from both helpers, through every layer. All traces that touched this helper rebuild
 as one connected tree.</p>
+<h2 id="verified-live-on-aws-bedrock-2026-10-14">Verified live on AWS Bedrock (2026-10-14)<a class="headerlink" href="#verified-live-on-aws-bedrock-2026-10-14" title="Permanent link">&para;</a></h2>
+<p>The helper's second backend (<code>llm.backend: 'bedrock'</code>), driven against an enterprise AWS account in <code>us-east-1</code> with temporary IAM
+credentials - a key pair and a session token - in the helper's environment and no vendor key anywhere. Negative controls first.</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A corrupted secret</td>
+<td><code>401 LLM provider error - 401 authentication_error: The request signature we calculated does not match ...</code></td>
+</tr>
+<tr>
+<td>No credential at all</td>
+<td>health <code>503 AWS credential missing</code>; the call the same 503</td>
+</tr>
+<tr>
+<td><code>llm.chat</code>, Haiku 4.5</td>
+<td><code>200</code>, <code>ready</code>, 14 input / 4 output tokens</td>
+</tr>
+<tr>
+<td><code>llm.chat</code> with a schema</td>
+<td><code>{"verdict": "bug", "confidence": 0.95}</code>, 218 / 17</td>
+</tr>
+<tr>
+<td><code>llm.stream</code></td>
+<td>4 batches, the first after 714 ms, <code>eof</code> with usage 20 / 23</td>
+</tr>
+<tr>
+<td>Java engine, the shipped <code>support-triage</code> graph</td>
+<td><code>question</code> → <code>answered</code>, 242 / 24</td>
+</tr>
+<tr>
+<td>Java engine, the streaming relay</td>
+<td>4 <code>data</code> frames, then <code>done</code> with usage, the trace id and the correlation id</td>
+</tr>
+</tbody>
+</table>
+<p>Every call ran on <code>us.anthropic.claude-haiku-4-5-20251001-v1:0</code> through the classic runtime surface (<code>llm.aws.api: 'runtime'</code>): the
+account was enabled for that surface and not for the Anthropic-shaped one the SDK prefers, and for Haiku 4.5 and not for the newer
+model generation. The full account of the surfaces and the gates is Finding 7 of the
+<a href="https://accenture.github.io/mercury-composable/test-reports/llm-helper-certification/">engine report</a>.</p>
+<h2 id="what-the-nodejs-sdk-needed-on-bedrock">What the Node.js SDK needed on Bedrock<a class="headerlink" href="#what-the-nodejs-sdk-needed-on-bedrock" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>The Bedrock clients are a package of their own</strong>, <code>@anthropic-ai/bedrock-sdk</code> (<code>AnthropicBedrockMantle</code>, <code>AnthropicBedrock</code>),
+  imported only when the backend is selected, so the Claude API backend starts without it and the backend builds asynchronously.</li>
+<li><strong>An empty credential chain is the chain's own <code>CredentialsProviderError</code></strong>, as thrown or as the cause of the SDK's connection
+  error; the helper maps either to <code>503 AWS credential missing</code>. The health check resolves <code>fromNodeProviderChain</code> the way a call
+  would, so a probe tells a missing credential from a present one without spending a token.</li>
+<li><strong>The classic client would quietly fall back to <code>us-east-1</code></strong> when no region is named; the helper names the gap instead
+  (<code>503 AWS region missing</code>), the same answer the Anthropic-shaped client gives by itself.</li>
+<li><strong>A Bedrock API key is held as the classic client's auth token</strong>, so the health check counts either field as a credential.</li>
+<li><strong>The reply carries no request id:</strong> Bedrock sends no <code>request-id</code> header the helper reads.</li>
+</ul>
 <h2 id="what-the-nodejs-sdk-needed">What the Node.js SDK needed<a class="headerlink" href="#what-the-nodejs-sdk-needed" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>No credential is not an API error.</strong> <code>@anthropic-ai/sdk</code> raises a plain <code>Error</code> (an <code>AnthropicError</code> on a stream) before anything

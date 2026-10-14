@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { AnthropicBedrockMantle } from '@anthropic-ai/bedrock-sdk';
+import { AnthropicBedrock, AnthropicBedrockMantle } from '@anthropic-ai/bedrock-sdk';
 import Anthropic from '@anthropic-ai/sdk';
 import { AppException } from 'mercury-composable';
 import {
@@ -22,7 +22,7 @@ import {
 
 const VECTORS_FILE = new URL('./vectors/llm-helper-vectors.json', import.meta.url);
 // the Python twin pins the same digest: change the file in both packs or in neither
-const VECTORS_SHA256 = '1b758e73605b2b088594faa8e573483778d7b85f29073d4779c3bba20ac024c1';
+const VECTORS_SHA256 = '7bfffbf36c52488c246f250f36afc4e8012f119fd56c93e9de1cbe93bf5988b6';
 const VECTORS = JSON.parse(readFileSync(VECTORS_FILE, 'utf8'));
 const CHAT_CASES = VECTORS.cases.filter((c) => c.route === 'llm.chat');
 const STREAM_CASES = VECTORS.cases.filter((c) => c.route === 'llm.stream');
@@ -120,7 +120,7 @@ const delta = (text) => ({ type: 'content_block_delta', index: 0, delta: { type:
 
 /** The backend the helper holds: a client with two messages namespaces, and a ledger, under
  * the shape of the backend the case names (the Claude API by default). */
-function fakeBackend(provider, { supportsFallbacks, apiKey = 'test-credential', make, name = 'anthropic' } = {}) {
+function fakeBackend(provider, { supportsFallbacks, apiKey = 'test-credential', make, name = 'anthropic', api = 'mantle' } = {}) {
   const ledger = { calls: [], cancelled: false };
   const namespace = (name) => ({
     stream(params, options) {
@@ -132,7 +132,7 @@ function fakeBackend(provider, { supportsFallbacks, apiKey = 'test-credential', 
     apiKey, authToken: null, credentials: null, messages: namespace('messages'),
     beta: { messages: namespace('beta.messages') }
   };
-  const shape = backendFor(name, client);
+  const shape = backendFor(name, client, api);
   return { ledger, backend: supportsFallbacks === undefined ? shape : { ...shape, supportsFallbacks } };
 }
 
@@ -165,7 +165,7 @@ const silent = { info() {}, warn() {} };
 
 function helperFor(c, extra = {}) {
   const { backend, ledger } = fakeBackend(c.provider,
-    { name: c.config?.['llm.backend'] ?? 'anthropic', ...extra.backendOptions });
+    { name: c.config?.['llm.backend'] ?? 'anthropic', api: c.config?.['llm.aws.api'] ?? 'mantle', ...extra.backendOptions });
   const out = new FakeWriter();
   const helper = createLlmHelper({
     prop: settings(c.config), backend: () => backend, writer: () => out, log: silent,
@@ -512,7 +512,49 @@ test('the bedrock backend is the SDK mantle client', () => withoutAws(async () =
   assert.equal(backend.supportsFallbacks, false);
   assert.equal(backend.providerModel('claude-opus-5-5'), 'anthropic.claude-opus-5-5');
   assert.equal(backend.providerModel('us.anthropic.claude-opus-5-5'), 'us.anthropic.claude-opus-5-5');
+  assert.equal(backend.api, 'mantle');
   assert.equal(await build(), backend, 'the client is built once');
+}));
+
+test('the bedrock backend takes the classic runtime surface', () => withoutAws(async () => {
+  // llm.aws.api: runtime - the SDK's classic client, every model id sent as written (an inference
+  // profile id as the account lists it), no server-side fallbacks; found necessary in the live
+  // drive of 2026-10-14, where the account was enabled for the runtime and not for the other surface
+  const build = defaultBackend(bedrockSettings({ 'llm.aws.region': 'us-east-1', 'llm.aws.api': 'runtime' }));
+  const backend = await build();
+  assert.ok(backend.client instanceof AnthropicBedrock);
+  assert.equal(backend.client.awsRegion, 'us-east-1');
+  assert.equal(backend.api, 'runtime');
+  assert.equal(backend.supportsFallbacks, false);
+  const profile = 'us.anthropic.claude-haiku-4-5-20251001-v1:0';
+  assert.equal(backend.providerModel(profile), profile);
+  assert.equal(backend.providerModel('claude-opus-5-5'), 'claude-opus-5-5');
+}));
+
+test('bedrock health names the surface, and a bearer token counts on the runtime surface', () => withoutAws(async () => {
+  const prop = bedrockSettings({ 'llm.aws.region': 'us-east-1', 'llm.aws.api': 'runtime' });
+  const helper = createLlmHelper({ prop, backend: defaultBackend(prop), log: silent, trace: () => {} });
+  const info = await helper.health({ type: 'info' });
+  assert.equal(info.backend, 'bedrock');
+  assert.equal(info.api, 'runtime');
+  assert.equal(info.region, 'us-east-1');
+  await assert.rejects(helper.health({ type: 'health' }),
+    (error) => error instanceof AppException && error.status === 503);
+  process.env.AWS_BEARER_TOKEN_BEDROCK = 'test-only-token';
+  const keyed = createLlmHelper({ prop, backend: defaultBackend(prop), log: silent, trace: () => {} });
+  assert.equal(await keyed.health({ type: 'health' }), 'llm.helper is running fine');
+}));
+
+test('the runtime surface without a region is a 503 that names the setting', () => withoutAws(async () => {
+  // the classic client would quietly fall back to us-east-1; the helper names the gap instead
+  await assert.rejects(defaultBackend(bedrockSettings({ 'llm.aws.api': 'runtime' }))(),
+    (error) => error instanceof AppException && error.status === 503 && error.message.includes('AWS region missing'));
+}));
+
+test('a bad llm.aws.api value is a 500 by name', () => withoutAws(async () => {
+  await assert.rejects(defaultBackend(bedrockSettings({ 'llm.aws.region': 'us-east-1', 'llm.aws.api': 'console' }))(),
+    (error) => error instanceof AppException && error.status === 500
+      && error.message.includes('llm.aws.api must be one of: mantle, runtime'));
 }));
 
 test('the bedrock backend reads the region from the AWS environment', () => withoutAws(async () => {

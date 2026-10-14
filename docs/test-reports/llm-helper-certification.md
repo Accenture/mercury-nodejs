@@ -47,6 +47,38 @@ nothing is gathered or sent once. The long gaps are the API's own pacing, the sa
 an invalid key gave Anthropic's 401 with its request id through Rust on all three layers and through Java on the graph, and no credential gave 503 when this pack's helper was called directly. The same message came from both helpers, through every layer. All traces that touched this helper rebuild
 as one connected tree.
 
+## Verified live on AWS Bedrock (2026-10-14)
+
+The helper's second backend (`llm.backend: 'bedrock'`), driven against an enterprise AWS account in `us-east-1` with temporary IAM
+credentials - a key pair and a session token - in the helper's environment and no vendor key anywhere. Negative controls first.
+
+| Step | Result |
+|---|---|
+| A corrupted secret | `401 LLM provider error - 401 authentication_error: The request signature we calculated does not match ...` |
+| No credential at all | health `503 AWS credential missing`; the call the same 503 |
+| `llm.chat`, Haiku 4.5 | `200`, `ready`, 14 input / 4 output tokens |
+| `llm.chat` with a schema | `{"verdict": "bug", "confidence": 0.95}`, 218 / 17 |
+| `llm.stream` | 4 batches, the first after 714 ms, `eof` with usage 20 / 23 |
+| Java engine, the shipped `support-triage` graph | `question` → `answered`, 242 / 24 |
+| Java engine, the streaming relay | 4 `data` frames, then `done` with usage, the trace id and the correlation id |
+
+Every call ran on `us.anthropic.claude-haiku-4-5-20251001-v1:0` through the classic runtime surface (`llm.aws.api: 'runtime'`): the
+account was enabled for that surface and not for the Anthropic-shaped one the SDK prefers, and for Haiku 4.5 and not for the newer
+model generation. The full account of the surfaces and the gates is Finding 7 of the
+[engine report](https://accenture.github.io/mercury-composable/test-reports/llm-helper-certification/).
+
+## What the Node.js SDK needed on Bedrock
+
+- **The Bedrock clients are a package of their own**, `@anthropic-ai/bedrock-sdk` (`AnthropicBedrockMantle`, `AnthropicBedrock`),
+  imported only when the backend is selected, so the Claude API backend starts without it and the backend builds asynchronously.
+- **An empty credential chain is the chain's own `CredentialsProviderError`**, as thrown or as the cause of the SDK's connection
+  error; the helper maps either to `503 AWS credential missing`. The health check resolves `fromNodeProviderChain` the way a call
+  would, so a probe tells a missing credential from a present one without spending a token.
+- **The classic client would quietly fall back to `us-east-1`** when no region is named; the helper names the gap instead
+  (`503 AWS region missing`), the same answer the Anthropic-shaped client gives by itself.
+- **A Bedrock API key is held as the classic client's auth token**, so the health check counts either field as a credential.
+- **The reply carries no request id:** Bedrock sends no `request-id` header the helper reads.
+
 ## What the Node.js SDK needed
 
 - **No credential is not an API error.** `@anthropic-ai/sdk` raises a plain `Error` (an `AnthropicError` on a stream) before anything

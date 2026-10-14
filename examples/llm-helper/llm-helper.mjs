@@ -12,8 +12,8 @@
  * The credential comes from the environment, never from a config file: ANTHROPIC_API_KEY for
  * the Claude API, the AWS credential chain (or AWS_BEARER_TOKEN_BEDROCK) for AWS Bedrock.
  * Settings live in resources/application.yml (or -Dkey=value): llm.backend (anthropic or
- * bedrock), llm.aws.region, llm.model, llm.max.tokens, llm.timeout.ms, llm.max.retries,
- * llm.fallbacks, llm.effort. The contract, the keys and the backends are documented in
+ * bedrock), llm.aws.api (mantle or runtime), llm.aws.region, llm.model, llm.max.tokens,
+ * llm.timeout.ms, llm.max.retries, llm.fallbacks, llm.effort. The contract, the keys and the backends are documented in
  * README.md next to this file. The Python twin (mercury-python examples/llm-helper) speaks
  * the same contract, and both are pinned by one shared vector file.
  *
@@ -38,13 +38,19 @@ const defaultLog = getLogger('llm-helper');
 export const DEFAULT_PROVIDER = 'anthropic';
 export const DEFAULT_BACKEND = 'anthropic';
 export const BEDROCK_BACKEND = 'bedrock';
+// the two Bedrock surfaces: the Anthropic-shaped endpoint (the default) and the classic runtime
+export const AWS_API_MANTLE = 'mantle';
+export const AWS_API_RUNTIME = 'runtime';
+export const AWS_APIS = [AWS_API_MANTLE, AWS_API_RUNTIME];
 export const DEFAULT_MODEL = 'claude-opus-5-5';
 export const DEFAULT_MAX_TOKENS = 16000;
 export const DEFAULT_TIMEOUT_MS = 60000;
 export const DEFAULT_MAX_RETRIES = 2;
 export const PROVIDERS = [DEFAULT_PROVIDER];
 export const BACKENDS = [DEFAULT_BACKEND, BEDROCK_BACKEND];
-// Bedrock spells a model id with the vendor prefix; a bare id gets it, a prefixed one is kept
+// the Anthropic-shaped surface spells a model id with the vendor prefix; a bare id gets it, a
+// prefixed one is kept. The classic runtime takes an inference profile id exactly as the account
+// lists it (they carry dates and versions no rule can derive), so there the id is sent as written
 const BEDROCK_MODEL_PREFIX = 'anthropic.';
 export const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 export const ROLES = ['user', 'assistant'];
@@ -143,23 +149,26 @@ export function anthropicBackend(name = DEFAULT_BACKEND, client = new Anthropic(
   };
 }
 
-/** A bare model id gets the prefix Bedrock expects (anthropic.claude-opus-5-5); an id already
- * spelled for Bedrock - prefixed, or an inference profile - is sent as written. */
+/** The Anthropic-shaped surface: a bare model id gets the prefix it expects
+ * (anthropic.claude-opus-5-5); an id already spelled for Bedrock is sent as written. The classic
+ * runtime surface sends every id as written. */
 export const bedrockModel = (model) => (model.startsWith('claude-') ? `${BEDROCK_MODEL_PREFIX}${model}` : model);
 
-/** AWS Bedrock over the SDK's Mantle client: the AWS credential chain (or a Bedrock API key)
- * signs each call, and server-side refusal fallbacks are not offered there. */
-export function bedrockBackend(name = BEDROCK_BACKEND, client) {
+/** AWS Bedrock over the SDK's client for the chosen surface: the AWS credential chain (or a
+ * Bedrock API key) signs each call, and server-side refusal fallbacks are not offered there. */
+export function bedrockBackend(name = BEDROCK_BACKEND, client, api = AWS_API_MANTLE) {
   return {
     name,
     client,
+    api,
     supportsFallbacks: false,
-    providerModel: bedrockModel,
-    /** A Bedrock API key, else what the AWS credential chain resolves - the environment, a
-     * profile, a role; on an EC2 or ECS host that includes the instance metadata service, the
-     * one lookup the chain makes outside the process. No token is spent. */
+    providerModel: api === AWS_API_MANTLE ? bedrockModel : (model) => model,
+    /** A Bedrock API key (the classic client holds it as its auth token), else what the AWS
+     * credential chain resolves - the environment, a profile, a role; on an EC2 or ECS host that
+     * includes the instance metadata service, the one lookup the chain makes outside the
+     * process. No token is spent. */
     credentialProblem: async () => {
-      if (client.apiKey) {
+      if (client.apiKey || client.authToken) {
         return undefined;
       }
       try {
@@ -173,13 +182,25 @@ export function bedrockBackend(name = BEDROCK_BACKEND, client) {
   };
 }
 
-/** The backend of a route over a client: defaultBackend() builds the client, tests inject one. */
-export function backendFor(name, client) {
-  return name === BEDROCK_BACKEND ? bedrockBackend(name, client) : anthropicBackend(name, client);
+/** The backend of a route over a client: defaultBackend() builds the client, tests inject one.
+ * For Bedrock, api names the surface, which decides how a model id is spelled. */
+export function backendFor(name, client, api = AWS_API_MANTLE) {
+  return name === BEDROCK_BACKEND ? bedrockBackend(name, client, api) : anthropicBackend(name, client);
 }
 
-/** The SDK's Bedrock client, with the region from llm.aws.region or the AWS environment. */
-async function bedrockClient(prop) {
+/** The Bedrock surface a call goes to: the Anthropic-shaped endpoint (mantle, the default) or
+ * the classic runtime - an account may be enabled for one and not the other. */
+function awsApi(prop) {
+  const api = String(prop('llm.aws.api', AWS_API_MANTLE) || AWS_API_MANTLE).toLowerCase();
+  if (!AWS_APIS.includes(api)) {
+    throw new AppException(500, `llm.aws.api must be one of: ${AWS_APIS.join(', ')}`);
+  }
+  return api;
+}
+
+/** The SDK's Bedrock client for the surface, with the region from llm.aws.region or the AWS
+ * environment. */
+async function bedrockClient(prop, api) {
   let sdk;
   try {
     sdk = await import('@anthropic-ai/bedrock-sdk');
@@ -190,6 +211,14 @@ async function bedrockClient(prop) {
     throw error;
   }
   const region = prop('llm.aws.region');
+  if (api === AWS_API_RUNTIME) {
+    // the classic client would quietly fall back to us-east-1; a region is named or the call is not sent
+    const resolved = region ?? process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION;
+    if (!resolved) {
+      throw new AppException(503, MISSING_AWS_REGION);
+    }
+    return new sdk.AnthropicBedrock({ awsRegion: String(resolved) });
+  }
   try {
     return new sdk.AnthropicBedrockMantle(region ? { awsRegion: String(region) } : {});
   } catch (error) {
@@ -212,8 +241,9 @@ export function defaultBackend(prop) {
         throw new AppException(501,
           `unknown LLM backend '${name}' - this helper serves: ${BACKENDS.join(', ')}`);
       }
-      const client = name === BEDROCK_BACKEND ? await bedrockClient(prop) : new Anthropic();
-      built = backendFor(name, client);
+      const api = name === BEDROCK_BACKEND ? awsApi(prop) : AWS_API_MANTLE;
+      const client = name === BEDROCK_BACKEND ? await bedrockClient(prop, api) : new Anthropic();
+      built = backendFor(name, client, api);
     }
     return built;
   };
@@ -617,6 +647,9 @@ export function createLlmHelper({
       };
       if (provider.client.awsRegion) {
         info.region = provider.client.awsRegion; // which region a Bedrock call is signed for
+      }
+      if (provider.api) {
+        info.api = provider.api; // which Bedrock surface answers
       }
       return info;
     }

@@ -2,8 +2,12 @@
  * Minimalist configuration management, consistent with the Mercury engines.
  *
  * Same conventions as the Java/Rust AppConfigReader: configuration lives in
- * the resources folder (resources/application.yml | .yaml | .properties) with
- * dotted keys; `-Dkey=value` command-line arguments are runtime parameter
+ * the resources folder NEXT TO THE APPLICATION FILE (resources/application.yml
+ * | .yaml | .properties beside the file mercury-serve is given, or beside the
+ * script Node ran), mirroring the engines' classpath resources - the working
+ * directory is never searched, so the configuration an application starts
+ * with does not depend on where it is launched from; `--config` names another
+ * file. Keys are dotted; `-Dkey=value` command-line arguments are runtime parameter
  * overrides checked first on every read — the same syntax as the Java
  * engine's JVM system properties and the Rust port's -D arguments (the
  * f:setConfig analog); `${ENV_VAR:default}` substitution resolves the
@@ -15,6 +19,7 @@
  * wins).
  */
 import * as fs from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import YAML from 'yaml';
 import { asText } from './envelope.js';
 
@@ -27,6 +32,21 @@ export const DEFAULT_CANDIDATES = [
   'resources/application.yaml',
   'resources/application.properties'
 ];
+
+export const RESOURCES_FOLDER = 'resources';
+
+/**
+ * The folder of the script Node ran (`node app.mjs`) - where a direct run finds
+ * its resources folder; undefined when there is no script (`node -e`, a REPL).
+ */
+export function mainScriptDir(): string | undefined {
+  const script = process.argv[1];
+  return script ? dirname(resolve(script)) : undefined;
+}
+
+function isFile(candidate: string): boolean {
+  return fs.existsSync(candidate) && fs.statSync(candidate).isFile();
+}
 
 /** Extract -Dkey=value runtime overrides (Java/Rust engine syntax). */
 export function parseDArgs(argv: string[]): Map<string, unknown> {
@@ -65,21 +85,46 @@ function parseProperties(text: string): Map<string, unknown> {
 export class AppConfig {
   private store = new Map<string, unknown>();
   private readonly overrides: Map<string, unknown>;
+  /**
+   * The configuration file loaded (an explicit path as given, else the absolute
+   * path of the file found next to the application file), or 'none'.
+   */
   readonly source: string;
+  /**
+   * The resources folder companion files (app-log-context.yaml) share with the
+   * configuration file - beside an explicit file, else next to the application
+   * file; undefined when there is neither.
+   */
+  readonly resourcesDir?: string;
 
-  constructor(path?: string, argv?: string[]) {
+  /**
+   * `path` names the configuration file explicitly; otherwise the file is one of
+   * DEFAULT_CANDIDATES under `appDir` - the application file's folder, defaulting
+   * to the folder of the script Node ran. The working directory is never searched.
+   */
+  constructor(path?: string, argv?: string[], appDir?: string) {
     this.overrides = parseDArgs(argv ?? process.argv.slice(2));
-    const candidates = path ? [path] : DEFAULT_CANDIDATES;
     let loaded = 'none';
-    for (const candidate of candidates) {
-      if (candidate && fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
-        this.load(candidate);
-        loaded = candidate;
-        break;
+    if (path) {
+      if (!isFile(path)) {
+        throw new Error(`Configuration file not found - ${path}`);
       }
-    }
-    if (path && loaded === 'none') {
-      throw new Error(`Configuration file not found - ${path}`);
+      this.load(path);
+      loaded = path;
+      this.resourcesDir = dirname(resolve(path));
+    } else {
+      const folder = appDir ?? mainScriptDir();
+      if (folder) {
+        this.resourcesDir = join(folder, RESOURCES_FOLDER);
+        for (const candidate of DEFAULT_CANDIDATES) {
+          const probe = join(folder, candidate);
+          if (isFile(probe)) {
+            this.load(probe);
+            loaded = probe;
+            break;
+          }
+        }
+      }
     }
     this.source = loaded;
   }
@@ -161,14 +206,20 @@ export class AppConfig {
 
 let instance: AppConfig | undefined;
 
-/** The shared AppConfig singleton (created on first use). */
+/**
+ * The shared AppConfig singleton (created on first use - a direct `node app.mjs`
+ * run resolves its resources folder next to the script).
+ */
 export function appConfig(): AppConfig {
   instance ??= new AppConfig();
   return instance;
 }
 
-/** Replace the shared AppConfig (used by the CLI before startup). */
-export function loadConfig(path?: string): AppConfig {
-  instance = new AppConfig(path);
+/**
+ * Replace the shared AppConfig (used by the CLI before startup, with the
+ * application file's folder as `appDir`).
+ */
+export function loadConfig(path?: string, appDir?: string): AppConfig {
+  instance = new AppConfig(path, undefined, appDir);
   return instance;
 }

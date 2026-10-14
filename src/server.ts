@@ -363,6 +363,7 @@ export class Platform {
       const visibility = service.isPrivate ? 'PRIVATE' : 'PUBLIC';
       log.info(`Loaded ${visibility} ${service.route}, instances=${service.instances}`);
     }
+    log.info(`Configuration: ${config.source}`);
     const server = new EventApiServer(this.registry).createServer();
     await new Promise<void>((resolve) => server.listen(port, host, resolve));
     log.info(`${appName} - Event API service started on port ${port}`);

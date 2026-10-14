@@ -24,6 +24,9 @@ export ANTHROPIC_API_KEY=...               # from the environment, never from a 
 node dist/src/cli.js examples/llm-helper/llm-helper.mjs
 ```
 
+The helper reads `resources/application.yml` next to `llm-helper.mjs`, whichever directory the command runs
+from; `-Dkey=value` overrides any key.
+
 To use it outside this repository, copy `llm-helper.mjs` and its `resources` folder into your project,
 `npm install mercury-composable @anthropic-ai/sdk`, and run `npx mercury-serve llm-helper.mjs` (the app
 imports `mercury-composable` by name, so the same file works in both places). The published package does

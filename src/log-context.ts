@@ -137,12 +137,12 @@ function load(): { config: LogContextConfig; warning?: string } {
   if ((config.getProperty(FEATURE_FLAG, 'true') ?? 'true').toLowerCase() === 'false') {
     return { config: new LogContextConfig(undefined) };
   }
-  // an application override replaces the default entirely - same resources
-  // convention as application.yml
-  const source = config.source;
-  const folder = source !== 'none' ? dirname(source) : 'resources';
-  const candidate = join(folder || 'resources', CONFIG_FILE);
-  if (existsSync(candidate)) {
+  // an application override replaces the default entirely - it sits in the same
+  // resources folder as application.yml (next to the application file, or beside
+  // an explicit --config file); the working directory is never searched
+  const folder = config.resourcesDir;
+  const candidate = folder ? join(folder, CONFIG_FILE) : undefined;
+  if (candidate && existsSync(candidate)) {
     const section = contextSection(parse(readFileSync(candidate, 'utf-8')) ?? {});
     if (!section) {
       // the engines log a warning and disable; mirror the outcome

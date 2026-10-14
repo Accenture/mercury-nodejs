@@ -38,6 +38,15 @@ export AWS_REGION=us-east-1                     # or llm.aws.region; the AWS cre
 node dist/src/cli.js examples/llm-helper/llm-helper.mjs -Dllm.backend=bedrock
 ```
 
+If the account is enabled for Bedrock's classic runtime and not for its Anthropic-shaped endpoint (the default
+surface answers `403 ... not available for this account` on a model the console's playground runs), switch the
+surface and name the model as an inference profile id, exactly as the account lists it:
+
+```bash
+node dist/src/cli.js examples/llm-helper/llm-helper.mjs -Dllm.backend=bedrock -Dllm.aws.api=runtime \
+  -Dllm.model=us.anthropic.claude-haiku-4-5-20251001-v1:0
+```
+
 The app listens on port 8087 (`rest.server.port` in `resources/application.yml`). Map its routes
 from the engine's `event-over-http.yaml`, as the Java and Rust MiniGraph Playgrounds do:
 
@@ -60,7 +69,7 @@ token batches as they are produced.
 | `prompt` or `messages` | A single user turn, or conversation turns `[{role: user\|assistant, content}]`. `messages` wins when both are given. Content is plain text. |
 | `system` | Optional system prompt (text). |
 | `schema` | `llm.chat` only. A JSON schema; the reply is then structured output, returned parsed as `data`. `additionalProperties` defaults to `false`. A schema on `llm.stream` is a 400. |
-| `params.model` | The model. Default `claude-opus-5-5` (`llm.model`). On Bedrock a bare id is sent with the `anthropic.` prefix; an id already spelled for Bedrock is sent as written. |
+| `params.model` | The model. Default `claude-opus-5-5` (`llm.model`). On Bedrock's default surface a bare id is sent with the `anthropic.` prefix and an id already spelled for Bedrock as written; on the classic runtime surface every id is sent as written, an inference profile id as the account lists it. |
 | `params.max_tokens` | Output cap. Default 16000 (`llm.max.tokens`). |
 | `params.timeout_ms` | `llm.chat`: a deadline for the whole call, SDK retries included. `llm.stream`: the idle allowance between events. Default 60000 (`llm.timeout.ms`). |
 | `params.effort` | `low`, `medium`, `high`, `xhigh` or `max`. Sent only when set; otherwise the model's own default applies. A model that takes no effort parameter answers 400. |
@@ -127,6 +136,7 @@ the 422 above, not an empty stream. Raise `params.max_tokens` or lower `params.e
 |---|---|---|
 | `llm.backend` | `anthropic` | The route to the models: `anthropic` (the Claude API) or `bedrock` (AWS Bedrock); see Backends. |
 | `llm.aws.region` | unset | The AWS region a Bedrock call is signed for. Unset, the SDK reads `AWS_REGION` / `AWS_DEFAULT_REGION`. |
+| `llm.aws.api` | `mantle` | The Bedrock surface: `mantle`, the Anthropic-shaped endpoint, or `runtime`, the classic one; see Backends. |
 | `llm.model` | `claude-opus-5-5` | The default model. |
 | `llm.max.tokens` | `16000` | The default output cap. |
 | `llm.timeout.ms` | `60000` | The default deadline (chat) or idle allowance (stream). |
@@ -172,7 +182,7 @@ contract and the vector file are the same on every backend.
 | `llm.backend` | Client | Credential | Model id | Server-side fallbacks |
 |---|---|---|---|---|
 | `anthropic` (default) | the Claude API, `@anthropic-ai/sdk` | `ANTHROPIC_API_KEY`, or whatever the SDK resolves | as written | on the models that support them |
-| `bedrock` | AWS Bedrock, `AnthropicBedrockMantle` from `@anthropic-ai/bedrock-sdk` | the AWS credential chain through IAM (`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`, a profile, a role), or a Bedrock API key in `AWS_BEARER_TOKEN_BEDROCK` | a bare id gets the `anthropic.` prefix; an id already spelled for Bedrock is sent as written | none - the request never carries them |
+| `bedrock` | AWS Bedrock, `AnthropicBedrockMantle` (`llm.aws.api: mantle`) or `AnthropicBedrock` (`runtime`) from `@anthropic-ai/bedrock-sdk` | the AWS credential chain through IAM (`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`, a profile, a role), or a Bedrock API key in `AWS_BEARER_TOKEN_BEDROCK` | `mantle`: a bare id gets the `anthropic.` prefix, an id already spelled for Bedrock is sent as written; `runtime`: every id as written | none - the request never carries them |
 
 **AWS Bedrock.** Install the SDK's Bedrock package beside the SDK (`npm install @anthropic-ai/bedrock-sdk`;
 it signs each call with the AWS credential chain), set `llm.backend: 'bedrock'` and a region
@@ -186,6 +196,16 @@ missing`. Effort, structured output and streaming work as on the Claude API. The
 refusal fallback middleware is not wired in; a refusal on Bedrock is the 422 or the `stop_details` of
 the contract, like a refusal on the Claude API with `llm.fallbacks: off`.
 
+**Two surfaces.** Bedrock serves Claude on two endpoints, and an account may be enabled for one and not the
+other. `llm.aws.api: 'mantle'` (the default) is the Anthropic-shaped endpoint the SDK prefers, which takes the
+vendor-prefixed ids above. `llm.aws.api: 'runtime'` is the classic Bedrock runtime, which takes an inference profile
+id exactly as the account lists it (`us.anthropic.claude-haiku-4-5-20251001-v1:0` - they carry dates and versions no
+rule can derive, so the helper sends every id as written there). The sign that an account lacks the default surface
+is a `403 ... is not available for this account` on a model the console's playground runs: switch the surface and
+name the model as a profile id. The same message on both surfaces, with the model agreement in place, is an account
+enablement for that model generation - a conversation with the AWS account team, not a setting. `llm.health` reports
+`api` beside `backend`, `model` and `region`. Bedrock sends no `request_id` the helper reads, so a reply carries none.
+
 ## What it does not do
 
 No tools or function calling, no images or documents, no `system` turns inside `messages`, no
@@ -195,10 +215,10 @@ deliberate: the helper is the bounded AI node of a graph, not an agent runtime.
 ## Tests
 
 `test/llm-helper.test.mjs` runs the shared `test/vectors/llm-helper-vectors.json` against a fake of
-the SDK (66 cases: request validation, the exact SDK call, replies, the error contract, streaming,
-the shape of a Bedrock call), plus the tests a vector cannot express (token batches are never held
-back, no prompt text in a log, the deadline cancels the call, trace annotations, health, the backend
-seam, the Bedrock client with its region and credential checks). No token is spent and no credential
+the SDK (68 cases: request validation, the exact SDK call, replies, the error contract, streaming,
+the shape of a Bedrock call on either surface), plus the tests a vector cannot express (token batches are
+never held back, no prompt text in a log, the deadline cancels the call, trace annotations, health, the
+backend seam, the Bedrock clients with their region and credential checks). No token is spent and no credential
 is needed.
 
 ```bash

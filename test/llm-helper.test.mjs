@@ -13,15 +13,16 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
+import { AnthropicBedrockMantle } from '@anthropic-ai/bedrock-sdk';
 import Anthropic from '@anthropic-ai/sdk';
 import { AppException } from 'mercury-composable';
 import {
-  anthropicBackend, createLlmHelper, defaultBackend, failure
+  anthropicBackend, backendFor, createLlmHelper, defaultBackend, failure
 } from '../examples/llm-helper/llm-helper.mjs';
 
 const VECTORS_FILE = new URL('./vectors/llm-helper-vectors.json', import.meta.url);
 // the Python twin pins the same digest: change the file in both packs or in neither
-const VECTORS_SHA256 = '1f4823d9259ed6ff26e96d044b5f6b3c7bc9b342cc8ad76047434c2d3a2b8fa0';
+const VECTORS_SHA256 = '1b758e73605b2b088594faa8e573483778d7b85f29073d4779c3bba20ac024c1';
 const VECTORS = JSON.parse(readFileSync(VECTORS_FILE, 'utf8'));
 const CHAT_CASES = VECTORS.cases.filter((c) => c.route === 'llm.chat');
 const STREAM_CASES = VECTORS.cases.filter((c) => c.route === 'llm.stream');
@@ -117,8 +118,9 @@ class FakeStream {
 
 const delta = (text) => ({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } });
 
-/** The backend the helper holds: a client with two messages namespaces, and a ledger. */
-function fakeBackend(provider, { supportsFallbacks = true, apiKey = 'test-credential', make } = {}) {
+/** The backend the helper holds: a client with two messages namespaces, and a ledger, under
+ * the shape of the backend the case names (the Claude API by default). */
+function fakeBackend(provider, { supportsFallbacks, apiKey = 'test-credential', make, name = 'anthropic' } = {}) {
   const ledger = { calls: [], cancelled: false };
   const namespace = (name) => ({
     stream(params, options) {
@@ -130,7 +132,8 @@ function fakeBackend(provider, { supportsFallbacks = true, apiKey = 'test-creden
     apiKey, authToken: null, credentials: null, messages: namespace('messages'),
     beta: { messages: namespace('beta.messages') }
   };
-  return { ledger, backend: { ...anthropicBackend('anthropic', client), supportsFallbacks } };
+  const shape = backendFor(name, client);
+  return { ledger, backend: supportsFallbacks === undefined ? shape : { ...shape, supportsFallbacks } };
 }
 
 class FakeWriter {
@@ -161,7 +164,8 @@ const settings = (config = {}) => (key, fallback) => config[key] ?? fallback;
 const silent = { info() {}, warn() {} };
 
 function helperFor(c, extra = {}) {
-  const { backend, ledger } = fakeBackend(c.provider, extra.backendOptions);
+  const { backend, ledger } = fakeBackend(c.provider,
+    { name: c.config?.['llm.backend'] ?? 'anthropic', ...extra.backendOptions });
   const out = new FakeWriter();
   const helper = createLlmHelper({
     prop: settings(c.config), backend: () => backend, writer: () => out, log: silent,
@@ -445,18 +449,117 @@ test('the real client reports a credential it was given', () => {
   assert.equal(backend.credentialProblem(), undefined);
 });
 
-test('an unknown backend is a 501 that names what is served', () => {
-  const build = defaultBackend((key, fallback) => (key === 'llm.backend' ? 'bedrock' : fallback));
-  assert.throws(build, (error) => error instanceof AppException && error.status === 501
-    && error.message.includes("unknown LLM backend 'bedrock'")
-    && error.message.includes('this helper serves: anthropic'));
+test('an unknown backend is a 501 that names what is served', async () => {
+  const build = defaultBackend((key, fallback) => (key === 'llm.backend' ? 'vertex' : fallback));
+  await assert.rejects(build(), (error) => error instanceof AppException && error.status === 501
+    && error.message.includes("unknown LLM backend 'vertex'")
+    && error.message.includes('this helper serves: anthropic, bedrock'));
 });
 
-test('the default backend is the Anthropic client, built once', () => {
+test('the default backend is the Anthropic client, built once', async () => {
   const build = defaultBackend((key, fallback) => fallback);
-  const backend = build();
+  const backend = await build();
   assert.equal(backend.name, 'anthropic');
   assert.equal(backend.supportsFallbacks, true);
   assert.ok(backend.client instanceof Anthropic);
-  assert.equal(build(), backend, 'the client is built once');
+  assert.equal(await build(), backend, 'the client is built once');
+});
+
+// --- the Bedrock backend: the SDK's Mantle client, built without a credential or a token ----
+
+const AWS_ENVIRONMENT = [
+  'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_SESSION_TOKEN', 'AWS_PROFILE',
+  'AWS_BEARER_TOKEN_BEDROCK', 'ANTHROPIC_AWS_API_KEY', 'AWS_CONTAINER_CREDENTIALS_RELATIVE_URI',
+  'AWS_CONTAINER_CREDENTIALS_FULL_URI', 'AWS_WEB_IDENTITY_TOKEN_FILE', 'AWS_REGION',
+  'AWS_DEFAULT_REGION', 'ANTHROPIC_BEDROCK_MANTLE_BASE_URL', 'AWS_SHARED_CREDENTIALS_FILE',
+  'AWS_CONFIG_FILE', 'AWS_EC2_METADATA_DISABLED'
+];
+
+/** Runs fn in a process with no AWS environment at all: the shared credential and config files
+ * pointed nowhere, the instance metadata lookup switched off, so every check stays local and
+ * deterministic; the environment is restored afterwards. */
+async function withoutAws(fn) {
+  const saved = Object.fromEntries(AWS_ENVIRONMENT.map((name) => [name, process.env[name]]));
+  for (const name of AWS_ENVIRONMENT) {
+    delete process.env[name];
+  }
+  process.env.AWS_SHARED_CREDENTIALS_FILE = '/nonexistent/aws/credentials';
+  process.env.AWS_CONFIG_FILE = '/nonexistent/aws/config';
+  process.env.AWS_EC2_METADATA_DISABLED = 'true';
+  try {
+    await fn();
+  } finally {
+    for (const [name, value] of Object.entries(saved)) {
+      if (value === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = value;
+      }
+    }
+  }
+}
+
+const bedrockSettings = (extra = {}) => settings({ 'llm.backend': 'bedrock', ...extra });
+
+test('the bedrock backend is the SDK mantle client', () => withoutAws(async () => {
+  // the region from llm.aws.region, the model prefix for a bare id (an id already spelled for
+  // Bedrock is kept), no server-side fallbacks; built once
+  const build = defaultBackend(bedrockSettings({ 'llm.aws.region': 'us-east-1' }));
+  const backend = await build();
+  assert.equal(backend.name, 'bedrock');
+  assert.ok(backend.client instanceof AnthropicBedrockMantle);
+  assert.equal(backend.client.awsRegion, 'us-east-1');
+  assert.equal(backend.supportsFallbacks, false);
+  assert.equal(backend.providerModel('claude-opus-5-5'), 'anthropic.claude-opus-5-5');
+  assert.equal(backend.providerModel('us.anthropic.claude-opus-5-5'), 'us.anthropic.claude-opus-5-5');
+  assert.equal(await build(), backend, 'the client is built once');
+}));
+
+test('the bedrock backend reads the region from the AWS environment', () => withoutAws(async () => {
+  process.env.AWS_REGION = 'eu-west-1';
+  const backend = await defaultBackend(bedrockSettings())();
+  assert.equal(backend.client.awsRegion, 'eu-west-1');
+}));
+
+test('the bedrock backend without a region is a 503 that names the setting', () => withoutAws(async () => {
+  await assert.rejects(defaultBackend(bedrockSettings())(),
+    (error) => error instanceof AppException && error.status === 503
+      && error.message.includes('AWS region missing') && error.message.includes('llm.aws.region'));
+}));
+
+test('bedrock health reports the region and resolves the AWS chain', () => withoutAws(async () => {
+  // the health route names the region a call is signed for, and its check resolves the AWS
+  // credential chain the way a call would: nothing in the chain is a 503 by name, the AWS
+  // environment is a credential, and so is a Bedrock API key
+  const prop = bedrockSettings({ 'llm.aws.region': 'us-east-1' });
+  const helper = createLlmHelper({ prop, backend: defaultBackend(prop), log: silent, trace: () => {} });
+  const info = await helper.health({ type: 'info' });
+  assert.equal(info.backend, 'bedrock');
+  assert.equal(info.region, 'us-east-1');
+  await assert.rejects(helper.health({ type: 'health' }),
+    (error) => error instanceof AppException && error.status === 503
+      && error.message.includes('AWS credential missing'));
+  process.env.AWS_ACCESS_KEY_ID = 'AKIATESTONLY';
+  process.env.AWS_SECRET_ACCESS_KEY = 'test-only-secret';
+  assert.equal(await helper.health({ type: 'health' }), 'llm.helper is running fine');
+  delete process.env.AWS_ACCESS_KEY_ID;
+  delete process.env.AWS_SECRET_ACCESS_KEY;
+  process.env.AWS_BEARER_TOKEN_BEDROCK = 'test-only-token';
+  // the key is read when the client is built
+  const keyed = createLlmHelper({ prop, backend: defaultBackend(prop), log: silent, trace: () => {} });
+  assert.equal(await keyed.health({ type: 'health' }), 'llm.helper is running fine');
+}));
+
+test('a missing AWS credential at call time is a 503 by name', () => {
+  // the Bedrock SDK signs each call with the AWS chain, whose error names itself - as thrown,
+  // or as the cause of the SDK's connection error
+  const chain = Object.assign(new Error('Could not load credentials from any providers'),
+    { name: 'CredentialsProviderError' });
+  assert.equal(failure(chain, 25).status, 503);
+  assert.ok(failure(chain, 25).message.includes('AWS credential missing'));
+  const wrapped = new Anthropic.APIConnectionError({ cause: chain });
+  assert.equal(failure(wrapped, 25).status, 503);
+  assert.ok(failure(wrapped, 25).message.includes('AWS credential missing'));
+  assert.equal(failure(new Anthropic.APIConnectionError({ cause: new Error('refused') }), 25).status, 503);
+  assert.ok(failure(new Anthropic.APIConnectionError({ cause: new Error('refused') }), 25).message.includes('unreachable'));
 });

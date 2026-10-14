@@ -7,13 +7,15 @@
  *
  * Run:  npm install --save-dev @anthropic-ai/sdk     (or: npm install @anthropic-ai/sdk)
  *       node dist/src/cli.js examples/llm-helper/llm-helper.mjs
+ *       (AWS Bedrock: also @anthropic-ai/bedrock-sdk, and -Dllm.backend=bedrock)
  *
- * The credential comes from the environment (ANTHROPIC_API_KEY), never from a config file.
- * Settings live in resources/application.yml (or -Dkey=value): llm.backend, llm.model,
- * llm.max.tokens, llm.timeout.ms, llm.max.retries, llm.fallbacks, llm.effort. The contract,
- * the keys and the backend seam are documented in README.md next to this file. The Python
- * twin (mercury-python examples/llm-helper) speaks the same contract, and both are pinned by
- * one shared vector file.
+ * The credential comes from the environment, never from a config file: ANTHROPIC_API_KEY for
+ * the Claude API, the AWS credential chain (or AWS_BEARER_TOKEN_BEDROCK) for AWS Bedrock.
+ * Settings live in resources/application.yml (or -Dkey=value): llm.backend (anthropic or
+ * bedrock), llm.aws.region, llm.model, llm.max.tokens, llm.timeout.ms, llm.max.retries,
+ * llm.fallbacks, llm.effort. The contract, the keys and the backends are documented in
+ * README.md next to this file. The Python twin (mercury-python examples/llm-helper) speaks
+ * the same contract, and both are pinned by one shared vector file.
  *
  * Then map the routes from a Mercury engine application (event-over-http.yaml):
  *
@@ -35,12 +37,15 @@ const defaultLog = getLogger('llm-helper');
 
 export const DEFAULT_PROVIDER = 'anthropic';
 export const DEFAULT_BACKEND = 'anthropic';
+export const BEDROCK_BACKEND = 'bedrock';
 export const DEFAULT_MODEL = 'claude-opus-5-5';
 export const DEFAULT_MAX_TOKENS = 16000;
 export const DEFAULT_TIMEOUT_MS = 60000;
 export const DEFAULT_MAX_RETRIES = 2;
 export const PROVIDERS = [DEFAULT_PROVIDER];
-export const BACKENDS = [DEFAULT_BACKEND];
+export const BACKENDS = [DEFAULT_BACKEND, BEDROCK_BACKEND];
+// Bedrock spells a model id with the vendor prefix; a bare id gets it, a prefixed one is kept
+const BEDROCK_MODEL_PREFIX = 'anthropic.';
 export const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 export const ROLES = ['user', 'assistant'];
 // per-call params. Anything else is rejected: the current models take no sampling
@@ -51,8 +56,14 @@ const TEXT_EVENT_STREAM = 'text/event-stream';
 const FALLBACKS_BETA = 'server-side-fallback-2026-07-01';
 const FALLBACK_MODEL_PREFIXES = ['claude-opus-5', 'claude-fable-5', 'claude-sonnet-5-5'];
 const MISSING_CREDENTIAL = 'LLM provider credential missing - set ANTHROPIC_API_KEY in the environment';
+const MISSING_AWS_CREDENTIAL = 'AWS credential missing - configure the AWS credential chain (AWS_ACCESS_KEY_ID and '
+  + 'AWS_SECRET_ACCESS_KEY, a profile, or a role) or set AWS_BEARER_TOKEN_BEDROCK';
+const MISSING_AWS_REGION = 'AWS region missing - set llm.aws.region or AWS_REGION in the environment';
+const MISSING_BEDROCK_SDK = 'The Bedrock backend needs @anthropic-ai/bedrock-sdk - npm install @anthropic-ai/bedrock-sdk';
 // the SDK raises a plain error, before sending anything, when no credential resolves
 const CREDENTIAL_ERROR = 'Could not resolve authentication method';
+// the AWS credential chain's own error when it resolves nothing (while the Bedrock SDK signs)
+const AWS_CREDENTIAL_ERROR = 'CredentialsProviderError';
 
 const isMap = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -78,6 +89,12 @@ function detail(error) {
   return `${error.status} ${kind}: ${message}${requestId}`;
 }
 
+/** The AWS credential chain resolved nothing: its error by name, as thrown or as a cause. */
+function isAwsCredentialError(error) {
+  return error instanceof Error && (error.name === AWS_CREDENTIAL_ERROR
+    || error.message.includes('Could not load credentials'));
+}
+
 /** Map a provider failure to AppException(status, message); undefined for anything else. */
 export function failure(error, timeoutMs) {
   if (error instanceof AppException) {
@@ -86,6 +103,9 @@ export function failure(error, timeoutMs) {
   if (error instanceof Anthropic.APIUserAbortError
       || error instanceof Anthropic.APIConnectionTimeoutError) {
     return new AppException(408, `LLM request timed out after ${timeoutMs} ms`);
+  }
+  if (isAwsCredentialError(error) || isAwsCredentialError(error?.cause)) {
+    return new AppException(503, MISSING_AWS_CREDENTIAL);
   }
   if (error instanceof Anthropic.RateLimitError) {
     return new AppException(429, `LLM provider rate limit - ${detail(error)}`);
@@ -106,12 +126,10 @@ export function failure(error, timeoutMs) {
 // --- the backend seam ------------------------------------------------------------------
 
 /**
- * One way to reach Claude: the client, and what this route to the models supports.
- *
- * This is the seam for a second route to the same models - AWS Bedrock through IAM is the
- * planned one (see README.md, "Backends"): build its client in defaultBackend(), prefix the
- * model id in providerModel(), report no server-side fallbacks, and describe a missing
- * credential. Nothing else in this module knows which route answered.
+ * One way to reach Claude: the client, and what this route to the models supports - how it
+ * spells a model id, whether server-side fallbacks exist, and what a missing credential looks
+ * like. Nothing else in this module knows which route answered, so the routes, the contract
+ * and the vector file are the same on every backend (see README.md, "Backends").
  */
 export function anthropicBackend(name = DEFAULT_BACKEND, client = new Anthropic()) {
   return {
@@ -119,24 +137,83 @@ export function anthropicBackend(name = DEFAULT_BACKEND, client = new Anthropic(
     client,
     supportsFallbacks: true,
     providerModel: (model) => model,
-    /** What is missing for a call to be sent, or undefined. No network traffic. */
+    /** What is missing for a call to be sent, or undefined. No token is spent. */
     credentialProblem: () => (['apiKey', 'authToken', 'credentials'].some((key) => client[key])
       ? undefined : MISSING_CREDENTIAL)
   };
+}
+
+/** A bare model id gets the prefix Bedrock expects (anthropic.claude-opus-5-5); an id already
+ * spelled for Bedrock - prefixed, or an inference profile - is sent as written. */
+export const bedrockModel = (model) => (model.startsWith('claude-') ? `${BEDROCK_MODEL_PREFIX}${model}` : model);
+
+/** AWS Bedrock over the SDK's Mantle client: the AWS credential chain (or a Bedrock API key)
+ * signs each call, and server-side refusal fallbacks are not offered there. */
+export function bedrockBackend(name = BEDROCK_BACKEND, client) {
+  return {
+    name,
+    client,
+    supportsFallbacks: false,
+    providerModel: bedrockModel,
+    /** A Bedrock API key, else what the AWS credential chain resolves - the environment, a
+     * profile, a role; on an EC2 or ECS host that includes the instance metadata service, the
+     * one lookup the chain makes outside the process. No token is spent. */
+    credentialProblem: async () => {
+      if (client.apiKey) {
+        return undefined;
+      }
+      try {
+        const { fromNodeProviderChain } = await import('@aws-sdk/credential-providers');
+        await fromNodeProviderChain({ profile: client.awsProfile ?? undefined })();
+        return undefined;
+      } catch {
+        return MISSING_AWS_CREDENTIAL;
+      }
+    }
+  };
+}
+
+/** The backend of a route over a client: defaultBackend() builds the client, tests inject one. */
+export function backendFor(name, client) {
+  return name === BEDROCK_BACKEND ? bedrockBackend(name, client) : anthropicBackend(name, client);
+}
+
+/** The SDK's Bedrock client, with the region from llm.aws.region or the AWS environment. */
+async function bedrockClient(prop) {
+  let sdk;
+  try {
+    sdk = await import('@anthropic-ai/bedrock-sdk');
+  } catch (error) {
+    if (error?.code === 'ERR_MODULE_NOT_FOUND') {
+      throw new AppException(503, MISSING_BEDROCK_SDK);
+    }
+    throw error;
+  }
+  const region = prop('llm.aws.region');
+  try {
+    return new sdk.AnthropicBedrockMantle(region ? { awsRegion: String(region) } : {});
+  } catch (error) {
+    // no region, and no base URL to stand in for one
+    if (error instanceof Error && error.message.includes('No AWS region')) {
+      throw new AppException(503, MISSING_AWS_REGION);
+    }
+    throw error;
+  }
 }
 
 /** The backend, built on first use. Credentials resolve per call, so the app starts (and
  * reports its health) without one. */
 export function defaultBackend(prop) {
   let built;
-  return () => {
+  return async () => {
     if (built === undefined) {
       const name = String(prop('llm.backend', DEFAULT_BACKEND) || DEFAULT_BACKEND).toLowerCase();
       if (!BACKENDS.includes(name)) {
         throw new AppException(501,
           `unknown LLM backend '${name}' - this helper serves: ${BACKENDS.join(', ')}`);
       }
-      built = anthropicBackend(name);
+      const client = name === BEDROCK_BACKEND ? await bedrockClient(prop) : new Anthropic();
+      built = backendFor(name, client);
     }
     return built;
   };
@@ -417,7 +494,7 @@ export function createLlmHelper({
     const started = performance.now();
     let done;
     try {
-      done = await complete(request, backend());
+      done = await complete(request, await backend());
     } catch (error) {
       const mapped = failure(error, request.timeoutMs);
       if (mapped === undefined) {
@@ -465,7 +542,7 @@ export function createLlmHelper({
     let provider;
     try {
       request = prepare(event.body, { streaming: true });
-      provider = backend();
+      provider = await backend();
     } catch (error) {
       if (error instanceof AppException) {
         out.fail(error);
@@ -527,19 +604,23 @@ export function createLlmHelper({
    *
    * Activated for the /health actuator endpoint by mandatory.health.dependencies in
    * resources/application.yml. It reports whether a call could be sent (a credential is
-   * present) without any network traffic, so a probe never spends a token.
+   * present) without reaching the model, so a probe never spends a token.
    */
   async function health(headers) {
-    const provider = backend();
+    const provider = await backend();
     if (headers.type === 'info') {
-      return {
+      const info = {
         service: 'llm.helper',
         href: 'http://127.0.0.1',
         backend: provider.name,
         model: prop('llm.model', DEFAULT_MODEL)
       };
+      if (provider.client.awsRegion) {
+        info.region = provider.client.awsRegion; // which region a Bedrock call is signed for
+      }
+      return info;
     }
-    const problem = provider.credentialProblem();
+    const problem = await provider.credentialProblem();
     if (problem) {
       throw new AppException(503, problem);
     }

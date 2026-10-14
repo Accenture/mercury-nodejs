@@ -121,7 +121,7 @@
   live certification through the Java and Rust engines (`docs/test-reports/llm-helper-certification.md`: 124 model calls, every
   batch its own frame, every trace one tree). The Node SDK raises a plain `Error` (an `AnthropicError` on a stream) for a missing
   credential, before anything is sent; the helper maps it to a 503 by its text. No prompt or completion text reaches a log.
-  **Extended 2026-10-14 (the AI SDLC epic's first sprint, Eric's direction; PR #111, the Python twin mercury-python #43):**
+  **Extended 2026-10-14 (the AI SDLC epic's first sprint, Eric's direction; PR #111 merged `def1e3a`, the Python twin mercury-python #43 merged `c25ba35`, both 2026-10-14):**
   `llm.backend: 'bedrock'` reaches the same models through `AnthropicBedrockMantle` from `@anthropic-ai/bedrock-sdk` (imported only
   when selected; the backend builds asynchronously) - the AWS credential chain through IAM, or a Bedrock API key in
   `AWS_BEARER_TOKEN_BEDROCK`; the region from `llm.aws.region` or `AWS_REGION` (none: `503 AWS region missing`); a bare model id

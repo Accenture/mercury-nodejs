@@ -128,7 +128,7 @@
   prefixed `anthropic.`, an id already spelled for Bedrock kept; no server-side fallbacks (Bedrock offers none); an empty credential
   chain `503 AWS credential missing` by name; `llm.health` reporting `region`. `backendFor(name, client)` holds a route's shape, and
   the vector harness installs its fake under the backend a case names (66 cases). The lock file is exempted from the secret guard
-  (`.agent/secret-scan-ignore`: the package name `@aws-sdk/credential-providers` reads as a credential assignment). **Driven live 2026-10-14 (PR #112, the Python twin mercury-python #44):** negative controls
+  (`.agent/secret-scan-ignore`: the package name `@aws-sdk/credential-providers` reads as a credential assignment). **Driven live 2026-10-14 (PR #112 merge `0ece23f`, the Python twin mercury-python #44 merge `03c5f57`, both MERGED 2026-10-14):** negative controls
   first, then chat, a structured verdict and a progressive stream on Haiku 4.5, and the Java engine's shipped triage graph and
   streaming relay in front of the helper - all through IAM, no vendor key. What the drive taught: Bedrock has TWO SURFACES an account
   may be enabled for separately, so `llm.aws.api` selects `mantle` (the default, the Anthropic-shaped endpoint, the `anthropic.`

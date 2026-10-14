@@ -23,6 +23,19 @@
    credential checks are pinned by unit tests. **Upgrade note:** none - the Claude API backend is the default and behaves as
    before; `llm.backend` now also accepts `bedrock`.
 
+### Changed
+
+1. **The `resources` folder is the one next to the application file; the working directory is never searched.**
+   `mercury-serve app.mjs` (`node dist/src/cli.js app.mjs` in this repository) reads `resources/application.yml`
+   (`.yaml`, `.properties`) beside `app.mjs`, wherever the command runs from, and an application that starts the
+   platform itself resolves the folder beside the script Node ran - the engines' classpath convention: the configuration
+   travels with the application and does not depend on the launch directory. Before, the working directory was searched
+   first and the application's folder only as a fallback, so a stray `resources/` in the launch directory could shadow
+   the application's own. `--config <file>` still names another file; the companion `app-log-context.yaml` follows the
+   same folder; `appConfig().source` is now the absolute path of the file found and `appConfig().resourcesDir` names the
+   folder; the startup log reports `Configuration: <path>`. **Upgrade note:** an application that kept `resources/` in
+   the working directory with its application file elsewhere passes `--config`, or moves the folder next to the file.
+
 ## 4.12.21 (2026-10-07)
 
 The lock-step round with the engines: the pack moves from 4.12.15 to 4.12.21, the number the Java engine and the

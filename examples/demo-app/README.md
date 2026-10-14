@@ -23,6 +23,8 @@ npm run build
 node dist/src/cli.js examples/demo-app/demo-app.mjs
 ```
 
+The app reads `resources/application.yml` next to `demo-app.mjs`, whichever directory the command runs from.
+
 To use it outside this repository, copy `demo-app.mjs` and its `resources` folder into your project,
 `npm install mercury-composable`, and run `npx mercury-serve demo-app.mjs` (the app imports
 `mercury-composable` by name, so the same file works in both places).

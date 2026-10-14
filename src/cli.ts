@@ -4,6 +4,9 @@
  *
  *   mercury-serve app.mjs --port 8087
  *   mercury-serve app.mjs --config application.yml
+ *
+ * The configuration is the resources folder next to app.mjs - never the working
+ * directory - unless --config names a file.
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -30,25 +33,15 @@ async function main(): Promise<number> {
       'Usage: mercury-serve <app.mjs> [--port n] [--host addr] [--config file]\n');
     return 1;
   }
-  const { DEFAULT_CANDIDATES, loadConfig } = await import('./config.js');
+  const { loadConfig } = await import('./config.js');
   const appPath = path.resolve(args.app);
   if (!fs.existsSync(appPath)) {
     process.stderr.write(`Application file not found - ${appPath}\n`);
     return 1;
   }
-  let configPath = args.config;
-  if (!configPath && !DEFAULT_CANDIDATES.some((c: string) => fs.existsSync(c))) {
-    // fall back to a resources folder next to the application file
-    const appDir = path.dirname(appPath);
-    for (const candidate of DEFAULT_CANDIDATES) {
-      const probe = path.join(appDir, candidate);
-      if (fs.existsSync(probe)) {
-        configPath = probe;
-        break;
-      }
-    }
-  }
-  loadConfig(configPath); // before logging/server setup so their keys apply
+  // the resources folder is the one next to the application file, wherever the command runs
+  // from; --config names another file. Loaded before logging/server setup so their keys apply.
+  loadConfig(args.config, path.dirname(appPath));
   // -Dkey=value runtime overrides are consumed by AppConfig from process.argv
   await import(pathToFileURL(appPath).href);
   const { defaultRegistry } = await import('./registry.js');

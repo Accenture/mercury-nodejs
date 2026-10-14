@@ -5,5 +5,8 @@
   with `llm.backend: 'bedrock'`. The routes, the contract and the vector file stay as they are, and the Python twin does the
   same in `get_backend()`. Needs Eric's AWS account for the live drive, with a negative control first (a bad credential must fail
   by name).
+  **Built 2026-10-14 (PR #111, the Python twin mercury-python #43):** the client, the prefix, the fallbacks flag, the credential
+  and region checks, the docs and the vectors are in; what remains is the live drive - a wrong credential first - which this
+  machine cannot run (no AWS access).
   → serves: vision-mercury-nodejs
   <!-- id: llm-helper-bedrock-iam | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: working | origin: 2026-10-02-001255 -->

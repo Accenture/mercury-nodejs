@@ -121,6 +121,15 @@
   live certification through the Java and Rust engines (`docs/test-reports/llm-helper-certification.md`: 124 model calls, every
   batch its own frame, every trace one tree). The Node SDK raises a plain `Error` (an `AnthropicError` on a stream) for a missing
   credential, before anything is sent; the helper maps it to a 503 by its text. No prompt or completion text reaches a log.
+  **Extended 2026-10-14 (the AI SDLC epic's first sprint, Eric's direction; PR #111, the Python twin mercury-python #43):**
+  `llm.backend: 'bedrock'` reaches the same models through `AnthropicBedrockMantle` from `@anthropic-ai/bedrock-sdk` (imported only
+  when selected; the backend builds asynchronously) - the AWS credential chain through IAM, or a Bedrock API key in
+  `AWS_BEARER_TOKEN_BEDROCK`; the region from `llm.aws.region` or `AWS_REGION` (none: `503 AWS region missing`); a bare model id
+  prefixed `anthropic.`, an id already spelled for Bedrock kept; no server-side fallbacks (Bedrock offers none); an empty credential
+  chain `503 AWS credential missing` by name; `llm.health` reporting `region`. `backendFor(name, client)` holds a route's shape, and
+  the vector harness installs its fake under the backend a case names (66 cases). The lock file is exempted from the secret guard
+  (`.agent/secret-scan-ignore`: the package name `@aws-sdk/credential-providers` reads as a credential assignment). The live drive
+  is pending ([[llm-helper-bedrock-iam]]).
   <!-- id: llm-helper-app | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: working | origin: 2026-10-02-001255 -->
 
 ## Conventions

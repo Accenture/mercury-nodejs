@@ -1,12 +1,9 @@
-- [ ] **AWS Bedrock through IAM as the LLM helper's second backend.** The helper's backend seam is documented, not built:
-  build the SDK's Bedrock client in `defaultBackend()` (it signs with the default AWS credential chain and takes a region, so
-  there is no API key), prefix the model id in `providerModel()` (`anthropic.claude-opus-5-5`), report `supportsFallbacks: false`
-  (server-side fallbacks are not offered on Bedrock), describe a missing AWS credential in `credentialProblem()`, and select it
-  with `llm.backend: 'bedrock'`. The routes, the contract and the vector file stay as they are, and the Python twin does the
-  same in `get_backend()`. Needs Eric's AWS account for the live drive, with a negative control first (a bad credential must fail
-  by name).
-  **Built 2026-10-14 (PR #111 merged `def1e3a`, the Python twin mercury-python #43 merged `c25ba35`):** the client, the prefix, the fallbacks flag, the credential
-  and region checks, the docs and the vectors are in; what remains is the live drive - a wrong credential first - which this
-  machine cannot run (no AWS access).
+- [x] **AWS Bedrock through IAM as the LLM helper's second backend. CLOSED 2026-10-14.** Built in PR #111 (merged `def1e3a`) and
+  driven live the same day with Eric's temporary IAM credentials and no vendor key: negative controls first (401 and 503 by
+  name), then chat, a structured verdict and a progressive stream on Haiku 4.5 through the classic runtime surface, and the Java
+  engine's shipped triage graph and streaming relay in front of the helper; PR #112 carries the surface switch `llm.aws.api` and
+  the report. Lesson: an account may be enabled for one Bedrock surface and one model generation only - the gates are the
+  per-model agreement, the one-time use case and the account's own enablement - and the classic client's quiet region fallback
+  is refused rather than inherited. origin: 2026-10-02-001255.
   → serves: vision-mercury-nodejs
   <!-- id: llm-helper-bedrock-iam | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: working | origin: 2026-10-02-001255 -->

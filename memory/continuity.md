@@ -128,8 +128,14 @@
   prefixed `anthropic.`, an id already spelled for Bedrock kept; no server-side fallbacks (Bedrock offers none); an empty credential
   chain `503 AWS credential missing` by name; `llm.health` reporting `region`. `backendFor(name, client)` holds a route's shape, and
   the vector harness installs its fake under the backend a case names (66 cases). The lock file is exempted from the secret guard
-  (`.agent/secret-scan-ignore`: the package name `@aws-sdk/credential-providers` reads as a credential assignment). The live drive
-  is pending ([[llm-helper-bedrock-iam]]).
+  (`.agent/secret-scan-ignore`: the package name `@aws-sdk/credential-providers` reads as a credential assignment). **Driven live 2026-10-14 (PR #112, the Python twin mercury-python #44):** negative controls
+  first, then chat, a structured verdict and a progressive stream on Haiku 4.5, and the Java engine's shipped triage graph and
+  streaming relay in front of the helper - all through IAM, no vendor key. What the drive taught: Bedrock has TWO SURFACES an account
+  may be enabled for separately, so `llm.aws.api` selects `mantle` (the default, the Anthropic-shaped endpoint, the `anthropic.`
+  prefix) or `runtime` (the classic one, every model id sent as written - an inference profile id as the account lists it; its
+  client's silent `us-east-1` fallback refused as the 503); model access is a one-time use case plus a per-model agreement, and a
+  model generation can be gated at the account on top; the chain's `CredentialsProviderError` is the empty-credential signal;
+  Bedrock sends no `request-id`. Closed [[llm-helper-bedrock-iam]].
   <!-- id: llm-helper-app | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: working | origin: 2026-10-02-001255 -->
 
 ## Conventions

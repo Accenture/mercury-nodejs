@@ -20,7 +20,7 @@
   merge `13426732`, GitHub release 01:39Z — the lock-step round with both engines, adopting the Java number; the 4.12.15 line adds
   the OpenTelemetry forwarder (opt-in, no SDK), the `llm.chat`/`llm.stream` AI nodes and the SERVER-iff-`http.request` span-kind
   rule)**; Event-over-HTTP function host + thin client; engines own orchestration.
-  **HOLD (Eric, 2026-10-14):** the 4.12.25 catch-up waits until the account has full access to the higher AI models on Bedrock -
+  **HOLD (Eric, 2026-10-14):** the 4.12.25 catch-up waits until the higher AI models are available on Bedrock -
   the additional tests and the fine tuning come first ([[pack-catch-up-4-12-25]]).
 - **last_enabled:** 2026-08-22
 - **last_review:** 2026-09-23 | through 2026-09-23-004556.md (cadence — 11 sessions since; archived 1 faded fact

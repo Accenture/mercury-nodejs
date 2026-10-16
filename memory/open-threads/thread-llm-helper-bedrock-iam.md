@@ -1,5 +1,5 @@
 - [x] **AWS Bedrock through IAM as the LLM helper's second backend. CLOSED 2026-10-14.** Built in PR #111 (merged `def1e3a`) and
-  driven live the same day with Eric's temporary IAM credentials and no vendor key: negative controls first (401 and 503 by
+  driven live the same day through IAM and no vendor key: negative controls first (401 and 503 by
   name), then chat, a structured verdict and a progressive stream on Haiku 4.5 through the classic runtime surface, and the Java
   engine's shipped triage graph and streaming relay in front of the helper; PR #112 (merged `0ece23f`) carries the surface switch `llm.aws.api`
   and the report. Lesson: an account may be enabled for one Bedrock surface and one model generation only - the gates are the

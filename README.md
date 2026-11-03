@@ -17,7 +17,7 @@ This package is a deliberately **lightweight wrapper of the Event-over-HTTP prot
   management, logging in the engines' presentation format, and distributed-trace context, and
 - the **OpenTelemetry forwarder** (opt-in, `otel.forwarding=true`): the host's trace spans
   exported over OTLP/HTTP to Dynatrace, Splunk or a collector — no SDK, no new dependency, and
-- the **LLM helper** app (`examples/llm-helper`): `llm.chat`, `llm.stream` and `llm.health` on the
+- the **LLM helper** extension (`extensions/llm-helper`): `llm.chat`, `llm.stream` and `llm.health` on the
   official Anthropic SDK — the graph decides, the model advises; `llm.stream` relays the model's
   token batches as they are produced.
 

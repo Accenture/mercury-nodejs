@@ -34,6 +34,7 @@ wrapper's docs cover only the Node.js function surface.
 |------|------|
 | `src/` | the `mercury-composable` package — `Platform`, `PostOffice`, `EventEnvelope`, actuator routes |
 | `examples/` | runnable reference functions |
+| `extensions/` | function hosts that add a capability to an installation — the LLM helper (`llm.chat`, `llm.stream`) |
 | `docs/` | the MkDocs guide site source |
 | `test/` | unit and integration tests |
 

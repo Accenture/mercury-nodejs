@@ -35,6 +35,12 @@
    same folder; `appConfig().source` is now the absolute path of the file found and `appConfig().resourcesDir` names the
    folder; the startup log reports `Configuration: <path>`. **Upgrade note:** an application that kept `resources/` in
    the working directory with its application file elsewhere passes `--config`, or moves the folder next to the file.
+2. **The LLM helper graduates from an example to an extension: `extensions/llm-helper/`.** It is no longer a sample to copy
+   but a function host an installation runs to give its engines an LLM, so it moves out of `examples/`, which keeps the
+   demo app - in lockstep with the Python twin (mercury-python #46). The files, the routes, the contract and the
+   configuration keys are unchanged; the npm package ships neither folder. **Upgrade note:** start it as
+   `node dist/src/cli.js extensions/llm-helper/llm-helper.mjs` in this repository; a script or a deployment that names
+   the old path changes it.
 
 ## 4.12.21 (2026-10-07)
 

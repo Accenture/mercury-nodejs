@@ -1,13 +1,14 @@
 /**
  * The LLM helper (extensions/llm-helper/llm-helper.mjs) - token-free.
  *
- * One shared contract file, test/vectors/llm-helper-vectors.json (byte-identical in
- * mercury-python), drives every case below against a fake of the Anthropic SDK: the exact SDK
- * call, the reply map, the error contract and the streaming segments are pinned without
- * spending a token or needing a credential, and the Python twin runs the same file, so the two
- * helpers cannot drift apart. The tests after the vector runs pin what a vector cannot: token
- * batches are never held back, no prompt text reaches a log, the trace annotations, the health
- * route and the backend seam.
+ * Two shared contract files, test/vectors/llm-helper-vectors.json and llm-loop-vectors.json
+ * (byte-identical in mercury-python), drive every case below against a fake of the Anthropic
+ * SDK: the exact SDK call, the reply map, the error contract, the streaming segments and the
+ * loop's stored record are pinned without spending a token or needing a credential, and the
+ * Python twin runs the same files, so the two helpers cannot drift apart. The tests after the
+ * vector runs pin what a vector cannot: token batches are never held back, no prompt or tool
+ * text reaches a log, the trace annotations, the health route, the backend seam and the Redis
+ * store.
  */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -17,7 +18,8 @@ import { AnthropicBedrock, AnthropicBedrockMantle } from '@anthropic-ai/bedrock-
 import Anthropic from '@anthropic-ai/sdk';
 import { AppException } from 'mercury-composable';
 import {
-  anthropicBackend, backendFor, createLlmHelper, defaultBackend, failure
+  anthropicBackend, backendFor, blockOf, createLlmHelper, defaultBackend, defaultStore, failure,
+  MemoryStore, recordFrom, REDIS_SAVE, RedisStore, redisStore, TRANSCRIPT_PREFIX
 } from '../extensions/llm-helper/llm-helper.mjs';
 
 const VECTORS_FILE = new URL('./vectors/llm-helper-vectors.json', import.meta.url);
@@ -26,6 +28,15 @@ const VECTORS_SHA256 = '7bfffbf36c52488c246f250f36afc4e8012f119fd56c93e9de1cbe93
 const VECTORS = JSON.parse(readFileSync(VECTORS_FILE, 'utf8'));
 const CHAT_CASES = VECTORS.cases.filter((c) => c.route === 'llm.chat');
 const STREAM_CASES = VECTORS.cases.filter((c) => c.route === 'llm.stream');
+
+const LOOP_VECTORS_FILE = new URL('./vectors/llm-loop-vectors.json', import.meta.url);
+// the Python twin pins the same digest: change the file in both packs or in neither
+const LOOP_VECTORS_SHA256 = '8b6644861643daf36ec7879b825dd6e0268a8bae53007c678043e31d9171f8aa';
+const LOOP_VECTORS = JSON.parse(readFileSync(LOOP_VECTORS_FILE, 'utf8'));
+const LOOP_CASES = LOOP_VECTORS.cases;
+// the cases a Redis server can run as well: its clock is the wall clock, so none that moves time
+const LOOP_CASES_ON_REDIS = LOOP_CASES.filter((c) => !c.steps.some((step) => 'advance_s' in step));
+const LIVE_REDIS = process.env.LLM_TRANSCRIPT_REDIS_URL;
 
 const NO_CREDENTIAL = 'Could not resolve authentication method. Expected one of apiKey, authToken, '
   + 'credentials, config, or profile to be set. Or for one of the "X-Api-Key" or "Authorization" '
@@ -107,7 +118,9 @@ class FakeStream {
     await this.ensureOpen();
     const { provider } = this;
     return {
-      content: [{ type: 'text', text: provider.text ?? (provider.deltas ?? []).join('') }],
+      // a loop turn's blocks (thinking, text, tool_use), else the one text block
+      content: provider.content ? structuredClone(provider.content)
+        : [{ type: 'text', text: provider.text ?? (provider.deltas ?? []).join('') }],
       model: provider.model,
       stop_reason: provider.stop_reason,
       usage: provider.usage,
@@ -253,6 +266,390 @@ for (const c of STREAM_CASES) {
     }
   });
 }
+
+// --- the shared contract: a loop turn of llm.chat (RFC-0011) -----------------------------
+
+/** A Redis of the store's own shape: hGet, the compare-and-set script, pTTL. It runs the
+ * script's rule in JavaScript, so the cases below pin the store's calls; the live run further
+ * down, and the Python twin's Lua-capable fake, run the script itself. */
+class FakeRedis {
+  hashes = new Map(); // key -> { turn, record, expiresAt }
+
+  live(key) {
+    const entry = this.hashes.get(key);
+    if (entry !== undefined && entry.expiresAt <= Date.now()) {
+      this.hashes.delete(key);
+      return undefined;
+    }
+    return entry;
+  }
+
+  async hGet(key, field) {
+    return this.live(key)?.[field] ?? null;
+  }
+
+  async eval(script, { keys: [key], arguments: [expected, turn, record, ttl] }) {
+    assert.equal(script, REDIS_SAVE, 'the store sends its own script');
+    const held = this.live(key)?.turn;
+    if (expected === '0' ? held !== undefined : held !== expected) {
+      return 0;
+    }
+    if (ttl === '0') {
+      this.hashes.delete(key);
+    } else {
+      this.hashes.set(key, { turn, record, expiresAt: Date.now() + Number(ttl) * 1000 });
+    }
+    return 1;
+  }
+
+  async pTTL(key) {
+    const entry = this.live(key);
+    return entry === undefined ? -2 : entry.expiresAt - Date.now();
+  }
+}
+
+/** The record a vector's store expectation describes, read from either store. */
+async function stored(store, clock, conversation) {
+  if (store === undefined || conversation === undefined) {
+    return null;
+  }
+  let record;
+  let ttlS;
+  if (store instanceof MemoryStore) {
+    const entry = store.records.get(conversation);
+    if (entry === undefined || entry[0] <= clock.now) {
+      return null;
+    }
+    record = recordFrom(entry[2]);
+    ttlS = Math.round(entry[0] - clock.now);
+  } else {
+    const key = TRANSCRIPT_PREFIX + conversation;
+    const text = await store.client.hGet(key, 'record');
+    if (text === null || text === undefined) {
+      return null;
+    }
+    record = recordFrom(text);
+    ttlS = Math.round(Number(await store.client.pTTL(key)) / 1000);
+  }
+  return { turn: record.turn, closed: record.closed, pending: record.pending, ttl_s: ttlS,
+    messages: record.messages.length };
+}
+
+/** Run a case's steps against the memory store, or a Redis store (a fake unless a client is
+ * given) where the case configures the memory one. */
+async function runLoopCase(c, kind, redisClient) {
+  const clock = { now: 1000 };
+  let store;
+  if (c.config['llm.transcript.store'] === 'memory') {
+    store = kind === 'memory' ? new MemoryStore({ clock: () => clock.now })
+      : new RedisStore(redisClient ?? new FakeRedis());
+  }
+  const ids = c.conversation_ids[Symbol.iterator]();
+  const first = c.conversation_ids[0];
+  for (const [index, step] of c.steps.entries()) {
+    clock.now += step.advance_s ?? 0;
+    const { backend, ledger } = fakeBackend(step.provider,
+      { name: c.config['llm.backend'] ?? 'anthropic', api: c.config['llm.aws.api'] ?? 'mantle' });
+    const out = new FakeWriter();
+    const helper = createLlmHelper({
+      prop: settings(c.config), backend: () => backend,
+      store: store === undefined ? defaultStore(settings(c.config)) : async () => store,
+      newConversationId: () => ids.next().value, writer: () => out, log: silent, trace: () => {}
+    });
+    let result;
+    let error;
+    if (c.route === 'llm.stream') {
+      await helper.stream({}, { body: step.body });
+      error = out.error ?? undefined;
+    } else {
+      try {
+        result = await helper.chat({}, step.body);
+      } catch (e) {
+        assert.ok(e instanceof AppException, String(e));
+        error = e;
+      }
+    }
+    const { expect } = step;
+    assertSdk(ledger, { expect, provider: step.provider });
+    if (expect.error) {
+      assertError(error, expect.error);
+    } else {
+      assert.equal(error, undefined, error?.message);
+      assert.deepEqual(result, expect.result, `step ${index}`);
+    }
+    const named = isObject(step.body) ? step.body.conversation : undefined;
+    const conversation = step.conversation ?? named ?? first;
+    assert.deepEqual(await stored(store, clock, conversation), expect.store, `step ${index}`);
+  }
+}
+
+const isObject = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
+
+test('the loop vector file is the one the python twin runs', () => {
+  const digest = createHash('sha256').update(readFileSync(LOOP_VECTORS_FILE)).digest('hex');
+  assert.equal(digest, LOOP_VECTORS_SHA256, 'the shared loop vector file changed - update both packs');
+  assert.equal(LOOP_VECTORS.contract, 'llm-chat-loop');
+  assert.equal(LOOP_VECTORS.version, 1);
+  assert.equal(new Set(LOOP_CASES.map((c) => c.name)).size, LOOP_CASES.length, 'case names are unique');
+});
+
+for (const c of LOOP_CASES) {
+  test(`loop contract: ${c.name}`, () => runLoopCase(c, 'memory'));
+}
+
+for (const c of LOOP_CASES_ON_REDIS) {
+  test(`loop contract on the redis store: ${c.name}`, () => runLoopCase(c, 'redis'));
+}
+
+for (const c of LOOP_CASES_ON_REDIS) {
+  // the same turns on a real server: the script Redis runs. Only the keys of the vectors' own
+  // conversations are touched
+  test(`loop contract on a live redis: ${c.name}`, { skip: !LIVE_REDIS && 'set LLM_TRANSCRIPT_REDIS_URL' },
+    async () => {
+      const { createClient } = await import('redis');
+      const client = createClient({ url: LIVE_REDIS });
+      await client.connect();
+      const named = c.steps.map((step) => (isObject(step.body) ? step.body.conversation : undefined));
+      const keys = [...new Set([...c.conversation_ids, ...named].filter(Boolean))]
+        .map((id) => TRANSCRIPT_PREFIX + id);
+      try {
+        if (keys.length) {
+          await client.del(keys);
+        }
+        await runLoopCase(c, 'redis', client);
+      } finally {
+        if (keys.length) {
+          await client.del(keys);
+        }
+        await client.close();
+      }
+    });
+}
+
+// --- the loop turn: what a vector cannot pin -----------------------------------------------
+
+test('a stored block is the JSON the SDK would send back', () => {
+  // the SDK's stream keeps a tool call's raw input in a non-enumerable buffer and serves input
+  // through a getter: the stored block holds the enumerable fields only
+  const toolUse = { type: 'tool_use', id: 'toolu_01', name: 'credit_limit' };
+  Object.defineProperty(toolUse, '__json_buf', { value: '{"id":"C-1"}', enumerable: false });
+  Object.defineProperty(toolUse, 'input', { enumerable: true, get: () => ({ id: 'C-1' }) });
+  const blocks = [
+    { type: 'thinking', thinking: '', signature: 'sig-opaque' },
+    { type: 'redacted_thinking', data: 'opaque' },
+    { type: 'text', text: 'Checking the limit.' },
+    toolUse
+  ];
+  assert.deepEqual(blocks.map(blockOf), [
+    { type: 'thinking', thinking: '', signature: 'sig-opaque' },
+    { type: 'redacted_thinking', data: 'opaque' },
+    { type: 'text', text: 'Checking the limit.' },
+    { type: 'tool_use', id: 'toolu_01', name: 'credit_limit', input: { id: 'C-1' } }
+  ]);
+  assert.equal(JSON.stringify(blockOf(toolUse)).includes('__json_buf'), false);
+});
+
+const TURN = {
+  kind: 'message', model: 'claude-opus-5-5', stop_reason: 'tool_use',
+  content: [
+    { type: 'thinking', thinking: '', signature: 'sig-1' },
+    { type: 'tool_use', id: 'toolu_01', name: 'credit_limit', input: { id: 'INPUT-MARKER-1' } }
+  ],
+  usage: { input_tokens: 40, output_tokens: 9, cache_creation_input_tokens: 30, cache_read_input_tokens: 0 },
+  request_id: 'req_loop_trace'
+};
+const TOOL = { name: 'credit_limit', description: "A customer's credit limit.", input_schema: { type: 'object' } };
+const LOOP_CONFIG = { 'llm.transcript.store': 'memory' };
+
+function loopHelper(provider, deps = {}) {
+  const { backend, ledger } = fakeBackend(provider);
+  const memory = new MemoryStore();
+  const helper = createLlmHelper({
+    prop: settings(LOOP_CONFIG), backend: () => backend, store: async () => memory,
+    log: silent, trace: () => {}, ...deps
+  });
+  return { helper, ledger, memory };
+}
+
+test('a loop turn logs status and usage, never content', async () => {
+  const lines = [];
+  const log = { info: (line) => lines.push(line), warn: (line) => lines.push(line) };
+  const memory = new MemoryStore();
+  const first = loopHelper(TURN, { log, store: async () => memory });
+  const reply = await first.helper.chat({}, { prompt: 'PROMPT-MARKER-2', system: 'SYSTEM-MARKER-3', tools: [TOOL] });
+  const final = { ...TURN, stop_reason: 'end_turn', content: [{ type: 'text', text: 'REPLY-MARKER-4' }] };
+  const second = loopHelper(final, { log, store: async () => memory });
+  await second.helper.chat({}, { tools: [TOOL], conversation: reply.conversation, turn: 1,
+    results: [{ id: 'toolu_01', output: 'RESULT-MARKER-5' }] });
+  const text = lines.join('\n');
+  assert.ok(text.includes('llm.chat model=claude-opus-5-5 status=tool_use turn=1'), text);
+  assert.ok(text.includes('llm.chat model=claude-opus-5-5 status=done turn=2'), text);
+  for (const marker of ['PROMPT', 'SYSTEM', 'INPUT', 'REPLY', 'RESULT']) {
+    assert.equal(text.includes(`${marker}-MARKER`), false, marker);
+  }
+  assert.equal(text.includes(reply.conversation), false, 'the reference to the transcript stays off');
+});
+
+test('a loop turn annotates its status, turn and cache usage', async () => {
+  const seen = {};
+  const { helper } = loopHelper(TURN, { trace: (key, value) => { seen[key] = value; } });
+  await helper.chat({}, { prompt: 'x', tools: [TOOL] });
+  assert.deepEqual(seen, {
+    llm_model: 'claude-opus-5-5',
+    llm_stop_reason: 'tool_use',
+    llm_input_tokens: '40',
+    llm_output_tokens: '9',
+    llm_request_id: 'req_loop_trace',
+    llm_status: 'tool_use',
+    llm_turn: '1',
+    llm_cache_creation_input_tokens: '30',
+    llm_cache_read_input_tokens: '0'
+  });
+});
+
+const failing = (name, message) => Object.assign(new Error(message), { name });
+
+test('a store that cannot be reached is a 503 by name', async () => {
+  const refused = { name: 'broken', load: async () => undefined,
+    save: async () => { throw failing('ConnectionError', 'Connection refused'); } };
+  const { helper } = loopHelper(TURN, { store: async () => refused });
+  await assert.rejects(helper.chat({}, { prompt: 'x', tools: [TOOL] }), (error) => {
+    assert.equal(error.status, 503);
+    assert.equal(error.message, 'transcript store unreachable - ConnectionError: Connection refused');
+    return true;
+  });
+  const slow = { name: 'broken', load: async () => { throw failing('TimeoutError', 'Timeout reading'); },
+    save: async () => true };
+  const later = loopHelper(TURN, { store: async () => slow });
+  await assert.rejects(later.helper.chat({}, { tools: [TOOL], conversation: '0'.repeat(32), turn: 1, results: [] }),
+    (error) => error.status === 503 && error.message.includes('TimeoutError: Timeout reading'));
+});
+
+test('a turn that loses the compare-and-set is a 409', async () => {
+  // two copies of one turn: both pass the read check, the second write is refused, so the
+  // conversation never forks - the model was called, and the turn is reported as duplicated
+  const lost = { name: 'lost', load: async () => undefined, save: async () => false };
+  const { helper, ledger } = loopHelper(TURN, { store: async () => lost, newConversationId: () => '0'.repeat(32) });
+  await assert.rejects(helper.chat({}, { prompt: 'x', tools: [TOOL] }), (error) => {
+    assert.equal(error.status, 409);
+    assert.ok(error.message.includes('moved on before turn 1 was saved - a duplicated turn'), error.message);
+    return true;
+  });
+  assert.equal(ledger.calls.length, 1);
+});
+
+test('health reports the transcript store', async () => {
+  const { backend } = fakeBackend(undefined);
+  const helper = createLlmHelper({ prop: settings({ 'llm.transcript.store': 'redis' }), backend: () => backend });
+  const info = await helper.health({ type: 'info' });
+  assert.equal(info.transcript_store, 'redis');
+});
+
+test('the memory store is built once', async () => {
+  const store = defaultStore(settings(LOOP_CONFIG));
+  const built = await store();
+  assert.ok(built instanceof MemoryStore);
+  assert.equal(await store(), built);
+});
+
+// --- the Redis transcript store ------------------------------------------------------------
+
+const record = (turn, closed = false) => ({
+  model: 'claude-opus-5-5', messages: [{ role: 'user', content: 'x' }], turn, pending: [], closed
+});
+
+test('the redis store keeps one hash under the transcript prefix', async () => {
+  // a Redis ACL can confine the helper's user to ~transcript:*, beside the graph's suspend store
+  const client = new FakeRedis();
+  const store = new RedisStore(client);
+  assert.equal(await store.save('a'.repeat(32), 0, record(1), 1800), true);
+  assert.deepEqual([...client.hashes.keys()], [`transcript:${'a'.repeat(32)}`]);
+  assert.equal(await client.hGet(`transcript:${'a'.repeat(32)}`, 'turn'), '1');
+  const ttl = Number(await client.pTTL(`transcript:${'a'.repeat(32)}`));
+  assert.ok(ttl > 1799000 && ttl <= 1800000, String(ttl));
+  assert.deepEqual(await store.load('a'.repeat(32)), record(1));
+});
+
+test('the redis store writes only over the turn it expects', async () => {
+  const store = new RedisStore(new FakeRedis());
+  const conversation = 'b'.repeat(32);
+  assert.equal(await store.save(conversation, 0, record(1), 60), true);
+  assert.equal(await store.save(conversation, 0, record(1), 60), false, 'a new record exists');
+  assert.equal(await store.save(conversation, 2, record(3), 60), false, 'the record holds turn 1');
+  assert.equal(await store.save(conversation, 1, record(2), 60), true);
+  assert.deepEqual(await store.load(conversation), record(2));
+  assert.equal(await store.save('c'.repeat(32), 1, record(2), 60), false, 'no record to append to');
+});
+
+test('the redis store deletes a record saved with no time to live', async () => {
+  // retention 0: the run's end removes the record instead of writing it
+  const client = new FakeRedis();
+  const store = new RedisStore(client);
+  const conversation = 'd'.repeat(32);
+  assert.equal(await store.save(conversation, 0, record(1), 60), true);
+  assert.equal(await store.save(conversation, 1, record(2, true), 0), true);
+  assert.equal(client.hashes.size, 0);
+  assert.equal(await store.load(conversation), undefined);
+});
+
+test('the redis store is built from its connection keys', async () => {
+  const seen = {};
+  const fakeModule = {
+    createClient: (options) => {
+      seen.options = options;
+      return { isOpen: false, on: (event, listener) => { seen[event] = listener; } };
+    }
+  };
+  const store = await defaultStore(settings({
+    'llm.transcript.store': 'redis',
+    'llm.transcript.redis.host': 'redis.internal',
+    'llm.transcript.redis.port': '6380',
+    'llm.transcript.redis.username': 'llm-helper',
+    'llm.transcript.redis.password': 'test-only-password',
+    'llm.transcript.redis.ssl': 'true',
+    'llm.transcript.redis.database': '2',
+    'llm.transcript.redis.timeout.ms': '1500'
+  }), { importer: async () => fakeModule, log: silent })();
+  assert.ok(store instanceof RedisStore);
+  const { socket, ...rest } = seen.options;
+  assert.deepEqual({ host: socket.host, port: socket.port, tls: socket.tls, connectTimeout: socket.connectTimeout },
+    { host: 'redis.internal', port: 6380, tls: true, connectTimeout: 1500 });
+  assert.equal(typeof socket.reconnectStrategy, 'function');
+  assert.deepEqual(rest, { username: 'llm-helper', password: 'test-only-password', database: 2,
+    commandOptions: { timeout: 1500 }, disableOfflineQueue: true });
+  assert.equal(typeof seen.error, 'function', 'a lost connection must not stop the process');
+});
+
+test('the redis store without the redis package is a 503 that names it', async () => {
+  const missing = Object.assign(new Error("Cannot find package 'redis'"), { code: 'ERR_MODULE_NOT_FOUND' });
+  await assert.rejects(redisStore(settings(), { importer: async () => { throw missing; } }), (error) => {
+    assert.equal(error.status, 503);
+    assert.ok(error.message.includes('npm install redis'), error.message);
+    return true;
+  });
+});
+
+test('the redis store connects on the first command, within its timeout', async () => {
+  let connects = 0;
+  const waiting = { isOpen: false, connect: () => { connects += 1; return new Promise(() => {}); } };
+  const store = new RedisStore(waiting, { timeoutMs: 30 });
+  await assert.rejects(store.load('e'.repeat(32)), /no connection within 30 ms/);
+  await assert.rejects(store.load('e'.repeat(32)), /no connection within 30 ms/);
+  assert.equal(connects, 1, 'a pending connect is shared, not repeated');
+});
+
+test('a redis server that is not there is a 503 for the turn, and fast', async () => {
+  // the real client against a closed local port: it gives up after its retries
+  const unreachable = defaultStore(settings({ 'llm.transcript.store': 'redis', 'llm.transcript.redis.port': '1',
+    'llm.transcript.redis.timeout.ms': '3000' }), { log: silent });
+  const { backend } = fakeBackend(TURN);
+  const helper = createLlmHelper({ prop: settings(LOOP_CONFIG), backend: () => backend, store: unreachable,
+    newConversationId: () => 'f'.repeat(32), log: silent, trace: () => {} });
+  const started = performance.now();
+  await assert.rejects(helper.chat({}, { tools: [TOOL], conversation: 'f'.repeat(32), turn: 1, results: [] }),
+    (error) => error.status === 503 && error.message.startsWith('transcript store unreachable - '));
+  assert.ok(performance.now() - started < 3000, 'the turn fails within the store timeout');
+});
 
 // --- progressive rendering: a token batch is never held back -----------------------------
 

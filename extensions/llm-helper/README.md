@@ -12,7 +12,7 @@ model advises within it.
             flow, or graph
 ```
 
-The Python twin ([mercury-python `examples/llm-helper`](https://github.com/Accenture/mercury-python))
+The Python twin ([mercury-python `extensions/llm-helper`](https://github.com/Accenture/mercury-python))
 speaks the same contract. Both run one shared vector file, so they cannot drift apart.
 
 ## Run it
@@ -21,7 +21,7 @@ speaks the same contract. Both run one shared vector file, so they cannot drift 
 npm install                                # the SDK is a dev dependency of this repo
 npm run build
 export ANTHROPIC_API_KEY=...               # from the environment, never from a config file
-node dist/src/cli.js examples/llm-helper/llm-helper.mjs
+node dist/src/cli.js extensions/llm-helper/llm-helper.mjs
 ```
 
 The helper reads `resources/application.yml` next to `llm-helper.mjs`, whichever directory the command runs
@@ -38,7 +38,7 @@ chain, and a region is required:
 ```bash
 npm install @anthropic-ai/bedrock-sdk           # a dev dependency of this repo already
 export AWS_REGION=us-east-1                     # or llm.aws.region; the AWS credential chain signs each call
-node dist/src/cli.js examples/llm-helper/llm-helper.mjs -Dllm.backend=bedrock
+node dist/src/cli.js extensions/llm-helper/llm-helper.mjs -Dllm.backend=bedrock
 ```
 
 If the account is enabled for Bedrock's classic runtime and not for its Anthropic-shaped endpoint (the default
@@ -46,7 +46,7 @@ surface answers `403 ... not available for this account` on a model the console'
 surface and name the model as an inference profile id, exactly as the account lists it:
 
 ```bash
-node dist/src/cli.js examples/llm-helper/llm-helper.mjs -Dllm.backend=bedrock -Dllm.aws.api=runtime \
+node dist/src/cli.js extensions/llm-helper/llm-helper.mjs -Dllm.backend=bedrock -Dllm.aws.api=runtime \
   -Dllm.model=us.anthropic.claude-haiku-4-5-20251001-v1:0
 ```
 

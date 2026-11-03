@@ -3,7 +3,7 @@
 The minimal polyglot function host: six small functions that show what a Mercury engine can reach
 over Event-over-HTTP and what a function host does with a call. Run it to watch a Node.js function
 answer an engine, and copy it as the starting point for your own app. It never calls a model and needs
-no credential; the LLM routes are a separate app, [`llm-helper`](../llm-helper/README.md).
+no credential; the LLM routes are a separate app, [`llm-helper`](../../extensions/llm-helper/README.md).
 
 ```text
   caller ── REST ──> Java or Rust engine ── Event-over-HTTP ──> demo app
@@ -30,7 +30,7 @@ To use it outside this repository, copy `demo-app.mjs` and its `resources` folde
 `mercury-composable` by name, so the same file works in both places).
 
 The app listens on port 8087 (`rest.server.port` in `resources/application.yml`; `-Drest.server.port=8090`
-overrides it). The [LLM helper](../llm-helper/README.md) defaults to 8087 as well, so give one of the two
+overrides it). The [LLM helper](../../extensions/llm-helper/README.md) defaults to 8087 as well, so give one of the two
 another port when you run both on one machine. Map a route from the engine's `event-over-http.yaml`:
 
 ```yaml

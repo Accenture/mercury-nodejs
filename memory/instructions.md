@@ -30,8 +30,9 @@ registry.
   (`AppException`), `cli.ts` (`mercury-serve`), `index.ts` (public API).
 - `test/` — the test suite; golden conformance vectors shared with the Java and Rust
   engines prove wire compatibility.
-- `examples/demo-app/demo-app.mjs` — the minimal runnable function app (README and `resources/` beside it);
-  `examples/llm-helper/llm-helper.mjs` — the LLM helper app (`llm.chat`, `llm.stream`, `llm.health` on the Anthropic SDK).
+- `examples/demo-app/demo-app.mjs` — the minimal runnable function app (README and `resources/` beside it).
+- `extensions/llm-helper/llm-helper.mjs` — the LLM helper (`llm.chat`, `llm.stream`, `llm.health` on the
+  Anthropic SDK), graduated from `examples/` to an extension on 2026-11-03 (Eric), in lockstep with mercury-python.
 - `system/AGENTS.md` — consumer AI starting point (guide index, key references,
   lookup strategy); the root `AGENTS.md` fork routes consumers there.
 - Root `README.md` — the human-facing consumer guide (quick start, function contract,

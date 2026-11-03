@@ -1,5 +1,5 @@
 /**
- * The LLM helper (examples/llm-helper/llm-helper.mjs) - token-free.
+ * The LLM helper (extensions/llm-helper/llm-helper.mjs) - token-free.
  *
  * One shared contract file, test/vectors/llm-helper-vectors.json (byte-identical in
  * mercury-python), drives every case below against a fake of the Anthropic SDK: the exact SDK
@@ -18,7 +18,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { AppException } from 'mercury-composable';
 import {
   anthropicBackend, backendFor, createLlmHelper, defaultBackend, failure
-} from '../examples/llm-helper/llm-helper.mjs';
+} from '../extensions/llm-helper/llm-helper.mjs';
 
 const VECTORS_FILE = new URL('./vectors/llm-helper-vectors.json', import.meta.url);
 // the Python twin pins the same digest: change the file in both packs or in neither

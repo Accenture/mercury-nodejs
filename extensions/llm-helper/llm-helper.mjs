@@ -6,7 +6,7 @@
  * decides control flow while the LLM advises within it.
  *
  * Run:  npm install --save-dev @anthropic-ai/sdk     (or: npm install @anthropic-ai/sdk)
- *       node dist/src/cli.js examples/llm-helper/llm-helper.mjs
+ *       node dist/src/cli.js extensions/llm-helper/llm-helper.mjs
  *       (AWS Bedrock: also @anthropic-ai/bedrock-sdk, and -Dllm.backend=bedrock)
  *
  * The credential comes from the environment, never from a config file: ANTHROPIC_API_KEY for
@@ -14,7 +14,7 @@
  * Settings live in resources/application.yml (or -Dkey=value): llm.backend (anthropic or
  * bedrock), llm.aws.api (mantle or runtime), llm.aws.region, llm.model, llm.max.tokens,
  * llm.timeout.ms, llm.max.retries, llm.fallbacks, llm.effort. The contract, the keys and the backends are documented in
- * README.md next to this file. The Python twin (mercury-python examples/llm-helper) speaks
+ * README.md next to this file. The Python twin (mercury-python extensions/llm-helper) speaks
  * the same contract, and both are pinned by one shared vector file.
  *
  * Then map the routes from a Mercury engine application (event-over-http.yaml):

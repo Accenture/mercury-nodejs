@@ -14,7 +14,7 @@ keywords: [llm helper, llm.chat, llm.stream, claude, anthropic, streaming, certi
 pairs, the three layers, the progressive-rendering evidence and the findings — is the
 [engine report](https://accenture.github.io/mercury-composable/test-reports/llm-helper-certification/), which the
 Rust engine's docs carry too. The helper is
-[`examples/llm-helper`](https://github.com/Accenture/mercury-nodejs/tree/main/examples/llm-helper); its README holds the contract.*
+[`extensions/llm-helper`](https://github.com/Accenture/mercury-nodejs/tree/main/extensions/llm-helper); its README holds the contract.*
 
 ## Verified without a credential
 
@@ -99,7 +99,7 @@ model generation. The full account of the surfaces and the gates is Finding 7 of
 npm install && npm run build
 node --test test/llm-helper.test.mjs                          # token-free
 export ANTHROPIC_API_KEY=...                                  # live: the credential reaches the helper only
-node dist/src/cli.js examples/llm-helper/llm-helper.mjs -Dlog.format=compact -Dllm.log.batches=true
+node dist/src/cli.js extensions/llm-helper/llm-helper.mjs -Dlog.format=compact -Dllm.log.batches=true
 ```
 
 The commands for the engines, the deploy folder and the `curl` calls for each layer are in the

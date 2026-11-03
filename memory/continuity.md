@@ -23,10 +23,15 @@
   The next catch-up release ([[pack-catch-up-4-12-25]]) is no longer held: the 2026-10-14 hold was lifted on 2026-10-29
   (Eric) and the pack releases when its work is ready.
 - **last_enabled:** 2026-08-22
-- **last_review:** 2026-09-23 | through 2026-09-23-004556.md (cadence — 11 sessions since; archived 1 faded fact
+- **last_review:** 2026-11-03 | through 2026-11-03-005949.md (cadence — 11 sessions since 2026-09-23-004556; archived 3 faded
+  facts + swept 3 completed threads past `archive_window` → 2026-Q4, no declaration gap; 3 closed stubs condensed; tier changes
+  via `refresh-metadata`; invariants DUE — [[reverify-invariants-20261103]] raised; stalled none; one drift raised
+  ([[vision-versioning-vs-java-number]]); one stale version corrected (`stack-typescript-esm`)).
+  Prior: 2026-09-23 | through 2026-09-23-004556.md (cadence — 11 sessions since; archived 1 faded fact
   `stack-mercury-serve-node` + swept 5 completed threads past `archive_window` → 2026-Q3; tier changes via `refresh-metadata`;
-  invariants not due (29 sessions, cadence 40, none yet); stalled none — no unchecked thread). Prior: 2026-09-05 | through 2026-09-05-210103
-- **last_invariant_check:** (none yet)
+  invariants not due (29 sessions, cadence 40, none yet); stalled none — no unchecked thread) · 2026-09-05 | through 2026-09-05-210103
+- **last_invariant_check:** 2026-11-03 | 2026-11-03-005949.md (PROMPTED — the first re-verify, due at 40 session files with none
+  before: [[reverify-invariants-20261103]] lists the 4 `core` invariants and the Vision for Eric; nothing confirmed yet)
 - **repo:** ~/sandbox/mercury-nodejs (origin: github.com/Accenture/mercury-nodejs)
 
 ## Stack & Tools
@@ -35,14 +40,14 @@
 > versions. `instructions.md` keeps only a high-level descriptor and points here.
 
 - TypeScript ^5.6 (devDeps `typescript` + `@types/node` ^22), Node.js ≥ 20 (`engines`),
-  compiled to `dist/` (ESM); npm package `mercury-composable` v4.12.15 (2026-09-23; the first publication v4.12.1 was
+  compiled to `dist/` (ESM); npm package `mercury-composable` v4.12.21 (2026-10-07; the first publication v4.12.1 was
   2026-09-01; engine lock-step version line; build copies default-log-context.yaml
   into dist/src); scripts: `build`, `test`, `prepack`
-  <!-- id: stack-typescript-esm | created: 2026-08-22 | last_used: 2026-09-22 | uses: 5 | tier: active | origin: 2026-08-22-171916 -->
+  <!-- id: stack-typescript-esm | created: 2026-08-22 | last_used: 2026-11-03 | uses: 7 | tier: active | origin: 2026-08-22-171916 -->
 - Runtime deps: `@msgpack/msgpack` (envelope codec), `yaml` (config) — deliberately minimal; dev dependency
   `@anthropic-ai/sdk` (the LLM helper app's SDK and the tests' error classes; the published package stays free of any
   LLM SDK — 2026-10-01, PR #106)
-  <!-- id: stack-deps-msgpack-yaml | created: 2026-08-22 | last_used: 2026-09-22 | uses: 2 | tier: active | origin: 2026-08-22-171916 -->
+  <!-- id: stack-deps-msgpack-yaml | created: 2026-08-22 | last_used: 2026-10-02 | uses: 3 | tier: archive-candidate | origin: 2026-08-22-171916 -->
 ## Architectural Invariants
 
 > Hard constraints that must never change. These never decay (treated as `core`).
@@ -72,19 +77,6 @@
 
 ## Key Decisions
 
-- **Polyglot reboot (August 2026):** instead of re-porting the full composable foundation
-  to Node.js, the fresh start rides the engines' Event-over-HTTP protocol — light by
-  design; the previous port (≤ v4.3.28) remains in git history only (CHANGELOG 0.1.0).
-  <!-- id: decision-polyglot-reboot | created: 2026-08-22 | last_used: 2026-09-05 | uses: 3 | tier: archive-candidate | origin: 2026-08-22-171916 -->
-- **Consumer fork → `system/AGENTS.md` (2026-09-01):** root `AGENTS.md` routes contributors
-  to `memory/PROTOCOL.md` and consumers to `system/AGENTS.md` (family pattern with the
-  engine repos). README remains the human quick start.
-  <!-- id: decision-consumer-fork-system-agents | created: 2026-09-05 | last_used: 2026-09-05 | uses: 1 | tier: archive-candidate | origin: 2026-09-05-205441 | supersedes: decision-consumer-fork-readme -->
-- **First npm publication (2026-09-01):** `mercury-composable` v4.12.1 is live; the name
-  was a fully-unpublished third-party tombstone (burned versions 3.4.3 / 5.0.8 / 5.0.9);
-  Accenture 4.3.x never lived on the public registry under this name.
-  <!-- id: decision-npm-first-publish-4-12-1 | created: 2026-09-05 | last_used: 2026-09-05 | uses: 1 | tier: archive-candidate | origin: 2026-09-05-205441 -->
-
 - **The OpenTelemetry forwarder is a zero-dependency port of the Rust engine's hand-written OTLP encoder, attached
   at the engines' extension route (Eric, 2026-09-22; the mercury-python twin merged the same day).** `src/otel/`
   (the `otel` namespace): with `otel.forwarding=true` the bus routes every emitted trace dataset to
@@ -98,7 +90,7 @@
   **Kind rule since 2026-09-22 (PR #104 MERGED, `5569357c`):** SERVER iff the record's `service` is `http.request` — an
   engine edge's round-trip record — and every function execution is INTERNAL; a record's `from` no longer decides the kind
   (the engines' connected-span-tree fix, mercury-composable/mercury `fix/connected-edge-spans`).
-  <!-- id: otel-forwarder-nodejs | created: 2026-09-22 | last_used: 2026-09-22 | uses: 2 | tier: active | origin: 2026-09-22-165807 -->
+  <!-- id: otel-forwarder-nodejs | created: 2026-09-22 | last_used: 2026-10-02 | uses: 3 | tier: archive-candidate | origin: 2026-09-22-165807 -->
 
 - **The LLM helper is a dedicated function host on the Anthropic SDK: the engines stay LLM-free, the AI node is a bounded
   function, and one contract is proven by a vector file shared with the Python pack (Eric's rulings, 2026-10-01; PR #106, merge
@@ -144,14 +136,14 @@
   2026-11-03 on branch `feat/llm-chat-loop-contract` (`268dc7b`, PR #115): the same contract and messages, a `MemoryStore` and a
   `RedisStore` on the `redis` package with the Python twin's Lua script (a record one pack writes the other reads), the
   shared 66 cases green on memory, a Redis fake and a live Redis.
-  <!-- id: llm-helper-app | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: working | origin: 2026-10-02-001255 -->
+  <!-- id: llm-helper-app | created: 2026-10-01 | last_used: 2026-11-03 | uses: 6 | tier: active | origin: 2026-10-02-001255 -->
 
 ## Conventions
 
 - Engine-mirrored configuration/logging/trace conventions (see the invariant above and
   `instructions.md`); GitHub flow with tests + a CHANGELOG entry per change
   (CONTRIBUTING.md).
-  <!-- id: conv-github-flow-changelog | created: 2026-08-22 | last_used: 2026-09-22 | uses: 3 | tier: active | origin: 2026-08-22-171916 -->
+  <!-- id: conv-github-flow-changelog | created: 2026-08-22 | last_used: 2026-11-03 | uses: 6 | tier: active | origin: 2026-08-22-171916 -->
 - **Each example app lives in a folder of its own, with a README and its own `resources/` (Eric, 2026-10-01; PR #106).**
   `examples/demo-app/` (the minimal polyglot app: `hello.node`, `hello.declarative`, `hello.chain`, `hello.tokens`, the private
   `demo.suffix.helper` and `demo.health`) and `examples/llm-helper/`; run one as
@@ -160,7 +152,7 @@
   share the default port 8087, so give one of them another with `-Drest.server.port` to run both. The demo stays provider-free and
   credential-free: no LLM code goes into it. **2026-11-03 (Eric):** the LLM helper graduates from an example to an extension,
   `extensions/llm-helper/` (the same folder shape), so `examples/` holds the demo app - lockstep with mercury-python #46.
-  <!-- id: examples-one-folder-per-app | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: working | origin: 2026-10-02-001255 -->
+  <!-- id: examples-one-folder-per-app | created: 2026-10-01 | last_used: 2026-11-03 | uses: 2 | tier: active | origin: 2026-10-02-001255 -->
 
 - **The `resources` folder is resolved next to the application file - the file `mercury-serve` is given, or the script Node ran
   - and the working directory is never searched (Eric's rule, 2026-10-14; PR #113 merge `f4132d4`).** The engines' classpath convention: the
@@ -172,7 +164,7 @@
   unconfigured during the Bedrock drive ([[llm-helper-app]]); pinned by subprocess tests that run from a decoy working directory.
   Lock-step with the Python pack (`__main__.__file__`, mercury-python #45 merge `a3c5a26`). Upgrade: a layout that kept `resources/` in the
   working directory with the app elsewhere passes `--config` or moves the folder.
-  <!-- id: conv-resources-next-to-the-application-file | created: 2026-10-14 | last_used: 2026-10-14 | uses: 1 | tier: working | origin: 2026-10-14-015422 -->
+  <!-- id: conv-resources-next-to-the-application-file | created: 2026-10-14 | last_used: 2026-10-14 | uses: 1 | tier: active | origin: 2026-10-14-015422 -->
 
 ## Open Threads
 

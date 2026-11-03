@@ -139,7 +139,7 @@
   model generation can be gated at the account on top; the chain's `CredentialsProviderError` is the empty-credential signal;
   Bedrock sends no `request-id`. Closed [[llm-helper-bedrock-iam]].
   **2026-11-03 (Eric):** the helper graduates to `extensions/llm-helper/`, in lockstep with mercury-python #46; on branch
-  `refactor/llm-helper-extension` (`d2f904b`) until merged. The Python twin also serves the agent loop's turns since
+  `refactor/llm-helper-extension`, MERGED 2026-11-03 as #114 (merge `62958b5`). The Python twin also serves the agent loop's turns since
   mercury-python #47 (RFC-0011's loop contract, a transcript store, `llm-loop-vectors.json`); this pack's twin of it is next.
   <!-- id: llm-helper-app | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: working | origin: 2026-10-02-001255 -->
 

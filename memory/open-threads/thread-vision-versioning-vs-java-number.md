@@ -1,7 +1,8 @@
-- [ ] **Drift: the pack's version line doesn't serve `vision-mercury-nodejs`'s versioning target.** The Vision says the pack is
-  "versioned by protocol compatibility", "never coupled to engine releases", and lists as a non-goal being "versioned beyond
-  protocol compatibility". In practice the pack carries the Java release number it caught up to (4.12.0 from 0.1.0 on
-  2026-08-30, then 4.12.1, 4.12.15, 4.12.21; `stack-typescript-esm`'s "engine lock-step version line"; [[pack-catch-up-4-12-25]]
-  adopts the Java number current at release), while still releasing when its work is ready. Resolve (Eric): amend the Vision's
-  wording, or reconcile it with the practice. Raised by the 2026-11-03 review's contradiction scan; no fact edited.
-  <!-- id: vision-versioning-vs-java-number | created: 2026-11-03 | last_used: 2026-11-03 | uses: 1 | tier: working | origin: 2026-11-03-005949 -->
+- [x] **Drift: the pack's version line against `vision-mercury-nodejs`'s versioning target** - RESOLVED 2026-11-03 (Eric's
+  ruling: amend the Vision). The pack catches up with the Java engine, the reference implementation, when functionality
+  crosses from the engine to the language packs (telemetry, AI SDLC), and carries the Java release number it caught up to;
+  its number may trail Java further than the Rust port's, which catches up closely after each Java release. The Vision's
+  goal, non-goal and header now say so, and its version line reads v4.12.21. Lesson: how often a pack releases and what
+  its number names are two rules, and the Vision had fused them.
+  origin: 2026-11-03-005949; closed 2026-11-03-011409.
+  <!-- id: vision-versioning-vs-java-number | created: 2026-11-03 | last_used: 2026-11-03 | uses: 2 | tier: active | origin: 2026-11-03-005949 -->

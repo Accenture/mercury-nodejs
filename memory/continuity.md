@@ -41,9 +41,9 @@
 
 - TypeScript ^5.6 (devDeps `typescript` + `@types/node` ^22), Node.js ≥ 20 (`engines`),
   compiled to `dist/` (ESM); npm package `mercury-composable` v4.12.21 (2026-10-07; the first publication v4.12.1 was
-  2026-09-01; engine lock-step version line; build copies default-log-context.yaml
+  2026-09-01; the Java release number it caught up to; build copies default-log-context.yaml
   into dist/src); scripts: `build`, `test`, `prepack`
-  <!-- id: stack-typescript-esm | created: 2026-08-22 | last_used: 2026-11-03 | uses: 7 | tier: active | origin: 2026-08-22-171916 -->
+  <!-- id: stack-typescript-esm | created: 2026-08-22 | last_used: 2026-11-03 | uses: 8 | tier: active | origin: 2026-08-22-171916 -->
 - Runtime deps: `@msgpack/msgpack` (envelope codec), `yaml` (config) — deliberately minimal; dev dependency
   `@anthropic-ai/sdk` (the LLM helper app's SDK and the tests' error classes; the published package stays free of any
   LLM SDK — 2026-10-01, PR #106)

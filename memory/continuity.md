@@ -30,8 +30,8 @@
   Prior: 2026-09-23 | through 2026-09-23-004556.md (cadence — 11 sessions since; archived 1 faded fact
   `stack-mercury-serve-node` + swept 5 completed threads past `archive_window` → 2026-Q3; tier changes via `refresh-metadata`;
   invariants not due (29 sessions, cadence 40, none yet); stalled none — no unchecked thread) · 2026-09-05 | through 2026-09-05-210103
-- **last_invariant_check:** 2026-11-03 | 2026-11-03-005949.md (PROMPTED; WALKED 2026-11-03-012056 against the live tree - all four
-  invariants and the Vision hold, two wordings refreshed; [[reverify-invariants-20261103]] awaits Eric's confirmation)
+- **last_invariant_check:** 2026-11-03 | 2026-11-03-012600.md (COMPLETE - the first re-verify; Eric confirmed all four invariants and
+  the Vision as walked in 2026-11-03-012056, two wordings refreshed, core stays 4; the next is due 40 sessions after this one)
 - **repo:** ~/sandbox/mercury-nodejs (origin: github.com/Accenture/mercury-nodejs)
 
 ## Stack & Tools

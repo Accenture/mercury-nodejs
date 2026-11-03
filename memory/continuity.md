@@ -20,8 +20,8 @@
   merge `13426732`, GitHub release 01:39Z — the lock-step round with both engines, adopting the Java number; the 4.12.15 line adds
   the OpenTelemetry forwarder (opt-in, no SDK), the `llm.chat`/`llm.stream` AI nodes and the SERVER-iff-`http.request` span-kind
   rule)**; Event-over-HTTP function host + thin client; engines own orchestration.
-  **HOLD (Eric, 2026-10-14):** the 4.12.25 catch-up waits until the higher AI models are available on Bedrock -
-  the additional tests and the fine tuning come first ([[pack-catch-up-4-12-25]]).
+  The next catch-up release ([[pack-catch-up-4-12-25]]) is no longer held: the 2026-10-14 hold was lifted on 2026-10-29
+  (Eric) and the pack releases when its work is ready.
 - **last_enabled:** 2026-08-22
 - **last_review:** 2026-09-23 | through 2026-09-23-004556.md (cadence — 11 sessions since; archived 1 faded fact
   `stack-mercury-serve-node` + swept 5 completed threads past `archive_window` → 2026-Q3; tier changes via `refresh-metadata`;
@@ -138,6 +138,9 @@
   client's silent `us-east-1` fallback refused as the 503); model access is a one-time use case plus a per-model agreement, and a
   model generation can be gated at the account on top; the chain's `CredentialsProviderError` is the empty-credential signal;
   Bedrock sends no `request-id`. Closed [[llm-helper-bedrock-iam]].
+  **2026-11-03 (Eric):** the helper graduates to `extensions/llm-helper/`, in lockstep with mercury-python #46; on branch
+  `refactor/llm-helper-extension` (`d2f904b`) until merged. The Python twin also serves the agent loop's turns since
+  mercury-python #47 (RFC-0011's loop contract, a transcript store, `llm-loop-vectors.json`); this pack's twin of it is next.
   <!-- id: llm-helper-app | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: working | origin: 2026-10-02-001255 -->
 
 ## Conventions
@@ -152,7 +155,8 @@
   `node dist/src/cli.js examples/<app>/<file>.mjs` (the sample config is read from the `resources` folder next to the app file).
   The Python pack mirrors the layout (and keeps a `hello.sync.chain` that JavaScript has no need of). The demo and the helper
   share the default port 8087, so give one of them another with `-Drest.server.port` to run both. The demo stays provider-free and
-  credential-free: no LLM code goes into it.
+  credential-free: no LLM code goes into it. **2026-11-03 (Eric):** the LLM helper graduates from an example to an extension,
+  `extensions/llm-helper/` (the same folder shape), so `examples/` holds the demo app - lockstep with mercury-python #46.
   <!-- id: examples-one-folder-per-app | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: working | origin: 2026-10-02-001255 -->
 
 - **The `resources` folder is resolved next to the application file - the file `mercury-serve` is given, or the script Node ran

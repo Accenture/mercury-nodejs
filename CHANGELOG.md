@@ -61,6 +61,12 @@
    configuration keys are unchanged; the npm package ships neither folder. **Upgrade note:** start it as
    `node dist/src/cli.js extensions/llm-helper/llm-helper.mjs` in this repository; a script or a deployment that names
    the old path changes it.
+3. **The Scope allows one subprocess: an MCP server reached over stdio (2026-11-03)** - in lockstep with the Python twin
+   (mercury-python #49). A function still runs in the pack's own process. The pack may run a stdio MCP server as its child
+   process, which is the reason the MCP clients of the engines' agent loop (RFC-0011) live in the language packs and not
+   in the engines. Nothing starts one yet: the stdio MCP binding is a later step. The README's Scope also says the LLM
+   helper is an application on the package, whose `llm.chat` is a stateless chat or a loop turn with a configured
+   transcript store. **Upgrade note:** none.
 
 ## 4.12.21 (2026-10-07)
 

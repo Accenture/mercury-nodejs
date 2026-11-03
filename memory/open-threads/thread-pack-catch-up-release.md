@@ -4,4 +4,4 @@
   and against a build of the tag when the shipped files are not tracked. Origin: 2026-10-02-001255.md; the record in
   2026-10-07-012440.md.
   → serves: vision-mercury-nodejs
-  <!-- id: pack-catch-up-release | created: 2026-10-01 | last_used: 2026-10-07 | uses: 2 | tier: active | origin: 2026-10-02-001255 -->
+  <!-- id: pack-catch-up-release | created: 2026-10-01 | last_used: 2026-10-07 | uses: 2 | tier: archive-candidate | origin: 2026-10-02-001255 -->

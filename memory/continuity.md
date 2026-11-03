@@ -30,8 +30,8 @@
   Prior: 2026-09-23 | through 2026-09-23-004556.md (cadence — 11 sessions since; archived 1 faded fact
   `stack-mercury-serve-node` + swept 5 completed threads past `archive_window` → 2026-Q3; tier changes via `refresh-metadata`;
   invariants not due (29 sessions, cadence 40, none yet); stalled none — no unchecked thread) · 2026-09-05 | through 2026-09-05-210103
-- **last_invariant_check:** 2026-11-03 | 2026-11-03-005949.md (PROMPTED — the first re-verify, due at 40 session files with none
-  before: [[reverify-invariants-20261103]] lists the 4 `core` invariants and the Vision for Eric; nothing confirmed yet)
+- **last_invariant_check:** 2026-11-03 | 2026-11-03-005949.md (PROMPTED; WALKED 2026-11-03-012056 against the live tree - all four
+  invariants and the Vision hold, two wordings refreshed; [[reverify-invariants-20261103]] awaits Eric's confirmation)
 - **repo:** ~/sandbox/mercury-nodejs (origin: github.com/Accenture/mercury-nodejs)
 
 ## Stack & Tools
@@ -56,7 +56,9 @@
   graphs, no persistence and no pub/sub broadcast; orchestration lives in the Mercury
   engines. It provides functions, the primitive in-process event bus (route mailboxes +
   workers — dispatch, not orchestration; ratified 2026-08-23), and minimalist foundation
-  utilities (README "Scope", amended with the bus).
+  utilities (README "Scope", amended with the bus). The LLM helper (`extensions/llm-helper/`) is an
+  application on the package, not part of it, so its configurable transcript store leaves the
+  package persistence-free (re-verified 2026-11-03).
   <!-- id: scope-wrapper-no-orchestration | created: 2026-08-22 | last_used: 2026-08-22 | uses: 1 | tier: core | origin: 2026-08-22-171916 -->
 - **Standard wire format, proven by shared vectors.** The codec implements the standard
   event-envelope wire format, verified against the golden conformance vectors shared with
@@ -72,7 +74,11 @@
   <!-- id: engine-consistent-conventions | created: 2026-08-22 | last_used: 2026-08-22 | uses: 1 | tier: core | origin: 2026-08-22-171916 -->
 - **Functions are stateless.** Anything a handler must keep belongs to the caller's flow
   model or state machine; intentional errors travel as `AppException(status, message)` —
-  the portable error contract.
+  the portable error contract. **The LLM helper's `llm.chat` is configurable by design (Eric,
+  2026-11-03):** a stateless chat, or, with `tools`, one turn of a multi-turn tool-use loop whose
+  transcript lives in the configured transcript store (`llm.transcript.store`: `memory` for one
+  process, `redis` shared by replicas; RFC-0011). That store is part of the function's configured
+  contract, not an exception to this rule.
   <!-- id: stateless-functions-contract | created: 2026-08-22 | last_used: 2026-08-22 | uses: 1 | tier: core | origin: 2026-08-22-171916 -->
 
 ## Key Decisions

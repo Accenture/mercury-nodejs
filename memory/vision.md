@@ -68,12 +68,13 @@ architecture; and the engine teams, who gain polyglot reach with zero engine cou
 
 ## Non-goals (what it must never become)
 
-- **Never a composable foundation or full SDK** — no flows, no graphs, no persistence,
-  no pub/sub broadcast, no orchestration (the ratified scope fence). A **primitive
-  in-process event bus** (route mailboxes + workers — dispatch, not orchestration) is
-  in scope and shipped; it must never grow spill, queue caps, or engine-style
-  orchestration. In particular, **never a re-port of the full framework** — light by
-  design is the point of the reboot.
+- **Never a composable foundation or full SDK** — no flows, no graphs, no persistence (in
+  the package: the LLM helper's configurable transcript store is that application's,
+  2026-11-03), no pub/sub broadcast, no orchestration (the ratified scope fence). A
+  **primitive in-process event bus** (route mailboxes + workers — dispatch, not
+  orchestration) is in scope and shipped; it must never grow spill, queue caps, or
+  engine-style orchestration. In particular, **never a re-port of the full framework** —
+  light by design is the point of the reboot.
 - **Never subprocess or embedded-interpreter execution** (Option A shelved; helper-style
   embedding explicitly not planned).
 - **Never released on the engine's cadence for its own sake**: a Java release with nothing that

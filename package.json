@@ -52,6 +52,7 @@
     "@anthropic-ai/bedrock-sdk": "^0.34.4",
     "@anthropic-ai/sdk": "^0.131.0",
     "@types/node": "^22.0.0",
+    "redis": "^6.3.1",
     "typescript": "^5.6.0"
   }
 }

@@ -23,10 +23,13 @@
   The next catch-up release ([[pack-catch-up-4-12-25]]) is no longer held: the 2026-10-14 hold was lifted on 2026-10-29
   (Eric) and the pack releases when its work is ready.
 - **last_enabled:** 2026-08-22
-- **last_review:** 2026-11-03 | through 2026-11-03-005949.md (cadence — 11 sessions since 2026-09-23-004556; archived 3 faded
-  facts + swept 3 completed threads past `archive_window` → 2026-Q4, no declaration gap; 3 closed stubs condensed; tier changes
-  via `refresh-metadata`; invariants DUE — [[reverify-invariants-20261103]] raised; stalled none; one drift raised
-  ([[vision-versioning-vs-java-number]]); one stale version corrected (`stack-typescript-esm`)).
+- **last_review:** 2026-11-13 | through 2026-11-13-030139.md (on command — 5 sessions since 2026-11-03-005949, not yet due;
+  `refresh-metadata` refreshed 3 footers, tier changes 2 (`examples-one-folder-per-app` and `llm-helper-bedrock-iam` →
+  archive-candidate); archived 0 (none faded, none superseded), swept 0 (no completed thread past `archive_window`); one stale
+  statement corrected ([[pack-catch-up-4-12-25]]: the Java number is 4.12.30); invariants not due (3 of 40); stalled none;
+  contradictions none; live facts 20. Smoke test not run.)
+  Prior: 2026-11-03 | through 2026-11-03-005949.md (cadence — archived 3 faded facts, swept 3 threads; invariants DUE →
+  [[reverify-invariants-20261103]]; one drift raised)
   Prior: 2026-09-23 | through 2026-09-23-004556.md (cadence — 11 sessions since; archived 1 faded fact
   `stack-mercury-serve-node` + swept 5 completed threads past `archive_window` → 2026-Q3; tier changes via `refresh-metadata`;
   invariants not due (29 sessions, cadence 40, none yet); stalled none — no unchecked thread) · 2026-09-05 | through 2026-09-05-210103
@@ -158,7 +161,7 @@
   share the default port 8087, so give one of them another with `-Drest.server.port` to run both. The demo stays provider-free and
   credential-free: no LLM code goes into it. **2026-11-03 (Eric):** the LLM helper graduates from an example to an extension,
   `extensions/llm-helper/` (the same folder shape), so `examples/` holds the demo app - lockstep with mercury-python #46.
-  <!-- id: examples-one-folder-per-app | created: 2026-10-01 | last_used: 2026-11-03 | uses: 2 | tier: active | origin: 2026-10-02-001255 -->
+  <!-- id: examples-one-folder-per-app | created: 2026-10-01 | last_used: 2026-11-03 | uses: 2 | tier: archive-candidate | origin: 2026-10-02-001255 -->
 
 - **The `resources` folder is resolved next to the application file - the file `mercury-serve` is given, or the script Node ran
   - and the working directory is never searched (Eric's rule, 2026-10-14; PR #113 merge `f4132d4`).** The engines' classpath convention: the

@@ -3,4 +3,4 @@
   switch `llm.aws.api` and the report. Lesson: an account may be enabled for one Bedrock surface and one model generation only,
   and the classic client's quiet region fallback is refused rather than inherited. origin: 2026-10-02-001255.
   → serves: vision-mercury-nodejs
-  <!-- id: llm-helper-bedrock-iam | created: 2026-10-01 | last_used: 2026-10-16 | uses: 3 | tier: active | origin: 2026-10-02-001255 -->
+  <!-- id: llm-helper-bedrock-iam | created: 2026-10-01 | last_used: 2026-10-16 | uses: 3 | tier: archive-candidate | origin: 2026-10-02-001255 -->

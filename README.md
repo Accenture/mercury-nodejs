@@ -33,7 +33,7 @@ for deterministic function generation.
 > `npm install mercury-composable`. This repository was repurposed in August 2026 for the
 > polyglot initiative: instead of re-porting the full composable foundation to Node.js, the
 > fresh start rides the engines' Event-over-HTTP protocol — light by design. The previous
-> Node.js port (up to v4.3.28) remains available in the git history only — it never
+> Node.js port (up to v4.3.28) remains available in tagged releases only — it never
 > occupied this name on the public registry.
 
 ## Quick start

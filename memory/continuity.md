@@ -172,6 +172,17 @@
   working directory with the app elsewhere passes `--config` or moves the folder.
   <!-- id: conv-resources-next-to-the-application-file | created: 2026-10-14 | last_used: 2026-10-14 | uses: 1 | tier: archive-candidate | origin: 2026-10-14-015422 -->
 
+- **The previous Node.js port's releases v4.2.40 to v4.3.28 live here as tags and GitHub releases; their branches are gone
+  (Eric, 2026-11-13).** Before the August 2026 repurposing this repository held the previous Node.js port, whose releases
+  were cut as `release/*` branches; tags began at `v4.12.0`. Each branch tip now has an annotated tag `vX.Y.Z`, the tagger
+  date the release commit's, and a GitHub release titled with the tag, its notes the version's CHANGELOG section after a
+  line saying it was published retroactively, not marked latest: 12 tags and releases, 16 of each in all, `v4.12.21`
+  still Latest. The 12 branches and `doc/2025-11-15` (unmerged generated docs, no longer required) were then deleted;
+  GitHub keeps only `main` and `gh-pages`. Twins: mercury-composable `historical-releases-tags-and-pages`, mercury
+  `historical-releases-tags-and-pages-rust`. **How to apply:** find a legacy release by its tag or release page, never a
+  branch; a release published after the fact passes `--latest=false`.
+  <!-- id: historical-releases-tags-and-pages-nodejs | created: 2026-11-13 | last_used: 2026-11-13 | uses: 1 | tier: working | origin: 2026-11-13-025101 -->
+
 ## Open Threads
 
 > Open Threads live **one per file** in `memory/open-threads/` (`thread-<id>.md`;

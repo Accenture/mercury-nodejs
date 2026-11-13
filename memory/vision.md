@@ -8,6 +8,7 @@
 > bus. **Versioning amended 2026-11-03 (Eric):** the pack catches up with the Java engine when
 > functionality crosses from the engine to the language packs, and carries the Java release
 > number it caught up to. **Subprocesses allowed for stdio MCP 2026-11-03 (Eric).**
+> **Wording refreshed 2026-11-13 (Eric):** the previous port lives in tagged releases.
 > Treated as `core` (never decays) but re-confirmed on the
 > invariant-verification cadence — a vision can go stale. The **Blueprint** (Open Threads
 > tagged `(blueprint)` in `continuity.md`) tracks the gap from Current State to here;
@@ -30,7 +31,7 @@ BigInt), engine-consistent minimalist utilities, a primitive in-process event bu
 actuator endpoints. **v4.12.21 is on npm** (`npm install mercury-composable`, 2026-10-07; the
 first publication was v4.12.1, 2026-09-01);
 tests and golden vectors green; the previous full-framework port (≤ v4.3.28) lives in
-git history only — it never occupied this name on the public registry.
+tagged releases only — it never occupied this name on the public registry.
 
 **Type:** TypeScript/Node.js library — polyglot function host + client
 

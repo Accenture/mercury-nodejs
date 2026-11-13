@@ -11,7 +11,7 @@ no orchestration code in Node.js at all. It provides an Event API host (`POST /a
 a thin `PostOffice` client, the standard event-envelope wire-format codec, and the engines'
 minimalist utilities (config, logging, distributed-trace context via AsyncLocalStorage).
 Orchestration stays in the engines by design. The previous full-framework Node.js port (up
-to v4.3.28) lives in git history only — it never occupied this name on the public
+to v4.3.28) lives in tagged releases only — it never occupied this name on the public
 registry.
 
 **Type:** Library — polyglot function host + client (npm package `mercury-composable`)

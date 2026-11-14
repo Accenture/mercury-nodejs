@@ -6,9 +6,10 @@
  * The tests after the vector runs drive the real transports against the fixture server of
  * test/fixtures (a small MCP server on the official SDK, over stdio and over streamable HTTP): the
  * boot that registers one route per allowlisted tool and fails fast by name, the calls through the
- * registered handlers, the credential references that reach the subprocess and never a log, the
- * health route, the describe output, and the platform's startup hook that runs the boot before the
- * host listens.
+ * bound routes (local RPC through the bus, as the host dispatches them: every route is an alias of
+ * the one preload function), the credential references that reach the subprocess and never a log,
+ * the health route, the describe output, and the platform's startup hook that runs the boot before
+ * the host listens.
  */
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -20,7 +21,7 @@ import { join } from 'node:path';
 import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import YAML from 'yaml';
-import { AppException, appConfig, FunctionRegistry, Platform } from 'mercury-composable';
+import { AppException, appConfig, defaultRegistry, FunctionRegistry, Platform, PostOffice } from 'mercury-composable';
 import {
   BindingError, connectClient, createBinding, DEFAULT_SERVERS_FILE, loadServers, schemaDigest, Server,
   toolResult, verify
@@ -129,10 +130,24 @@ function stdio(tools, extra = {}) {
   return { ...entry, ...extra };
 }
 
+/**
+ * Local RPC through the registry's bus, the path a request takes behind the HTTP host: the bound
+ * route's alias dispatches the binding's tool function with the route in its execution context.
+ */
 async function call(registry, route, body) {
-  const service = registry.get(route);
-  assert.ok(service, `${route} is not registered`);
-  return service.handler({}, body);
+  assert.ok(registry.get(route), `${route} is not registered`);
+  return new PostOffice(undefined, {}, registry).request(route, body, { timeoutMs: 10000 });
+}
+
+/** The reply's body when the status is 200; an assertion naming the status and the body otherwise. */
+function ok(reply) {
+  assert.equal(reply.getStatus(), 200, `${reply.getStatus()}: ${reply.body}`);
+  return reply.body;
+}
+
+function failed(reply, status, fragment) {
+  assert.equal(reply.getStatus(), status, `${reply.getStatus()}: ${reply.body}`);
+  assert.ok(String(reply.body).includes(fragment), String(reply.body));
 }
 
 async function rejects(promise, status, fragment) {
@@ -149,19 +164,31 @@ test('the fixture server has the tools the tests rely on', () => {
 });
 
 test('boot registers one route per allowlisted tool and the routes call the server', async () => {
-  const { app, registry } = servers({ fixture: stdio({ echo: 'fixture.echo', add: 'fixture.add', fail: 'fixture.fail' }) });
+  const { app, registry } = servers({ fixture: stdio({ echo: 'fixture.echo', add: 'fixture.add', fail: 'fixture.fail' }, { instances: 3 }) });
   await app.boot();
   try {
     assert.deepEqual([...app.servers.keys()], ['fixture']);
     assert.deepEqual(app.servers.get('fixture').bound.map((b) => b.binding.route), ['fixture.echo', 'fixture.add', 'fixture.fail']);
-    assert.equal(await call(registry, 'fixture.echo', { text: 'hello' }), 'hello');
-    assert.deepEqual(await call(registry, 'fixture.add', { a: 1, b: 2 }), { sum: 3 });
-    await rejects(call(registry, 'fixture.fail', { reason: 'the vault is closed' }), 400, 'the vault is closed');
-    await rejects(call(registry, 'fixture.echo', 'hello'), 400, 'must be a map');
+    // the composable shape: one preload function, each bound route a public alias of it with the
+    // server's instances; the declared route itself is private and bound to no tool
+    for (const route of ['fixture.echo', 'fixture.add', 'fixture.fail']) {
+      const service = registry.get(route);
+      assert.ok(service.handler === app.tool && !service.isPrivate && service.instances === 3, route);
+    }
+    const declared = defaultRegistry.get('mcp.tool');
+    assert.ok(declared && declared.isPrivate, 'mcp.tool is declared, private');
+    await rejects(declared.handler({}, { text: 'no tool here' }), 404, 'No MCP tool is bound to the route (none)');
+    assert.equal(ok(await call(registry, 'fixture.echo', { text: 'hello' })), 'hello');
+    assert.deepEqual(ok(await call(registry, 'fixture.add', { a: 1, b: 2 })), { sum: 3 });
+    failed(await call(registry, 'fixture.fail', { reason: 'the vault is closed' }), 400, 'the vault is closed');
+    failed(await call(registry, 'fixture.echo', 'hello'), 400, 'must be a map');
+    registry.register('mcp.tool', app.tool, { isPrivate: true });
+    failed(await call(registry, 'mcp.tool', { text: 'no tool here' }), 404, 'No MCP tool is bound to the route mcp.tool');
   } finally {
     await app.shutdown();
   }
   assert.equal(app.servers.size, 0);
+  assert.equal(app.routes.size, 0);
 });
 
 test("a slow tool is a 408 within the server's timeout", async () => {
@@ -169,7 +196,7 @@ test("a slow tool is a 408 within the server's timeout", async () => {
   await app.boot();
   try {
     const started = Date.now();
-    await rejects(call(registry, 'fixture.slow', { seconds: 5 }), 408, 'within 1000 ms');
+    failed(await call(registry, 'fixture.slow', { seconds: 5 }), 408, 'within 1000 ms');
     assert.ok(Date.now() - started < 4000);
   } finally {
     await app.shutdown();
@@ -199,8 +226,8 @@ test('credential references reach the subprocess and never a log', async () => {
     const { app, registry, log } = servers({ fixture: stdio({ env_present: 'fixture.env.present' }, { env: { FIXTURE_FORWARDED: '${FIXTURE_TOKEN}' } }) });
     await app.boot();
     try {
-      assert.deepEqual(await call(registry, 'fixture.env.present', { name: 'FIXTURE_FORWARDED' }), { present: true });
-      assert.deepEqual(await call(registry, 'fixture.env.present', { name: 'FIXTURE_TOKEN' }), { present: false },
+      assert.deepEqual(ok(await call(registry, 'fixture.env.present', { name: 'FIXTURE_FORWARDED' })), { present: true });
+      assert.deepEqual(ok(await call(registry, 'fixture.env.present', { name: 'FIXTURE_TOKEN' })), { present: false },
         'only the listed variables reach the subprocess, not the whole environment');
     } finally {
       await app.shutdown();
@@ -291,8 +318,8 @@ test('the http transport serves the same routes', async () => {
     } });
     await app.boot();
     try {
-      assert.equal(await call(registry, 'remote.echo', { text: 'over http' }), 'over http');
-      assert.deepEqual(await call(registry, 'remote.add', { a: 20, b: 22 }), { sum: 42 });
+      assert.equal(ok(await call(registry, 'remote.echo', { text: 'over http' })), 'over http');
+      assert.deepEqual(ok(await call(registry, 'remote.add', { a: 20, b: 22 })), { sum: 42 });
     } finally {
       await app.shutdown();
     }

@@ -59,7 +59,9 @@
    never the server's. `mcp.health` reports each server and its connection. The shared vector file
    `test/vectors/mcp-binding-vectors.json` (the Python twin runs the same bytes) pins the digest, the allowlist
    verification and the result mapping; the rest of the tests drive a fixture MCP server of this repository over both
-   transports. **With it, `Platform` gains `onStartup(callback)`, `onCleanup(callback)` and `shutdown()`** - async
+   transports. Every bound route is an alias of one `preload` function, `mcp.tool` (private, bound to no tool), registered
+   at boot with the server's `instances`; the function reads the route it was called as from its execution context
+   (`getTrace().route`). **With it, `Platform` gains `onStartup(callback)`, `onCleanup(callback)` and `shutdown()`** - async
    callbacks run before the host listens and at shutdown (SIGINT and SIGTERM are handled only when a cleanup callback is
    registered), the place for an extension's asynchronous boot work; the routes a callback registers are announced with
    the others. **Upgrade note:** none - nothing changes for an application that registers no callback.

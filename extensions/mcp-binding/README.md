@@ -131,6 +131,14 @@ One client per server is shared by its routes for the life of the process. The h
 `mcp.health` (the `/health` actuator, `mandatory.health.dependencies`) reports each server, its transport, its tool count
 and whether it is connected, and answers 503 naming a server whose session is gone.
 
+Every bound route is served by one function, `mcp.tool`, declared with `preload` like any composable function and private:
+the host answers 403 for it on the wire, and it is bound to no tool. At boot, once a server's allowlist is verified, the
+binding registers each allowlisted tool's route as an alias of that function - `registry.register(route, tool, { instances })`,
+the pack's counterpart of the engines' `Platform.register`, with the server's `instances` - so every route is a service of
+its own, with its own mailbox and workers. A call learns the route it was addressed to from its execution context
+(`getTrace().route`, the pack's counterpart of the engines' read-only `my_route` header), which names the server and the
+remote tool; a call to `mcp.tool` by its own name is a 404.
+
 ## Security
 
 - **No engine runs a child process.** The MCP client, the subprocess and the credentials live here, in the pack, behind

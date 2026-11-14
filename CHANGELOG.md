@@ -43,6 +43,27 @@
    `retention` are now fields of the loop contract: on `llm.chat` they need `tools`, and on `llm.stream` any of them is a
    400. A loop turn needs `llm.transcript.store`; the sample configuration sets `memory`.
 
+3. **The MCP binding: `extensions/mcp-binding/`, one composable route per allowlisted MCP tool (RFC-0011 / ADR-0033,
+   build plan step 4).** A polyglot function host on the official MCP SDK (`@modelcontextprotocol/sdk`, a dev dependency
+   of this repository and the app's own dependency outside it). Servers are named in `resources/mcp-servers.yml`, each with
+   its transport (`stdio` with a command this process starts, or `http` with a streamable HTTP URL), its credential
+   references (`${VAR}` placeholders resolved from the environment at boot, never logged; a stdio subprocess gets the
+   SDK's minimal environment plus the variables listed), and its allowlist mapping each remote tool name to a route and
+   the SHA-256 digest of the tool's input schema in canonical JSON. Boot connects every server before the host listens,
+   lists its tools, and refuses to start - by name - when an allowlisted tool is missing or its schema no longer matches
+   the digest, so a server-side change stops a deploy instead of reaching a model at run time. A route's body is the
+   tool's arguments; its reply is the server's structured content, else the text of its content blocks; a result marked
+   `isError` is a 400 carrying the server's text (the agent loop returns it to the model as that call's error), a slow
+   call a 408, a protocol failure a 502, a lost connection a 503. `node mcp-binding.mjs describe [server]` prints each
+   tool's digest and a catalog row for the graph, for the developer to review: the model reads the graph's descriptions,
+   never the server's. `mcp.health` reports each server and its connection. The shared vector file
+   `test/vectors/mcp-binding-vectors.json` (the Python twin runs the same bytes) pins the digest, the allowlist
+   verification and the result mapping; the rest of the tests drive a fixture MCP server of this repository over both
+   transports. **With it, `Platform` gains `onStartup(callback)`, `onCleanup(callback)` and `shutdown()`** - async
+   callbacks run before the host listens and at shutdown (SIGINT and SIGTERM are handled only when a cleanup callback is
+   registered), the place for an extension's asynchronous boot work; the routes a callback registers are announced with
+   the others. **Upgrade note:** none - nothing changes for an application that registers no callback.
+
 ### Changed
 
 1. **The `resources` folder is the one next to the application file; the working directory is never searched.**

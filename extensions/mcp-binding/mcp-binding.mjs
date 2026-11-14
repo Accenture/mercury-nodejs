@@ -35,7 +35,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport, getDefaultEnvironment } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import {
-  AppException, appConfig, defaultRegistry, getLogger, loadConfig, platform, preload, validateRoute, VERSION
+  AppException, appConfig, defaultRegistry, getLogger, getTrace, loadConfig, platform, preload, validateRoute, VERSION
 } from 'mercury-composable';
 
 const defaultLog = getLogger('mcp-binding');
@@ -407,7 +407,7 @@ export class Server {
   }
 }
 
-// --- the application: boot, the routes, the health check and describe ------------------------
+// --- the application: boot, the tool function, the health check and describe -----------------
 
 /**
  * The binding, wired to its dependencies: connect(spec) opens a server's client, registry holds
@@ -420,14 +420,33 @@ export function createBinding({
   out = (line) => console.log(line)
 } = {}) {
   const servers = new Map();
+  // what each bound route serves - the server and the allowlisted tool - filled at boot
+  const routes = new Map();
 
-  function handler(server, binding) {
-    return async (_headers, body) => {
-      if (!isMap(body)) {
-        throw new AppException(400, `The arguments of ${binding.name} must be a map`);
-      }
-      return server.call(binding.name, body);
-    };
+  /** The server and the allowlisted tool behind a bound route; a 404 for any other route. */
+  function bound(route) {
+    const found = routes.get(route ?? '');
+    if (!found) {
+      throw new AppException(404, `No MCP tool is bound to the route ${route || '(none)'}`);
+    }
+    return found;
+  }
+
+  /**
+   * The one function behind every bound route. The boot registers each allowlisted tool's route
+   * as an alias of this function (the engines' Platform.register: one function, several routes),
+   * so a call learns the route it was addressed to from its execution context - getTrace().route,
+   * the pack's counterpart of the engines' read-only my_route header - and the route names the
+   * server and the remote tool. The event body is the tool's arguments, a map; the reply is the
+   * result as toolResult shapes it. mcp.tool itself is private and bound to no tool: it declares
+   * the function, and a call to it by that name is a 404.
+   */
+  async function tool(_headers, body) {
+    const { server, binding } = bound(getTrace()?.route);
+    if (!isMap(body)) {
+      throw new AppException(400, `The arguments of ${binding.name} must be a map`);
+    }
+    return server.call(binding.name, body);
   }
 
   async function shutdown() {
@@ -435,6 +454,7 @@ export function createBinding({
       await server.close();
     }
     servers.clear();
+    routes.clear();
   }
 
   /**
@@ -449,12 +469,14 @@ export function createBinding({
         await server.start();
         servers.set(spec.name, server);
         for (const { binding } of server.bound) {
-          registry.register(binding.route, handler(server, binding), { instances: spec.instances });
+          // the route is an alias of tool - the one function under the configured name, the
+          // engines' Platform.register shape - with the server's instances
+          routes.set(binding.route, { server, binding });
+          registry.register(binding.route, tool, { instances: spec.instances });
           log.info(`MCP server ${spec.name}: tool ${binding.name} served as ${binding.route}`);
         }
       }
-      const routes = [...servers.values()].reduce((n, s) => n + s.bound.length, 0);
-      log.info(`MCP binding ready - ${servers.size} server(s), ${routes} route(s)`);
+      log.info(`MCP binding ready - ${servers.size} server(s), ${routes.size} route(s)`);
     } catch (e) {
       log.error(`MCP binding cannot start - ${e.message}`);
       await shutdown();
@@ -528,10 +550,11 @@ export function createBinding({
     return 0;
   }
 
-  return { boot, shutdown, health, describe, servers };
+  return { boot, shutdown, tool, health, describe, servers, routes };
 }
 
 const binding = createBinding();
+preload('mcp.tool', { instances: DEFAULT_INSTANCES, isPrivate: true }, binding.tool);
 preload('mcp.health', { instances: 5, isPrivate: true }, binding.health);
 
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href;

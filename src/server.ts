@@ -13,12 +13,21 @@
  * The host also serves the engines' actuator endpoints (/info, /info/routes,
  * /env, /health, /livenessprobe) for operations and Kubernetes probes - see
  * actuator.ts.
+ * A traced call leaves the records a Java or Rust callee leaves for the same
+ * call, so a span lineage stays continuous into this host: http.request
+ * (POST /api/event, the edge's round trip, parented onto the caller's span -
+ * the envelope's span, else the traceparent header's), event.api.service
+ * (the ingress, parented onto the edge) and, for an RPC, the function's
+ * round-trip record with the responder's span (the caller side's record in
+ * the engines); a drop-n-forget or streaming function emits its own record,
+ * parented onto the service. An untraced call records nothing.
  */
+import { randomBytes } from 'node:crypto';
 import * as http from 'node:http';
-import { Actuator, sendError } from './actuator.js';
-import { DeliveryTimeout, Mailbox, raceMs } from './bus.js';
+import { Actuator, appOrigin, sendError } from './actuator.js';
+import { DeliveryTimeout, EventBus, Mailbox, raceMs, roundTripRecord } from './bus.js';
 import { appConfig } from './config.js';
-import { EventEnvelope } from './envelope.js';
+import { EventEnvelope, isoUtc } from './envelope.js';
 import {
   DATA,
   dataFrame,
@@ -42,6 +51,10 @@ import { MY_CID_TAG, MY_CORRELATION_ID } from './trace.js';
 const OCTET_STREAM = 'application/octet-stream';
 // the engines' reserved route name for the Event-over-HTTP ingress
 const EVENT_API_SERVICE = 'event.api.service';
+// the edge's own service name and path in its round-trip record (the engines' REST edge)
+const HTTP_REQUEST = 'http.request';
+const EDGE_PATH = 'POST /api/event';
+const TRACEPARENT = /^00-([0-9a-f]{32})-([0-9a-f]{16})-[0-9a-f]{2}$/;
 const log = getLogger('mercury.server');
 
 function transportError(res: http.ServerResponse, status: number, message: string): void {
@@ -64,6 +77,89 @@ function handlerHeaders(event: EventEnvelope): Record<string, string> {
     headers[MY_CORRELATION_ID] = myCid;
   }
   return headers;
+}
+
+/**
+ * The remote caller's span: the one on the envelope (the engines' PostOffice stamps the
+ * calling function's span), else the W3C traceparent header's.
+ */
+function callerSpan(req: http.IncomingMessage, event: EventEnvelope): string | undefined {
+  if (event.spanId) {
+    return event.spanId;
+  }
+  const match = TRACEPARENT.exec(String(req.headers['traceparent'] ?? '').trim().toLowerCase());
+  return match ? match[2] : undefined;
+}
+
+/**
+ * The trace records of one traced call through the /api/event edge - what a Java or Rust
+ * callee leaves for the same call: http.request (the edge's round trip, the backend's SERVER
+ * span, parented onto the caller's span) and event.api.service (the ingress, parented onto
+ * the edge); the relayed event carries the service's span, so the function parents onto it.
+ * An RPC adds the function's round-trip record - the caller side's record in the engines
+ * (InboxBase) - with the responder's span from the reply.
+ */
+class Edge {
+  readonly traceId: string;
+  readonly tracePath: string | undefined;
+  readonly route: string;
+  readonly edgeSpan = randomBytes(8).toString('hex');
+  readonly serviceSpan = randomBytes(8).toString('hex');
+  private readonly start = isoUtc();
+  private readonly started = process.hrtime.bigint();
+
+  constructor(private readonly bus: EventBus, event: EventEnvelope,
+              private readonly caller: string | undefined) {
+    this.traceId = event.traceId ?? '';
+    this.tracePath = event.tracePath;
+    this.route = event.to ?? '';
+  }
+
+  private elapsed(): number {
+    return Math.round(Number(process.hrtime.bigint() - this.started) / 1000) / 1000;
+  }
+
+  /** The ingress record, when the event is handed on - the engines' EventApiService execution, parented onto the edge. */
+  recordService(): void {
+    this.bus.emit({
+      origin: appOrigin(), id: this.traceId, path: EDGE_PATH, service: EVENT_API_SERVICE,
+      start: this.start, from: HTTP_REQUEST, exec_time: this.elapsed(), status: 200, success: true,
+      span_id: this.serviceSpan, parent_span_id: this.edgeSpan
+    });
+  }
+
+  /** The RPC's round-trip record, parented onto the service - the engines' InboxBase record for the relayed call. */
+  recordFunction(sender: string | undefined, reply: EventEnvelope, dispatched: string, started: bigint): void {
+    this.bus.emit(roundTripRecord({
+      service: this.route, sender, traceId: this.traceId, tracePath: this.tracePath, reply,
+      parentSpanId: this.serviceSpan, start: dispatched,
+      roundTripMs: Number(process.hrtime.bigint() - started) / 1e6
+    }), reply.annotations);
+  }
+
+  /** The edge's round-trip record when the response is complete - the engines' REST edge: the whole call under the caller's span, the HTTP status sent. */
+  recordEdge(status: number, error?: string): void {
+    const trace: Record<string, unknown> = {
+      origin: appOrigin(), id: this.traceId, path: EDGE_PATH, service: HTTP_REQUEST,
+      start: this.start, exec_time: this.elapsed(), status, success: status < 400, span_id: this.edgeSpan
+    };
+    if (this.caller) {
+      trace.parent_span_id = this.caller;
+    }
+    if (status >= 400 && error) {
+      trace.exception = error;
+    }
+    this.bus.emit(trace);
+  }
+}
+
+/** A transport refusal, recorded at the edge when the call was traced. */
+function refuse(res: http.ServerResponse, edge: Edge | undefined, status: number, message: string): void {
+  if (edge) {
+    edge.recordService();
+    edge.recordEdge(status, message);
+  }
+  transportError(res, status, message);
 }
 
 export class EventApiServer {
@@ -93,13 +189,15 @@ export class EventApiServer {
       transportError(res, 400, 'Missing routing path');
       return;
     }
+    const bus = this.registry.bus;
+    const edge = event.traceId ? new Edge(bus, event, callerSpan(req, event)) : undefined;
     const service = this.registry.get(event.to);
     if (!service) {
-      transportError(res, 404, `Route ${event.to} not found`);
+      refuse(res, edge, 404, `Route ${event.to} not found`);
       return;
     }
     if (service.isPrivate) {
-      transportError(res, 403, `${event.to} is private`);
+      refuse(res, edge, 403, `${event.to} is private`);
       return;
     }
     if (!event.sender) {
@@ -107,8 +205,13 @@ export class EventApiServer {
       // with its own route when the wire envelope carries none
       event.setFrom(EVENT_API_SERVICE);
     }
+    if (edge) {
+      // the relayed event carries the service's span, so the function parents
+      // onto it - the engines' relay
+      event.setSpanId(edge.serviceSpan);
+      edge.recordService();
+    }
     const headers = handlerHeaders(event);
-    const bus = this.registry.bus;
     const trace = {
       traceId: event.traceId, tracePath: event.tracePath, cid: event.cid,
       envelope: event
@@ -118,6 +221,7 @@ export class EventApiServer {
       const bytes = ack.toBytes();
       res.writeHead(202, { 'content-type': OCTET_STREAM, 'content-length': bytes.length });
       res.end(bytes);
+      edge?.recordEdge(202);
       return;
     }
     if (service.interceptor) {
@@ -125,9 +229,11 @@ export class EventApiServer {
       // the raw envelope with a per-request reply sink as its reply address
       // and answers manually - single-shot or streaming
       const capable = String(req.headers['accept'] ?? '').includes(TEXT_EVENT_STREAM);
-      await this.dispatchInterceptor(res, service, event, headers, ttl, capable);
+      await this.dispatchInterceptor(res, service, event, headers, ttl, capable, edge);
       return;
     }
+    const dispatched = isoUtc();
+    const started = process.hrtime.bigint();
     try {
       const reply = await bus.deliver(service, headers, event.body, ttl, trace);
       log.info(`Handled ${event.to} status=${reply.getStatus()} ` +
@@ -135,9 +241,18 @@ export class EventApiServer {
       const bytes = reply.toBytes();
       res.writeHead(200, { 'content-type': OCTET_STREAM, 'content-length': bytes.length });
       res.end(bytes);
+      if (edge) {
+        edge.recordFunction(event.sender, reply, dispatched, started);
+        edge.recordEdge(200);
+      }
     } catch (e) {
       if (e instanceof DeliveryTimeout) {
         log.warn(`Event ${event.to} timeout for ${ttl} ms (trace_id=${event.traceId ?? 'none'})`);
+        if (edge) {
+          const timeout = new EventEnvelope().setStatus(408).setBody(`Timeout for ${ttl} ms`);
+          edge.recordFunction(event.sender, timeout, dispatched, started);
+          edge.recordEdge(408, `Timeout for ${ttl} ms`);
+        }
         transportError(res, 408, `Timeout for ${ttl} ms`);
       } else {
         transportError(res, 500, (e as Error).message ?? String(e));
@@ -153,7 +268,7 @@ export class EventApiServer {
    */
   private async dispatchInterceptor(res: http.ServerResponse, service: ServiceDef,
                                     event: EventEnvelope, headers: Record<string, string>,
-                                    ttl: number, capable: boolean): Promise<void> {
+                                    ttl: number, capable: boolean, edge?: Edge): Promise<void> {
     const bus = this.registry.bus;
     const [sinkRoute, queue] = bus.openSink();
     try {
@@ -171,7 +286,8 @@ export class EventApiServer {
         handlerEvent.setTrace(event.traceId, event.tracePath ?? service.route);
       }
       if (event.spanId) {
-        // the caller's span - the handler's span parents onto it
+        // the service's span (the caller's when the call is untraced at the
+        // edge) - the handler's span parents onto it
         handlerEvent.setSpanId(event.spanId);
       }
       if (event.sender) {
@@ -182,6 +298,7 @@ export class EventApiServer {
       if (!first) {
         log.warn(`Event ${event.to} timeout for ${ttl} ms ` +
           `(trace_id=${event.traceId ?? 'none'})`);
+        edge?.recordEdge(408, `Timeout for ${ttl} ms`);
         transportError(res, 408, `Timeout for ${ttl} ms`);
         return;
       }
@@ -194,14 +311,19 @@ export class EventApiServer {
         const bytes = first.toBytes();
         res.writeHead(200, { 'content-type': OCTET_STREAM, 'content-length': bytes.length });
         res.end(bytes);
+        edge?.recordEdge(200);
         return;
       }
       if (!capable) {
         // a streaming reply cannot ride a single-shot response
+        edge?.recordEdge(406, STREAM_CALLER_REQUIRED);
         transportError(res, 406, STREAM_CALLER_REQUIRED);
         return;
       }
-      await streamResponse(res, queue, first, marker, ttl);
+      const status = await streamResponse(res, queue, first, marker, ttl);
+      // the engines' edge: a stream failing in-band after its head reports the
+      // failure's own status
+      edge?.recordEdge(status);
     } finally {
       bus.closeSink(sinkRoute);
     }
@@ -246,7 +368,7 @@ export class EventApiServer {
  */
 async function streamResponse(res: http.ServerResponse, queue: Mailbox<EventEnvelope>,
                               first: EventEnvelope, firstMarker: string,
-                              ttl: number): Promise<void> {
+                              ttl: number): Promise<number> {
   let idleMs = ttl;
   for (const [key, value] of Object.entries(first.headers)) {
     if (key.toLowerCase() === X_TTL) {
@@ -261,27 +383,33 @@ async function streamResponse(res: http.ServerResponse, queue: Mailbox<EventEnve
     'cache-control': 'no-cache'
   });
   res.write(envelopeFrame(first));
+  let status = first.getStatus();
   if (firstMarker === DATA) {
-    await streamSegments(res, queue, idleMs);
+    status = await streamSegments(res, queue, idleMs);
   }
   res.end();
+  return status;
 }
 
+/**
+ * Render the segments until the terminal; the status returned is the stream's outcome -
+ * 200, or an in-band failure's own status - for the edge's record.
+ */
 async function streamSegments(res: http.ServerResponse, queue: Mailbox<EventEnvelope>,
-                              idleMs: number): Promise<void> {
+                              idleMs: number): Promise<number> {
   const pingMs = keepAliveMs();
   // a disconnected client ends the stream; late segments are no-op drops
   for (;;) {
     if (res.writableEnded || res.destroyed) {
       log.debug('Client disconnected from event stream');
-      return;
+      return 200;
     }
     const event = await nextSegment(res, queue, idleMs, pingMs);
     if (!event) {
       // idle expiry - fail in-band (the engines' housekeeper parity)
       const seconds = Math.trunc(idleMs / 1000);
       res.write(envelopeFrame(exceptionEnvelope(408, `Timeout for ${seconds} seconds`)));
-      return;
+      return 408;
     }
     const action = classifySegment(event);
     if (action.warn) {
@@ -291,7 +419,7 @@ async function streamSegments(res: http.ServerResponse, queue: Mailbox<EventEnve
       res.write(action.frame);
     }
     if (action.end) {
-      return;
+      return action.status ?? 200;
     }
   }
 }
@@ -302,18 +430,18 @@ async function streamSegments(res: http.ServerResponse, queue: Mailbox<EventEnve
  * cleanly (no cosmetic frames on this wire), the in-band terminal for the
  * bus's uncaught-interceptor-exception contract, or a warned drop.
  */
-function classifySegment(event: EventEnvelope): { frame?: Buffer; end: boolean; warn?: boolean } {
+function classifySegment(event: EventEnvelope): { frame?: Buffer; end: boolean; warn?: boolean; status?: number } {
   const marker = streamSignal(event);
   if (marker === DATA) {
     return { frame: dataFrame(event, false), end: false };
   }
   if (marker === EOF || marker === EXCEPTION) {
-    return { frame: envelopeFrame(event), end: true };
+    return { frame: envelopeFrame(event), end: true, status: event.hasError() ? event.getStatus() : 200 };
   }
   if (marker === undefined && event.hasError()) {
     // fail in-band with the exact status
     const frame = envelopeFrame(exceptionEnvelope(event.getStatus(), errorText(event.body)));
-    return { frame, end: true };
+    return { frame, end: true, status: event.getStatus() };
   }
   return { end: false, warn: true };
 }

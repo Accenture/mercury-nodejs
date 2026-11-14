@@ -171,6 +171,26 @@
   credential is a reference in the server file, resolved from this process's environment.
   <!-- id: mcp-binding-route-per-tool | created: 2026-11-14 | last_used: 2026-11-14 | uses: 1 | tier: working | origin: 2026-11-14-074701 -->
 
+- **A traced call into the pack leaves the records a Java or Rust callee leaves, so a span lineage is continuous from an
+  engine into the pack (2026-11-14, the twin of mercury-python #53; Eric's criterion: for OpenTelemetry to be certified,
+  the span lineage ought to be continuous end to end).** The live drive of the engines' agent loop through both packs found
+  the pack legs absent from the trace: the calling engine's `async.http.request` leg is in `skip.rpc.tracing` by default, and
+  the host suppressed the worker-side record of every RPC-served execution with no callee-side record to replace it, so
+  `llm.chat` and `diagram.render.mcp` showed only as time inside the engine's `llm.run` and `diagram.render`. Now `server.ts`
+  records, for a traced call at `/api/event`, `http.request` (`POST /api/event`, the edge's round trip; parent the caller's
+  span from the envelope, else the `traceparent` header; the backend's SERVER span), `event.api.service` (the ingress; parent
+  the edge) and, for an RPC, the function's round-trip record (parent the service; the responder's span from the reply,
+  `exec_time` and `round_trip`); the relayed envelope carries the service's span, so a drop-n-forget or streaming function
+  parents onto it; a refusal or a timeout leaves the edge record with its status; an untraced call records nothing. `bus.ts`
+  puts the execution's span on the reply (`WorkerHandler` parity) and `client.ts` records a local RPC round trip as
+  `InboxBase` does; the worker-side record of an RPC-served execution stays suppressed. Re-driven the same day on the
+  `diagram-assistant` graph: 20 records per run, every parent owned by a record (the engines'
+  `docs/test-reports/agent-loop-trace-lineage.md`). **How to apply:** the rule is who emits a record, never whether one
+  exists - every traced execution leaves exactly one; before changing a host or client path, ask which side records it in
+  the Java engine and mirror that side; a lineage check parses every record of the trace from every process and verifies
+  each parent is a span some record owns.
+  <!-- id: trace-records-engine-parity | created: 2026-11-14 | last_used: 2026-11-14 | uses: 1 | tier: working | origin: 2026-11-14-115318 -->
+
 ## Conventions
 
 - Engine-mirrored configuration/logging/trace conventions (see the invariant above and

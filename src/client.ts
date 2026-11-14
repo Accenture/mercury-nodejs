@@ -11,8 +11,8 @@
  * The decoded reply envelope is authoritative: an error from the target rides
  * back as a normal envelope with status >= 400 — inspect reply.getStatus().
  */
-import { asyncAck, DeliveryTimeout, raceMs } from './bus.js';
-import { EventEnvelope } from './envelope.js';
+import { asyncAck, DeliveryTimeout, raceMs, roundTripRecord } from './bus.js';
+import { EventEnvelope, isoUtc } from './envelope.js';
 import {
   DATA,
   ENVELOPE,
@@ -57,8 +57,8 @@ export class PostOffice {
     const timeoutMs = options.timeoutMs ?? 30000;
     const event = this.buildEvent(route, body, options);
     if (!isAsync) {
-      // the engines' RPC round-trip marker: an RPC leg emits no trace
-      // dataset - its metrics fold into the caller's view
+      // the engines' RPC round-trip marker: the responder emits no record of
+      // its own - the caller's round-trip record below is the one record
       event.tags[RPC_TAG] ??= String(timeoutMs);
     }
     const trace = {
@@ -75,15 +75,20 @@ export class PostOffice {
       // the first envelope classifies exactly like the engines - unmarked =
       // the reply; marked = a streaming target refusing a single-shot caller
       const [sinkRoute, queue] = bus.openSink();
+      const start = isoUtc();
+      const started = process.hrtime.bigint();
       try {
         bus.publishEnvelope(service, event.setReplyTo(sinkRoute));
-        const first = await raceMs(queue.next(), Math.max(100, timeoutMs));
-        if (!first) {
-          return new EventEnvelope().setStatus(408).setBody(`Timeout for ${timeoutMs} ms`);
+        const got = await raceMs(queue.next(), Math.max(100, timeoutMs));
+        let first: EventEnvelope;
+        if (!got) {
+          first = new EventEnvelope().setStatus(408).setBody(`Timeout for ${timeoutMs} ms`);
+        } else if (streamSignal(got) !== undefined) {
+          first = new EventEnvelope().setStatus(406).setBody(STREAM_CALLER_REQUIRED);
+        } else {
+          first = got;
         }
-        if (streamSignal(first) !== undefined) {
-          return new EventEnvelope().setStatus(406).setBody(STREAM_CALLER_REQUIRED);
-        }
+        this.recordRoundTrip(route, event, first, start, started);
         return first;
       } finally {
         bus.closeSink(sinkRoute);
@@ -92,14 +97,36 @@ export class PostOffice {
     if (isAsync) {
       return bus.publish(service, event.headers, event.body, trace);
     }
+    const start = isoUtc();
+    const started = process.hrtime.bigint();
+    let reply: EventEnvelope;
     try {
-      return await bus.deliver(service, event.headers, event.body, timeoutMs, trace);
+      reply = await bus.deliver(service, event.headers, event.body, timeoutMs, trace);
     } catch (e) {
-      if (e instanceof DeliveryTimeout) {
-        return new EventEnvelope().setStatus(408).setBody(`Timeout for ${timeoutMs} ms`);
+      if (!(e instanceof DeliveryTimeout)) {
+        throw e;
       }
-      throw e;
+      reply = new EventEnvelope().setStatus(408).setBody(`Timeout for ${timeoutMs} ms`);
     }
+    this.recordRoundTrip(route, event, reply, start, started);
+    return reply;
+  }
+
+  /**
+   * A traced caller's record of a local RPC round trip - the engines' InboxBase: the
+   * responder's span from the reply, the caller's span (on the outbound envelope) as the
+   * parent, and the round trip measured here. Untraced calls record nothing.
+   */
+  private recordRoundTrip(route: string, event: EventEnvelope, reply: EventEnvelope,
+                          start: string, started: bigint): void {
+    if (!event.traceId) {
+      return;
+    }
+    this.registry.bus.emit(roundTripRecord({
+      service: route, sender: event.sender, traceId: event.traceId, tracePath: event.tracePath,
+      reply, parentSpanId: event.spanId, start,
+      roundTripMs: Number(process.hrtime.bigint() - started) / 1e6
+    }), reply.annotations);
   }
 
   private httpHeaders(timeoutMs: number, isAsync: boolean,

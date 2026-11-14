@@ -227,25 +227,8 @@ test('the business cid rides the streaming hop', async () => {
   assert.equal(body.my_correlation_id, 'biz-42');
 });
 
-test('span lineage continues across the hop', async () => {
-  // the engines' span model: the caller's span rides the outbound envelope;
-  // the receiving execution mints its own span with the caller's as parent
-  const callerSpan = 'ab'.repeat(8);
-  const po = new PostOffice();
-  const events = await runWithTrace(
-    { traceId: '4bf92f3577b34da6a3ce929d0e0e4746', tracePath: 'TEST /lineage',
-      spanId: callerSpan, annotations: {} },
-    () => collect(po, 'unit.tokens', url, 'biz'));
-  const body = events[events.length - 1].body as Record<string, unknown>;
-  assert.equal(body.parent_span_id, callerSpan);
-  assert.notEqual(body.span_id, callerSpan);
-  assert.match(String(body.span_id), /^[0-9a-f]{16}$/, '16-hex W3C-shaped span');
-});
-
-test('trace datasets are emitted with the engine shape', async () => {
-  // non-RPC executions emit the engines' distributed-trace dataset record;
-  // RPC round-trips are suppressed (their metrics fold into the caller)
-  const callerSpan = 'cd'.repeat(8);
+/** Run fn while teeing stdout; the trace sections of the distributed.tracing records it logged. */
+async function tracesOf(fn: () => Promise<void>): Promise<Array<Record<string, unknown>>> {
   const lines: string[] = [];
   const original = process.stdout.write.bind(process.stdout);
   // tee, never swallow: the test runner's own completion records ride this
@@ -255,40 +238,139 @@ test('trace datasets are emitted with the engine shape', async () => {
     return (original as (...a: unknown[]) => boolean)(chunk, ...rest);
   }) as typeof process.stdout.write;
   try {
+    await fn();
+    await sleep(50); // the edge's record follows the response
+  } finally {
+    process.stdout.write = original;
+  }
+  // text mode renders a dataset as '... distributed.tracing - {json}'
+  return lines
+    .filter((line) => line.includes('distributed.tracing'))
+    .map((line) => (JSON.parse(line.slice(line.indexOf(' - ') + 3)) as
+      { trace: Record<string, unknown> }).trace);
+}
+
+function one(traces: Array<Record<string, unknown>>, service: string): Record<string, unknown> {
+  const found = traces.filter((t) => t.service === service);
+  assert.equal(found.length, 1, `${service}: ${traces.map((t) => t.service).join(', ')}`);
+  return found[0];
+}
+
+test('span lineage continues across the hop', async () => {
+  // the engines' callee shape: the caller's span rides the outbound envelope; the host
+  // records the /api/event edge's round trip under it (http.request, the backend's SERVER
+  // span), the ingress under the edge (event.api.service), and the producer mints its own
+  // span under the ingress - one connected tree, as a Java or Rust callee leaves it
+  const callerSpan = 'ab'.repeat(8);
+  const po = new PostOffice();
+  let events: EventEnvelope[] = [];
+  const traces = await tracesOf(async () => {
+    events = await runWithTrace(
+      { traceId: '4bf92f3577b34da6a3ce929d0e0e4746', tracePath: 'TEST /lineage',
+        spanId: callerSpan, annotations: {} },
+      () => collect(po, 'unit.tokens', url, 'biz'));
+  });
+  const body = events[events.length - 1].body as Record<string, unknown>;
+  const edge = one(traces, 'http.request');
+  const ingress = one(traces, 'event.api.service');
+  const producer = one(traces, 'unit.tokens');
+  assert.equal(edge.parent_span_id, callerSpan);
+  assert.equal(edge.path, 'POST /api/event');
+  assert.equal(ingress.parent_span_id, edge.span_id);
+  assert.equal(ingress.from, 'http.request');
+  assert.equal(producer.parent_span_id, ingress.span_id);
+  assert.equal(body.span_id, producer.span_id);
+  assert.equal(body.parent_span_id, ingress.span_id);
+  for (const record of [edge, ingress, producer]) {
+    assert.match(String(record.span_id), /^[0-9a-f]{16}$/, '16-hex W3C-shaped span');
+  }
+  assert.ok(Number(edge.exec_time) >= Number(producer.exec_time), 'the round trip covers the execution');
+});
+
+test('trace datasets are emitted with the engine shape', async () => {
+  // every traced execution leaves one record, the engines' way: a non-RPC execution emits
+  // its own; an RPC round trip is recorded by the caller's side (the PostOffice here, with
+  // the responder's span from the reply and the round trip), never by the responder
+  const callerSpan = 'cd'.repeat(8);
+  let rpc: EventEnvelope | undefined;
+  const traces = await tracesOf(async () => {
     const po = new PostOffice();
     await runWithTrace(
       { traceId: '4bf92f3577b34da6a3ce929d0e0e4747', tracePath: 'TEST /telemetry',
         spanId: callerSpan, annotations: {} },
       async () => {
         await collect(po, 'unit.tokens', url, 'biz');
-        const rpc = await new PostOffice(undefined, {}, registry)
+        rpc = await new PostOffice(undefined, {}, registry)
           .request('unit.biz', undefined, { timeoutMs: 5000 });
         assert.equal(rpc.getStatus(), 200);
       });
-  } finally {
-    process.stdout.write = original;
-  }
-  // text mode renders a dataset as '... distributed.tracing - {json}'
-  const datasets = lines
-    .filter((line) => line.includes('distributed.tracing'))
-    .map((line) => JSON.parse(line.slice(line.indexOf(' - ') + 3)) as
-      { trace: Record<string, unknown>; annotations?: Record<string, unknown> });
-  const services = datasets.map((d) => d.trace.service);
-  assert.ok(!services.includes('unit.biz'), 'RPC legs emit no dataset (engine parity)');
-  const tokens = datasets.filter((d) => d.trace.service === 'unit.tokens');
-  assert.equal(tokens.length, 1);
-  const trace = tokens[0].trace;
-  assert.equal(trace.id, '4bf92f3577b34da6a3ce929d0e0e4747');
-  assert.equal(trace.path, 'TEST /telemetry');
-  assert.equal(trace.parent_span_id, callerSpan);
-  assert.equal(trace.success, true);
-  assert.equal(trace.status, 200);
+  });
+  const biz = one(traces, 'unit.biz');
+  assert.equal(biz.parent_span_id, callerSpan);
+  assert.equal(biz.span_id, rpc?.spanId, "the responder's span rides the reply and names the record");
+  assert.ok(Number(biz.round_trip) >= Number(biz.exec_time));
+  assert.equal(biz.path, 'TEST /telemetry');
+  assert.equal(biz.success, true);
+  assert.equal(biz.status, 200);
+  const tokens = one(traces, 'unit.tokens');
+  assert.equal(tokens.id, '4bf92f3577b34da6a3ce929d0e0e4747');
+  assert.equal(tokens.path, 'TEST /telemetry');
+  assert.equal(tokens.parent_span_id, one(traces, 'event.api.service').span_id);
+  assert.equal(tokens.success, true);
+  assert.equal(tokens.status, 200);
   // an anonymous /api/event caller: the host fills the sender with its own
   // identity, the engines' EventApiService parity
-  assert.equal(trace.from, 'event.api.service');
+  assert.equal(tokens.from, 'event.api.service');
   for (const key of ['origin', 'start', 'exec_time', 'span_id']) {
-    assert.ok(key in trace, `engine dataset key ${key}`);
+    assert.ok(key in tokens, `engine dataset key ${key}`);
   }
+});
+
+test('a wire RPC leaves the callee records', async () => {
+  // a call through /api/event leaves what a Java or Rust callee leaves: the edge's round
+  // trip (http.request, parented onto the caller's span), the ingress (event.api.service)
+  // and the function's round-trip record with the responder's span - the one the reply
+  // carries, so an engine's inbox chains onto it too
+  const callerSpan = 'ef'.repeat(8);
+  let reply: EventEnvelope | undefined;
+  let refused: EventEnvelope | undefined;
+  const traces = await tracesOf(async () => {
+    const po = new PostOffice();
+    await runWithTrace(
+      { traceId: '4bf92f3577b34da6a3ce929d0e0e4748', tracePath: 'TEST /rpc',
+        spanId: callerSpan, annotations: {} },
+      async () => {
+        reply = await po.request('unit.echo', { n: 1 }, { endpoint: url, timeoutMs: 5000 });
+        refused = await po.request('unit.nowhere', {}, { endpoint: url, timeoutMs: 5000 });
+      });
+  });
+  assert.equal(reply?.getStatus(), 200);
+  assert.deepEqual(reply?.body, { echo: { n: 1 } });
+  assert.equal(refused?.getStatus(), 404);
+  const edges = traces.filter((t) => t.service === 'http.request');
+  assert.deepEqual(edges.map((t) => Number(t.status)).sort(), [200, 404], 'every traced call leaves its edge record');
+  const edge = edges.find((t) => t.status === 200);
+  assert.ok(edge);
+  const ingress = traces.find((t) => t.service === 'event.api.service' && t.parent_span_id === edge.span_id);
+  assert.ok(ingress);
+  const fn = one(traces, 'unit.echo');
+  assert.equal(edge.parent_span_id, callerSpan);
+  assert.equal(ingress.parent_span_id, edge.span_id);
+  assert.equal(fn.parent_span_id, ingress.span_id);
+  assert.equal(fn.span_id, reply?.spanId, "the responder's span rides the reply");
+  assert.ok(Number(fn.round_trip) >= Number(fn.exec_time));
+  assert.equal(fn.from, 'event.api.service', 'an anonymous wire caller');
+  assert.equal(fn.path, 'TEST /rpc');
+  assert.ok(Number(edge.exec_time) >= Number(fn.round_trip));
+  const refusal = edges.find((t) => t.status === 404);
+  assert.ok(refusal);
+  assert.equal(refusal.success, false);
+  assert.ok(String(refusal.exception).includes('unit.nowhere'));
+  // an untraced call records nothing
+  const silent = await tracesOf(async () => {
+    await new PostOffice().request('unit.echo', { n: 2 }, { endpoint: url, timeoutMs: 5000 });
+  });
+  assert.deepEqual(silent, []);
 });
 
 test('the business cid is injected on local delivery', async () => {

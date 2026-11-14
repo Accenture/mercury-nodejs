@@ -120,8 +120,10 @@ function traceInfoOf(delivery: Delivery, myCid: string | undefined): TraceInfo {
 
 /**
  * True for an RPC round-trip: a local reply resolver, or the engines' rpc
- * envelope tag transported over the wire. RPC legs emit no trace dataset
- * (engine parity) - their metrics fold into the caller's view.
+ * envelope tag transported over the wire. The worker-side record of an
+ * RPC-served execution is suppressed (engine parity): the caller's side
+ * records the round trip - the PostOffice for a local call, the /api/event
+ * edge for a wire call - with the responder's span from the reply.
  */
 function isRpc(delivery: Delivery): boolean {
   return Boolean(delivery.resolve) || Boolean(delivery.envelope?.tags[RPC_TAG]);
@@ -165,6 +167,40 @@ function emitTrace(delivery: Delivery, info: TraceInfo, start: string,
   }
   telemetryLog.info(dataset);
   return dataset;
+}
+
+/**
+ * The caller-side record of an RPC round trip - the engines' InboxBase record. Its span is
+ * the responder's own (the reply carries it), its parent the caller's span, its exec_time
+ * the responder's and its round_trip the wait measured by the caller; the worker-side
+ * record of an RPC-served execution is suppressed, so this is the one record for that span
+ * (the wire-format contract's rpc tag).
+ */
+export function roundTripRecord(args: {
+  service: string; sender: string | undefined; traceId: string; tracePath: string | undefined;
+  reply: EventEnvelope; parentSpanId: string | undefined; start: string; roundTripMs: number;
+}): Record<string, unknown> {
+  const { reply } = args;
+  const trace: Record<string, unknown> = {
+    origin: appOrigin(), id: args.traceId, path: args.tracePath, service: args.service,
+    start: args.start, exec_time: reply.execTime,
+    round_trip: Math.round(args.roundTripMs * 1000) / 1000,
+    status: reply.getStatus(), success: !reply.hasError()
+  };
+  if (args.sender) {
+    trace.from = args.sender;
+  }
+  if (reply.spanId) {
+    trace.span_id = reply.spanId;
+  }
+  if (args.parentSpanId) {
+    trace.parent_span_id = args.parentSpanId;
+  }
+  if (reply.hasError()) {
+    // for data privacy, only a recognized error message is shown (the engines' InboxBase)
+    trace.exception = typeof reply.body === 'string' ? reply.body : '***';
+  }
+  return trace;
 }
 
 const CLOSED: unique symbol = Symbol('bus-closed');
@@ -376,6 +412,11 @@ export class EventBus {
     }
     reply.sender = reply.sender ?? delivery.service.route;
     reply.execTime = Math.round(Number(process.hrtime.bigint() - start) / 1000) / 1000;
+    if (info.spanId) {
+      // the responder's span rides the reply, so the caller's round-trip record chains
+      // onto it - the engines' WorkerHandler contract
+      reply.setSpanId(info.spanId);
+    }
     if (Object.keys(info.annotations).length) {
       reply.annotations = { ...info.annotations, ...reply.annotations };
     }
@@ -421,6 +462,21 @@ export class EventBus {
    * drop-n-forget envelope routed like a reply, carrying no trace - so the
    * forwarder's own execution emits no dataset, the engines' zero-tracing forwarder.
    */
+  /**
+   * Emit one distributed-trace dataset the engines' way: the record on the telemetry log
+   * stream, then the extension route. The caller-side records - an RPC round trip recorded
+   * by the PostOffice, the edge records of a call through /api/event - come through here;
+   * a worker-side record is emitted by the execution itself.
+   */
+  emit(trace: Record<string, unknown>, annotations?: Record<string, unknown>): void {
+    const dataset: Record<string, unknown> = { trace };
+    if (annotations && Object.keys(annotations).length) {
+      dataset.annotations = { ...annotations };
+    }
+    telemetryLog.info(dataset);
+    this.forward(dataset);
+  }
+
   private forward(dataset: Record<string, unknown> | undefined): void {
     if (!dataset || !this.router) {
       return;

@@ -348,7 +348,31 @@ async function nextSegment(res: http.ServerResponse, queue: Mailbox<EventEnvelop
 }
 
 export class Platform {
+  private readonly startup: Array<() => Promise<void>> = [];
+  private readonly cleanup: Array<() => Promise<void>> = [];
+
   constructor(readonly registry: FunctionRegistry = defaultRegistry) {}
+
+  /**
+   * Run an async callback before the host listens - the place for an extension's asynchronous
+   * boot work, such as connecting to a peer and registering the routes it serves. A callback
+   * that throws fails `run`, so a boot failure is a failure to start, never a run-time surprise.
+   */
+  onStartup(callback: () => Promise<void>): void {
+    this.startup.push(callback);
+  }
+
+  /** Run an async callback when the host shuts down (`shutdown`, or SIGINT/SIGTERM while running). */
+  onCleanup(callback: () => Promise<void>): void {
+    this.cleanup.push(callback);
+  }
+
+  /** Run the cleanup callbacks, last registered first. */
+  async shutdown(): Promise<void> {
+    for (const callback of [...this.cleanup].reverse()) {
+      await callback();
+    }
+  }
 
   /** Start the Event API host. Resolves once listening; runs until stopped. */
   async run(options: { port?: number; host?: string } = {}): Promise<http.Server> {
@@ -359,6 +383,11 @@ export class Platform {
     // the opt-in OpenTelemetry forwarder registers on the extension route before
     // the route list is announced
     activateOtelForwarder(config, this.registry);
+    // an extension's boot work runs before the host listens, so the routes it registers are
+    // announced with the others and a failure stops the start
+    for (const callback of this.startup) {
+      await callback();
+    }
     for (const service of this.registry.routes()) {
       const visibility = service.isPrivate ? 'PRIVATE' : 'PUBLIC';
       log.info(`Loaded ${visibility} ${service.route}, instances=${service.instances}`);
@@ -367,6 +396,16 @@ export class Platform {
     const server = new EventApiServer(this.registry).createServer();
     await new Promise<void>((resolve) => server.listen(port, host, resolve));
     log.info(`${appName} - Event API service started on port ${port}`);
+    if (this.cleanup.length > 0) {
+      // only an application with cleanup work takes over the signals: the others stop as before
+      const stop = (): void => {
+        this.shutdown()
+          .catch((e: unknown) => log.warn(`Cleanup failed - ${(e as Error).message}`))
+          .finally(() => server.close(() => process.exit(0)));
+      };
+      process.once('SIGINT', stop);
+      process.once('SIGTERM', stop);
+    }
     return server;
   }
 }

@@ -20,6 +20,10 @@ This package is a deliberately **lightweight wrapper of the Event-over-HTTP prot
 - the **LLM helper** extension (`extensions/llm-helper`): `llm.chat`, `llm.stream` and `llm.health` on the
   official Anthropic SDK — the graph decides, the model advises; `llm.stream` relays the model's
   token batches as they are produced.
+- the **MCP binding** extension (`extensions/mcp-binding`): one composable route per allowlisted MCP tool,
+  over stdio or streamable HTTP on the official MCP SDK — a graph's agent loop names the route, this
+  app issues the `tools/call`, and a server cannot change a tool under the graph (its schema digest
+  is pinned).
 
 Orchestration deliberately stays in the engines. Functions written here are addressed by
 route name through the engines' declarative `yaml.event.over.http` map, so a flow or a
@@ -205,6 +209,8 @@ clients of the engines' agent loop (RFC-0011) live in the language packs: no eng
 child process. The stdio MCP binding itself is still to come.
 
 The LLM helper in `extensions/llm-helper/` is an application on this package, not part of it
+The MCP binding in `extensions/mcp-binding/` is the other: the MCP client of the engines' agent loop, with
+the one subprocess the Scope allows, an MCP server over stdio, started and owned by that app.
 (the npm package does not ship it). Its `llm.chat` is configurable: a stateless chat, or one
 turn of a multi-turn tool-use loop whose transcript lives in the store the helper is configured
 with.

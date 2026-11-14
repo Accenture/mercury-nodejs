@@ -147,6 +147,23 @@
   shared 66 cases green on memory, a Redis fake and a live Redis.
   <!-- id: llm-helper-app | created: 2026-10-01 | last_used: 2026-11-03 | uses: 6 | tier: active | origin: 2026-10-02-001255 -->
 
+- **The MCP binding serves one composable route per allowlisted MCP tool, and the server cannot change a tool under the
+  graph (RFC-0011 / ADR-0033 step 4; the Node.js twin built 2026-11-14, the same day as the Python one).**
+  `extensions/mcp-binding/mcp-binding.mjs` on the official MCP SDK: servers by name in `resources/mcp-servers.yml` (`stdio`,
+  a subprocess of this process with the SDK's default environment plus the listed `env` references; or `http`, a streamable
+  HTTP URL with `headers`); `${VAR}` resolves at boot and is never logged; each allowlisted tool maps to a route and pins the
+  SHA-256 of its input schema in canonical JSON (keys sorted, no spaces, Unicode kept - `canonical()` writes it by hand, the
+  same bytes as the Python twin). Boot, before the host listens (`Platform.onStartup`), connects each server, lists its tools
+  and refuses to start by name when a tool is missing or its schema changed; `describe` prints the digests and a catalog row
+  the developer reviews, because the model reads the graph's descriptions, never the server's. A route's reply is the
+  structured content else the blocks' text; `isError` is a 400 carrying the text (the loop returns it to the model), a
+  timeout 408, a protocol failure 502, a lost connection 503. The pure half (digest, verification, result mapping) is pinned
+  by `test/vectors/mcp-binding-vectors.json`, shared byte-identical with mercury-python; the transports by the fixture
+  server `test/fixtures/mcp-test-server.mjs`. **How to apply:** a new MCP tool for an agent is a server entry and an allowlist
+  row here plus a catalog row on the graph, never engine code; a schema change is a digest the developer re-reviews; a
+  credential is a reference in the server file, resolved from this process's environment.
+  <!-- id: mcp-binding-route-per-tool | created: 2026-11-14 | last_used: 2026-11-14 | uses: 1 | tier: working | origin: 2026-11-14-074701 -->
+
 ## Conventions
 
 - Engine-mirrored configuration/logging/trace conventions (see the invariant above and

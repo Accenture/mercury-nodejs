@@ -2,14 +2,14 @@
  * The MCP binding (extensions/mcp-binding/mcp-binding.mjs).
  *
  * The shared contract file test/vectors/mcp-binding-vectors.json (byte-identical in mercury-python)
- * pins the pure half: the input-schema digest, the allowlist verification and the result mapping.
- * The tests after the vector runs drive the real transports against the fixture server of
- * test/fixtures (a small MCP server on the official SDK, over stdio and over streamable HTTP): the
- * boot that registers one route per allowlisted tool and fails fast by name, the calls through the
- * bound routes (local RPC through the bus, as the host dispatches them: every route is an alias of
- * the one preload function), the credential references that reach the subprocess and never a log,
- * the health route, the describe output, and the platform's startup hook that runs the boot before
- * the host listens.
+ * pins the pure half: the input-schema digest, the verification of the tools the functions bind
+ * against the tools a server offers, and the result mapping. The tests after the vector runs drive
+ * the real transports against the fixture server of test/fixtures (a small MCP server on the
+ * official SDK, over stdio and over streamable HTTP): the boot that verifies every binding and
+ * fails fast by name, the calls through functions that bind the fixture's tools (local RPC through
+ * the bus, as the host dispatches them), the credential references that reach the subprocess and
+ * never a log, the health route, the describe output, and the platform's startup hook that runs
+ * the boot before the host listens.
  */
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -23,21 +23,16 @@ import { fileURLToPath } from 'node:url';
 import YAML from 'yaml';
 import { AppException, appConfig, defaultRegistry, FunctionRegistry, Platform, PostOffice } from 'mercury-composable';
 import {
-  BindingError, connectClient, createBinding, DEFAULT_SERVERS_FILE, loadServers, schemaDigest, Server,
+  BindingError, connectClient, createBinding, DEFAULT_SERVERS_FILE, loadServers, renderMermaid, schemaDigest, Server,
   toolResult, verify
 } from '../extensions/mcp-binding/mcp-binding.mjs';
 
 const VECTORS_FILE = new URL('./vectors/mcp-binding-vectors.json', import.meta.url);
 // the Python twin pins the same digest: change the file in both packs or in neither
-const VECTORS_SHA256 = '4bacc319859847ff82e5d169ad9c0dea4ffdd6fe06883537ebf5ee66bdba907a';
+const VECTORS_SHA256 = 'b470762efe1d77145c430cb3f946956256126f3e4e53e8d001cfed35316ee6a2';
 const VECTORS = JSON.parse(readFileSync(VECTORS_FILE, 'utf8'));
 const FIXTURE = fileURLToPath(new URL('./fixtures/mcp-test-server.mjs', import.meta.url));
 const FIXTURE_TOOLS = ['add', 'echo', 'env_present', 'fail', 'slow'];
-
-function specOf(caseServer) {
-  const tools = Object.entries(caseServer.tools).map(([name, t]) => ({ name, route: t.route, schema_sha256: t.schema_sha256 }));
-  return { name: caseServer.name, transport: 'stdio', tools, command: 'x', args: [], env: {}, headers: {}, timeout_ms: 30000, instances: 10 };
-}
 
 // --- the shared vectors -------------------------------------------------------------------
 
@@ -54,11 +49,12 @@ for (const c of VECTORS.digest_cases) {
 
 for (const c of VECTORS.verify_cases) {
   test(c.name, () => {
-    const spec = specOf(c.server);
+    const server = c.server.name;
+    const bindings = c.bindings.map((b) => ({ server, tool: b.tool, schema_sha256: b.schema_sha256 }));
     if (c.expect.error) {
-      assert.throws(() => verify(spec, c.offered), (e) => e instanceof BindingError && e.message === c.expect.error);
+      assert.throws(() => verify(server, bindings, c.offered), (e) => e instanceof BindingError && e.message === c.expect.error);
     } else {
-      assert.deepEqual(verify(spec, c.offered).map((b) => b.binding.route), c.expect.bound);
+      assert.deepEqual(verify(server, bindings, c.offered).map((b) => b.binding.tool), c.expect.bound);
     }
   });
 }
@@ -79,7 +75,7 @@ for (const c of VECTORS.result_cases) {
 /** A logger that keeps what it is told, so a test can assert what never reached a log. */
 function ledger() {
   const lines = [];
-  const log = {
+  return {
     lines,
     text: () => lines.join('\n'),
     debug: (m) => lines.push(`DEBUG ${m}`),
@@ -87,15 +83,13 @@ function ledger() {
     warn: (m) => lines.push(`WARN ${m}`),
     error: (m) => lines.push(`ERROR ${m}`)
   };
-  return log;
 }
 
 /** What the fixture server offers, as the binding reads it: the digests come from the server itself. */
 let offered;
 before(async () => {
-  const probe = new Server({ name: 'probe', transport: 'stdio', tools: [], command: process.execPath, args: [FIXTURE],
-    env: {}, headers: {}, timeout_ms: 30000, instances: 10 }, connectClient, ledger());
-  const client = await connectClient(probe.spec);
+  const client = await connectClient({ name: 'probe', transport: 'stdio', command: process.execPath, args: [FIXTURE],
+    env: {}, headers: {}, timeout_ms: 30000 });
   try {
     const page = await client.listTools();
     offered = Object.fromEntries(page.tools.map((t) => [t.name, { name: t.name, description: t.description ?? '', input_schema: t.inputSchema }]));
@@ -109,7 +103,7 @@ after(() => appConfig().set('mcp.servers', DEFAULT_SERVERS_FILE));
 const scratch = mkdtempSync(join(tmpdir(), 'mcp-binding-'));
 let fileCount = 0;
 
-/** Point the binding at a temporary server file and give the test a fresh binding with its own registry and log. */
+/** Point the binding at a temporary server file and give the test a fresh binding, a registry of its own and a log. */
 function servers(entries) {
   const path = join(scratch, `mcp-servers-${fileCount++}.yml`);
   writeFileSync(path, YAML.stringify({ servers: entries }), 'utf8');
@@ -117,23 +111,26 @@ function servers(entries) {
   const registry = new FunctionRegistry();
   const log = ledger();
   const lines = [];
-  const app = createBinding({ registry, log, out: (line) => lines.push(line) });
+  const app = createBinding({ log, out: (line) => lines.push(line) });
   return { app, registry, log, lines };
 }
 
-/** A stdio server entry for the fixture, every tool with the digest the server reports. */
-function stdio(tools, extra = {}) {
-  const entry = {
-    transport: 'stdio', command: process.execPath, args: [FIXTURE],
-    tools: Object.fromEntries(Object.entries(tools).map(([name, route]) => [name, { route, schema_sha256: schemaDigest(offered[name].input_schema) }]))
-  };
-  return { ...entry, ...extra };
+/** A stdio server entry for the fixture - the servers file names servers only; the tools are bound in code. */
+function stdio(extra = {}) {
+  return { transport: 'stdio', command: process.execPath, args: [FIXTURE], ...extra };
 }
 
 /**
- * Local RPC through the registry's bus, the path a request takes behind the HTTP host: the bound
- * route's alias dispatches the binding's tool function with the route in its execution context.
+ * The documented shape: bind a tool of a server with the digest the server reports (or the one
+ * given), and register a function under the route that calls it - what preload does for an app.
  */
+function serve(app, registry, route, server, tool, { instances = 10, digest } = {}) {
+  const call = app.bind(server, tool, { schemaSha256: digest ?? schemaDigest(offered[tool].input_schema) });
+  registry.register(route, async (_headers, body) => call(body), { instances });
+  return call;
+}
+
+/** Local RPC through the registry's bus, the path a request takes behind the HTTP host. */
 async function call(registry, route, body) {
   assert.ok(registry.get(route), `${route} is not registered`);
   return new PostOffice(undefined, {}, registry).request(route, body, { timeoutMs: 10000 });
@@ -163,36 +160,57 @@ test('the fixture server has the tools the tests rely on', () => {
   assert.deepEqual(Object.keys(offered).sort(), FIXTURE_TOOLS);
 });
 
-test('boot registers one route per allowlisted tool and the routes call the server', async () => {
-  const { app, registry } = servers({ fixture: stdio({ echo: 'fixture.echo', add: 'fixture.add', fail: 'fixture.fail' }, { instances: 3 }) });
+test('the example function binds the mermaid tool out of the box', () => {
+  // the extension's own function: declared with preload like any route, public, bound in code
+  const service = defaultRegistry.get('mermaid.render');
+  assert.ok(service && !service.isPrivate && service.instances === 10);
+  assert.deepEqual([renderMermaid.server, renderMermaid.tool], ['mermaid', 'validate_and_render_mermaid_diagram']);
+  assert.match(renderMermaid.declared.schema_sha256, /^[0-9a-f]{64}$/);
+  assert.equal(defaultRegistry.get('mcp.tool'), undefined, 'the generic route is gone - a tool is a function');
+});
+
+test('boot verifies every binding and the functions call their tools', async () => {
+  const { app, registry } = servers({ fixture: stdio() });
+  const echo = serve(app, registry, 'fixture.echo', 'fixture', 'echo', { instances: 3 });
+  serve(app, registry, 'fixture.add', 'fixture', 'add');
+  serve(app, registry, 'fixture.fail', 'fixture', 'fail');
   await app.boot();
   try {
     assert.deepEqual([...app.servers.keys()], ['fixture']);
-    assert.deepEqual(app.servers.get('fixture').bound.map((b) => b.binding.route), ['fixture.echo', 'fixture.add', 'fixture.fail']);
-    // the composable shape: one preload function, each bound route a public alias of it with the
-    // server's instances; the declared route itself is private and bound to no tool
-    for (const route of ['fixture.echo', 'fixture.add', 'fixture.fail']) {
-      const service = registry.get(route);
-      assert.ok(service.handler === app.tool && !service.isPrivate && service.instances === 3, route);
-    }
-    const declared = defaultRegistry.get('mcp.tool');
-    assert.ok(declared && declared.isPrivate, 'mcp.tool is declared, private');
-    await rejects(declared.handler({}, { text: 'no tool here' }), 404, 'No MCP tool is bound to the route (none)');
+    assert.deepEqual(app.servers.get('fixture').bound.map((b) => b.binding.tool), ['echo', 'add', 'fail']);
+    const service = registry.get('fixture.echo');
+    assert.ok(service && service.instances === 3 && !service.isPrivate);
     assert.equal(ok(await call(registry, 'fixture.echo', { text: 'hello' })), 'hello');
     assert.deepEqual(ok(await call(registry, 'fixture.add', { a: 1, b: 2 })), { sum: 3 });
     failed(await call(registry, 'fixture.fail', { reason: 'the vault is closed' }), 400, 'the vault is closed');
     failed(await call(registry, 'fixture.echo', 'hello'), 400, 'must be a map');
-    registry.register('mcp.tool', app.tool, { isPrivate: true });
-    failed(await call(registry, 'mcp.tool', { text: 'no tool here' }), 404, 'No MCP tool is bound to the route mcp.tool');
+    assert.deepEqual([echo.server, echo.tool], ['fixture', 'echo']);
   } finally {
     await app.shutdown();
   }
   assert.equal(app.servers.size, 0);
-  assert.equal(app.routes.size, 0);
+  // the declarations are code and survive a shutdown; a call before the next boot is a 503 by name
+  assert.deepEqual(app.declared.map((d) => d.tool), ['echo', 'add', 'fail']);
+  failed(await call(registry, 'fixture.echo', { text: 'later' }), 503, 'MCP server fixture is not connected');
+});
+
+test('two functions may bind the same tool', async () => {
+  const { app, registry } = servers({ fixture: stdio() });
+  serve(app, registry, 'fixture.echo.one', 'fixture', 'echo');
+  serve(app, registry, 'fixture.echo.two', 'fixture', 'echo');
+  await app.boot();
+  try {
+    assert.equal(app.servers.get('fixture').bound.length, 2);
+    assert.equal(ok(await call(registry, 'fixture.echo.one', { text: '1' })), '1');
+    assert.equal(ok(await call(registry, 'fixture.echo.two', { text: '2' })), '2');
+  } finally {
+    await app.shutdown();
+  }
 });
 
 test("a slow tool is a 408 within the server's timeout", async () => {
-  const { app, registry } = servers({ fixture: stdio({ slow: 'fixture.slow' }, { timeout_ms: 1000 }) });
+  const { app, registry } = servers({ fixture: stdio({ timeout_ms: 1000 }) });
+  serve(app, registry, 'fixture.slow', 'fixture', 'slow');
   await app.boot();
   try {
     const started = Date.now();
@@ -204,26 +222,59 @@ test("a slow tool is a 408 within the server's timeout", async () => {
 });
 
 test('a missing tool fails the boot by name', async () => {
-  const entry = stdio({ echo: 'fixture.echo' });
-  entry.tools.nope = { route: 'fixture.nope', schema_sha256: '0'.repeat(64) };
-  const { app, log } = servers({ fixture: entry });
+  const { app, registry, log } = servers({ fixture: stdio() });
+  serve(app, registry, 'fixture.echo', 'fixture', 'echo');
+  serve(app, registry, 'fixture.nope', 'fixture', 'nope', { digest: '0'.repeat(64) });
   await assert.rejects(app.boot(), (e) => e instanceof BindingError && e.message.includes('does not offer the tool nope'));
   assert.ok(log.text().includes('does not offer the tool nope'));
   assert.equal(app.servers.size, 0, 'a failed boot leaves no connection behind');
 });
 
 test('a changed schema fails the boot by name', async () => {
-  const entry = stdio({ echo: 'fixture.echo' });
-  entry.tools.echo.schema_sha256 = 'f'.repeat(64);
-  const { app, log } = servers({ fixture: entry });
+  const { app, registry, log } = servers({ fixture: stdio() });
+  serve(app, registry, 'fixture.echo', 'fixture', 'echo', { digest: 'f'.repeat(64) });
   await assert.rejects(app.boot(), (e) => e instanceof BindingError && e.message.includes('changed the input schema of echo'));
   assert.ok(log.text().includes(schemaDigest(offered.echo.input_schema)), 'the current digest is shown');
 });
 
+test('a binding to an unconfigured server fails the boot by name', async () => {
+  const { app, registry, log } = servers({ fixture: stdio() });
+  serve(app, registry, 'ghost.echo', 'ghost', 'echo');
+  await assert.rejects(app.boot(), (e) => e instanceof BindingError
+    && e.message.includes('No MCP server named ghost is configured - a function binds its tool echo'));
+  assert.ok(log.text().includes('No MCP server named ghost is configured'));
+  assert.equal(app.servers.size, 0);
+});
+
+test('a configured server nobody binds is not connected', async () => {
+  // the spare server's command does not exist: it is never started, so the boot still succeeds
+  const { app, registry, log } = servers({ fixture: stdio(), spare: { transport: 'stdio', command: 'no-such-mcp-server-command' } });
+  serve(app, registry, 'fixture.echo', 'fixture', 'echo');
+  await app.boot();
+  try {
+    assert.deepEqual([...app.servers.keys()], ['fixture']);
+    assert.ok(log.text().includes('MCP server spare: no function binds a tool of it - not connected'));
+  } finally {
+    await app.shutdown();
+  }
+});
+
+for (const [server, tool, digest, message] of [
+  ['', 'echo', '0'.repeat(64), "needs the server's name"],
+  ['fixture', 'bad name!', '0'.repeat(64), 'is not a tool name'],
+  ['fixture', 'echo', 'short', 'needs schemaSha256']
+]) {
+  test(`bind refuses a bad declaration: ${message}`, () => {
+    assert.throws(() => createBinding({ log: ledger() }).bind(server, tool, { schemaSha256: digest }),
+      (e) => e instanceof BindingError && e.message.includes(message));
+  });
+}
+
 test('credential references reach the subprocess and never a log', async () => {
   process.env.FIXTURE_TOKEN = 'a-value-that-must-not-appear';
   try {
-    const { app, registry, log } = servers({ fixture: stdio({ env_present: 'fixture.env.present' }, { env: { FIXTURE_FORWARDED: '${FIXTURE_TOKEN}' } }) });
+    const { app, registry, log } = servers({ fixture: stdio({ env: { FIXTURE_FORWARDED: '${FIXTURE_TOKEN}' } }) });
+    serve(app, registry, 'fixture.env.present', 'fixture', 'env_present');
     await app.boot();
     try {
       assert.deepEqual(ok(await call(registry, 'fixture.env.present', { name: 'FIXTURE_FORWARDED' })), { present: true });
@@ -240,23 +291,21 @@ test('credential references reach the subprocess and never a log', async () => {
 
 test('an unset credential reference is refused at load', () => {
   delete process.env.FIXTURE_MISSING_TOKEN;
-  servers({ fixture: stdio({ echo: 'fixture.echo' }, { env: { TOKEN: '${FIXTURE_MISSING_TOKEN}' } }) });
+  servers({ fixture: stdio({ env: { TOKEN: '${FIXTURE_MISSING_TOKEN}' } }) });
   assert.throws(() => loadServers(), (e) => e instanceof BindingError && e.message.includes('env.TOKEN resolves to nothing'));
 });
 
-const tool = { echo: { route: 'a.b', schema_sha256: '0'.repeat(64) } };
 for (const [entry, message] of [
-  [{ transport: 'ftp', tools: tool }, 'transport must be stdio or http'],
-  [{ transport: 'stdio', tools: tool }, 'a stdio server needs a command'],
-  [{ transport: 'http', tools: tool }, 'an http server needs a url'],
-  [{ transport: 'stdio', command: 'x', url: 'http://x', tools: tool }, 'url and headers belong to an http server'],
-  [{ transport: 'stdio', command: 'x', colour: 'blue', tools: tool }, 'has unknown keys colour'],
-  [{ transport: 'stdio', command: 'x', tools: {} }, 'tools must map at least one remote tool'],
-  [{ transport: 'stdio', command: 'x', tools: { echo: { route: 'NoDots', schema_sha256: '0'.repeat(64) } } }, 'Invalid route name'],
-  [{ transport: 'stdio', command: 'x', tools: { echo: { route: 'a.b', schema_sha256: 'short' } } }, 'needs schema_sha256'],
-  [{ transport: 'stdio', command: 'x', tools: { echo: { route: 'a.b', schema_sha256: '0'.repeat(64), mode: 'x' } } }, 'has unknown keys mode'],
-  [{ transport: 'stdio', command: 'x', timeout_ms: 10, tools: tool }, 'timeout_ms must be at least 1000'],
-  [{ transport: 'stdio', command: 'x', tools: { echo: { route: 'a.b', schema_sha256: '0'.repeat(64) }, add: { route: 'a.b', schema_sha256: '0'.repeat(64) } } }, 'the route a.b is bound twice']
+  [{ transport: 'ftp' }, 'transport must be stdio or http'],
+  [{ transport: 'stdio' }, 'a stdio server needs a command'],
+  [{ transport: 'http' }, 'an http server needs a url'],
+  [{ transport: 'stdio', command: 'x', url: 'http://x' }, 'url and headers belong to an http server'],
+  [{ transport: 'stdio', command: 'x', colour: 'blue' }, 'has unknown keys colour'],
+  [{ transport: 'stdio', command: 'x', timeout_ms: 10 }, 'timeout_ms must be at least 1000'],
+  // the allowlist row of the first shape: the tools are bound in the code now, and the file says so
+  [{ transport: 'stdio', command: 'x', tools: { echo: { route: 'a.b', schema_sha256: '0'.repeat(64) } } },
+    'the tools are bound in the code, not in this file'],
+  [{ transport: 'stdio', command: 'x', instances: 3 }, 'has unknown keys instances']
 ]) {
   test(`the server file is checked before any connection: ${message}`, () => {
     servers({ s: entry });
@@ -264,13 +313,7 @@ for (const [entry, message] of [
   });
 }
 
-test('a route bound by two servers is refused', () => {
-  const shared = { echo: { route: 'shared.route', schema_sha256: '0'.repeat(64) } };
-  servers({ one: { transport: 'stdio', command: 'x', tools: shared }, two: { transport: 'stdio', command: 'y', tools: shared } });
-  assert.throws(() => loadServers(), (e) => e.message.includes('bound by both one and two'));
-});
-
-test('an empty server map starts with no route', () => {
+test('an empty server map loads no server', () => {
   const { log } = servers({});
   assert.deepEqual(loadServers(undefined, log), []);
   assert.ok(log.text().includes('No MCP server configured'));
@@ -304,7 +347,7 @@ async function waitFor(port, child, seconds = 20) {
   throw new Error('the fixture server did not listen in time');
 }
 
-test('the http transport serves the same routes', async () => {
+test('the http transport serves the same functions', async () => {
   const port = await freePort();
   const child = spawn(process.execPath, [FIXTURE, 'http', String(port)], { stdio: 'ignore' });
   try {
@@ -312,10 +355,10 @@ test('the http transport serves the same routes', async () => {
     process.env.FIXTURE_HTTP_TOKEN = 'bearer-value';
     const { app, registry } = servers({ remote: {
       transport: 'http', url: `http://127.0.0.1:${port}/mcp`,
-      headers: { Authorization: 'Bearer ${FIXTURE_HTTP_TOKEN}' },
-      tools: { echo: { route: 'remote.echo', schema_sha256: schemaDigest(offered.echo.input_schema) },
-        add: { route: 'remote.add', schema_sha256: schemaDigest(offered.add.input_schema) } }
+      headers: { Authorization: 'Bearer ${FIXTURE_HTTP_TOKEN}' }
     } });
+    serve(app, registry, 'remote.echo', 'remote', 'echo');
+    serve(app, registry, 'remote.add', 'remote', 'add');
     await app.boot();
     try {
       assert.equal(ok(await call(registry, 'remote.echo', { text: 'over http' })), 'over http');
@@ -331,7 +374,8 @@ test('the http transport serves the same routes', async () => {
 });
 
 test('health reports each server and its connection', async () => {
-  const { app } = servers({ fixture: stdio({ echo: 'fixture.echo' }) });
+  const { app, registry } = servers({ fixture: stdio() });
+  serve(app, registry, 'fixture.echo', 'fixture', 'echo');
   await app.boot();
   try {
     const info = await app.health({ type: 'info' }, {});
@@ -342,7 +386,7 @@ test('health reports each server and its connection', async () => {
     await app.shutdown();
   }
   assert.deepEqual((await app.health({ type: 'info' }, {})).servers, []);
-  const lost = new Server({ name: 'gone', transport: 'stdio', tools: [], command: 'x', args: [], env: {}, headers: {}, timeout_ms: 30000, instances: 10 });
+  const lost = new Server({ name: 'gone', transport: 'stdio', command: 'x', args: [], env: {}, headers: {}, timeout_ms: 30000 });
   app.servers.set('gone', lost);
   try {
     await rejects(app.health({ type: 'health' }, {}), 503, 'gone');
@@ -351,15 +395,16 @@ test('health reports each server and its connection', async () => {
   }
 });
 
-test('describe prints the digests and a catalog row', async () => {
-  const { app, lines } = servers({ fixture: stdio({ echo: 'fixture.echo' }) });
+test('describe prints the digests, the bind lines and a catalog row', async () => {
+  const { app, registry, lines } = servers({ fixture: stdio() });
+  serve(app, registry, 'fixture.echo', 'fixture', 'echo');
   const errors = [];
   assert.equal(await app.describe(['fixture'], (line) => errors.push(line)), 0);
   const out = lines.join('\n');
   assert.ok(out.includes(`schema_sha256: ${schemaDigest(offered.echo.input_schema)}`));
-  assert.ok(out.includes('## echo - bound as fixture.echo (digest ok)'));
-  assert.ok(out.includes('## add - not allowlisted'));
-  assert.ok(out.includes('"route": "fixture.echo"'));
+  assert.ok(out.includes('## echo - bound (digest ok)'));
+  assert.ok(out.includes('## add - not bound'));
+  assert.ok(out.includes(`bind('fixture', 'add', { schemaSha256: '${schemaDigest(offered.add.input_schema)}' })`));
   assert.ok(out.includes('"description": "Echo the text back."'));
   assert.equal(await app.describe(['unknown'], (line) => errors.push(line)), 1);
   assert.ok(errors.join('\n').includes('Unknown server(s): unknown'));

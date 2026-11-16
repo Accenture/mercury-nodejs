@@ -43,28 +43,37 @@
    `retention` are now fields of the loop contract: on `llm.chat` they need `tools`, and on `llm.stream` any of them is a
    400. A loop turn needs `llm.transcript.store`; the sample configuration sets `memory`.
 
-3. **The MCP binding: `extensions/mcp-binding/`, one composable route per allowlisted MCP tool (RFC-0011 / ADR-0033,
-   build plan step 4).** A polyglot function host on the official MCP SDK (`@modelcontextprotocol/sdk`, a dev dependency
-   of this repository and the app's own dependency outside it). Servers are named in `resources/mcp-servers.yml`, each with
-   its transport (`stdio` with a command this process starts, or `http` with a streamable HTTP URL), its credential
-   references (`${VAR}` placeholders resolved from the environment at boot, never logged; a stdio subprocess gets the
-   SDK's minimal environment plus the variables listed), and its allowlist mapping each remote tool name to a route and
-   the SHA-256 digest of the tool's input schema in canonical JSON. Boot connects every server before the host listens,
-   lists its tools, and refuses to start - by name - when an allowlisted tool is missing or its schema no longer matches
-   the digest, so a server-side change stops a deploy instead of reaching a model at run time. A route's body is the
-   tool's arguments; its reply is the server's structured content, else the text of its content blocks; a result marked
-   `isError` is a 400 carrying the server's text (the agent loop returns it to the model as that call's error), a slow
-   call a 408, a protocol failure a 502, a lost connection a 503. `node mcp-binding.mjs describe [server]` prints each
-   tool's digest and a catalog row for the graph, for the developer to review: the model reads the graph's descriptions,
-   never the server's. `mcp.health` reports each server and its connection. The shared vector file
-   `test/vectors/mcp-binding-vectors.json` (the Python twin runs the same bytes) pins the digest, the allowlist
-   verification and the result mapping; the rest of the tests drive a fixture MCP server of this repository over both
-   transports. Every bound route is an alias of one `preload` function, `mcp.tool` (private, bound to no tool), registered
-   at boot with the server's `instances`; the function reads the route it was called as from its execution context
-   (`getTrace().route`). **With it, `Platform` gains `onStartup(callback)`, `onCleanup(callback)` and `shutdown()`** - async
-   callbacks run before the host listens and at shutdown (SIGINT and SIGTERM are handled only when a cleanup callback is
-   registered), the place for an extension's asynchronous boot work; the routes a callback registers are announced with
-   the others. **Upgrade note:** none - nothing changes for an application that registers no callback.
+3. **The MCP binding: `extensions/mcp-binding/`, a composable function per MCP tool (RFC-0011 / ADR-0033, build plan
+   step 4; the declaration shape of the engines' `draft-design-specs/agent-tool-use.md`, 2026-11-16)** - in lockstep with
+   the Python pack. A library and a function host on the official MCP SDK (`@modelcontextprotocol/sdk`, a dev dependency
+   of this repository and the app's own dependency outside it). A tool of an MCP server is declared where every route is
+   declared, in the code: `const render = bind('mermaid', 'validate_and_render_mermaid_diagram', { schemaSha256: '5ae6…' })`
+   names the server, the remote tool and the SHA-256 digest of its input schema in canonical JSON and returns the tool as
+   an async function, and an ordinary `preload` function (`mermaid.render`) calls it - passing the arguments through,
+   shaping them or adding behaviour around the call. A route names the capability, never the transport: a tool may start
+   as an MCP tool and later be implemented another way, and the graph must not know. Servers are named in
+   `resources/mcp-servers.yml`, each with what is environment-specific: its transport (`stdio` with a command this process
+   starts, or `http` with a streamable HTTP URL), its credential references (`${VAR}` placeholders resolved from the
+   environment at boot, never logged; a stdio subprocess gets the SDK's default environment plus the variables listed) and
+   its call timeout. Boot connects every server a function binds a tool of, before the host listens, lists its tools and
+   refuses to start - by name - when a bound server is not configured, a bound tool is missing or its schema no longer
+   matches the pinned digest, so a server-side change stops a deploy instead of reaching a model at run time; a configured
+   server nobody binds is not connected. A function's body is the tool's arguments (a map, else a 400); its reply is the
+   server's structured content, else the text of its content blocks; a result marked `isError` is a 400 carrying the
+   server's text (the agent loop returns it to the model as that call's error), a slow call a 408, a protocol failure a 502,
+   a server not connected a 503. `node mcp-binding.mjs describe [server]` prints each tool's digest, the `bind` line to
+   paste and a catalog row for the graph, for the developer to review: the model reads the graph's descriptions, never the
+   server's. `mcp.health` reports each connected server and how many tools its functions bind. Out of the box the default
+   server file names the public Mermaid Chart MCP endpoint and the extension's `mermaid.render` binds its one tool, so the
+   binding starts and serves a tool with no credential. The shared vector file `test/vectors/mcp-binding-vectors.json`
+   (version 2; the Python twin runs the same bytes) pins the digest, the verification of declared bindings and the result
+   mapping; the rest of the tests drive a fixture MCP server of this repository over both transports. The first shape of
+   this binding (built 2026-11-14, before any release) read a `tools` allowlist under each server and registered each
+   tool's route at boot as an alias of a private `mcp.tool` function; it is gone, and a leftover `tools` key is refused by
+   name. **With it, `Platform` gains `onStartup(callback)`, `onCleanup(callback)` and `shutdown()`** - async callbacks run
+   before the host listens and at shutdown (SIGINT and SIGTERM are handled only when a cleanup callback is registered), the
+   place for an extension's asynchronous boot work; the routes a callback registers are announced with the others.
+   **Upgrade note:** none - nothing changes for an application that registers no callback.
 4. **Route aliases: `preload` takes one route name or a comma-separated list** - in lockstep with the Python pack.
    `preload('hello.declarative, hello.world', { instances: 10 }, handler)` registers the same function under every name
    with the same `instances` and visibility - the Java engine's `@PreLoad(route = "a.b, c.d")` and the Rust port's

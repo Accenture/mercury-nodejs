@@ -1,13 +1,19 @@
 # The MCP binding
 
-A polyglot function host that serves the tools of [MCP](https://modelcontextprotocol.io) servers as composable routes,
-one route per allowlisted remote tool - adapter family B of the AI agent orchestration concept, built as step 4 of
-RFC-0011 / ADR-0033 (the agent loop). A graph's agent loop (`llm.run` in the engines) names a route in its tool
-catalog; the engine reaches the route through declarative Event-over-HTTP like any other function; this app issues
-`tools/call` to the server behind it and returns the result. The engines stay MCP-free: a stdio server runs as a
-subprocess of this process, never of an engine, and the server's credentials stay in this process's environment.
+A library and a function host that serves the tools of [MCP](https://modelcontextprotocol.io) servers as composable
+functions, one `preload` function per tool, bound in code to the remote tool through the binding's encapsulated MCP
+client - adapter family B of the AI agent orchestration concept, built as step 4 of RFC-0011 / ADR-0033 (the agent loop)
+and reshaped by the engines' design spec `draft-design-specs/agent-tool-use.md` (2026-11-16). A graph's agent loop
+(`llm.run` in the engines) names a route in its tool catalog; the engine reaches the route through declarative
+Event-over-HTTP like any other function; the function here issues `tools/call` to the server behind it and returns the
+result. The engines stay MCP-free: a stdio server runs as a subprocess of this process, never of an engine, and the
+server's credentials stay in this process's environment.
 
-The client library is the official MCP SDK (`@modelcontextprotocol/sdk` on npm). The Python twin (mercury-python
+The principle: **a tool is a composable function**, whatever stands behind it. A route names the capability, never the
+transport (`mermaid.render`, not `mcp.mermaid.render`), because a tool may start as an MCP tool and later be implemented
+another way, and the graph must not know.
+
+The client library is the official MCP SDK (`@modelcontextprotocol/sdk`). The Python twin (mercury-python
 `extensions/mcp-binding`) speaks the same contract, and both are pinned by the shared vector file
 `test/vectors/mcp-binding-vectors.json`.
 
@@ -21,86 +27,105 @@ node extensions/mcp-binding/mcp-binding.mjs          # the same without mercury-
 ```
 
 The binding reads `resources/application.yml` next to `mcp-binding.mjs`, whichever directory the command runs from;
-`-Dkey=value` overrides any key. It listens on port 8089 by default (`rest.server.port`). With no server configured
-it starts and serves no tool route.
+`-Dkey=value` overrides any key. It listens on port 8089 by default (`rest.server.port`). Out of the box it serves one
+tool: `mermaid.render`, bound to the public Mermaid Chart MCP endpoint named in the default server file, which needs no
+credential. Its log ends with `MCP server mermaid: tool validate_and_render_mermaid_diagram bound`.
 
-To use it outside this repository, copy `mcp-binding.mjs` and its `resources` folder into your project,
-`npm install mercury-composable @modelcontextprotocol/sdk`, and run `npx mercury-serve mcp-binding.mjs` (the app
-imports `mercury-composable` by name, so the same file works in both places). The published package does not depend
-on the SDK: the SDK is the app's dependency, not the package's.
+To use it outside this repository, copy `mcp-binding.mjs` and its `resources` folder into your project, run
+`npm install mercury-composable @modelcontextprotocol/sdk`, declare your tools in the copy, and start it with
+`npx mercury-serve mcp-binding.mjs` (the app imports `mercury-composable` by name).
+
+## Declare a tool
+
+A tool is declared where every route is declared, in the code of `mcp-binding.mjs` (or of an application that imports
+`bind` from it):
+
+```javascript
+const render = bind('mermaid', 'validate_and_render_mermaid_diagram',
+  { schemaSha256: '5ae6d75d4ecfab919d9ef934bd679605bdbfc8b90b4d46f4d9dbd54d19c275ad' });
+
+preload('mermaid.render', { instances: 10 }, async (_headers, body) => render(body));
+```
+
+- **`bind(server, tool, { schemaSha256 })`** names the server as the server file names it, the remote tool and the
+  SHA-256 digest of the tool's input schema (`describe` prints it), and returns the tool as an async function: the
+  arguments in, the result out, with the contract below.
+- **The function is ordinary.** It may pass the arguments through, shape them, or add behaviour around the call; it is
+  public or private like any function, and its `instances` are its own.
+- **Boot verifies every declaration** before the host listens (the platform's startup hook): it connects every server a
+  function binds a tool of, lists its tools, and refuses to start - by name - when a bound server is not configured, a
+  bound tool is not offered, or its input schema no longer hashes to the pinned digest. A configured server nobody binds
+  is not connected (a warning); a tool the server offers but nothing binds is unreachable.
+
+Adding a tool is a server entry when the server is new, these few lines, a catalog row on the graph and an
+Event-over-HTTP entry on the engine.
 
 ## The server file
 
-`mcp.servers` names the file (default `mcp-servers.yml` in the resources folder; a relative path is read from there):
+`mcp.servers` names the file (default `mcp-servers.yml` in the resources folder; a relative path is read from there).
+It holds what is environment-specific, never the tools:
 
 ```yaml
 servers:
+  mermaid:
+    transport: http
+    url: 'https://chatgpt.mermaid.ai/anthropic/mcp'
+    timeout_ms: 20000
   documents:
     transport: stdio
     command: npx
     args: ['-y', '@modelcontextprotocol/server-filesystem', '/srv/documents']
-    tools:
-      read_text_file:
-        route: docs.read.text.file
-        schema_sha256: 'c6b1...'
-      list_directory:
-        route: docs.list.directory
-        schema_sha256: '9a0e...'
   tracker:
     transport: http
     url: 'https://mcp.example.internal/mcp'
     headers:
       Authorization: 'Bearer ${TRACKER_MCP_TOKEN}'
     timeout_ms: 20000
-    tools:
-      create_issue:
-        route: tracker.create.issue
-        schema_sha256: '41d7...'
 ```
 
 | Key | Meaning |
 | --- | --- |
 | `transport` | `stdio` (a command this process starts) or `http` (a streamable HTTP endpoint). Required. |
-| `command`, `args`, `env`, `cwd` | The stdio server. The subprocess gets the SDK's minimal default environment plus the variables under `env`, each a credential reference such as `${GITHUB_TOKEN}`, resolved from this process's environment at boot. |
+| `command`, `args`, `env`, `cwd` | The stdio server. The subprocess gets the SDK's default environment plus the variables under `env`, each a credential reference such as `${GITHUB_TOKEN}`, resolved from this process's environment at boot. |
 | `url`, `headers` | The http server and the headers it is reached with; a header value may be a reference such as `Bearer ${TOKEN}`. |
 | `timeout_ms` | How long one `tools/call` may take; default `mcp.call.timeout.ms` (30000), at least 1000. |
-| `instances` | How many calls one route serves at once; default 10. |
-| `tools` | The allowlist: each remote tool name maps to `route` (a Mercury route name, lowercase with a period) and `schema_sha256`, the digest of the tool's input schema. Required, at least one. |
 
-Any other key is refused by name, so a misspelt setting never falls back to a default. A reference that resolves to
-nothing (`${TOKEN}` with no `TOKEN` set) stops the boot by name, and a resolved value is never logged. A route may be
-bound once across all servers.
+Any other key is refused by name, so a misspelt setting never falls back to a default; a leftover `tools` allowlist from
+the binding's first shape is refused with a pointer to the code. A reference that resolves to nothing (`${TOKEN}` with no
+`TOKEN` set) stops the boot by name, and a resolved value is never logged.
 
 ### Digests: the server cannot change a tool under the graph
 
 A graph's catalog row carries the tool's description and input schema, written on the graph and certified with it, and
-the model reads the graph's text, never the server's. The digest ties the two together: `schema_sha256` is the SHA-256 of
-the tool's input schema in canonical JSON (keys sorted, no spaces, Unicode kept). At boot the binding lists each server's
-tools and refuses to start when an allowlisted tool is missing or its schema no longer hashes to the pinned digest, so a
-server-side change stops a deploy with its reason instead of becoming run-time errors a model improvises around. Print
-the digests, and a catalog row to review before the graph carries it, with:
+the model reads the graph's text, never the server's. The digest ties the two together: `schemaSha256` is the SHA-256 of
+the tool's input schema in canonical JSON (keys sorted, no spaces, Unicode kept), pinned next to the function that binds
+the tool. At boot the binding lists each server's tools and refuses to start when a bound tool is missing or its schema
+no longer hashes to the pinned digest, so a server-side change stops a deploy with its reason instead of becoming
+run-time errors a model improvises around. Print the digests, the `bind` line to paste and a catalog row to review before
+the graph carries it, with:
 
 ```bash
-node extensions/mcp-binding/mcp-binding.mjs describe documents
+node extensions/mcp-binding/mcp-binding.mjs describe mermaid
 ```
 
 ```text
-# MCP server documents (stdio) offers 14 tool(s)
+# MCP server mermaid (http) offers 1 tool(s)
 
-## read_text_file - bound as docs.read.text.file (digest ok)
-schema_sha256: c6b1...
-catalog row (review the description before the graph carries it):
+## validate_and_render_mermaid_diagram - bound (digest ok)
+schema_sha256: 5ae6d75d4ecfab919d9ef934bd679605bdbfc8b90b4d46f4d9dbd54d19c275ad
+bind('mermaid', 'validate_and_render_mermaid_diagram', { schemaSha256: '5ae6d75d…' })
+catalog row (name your function's route; review the description before the graph carries it):
 {
-  "name": "read_text_file",
-  "route": "docs.read.text.file",
+  "name": "validate_and_render_mermaid_diagram",
+  "route": "<the route of the function that binds it>",
   "description": "...",
   "input_schema": { ... }
 }
 ```
 
-A tool the server offers but the allowlist omits is shown as `not allowlisted` and is never served.
+A tool the server offers but no function binds is shown as `not bound` and is never served.
 
-## The route contract
+## The function contract
 
 | | |
 | --- | --- |
@@ -109,55 +134,49 @@ A tool the server offers but the allowlist omits is shown as `not allowlisted` a
 | 400 | The server marked the result an error (`isError`): the reply carries the server's text. The agent loop returns it to the model as that call's error, so the model reads it and chooses another step. |
 | 408 | The server did not answer within `timeout_ms`. |
 | 502 | The server answered outside the protocol, or the SDK reported a protocol error. |
-| 503 | The server is not connected (its process ended, or the endpoint is gone). |
+| 503 | The server is not connected (its process ended, the endpoint is gone, or the binding has not booted). |
 
-The routes are ordinary composable functions: a Java or Rust engine maps them in its `yaml.event.over.http` file to this
-app's `/api/event`, and a graph's catalog row names the route:
+The functions are ordinary composable functions: a Java or Rust engine maps them in its `yaml.event.over.http` file to
+this app's `/api/event`, and a graph's catalog row names the route - or a function of the engine application calls it and
+adds business logic of its own, as the Java Playground's `diagram.render` does in front of `mermaid.render`:
 
 ```yaml
 event:
   http:
-    - route: 'docs.read.text.file'
+    - route: 'mermaid.render'
       target: 'http://127.0.0.1:8089/api/event'
 ```
 
 ```json
-{ "name": "read_text_file", "route": "docs.read.text.file", "strict": true,
-  "description": "Read a document of the store's policy folder by its path.",
-  "input_schema": { "type": "object", "properties": { "path": { "type": "string" } }, "required": ["path"] } }
+{ "name": "render_diagram", "route": "mermaid.render", "strict": true,
+  "description": "Validate a Mermaid diagram and render it as SVG.",
+  "input_schema": { "type": "object", "properties": { "diagramCode": { "type": "string" } }, "required": ["diagramCode"] } }
 ```
 
-One client per server is shared by its routes for the life of the process. The health route
-`mcp.health` (the `/health` actuator, `mandatory.health.dependencies`) reports each server, its transport, its tool count
-and whether it is connected, and answers 503 naming a server whose session is gone.
+One client per server is shared by the functions bound to it, for the life of the process. The health route
+`mcp.health` (the `/health` actuator, `mandatory.health.dependencies`) reports each connected server, its transport, how
+many tools its functions bind and whether it is connected, and answers 503 naming a server whose connection is gone.
 
-Every bound route is served by one function, `mcp.tool`, declared with `preload` like any composable function and private:
-the host answers 403 for it on the wire, and it is bound to no tool. At boot, once a server's allowlist is verified, the
-binding registers each allowlisted tool's route as an alias of that function - `registry.register(route, tool, { instances })`,
-the pack's counterpart of the engines' `Platform.register`, with the server's `instances` - so every route is a service of
-its own, with its own mailbox and workers. A call learns the route it was addressed to from its execution context
-(`getTrace().route`, the pack's counterpart of the engines' read-only `my_route` header), which names the server and the
-remote tool; a call to `mcp.tool` by its own name is a 404.
-
-**Tracing.** A trace names the bound route, never `mcp.tool`: every trace field comes from the service entry the event
-was addressed to, so the route's own record, the execution context's route, the reply's sender and the host's `Handled`
-log line all read `diagram.render.mcp`. A traced call from an engine leaves the records a Java or Rust callee leaves (the
-pack's guide `docs/guides/config-logging-actuators.md`): the edge's round trip `http.request` (`POST /api/event`),
-parented onto the engine function that called; `event.api.service` under it; and the route's round-trip record under
-that, carrying the execution's span, its `exec_time` and the `round_trip` - the MCP server's `tools/call` is inside that
-`exec_time`, not a span of its own. Driven live through the Java Playground's `diagram-assistant` graph on 2026-11-14,
-the lineage is continuous from the engine's `diagram.render` into this route; the record is the engines'
+**Tracing.** A trace names the function's route, as for any function: the route's own record, the execution context's
+route (`getTrace().route`), the reply's sender and the host's `Handled` log line all read `mermaid.render`. A traced call
+from an engine leaves the records a Java or Rust callee leaves (the pack's guide `docs/guides/config-logging-actuators.md`):
+the edge's round trip `http.request` (`POST /api/event`), parented onto the engine function that called;
+`event.api.service` under it; and the route's round-trip record under that, carrying the execution's span, its
+`exec_time` and the `round_trip` - the MCP server's `tools/call` is inside that `exec_time`, not a span of its own. Driven
+live through the Java Playground's `diagram-assistant` graph on 2026-11-14 (under the route's earlier name), the lineage
+is continuous from the engine's `diagram.render` into this function; the record is the engines'
 `docs/test-reports/agent-loop-trace-lineage.md`.
 
 ## Security
 
 - **No engine runs a child process.** The MCP client, the subprocess and the credentials live here, in the pack, behind
   the engine's Event-over-HTTP map (the agent loop's design spec in the mercury-composable repository,
-  `draft-design-specs/llm-helper-agent-loop.md`, section 9).
+  `draft-design-specs/llm-helper-agent-loop.md`, section 9, and `draft-design-specs/agent-tool-use.md`).
 - **Credentials are references**, resolved from the environment at boot and never logged. The subprocess receives the
-  SDK's minimal default environment plus the variables listed, not this process's whole environment.
-- **The allowlist is the surface.** A tool that is not listed is not served; a listed tool whose schema changed is not
-  served either, until the digest is reviewed and updated.
+  SDK's default environment plus the variables listed, not this process's whole environment.
+- **The bindings in the code are the surface.** A tool no function binds is not served; a bound tool whose schema changed
+  is not served either, until the digest is reviewed and updated. What an application can reach is read in its code and
+  certified with it.
 - **The model never reads the server's descriptions.** The catalog row on the graph is the developer's text, reviewed
   through `describe`, so injection through a tool description is closed by construction.
 
@@ -168,8 +187,8 @@ npm install && npm run build
 node --test test/mcp-binding.test.mjs
 ```
 
-The shared vector file pins the pure half (the digest, the allowlist verification, the result mapping) in both packs;
-the rest of the tests drive a small MCP server of this repository (`test/fixtures/mcp-test-server.mjs`, on the official
-SDK) over stdio and over streamable HTTP: the boot that registers one route per tool and fails fast by name, the calls,
-the credential references that reach the subprocess and never a log, the health route, the describe output, and the
-platform's startup hook that runs the boot before the host listens.
+The shared vector file pins the pure half (the digest, the verification of declared bindings, the result mapping) in
+both packs; the rest of the tests drive a small MCP server of this repository (`test/fixtures/mcp-test-server.mjs`, on
+the official SDK) over stdio and over streamable HTTP: the boot that verifies every binding and fails fast by name, the
+calls through functions that bind the fixture's tools, the credential references that reach the subprocess and never a
+log, the health route, the describe output, and the platform's startup hook that runs the boot before the host listens.

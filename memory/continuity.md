@@ -13,13 +13,14 @@
 ## Project State
 
 - **project:** mercury-nodejs (npm: `mercury-composable`)
-- **status:** **4.12.30 TAGGED 2026-11-16 (PR #125 merge `0591f15` 09:10:04Z, the tag `v4.12.30` on the merge commit, the
-  version at the tag, the GitHub release published 09:11:45Z as Latest, CI green on the tag commit); the npm publication is
-  PENDING** - at 09:16Z npm still served 4.12.21 as `latest` (the previous release, 2026-10-07, [[pack-catch-up-release]]).
-  The 4.12.30 line carries the pack's half of the engines' agent loop (ADR-0033): the loop contract with the transcript
-  stores, the Bedrock backend and the MCP binding ([[pack-catch-up-4-12-25]]), in lockstep with the Python pack — the
-  Node.js member of the Mercury Composable polyglot initiative: a lightweight Event-over-HTTP function host + thin client,
-  repurposed August 2026.
+- **status:** **4.12.30 PUBLISHED to npm 2026-11-16 and VERIFIED** (PR #125 merge `0591f15`, the tag `v4.12.30` on the merge
+  commit, the GitHub release 09:11:45Z as Latest, CI green on the tag commit; published 09:28:42Z as `latest`, the tarball on
+  the CDN at 09:33:48Z with the registry's sha1 and sha512; all 44 published files identical to a build of the tag from
+  `git archive` - the 41 compiled files - and to the tag commit - `package.json`, README, LICENSE; two runtime dependencies,
+  no LLM or MCP SDK). The 4.12.30 line carries the pack's half of the engines' agent loop (ADR-0033): the loop contract with
+  the transcript stores, the Bedrock backend and the MCP binding (the catch-up [[pack-catch-up-4-12-25]], closed), in
+  lockstep with the Python pack — the Node.js member of the Mercury Composable polyglot initiative: a lightweight
+  Event-over-HTTP function host + thin client, repurposed August 2026.
 - **last_enabled:** 2026-08-22
 - **last_review:** 2026-11-13 | through 2026-11-13-030139.md (on command — 5 sessions since 2026-11-03-005949, not yet due;
   `refresh-metadata` refreshed 3 footers, tier changes 2 (`examples-one-folder-per-app` and `llm-helper-bedrock-iam` →
@@ -41,7 +42,7 @@
 > versions. `instructions.md` keeps only a high-level descriptor and points here.
 
 - TypeScript ^5.6 (devDeps `typescript` + `@types/node` ^22), Node.js ≥ 20 (`engines`),
-  compiled to `dist/` (ESM); npm package `mercury-composable` v4.12.21 (2026-10-07; the first publication v4.12.1 was
+  compiled to `dist/` (ESM); npm package `mercury-composable` v4.12.30 (2026-11-16; the first publication v4.12.1 was
   2026-09-01; the Java release number it caught up to; build copies default-log-context.yaml
   into dist/src); scripts: `build`, `test`, `prepack`
   <!-- id: stack-typescript-esm | created: 2026-08-22 | last_used: 2026-11-03 | uses: 8 | tier: active | origin: 2026-08-22-171916 -->

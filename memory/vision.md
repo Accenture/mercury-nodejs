@@ -9,6 +9,7 @@
 > functionality crosses from the engine to the language packs, and carries the Java release
 > number it caught up to. **Subprocesses allowed for stdio MCP 2026-11-03 (Eric).**
 > **Wording refreshed 2026-11-13 (Eric):** the previous port lives in tagged releases.
+> **Current-state line refreshed 2026-11-16:** 4.12.30 published.
 > Treated as `core` (never decays) but re-confirmed on the
 > invariant-verification cadence — a vision can go stale. The **Blueprint** (Open Threads
 > tagged `(blueprint)` in `continuity.md`) tracks the gap from Current State to here;
@@ -28,8 +29,9 @@ The Node.js member of the Mercury Composable polyglot initiative (August 2026): 
 API host (`POST /api/event`), a thin `PostOffice` client, the standard event-envelope
 codec (verified against the engines' shared golden vectors; int64 beyond 2⁵³ exact as
 BigInt), engine-consistent minimalist utilities, a primitive in-process event bus, and
-actuator endpoints. **v4.12.21 is on npm** (`npm install mercury-composable`, 2026-10-07; the
-first publication was v4.12.1, 2026-09-01);
+actuator endpoints. **v4.12.30 is on npm** (`npm install mercury-composable`, 2026-11-16; the
+first publication was v4.12.1, 2026-09-01), carrying the pack's half of the engines' agent loop
+(the loop contract, the Bedrock backend, the MCP binding);
 tests and golden vectors green; the previous full-framework port (≤ v4.3.28) lives in
 tagged releases only — it never occupied this name on the public registry.
 

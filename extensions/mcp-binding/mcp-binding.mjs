@@ -1,11 +1,25 @@
 /**
- * The MCP binding - a polyglot function host that serves the tools of MCP servers as composable
- * routes, one route per allowlisted remote tool (RFC-0011 / ADR-0033, section 9 of the agent
- * loop's design spec). The engines stay MCP-free: a graph's agent loop (`llm.run`) names a route in
- * its tool catalog, the engine reaches it through declarative Event-over-HTTP like any other
- * function, and this app issues `tools/call` to the server behind it. A stdio server runs as a
- * subprocess of this process, never of an engine, and its credentials stay in this process's
- * environment.
+ * The MCP binding - a library and a function host that serves the tools of MCP servers as composable
+ * functions, one preload function per tool, bound in code to the remote tool through this module's
+ * encapsulated MCP client (RFC-0011 / ADR-0033; the engines' draft-design-specs/agent-tool-use.md).
+ * The engines stay MCP-free: a graph's agent loop (`llm.run`) names a route in its tool catalog, the
+ * engine reaches it through declarative Event-over-HTTP like any other function, and the function
+ * here issues `tools/call` to the server behind it. A stdio server runs as a subprocess of this
+ * process, never of an engine, and its credentials stay in this process's environment.
+ *
+ * A tool is declared where every route is declared - in the code:
+ *
+ *     const render = bind('mermaid', 'validate_and_render_mermaid_diagram', { schemaSha256: '5ae6d75d...' });
+ *     preload('mermaid.render', { instances: 10 }, async (_headers, body) => render(body));
+ *
+ * bind names the server (as the server file names it), the remote tool and the SHA-256 digest of
+ * the tool's input schema, and returns the tool as an async function. Boot connects every server a
+ * function binds a tool of, lists its tools and verifies every binding before the host listens: a
+ * server that is not configured, a tool the server does not offer or an input schema whose digest
+ * differs from the pinned one stops the application by name, so a server-side change stops a deploy
+ * instead of becoming run-time errors a model improvises around. A route names the capability,
+ * never the transport: a tool may start as an MCP tool and later be implemented another way, and
+ * the graph must not know.
  *
  * Run:  npm install --save-dev @modelcontextprotocol/sdk     (or: npm install @modelcontextprotocol/sdk)
  *       node dist/src/cli.js extensions/mcp-binding/mcp-binding.mjs
@@ -13,14 +27,11 @@
  * Servers are named in resources/mcp-servers.yml (the mcp.servers key of application.yml names
  * the file): each has its transport (stdio with a command, or http with a URL), its credential
  * references (${ENV_VAR} placeholders, resolved from this process's environment at boot and never
- * logged), and its allowlist mapping each remote tool to a route with the SHA-256 digest of the
- * tool's input schema. Boot fails fast when an allowlisted tool is missing from tools/list or its
- * schema no longer matches the digest, so a server-side change stops a deploy instead of becoming
- * run-time errors a model improvises around.
+ * logged) and its call timeout - what is environment-specific. The tools are in the code.
  *
  *       node extensions/mcp-binding/mcp-binding.mjs describe [server ...]
  *
- * prints each server's tools with their digests and a catalog row to paste onto the graph, for the
+ * prints each server's tools with their digests, the bind line to paste and a catalog row for the
  * developer to review: the model sees the graph's descriptions, never the server's.
  *
  * The Python twin (mercury-python extensions/mcp-binding) speaks the same contract, and both are
@@ -34,9 +45,7 @@ import YAML from 'yaml';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport, getDefaultEnvironment } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import {
-  AppException, appConfig, defaultRegistry, getLogger, getTrace, loadConfig, platform, preload, validateRoute, VERSION
-} from 'mercury-composable';
+import { AppException, appConfig, getLogger, loadConfig, platform, preload, VERSION } from 'mercury-composable';
 
 const defaultLog = getLogger('mcp-binding');
 
@@ -49,18 +58,16 @@ export const MIN_CALL_TIMEOUT_MS = 1000;
 export const TRANSPORT_STDIO = 'stdio';
 export const TRANSPORT_HTTP = 'http';
 export const TRANSPORTS = [TRANSPORT_STDIO, TRANSPORT_HTTP];
-export const SERVER_KEYS = ['transport', 'command', 'args', 'env', 'cwd', 'url', 'headers', 'timeout_ms',
-  'instances', 'tools'];
-export const TOOL_KEYS = ['route', 'schema_sha256'];
+export const SERVER_KEYS = ['transport', 'command', 'args', 'env', 'cwd', 'url', 'headers', 'timeout_ms'];
 // the MCP specification's recommendation for a tool name
 const TOOL_NAME = /^[A-Za-z0-9_.-]{1,128}$/;
 const DIGEST = /^[0-9a-f]{64}$/;
-// the API-safe name a graph's catalog row may use for a route, derived for the describe output
+// the API-safe name a graph's catalog row may use, derived for the describe output
 const API_SAFE = /[^a-zA-Z0-9_-]/g;
 // the SDK's request timeout error code
 const REQUEST_TIMEOUT = -32001;
 
-/** A configuration or boot failure: the application must not start. */
+/** A declaration, configuration or boot failure: the application must not start. */
 export class BindingError extends Error {
   constructor(message) {
     super(message);
@@ -95,24 +102,25 @@ export function schemaDigest(schema) {
 }
 
 /**
- * Match the allowlist against the tools a server offers (tools/list as plain maps with name,
- * description and input_schema). Every allowlisted tool must be offered and its input schema must
- * hash to the pinned digest; the first failure names the tool.
+ * Match the tools bound to a server ({ server, tool, schema_sha256 } in declaration order) against
+ * the tools it offers (tools/list as plain maps with name, description and input_schema). Every
+ * bound tool must be offered and its input schema must hash to the pinned digest; the first
+ * failure, in declaration order, names the tool.
  */
-export function verify(spec, offered) {
+export function verify(server, bindings, offered) {
   const byName = new Map(offered.map((tool) => [String(tool.name), tool]));
   const bound = [];
-  for (const binding of spec.tools) {
-    const tool = byName.get(binding.name);
+  for (const binding of bindings) {
+    const tool = byName.get(binding.tool);
     if (!tool) {
       const names = [...byName.keys()].sort();
-      throw new BindingError(`MCP server ${spec.name} does not offer the tool ${binding.name} - `
+      throw new BindingError(`MCP server ${server} does not offer the tool ${binding.tool} - `
         + `it offers ${names.length ? names.join(', ') : 'no tools'}`);
     }
     const digest = schemaDigest(tool.input_schema);
     if (digest !== binding.schema_sha256) {
-      throw new BindingError(`MCP server ${spec.name} changed the input schema of ${binding.name} - `
-        + `its digest is now ${digest}, the configuration pins ${binding.schema_sha256}`);
+      throw new BindingError(`MCP server ${server} changed the input schema of ${binding.tool} - `
+        + `its digest is now ${digest}, the binding pins ${binding.schema_sha256}`);
     }
     bound.push({ binding, tool });
   }
@@ -120,7 +128,7 @@ export function verify(spec, offered) {
 }
 
 /**
- * The reply of a route from a CallToolResult as a plain map (content, structured_content,
+ * The reply of a function from a CallToolResult as a plain map (content, structured_content,
  * is_error): the structured content when the server gives it, else the text of the content blocks
  * joined by newlines; a result marked is_error is a 400 carrying the server's text, which the agent
  * loop returns to the model as that call's error.
@@ -162,7 +170,7 @@ export function toolAsPlain(tool) {
   return { name: tool.name, description: tool.description ?? '', input_schema: tool.inputSchema };
 }
 
-// --- configuration ----------------------------------------------------------------------
+// --- configuration: the servers ----------------------------------------------------------
 
 function resolveValue(value) {
   return typeof value === 'string' ? appConfig().resolveText(value) : value;
@@ -184,50 +192,14 @@ function stringMap(server, key, value) {
   return resolved;
 }
 
-function toolsOf(server, value) {
-  if (!isMap(value) || Object.keys(value).length === 0) {
-    throw new BindingError(`MCP server ${server}: tools must map at least one remote tool name to its route and digest`);
-  }
-  const bindings = [];
-  const routes = new Set();
-  for (const [name, item] of Object.entries(value)) {
-    if (!TOOL_NAME.test(name)) {
-      throw new BindingError(`MCP server ${server}: '${name}' is not a tool name (letters, digits, '_', '.' and '-', up to 128)`);
-    }
-    if (!isMap(item)) {
-      throw new BindingError(`MCP server ${server}: tool ${name} must be a map with route and schema_sha256`);
-    }
-    const unknown = Object.keys(item).filter((k) => !TOOL_KEYS.includes(k)).sort();
-    if (unknown.length) {
-      throw new BindingError(`MCP server ${server}: tool ${name} has unknown keys ${unknown.join(', ')} - the keys are route and schema_sha256`);
-    }
-    let route;
-    try {
-      route = validateRoute(String(item.route ?? ''));
-    } catch (e) {
-      throw new BindingError(`MCP server ${server}: tool ${name}: ${e.message}`);
-    }
-    if (routes.has(route)) {
-      throw new BindingError(`MCP server ${server}: the route ${route} is bound twice`);
-    }
-    routes.add(route);
-    const digest = String(item.schema_sha256 ?? '').toLowerCase();
-    if (!DIGEST.test(digest)) {
-      throw new BindingError(`MCP server ${server}: tool ${name} needs schema_sha256, the 64-hex digest of its input schema `
-        + `- run 'node mcp-binding.mjs describe ${server}' to print it`);
-    }
-    bindings.push({ name, route, schema_sha256: digest });
-  }
-  return bindings;
-}
-
 function serverOf(name, value, defaultTimeoutMs) {
   if (!isMap(value)) {
     throw new BindingError(`MCP server ${name} must be a map`);
   }
   const unknown = Object.keys(value).filter((k) => !SERVER_KEYS.includes(k)).sort();
   if (unknown.length) {
-    throw new BindingError(`MCP server ${name} has unknown keys ${unknown.join(', ')} - the keys are ${SERVER_KEYS.join(', ')}`);
+    const hint = unknown.includes('tools') ? ' - the tools are bound in the code, not in this file' : '';
+    throw new BindingError(`MCP server ${name} has unknown keys ${unknown.join(', ')} - the keys are ${SERVER_KEYS.join(', ')}${hint}`);
   }
   const transport = String(value.transport ?? '');
   if (!TRANSPORTS.includes(transport)) {
@@ -237,8 +209,6 @@ function serverOf(name, value, defaultTimeoutMs) {
   if (!Number.isFinite(timeoutMs) || timeoutMs < MIN_CALL_TIMEOUT_MS) {
     throw new BindingError(`MCP server ${name}: timeout_ms must be at least ${MIN_CALL_TIMEOUT_MS}`);
   }
-  const instances = Number(value.instances ?? DEFAULT_INSTANCES);
-  const tools = toolsOf(name, value.tools);
   if (transport === TRANSPORT_STDIO) {
     const command = resolveValue(value.command);
     if (!command) {
@@ -253,9 +223,9 @@ function serverOf(name, value, defaultTimeoutMs) {
     }
     const cwd = resolveValue(value.cwd);
     return {
-      name, transport, tools, command: String(command), args: rawArgs.map((a) => String(resolveValue(a))),
+      name, transport, command: String(command), args: rawArgs.map((a) => String(resolveValue(a))),
       env: stringMap(name, 'env', value.env), cwd: cwd === undefined || cwd === null ? undefined : String(cwd),
-      url: undefined, headers: {}, timeout_ms: timeoutMs, instances
+      url: undefined, headers: {}, timeout_ms: timeoutMs
     };
   }
   const url = resolveValue(value.url);
@@ -266,8 +236,8 @@ function serverOf(name, value, defaultTimeoutMs) {
     throw new BindingError(`MCP server ${name}: command, args, env and cwd belong to a stdio server`);
   }
   return {
-    name, transport, tools, command: undefined, args: [], env: {}, cwd: undefined, url: String(url),
-    headers: stringMap(name, 'headers', value.headers), timeout_ms: timeoutMs, instances
+    name, transport, command: undefined, args: [], env: {}, cwd: undefined, url: String(url),
+    headers: stringMap(name, 'headers', value.headers), timeout_ms: timeoutMs
   };
 }
 
@@ -295,20 +265,9 @@ export function loadServers(path, log = defaultLog) {
     throw new BindingError(`${file} must hold a 'servers' map`);
   }
   if (Object.keys(servers).length === 0) {
-    log.warn(`No MCP server configured in ${file} - the binding serves no tool route`);
+    log.warn(`No MCP server configured in ${file} - a function that binds a tool cannot start`);
   }
-  const specs = Object.entries(servers).map(([name, value]) => serverOf(String(name), value, defaultTimeout));
-  const routes = new Map();
-  for (const spec of specs) {
-    for (const binding of spec.tools) {
-      const owner = routes.get(binding.route);
-      if (owner) {
-        throw new BindingError(`The route ${binding.route} is bound by both ${owner} and ${spec.name}`);
-      }
-      routes.set(binding.route, spec.name);
-    }
-  }
-  return specs;
+  return Object.entries(servers).map(([name, value]) => serverOf(String(name), value, defaultTimeout));
 }
 
 // --- one connection per server -----------------------------------------------------------
@@ -342,10 +301,11 @@ export async function connectClient(spec) {
   return client;
 }
 
-/** One MCP server: its client, shared by every route of the server. */
+/** One MCP server: its client, shared by every function bound to the server. */
 export class Server {
-  constructor(spec, connect = connectClient, log = defaultLog) {
+  constructor(spec, bindings = [], connect = connectClient, log = defaultLog) {
     this.spec = spec;
+    this.bindings = [...bindings];
     this.connect = connect;
     this.log = log;
     this.client = undefined;
@@ -360,7 +320,7 @@ export class Server {
     const client = await this.connect(this.spec);
     try {
       const offered = await listTools(client);
-      this.bound = verify(this.spec, offered);
+      this.bound = verify(this.spec.name, this.bindings, offered);
     } catch (e) {
       await client.close().catch(() => undefined);
       throw e;
@@ -407,46 +367,58 @@ export class Server {
   }
 }
 
-// --- the application: boot, the tool function, the health check and describe -----------------
+// --- the client: bind a tool, boot the servers, report the health, describe ---------------------
 
 /**
- * The binding, wired to its dependencies: connect(spec) opens a server's client, registry holds
- * the routes, log the logger and out(line) prints describe's output. Tests inject fakes.
+ * The encapsulated MCP client of an application, wired to its dependencies: connect(spec) opens a
+ * server's client, log the logger and out(line) prints describe's output. Tests inject fakes.
  */
 export function createBinding({
   connect = connectClient,
-  registry = defaultRegistry,
   log = defaultLog,
   out = (line) => console.log(line)
 } = {}) {
   const servers = new Map();
-  // what each bound route serves - the server and the allowlisted tool - filled at boot
-  const routes = new Map();
-
-  /** The server and the allowlisted tool behind a bound route; a 404 for any other route. */
-  function bound(route) {
-    const found = routes.get(route ?? '');
-    if (!found) {
-      throw new AppException(404, `No MCP tool is bound to the route ${route || '(none)'}`);
-    }
-    return found;
-  }
+  // every tool a function of the application binds, in declaration order
+  const declared = [];
 
   /**
-   * The one function behind every bound route. The boot registers each allowlisted tool's route
-   * as an alias of this function (the engines' Platform.register: one function, several routes),
-   * so a call learns the route it was addressed to from its execution context - getTrace().route,
-   * the pack's counterpart of the engines' read-only my_route header - and the route names the
-   * server and the remote tool. The event body is the tool's arguments, a map; the reply is the
-   * result as toolResult shapes it. mcp.tool itself is private and bound to no tool: it declares
-   * the function, and a call to it by that name is a 404.
+   * Declare that a function of the application serves a tool of a server: the server as the server
+   * file names it, the remote tool's name and the digest of its input schema (describe prints it).
+   * Returns the tool as an async function - the arguments in (a map, else a 400), the result out as
+   * toolResult shapes it; a server that is not connected is a 503. Boot verifies the declaration
+   * against the live server before the host listens.
    */
-  async function tool(_headers, body) {
-    const { server, binding } = bound(getTrace()?.route);
-    if (!isMap(body)) {
-      throw new AppException(400, `The arguments of ${binding.name} must be a map`);
+  function bind(server, tool, { schemaSha256 } = {}) {
+    const name = String(server ?? '').trim();
+    if (!name) {
+      throw new BindingError(`bind() needs the server's name for the tool ${tool} - the one the server file uses`);
     }
-    return server.call(binding.name, body);
+    if (!TOOL_NAME.test(String(tool ?? ''))) {
+      throw new BindingError(`'${tool}' is not a tool name (letters, digits, '_', '.' and '-', up to 128)`);
+    }
+    const digest = String(schemaSha256 ?? '').toLowerCase();
+    if (!DIGEST.test(digest)) {
+      throw new BindingError(`The tool ${tool} of ${name} needs schemaSha256, the 64-hex digest of its input schema `
+        + `- run 'node mcp-binding.mjs describe ${name}' to print it`);
+    }
+    const binding = { server: name, tool: String(tool), schema_sha256: digest };
+    declared.push(binding);
+    const call = async (args) => {
+      if (!isMap(args)) {
+        throw new AppException(400, `The arguments of ${binding.tool} must be a map`);
+      }
+      const live = servers.get(binding.server);
+      if (!live) {
+        throw new AppException(503, `MCP server ${binding.server} is not connected`);
+      }
+      return live.call(binding.tool, args);
+    };
+    return Object.assign(call, { server: binding.server, tool: binding.tool, declared: binding });
+  }
+
+  function declaredFor(server) {
+    return declared.filter((d) => d.server === server);
   }
 
   async function shutdown() {
@@ -454,29 +426,36 @@ export function createBinding({
       await server.close();
     }
     servers.clear();
-    routes.clear();
   }
 
   /**
-   * Connect every configured server, verify its allowlist and register the routes - before the
-   * first request; a failure stops the application with its reason.
+   * Connect every server a function binds a tool of and verify every binding - before the host
+   * listens; a failure stops the application with its reason.
    */
   async function boot() {
     try {
       const specs = loadServers(undefined, log);
+      const configured = new Set(specs.map((s) => s.name));
+      for (const d of declared) {
+        if (!configured.has(d.server)) {
+          throw new BindingError(`No MCP server named ${d.server} is configured - a function binds its tool ${d.tool}`);
+        }
+      }
       for (const spec of specs) {
-        const server = new Server(spec, connect, log);
+        const bindings = declaredFor(spec.name);
+        if (!bindings.length) {
+          log.warn(`MCP server ${spec.name}: no function binds a tool of it - not connected`);
+          continue;
+        }
+        const server = new Server(spec, bindings, connect, log);
         await server.start();
         servers.set(spec.name, server);
         for (const { binding } of server.bound) {
-          // the route is an alias of tool - the one function under the configured name, the
-          // engines' Platform.register shape - with the server's instances
-          routes.set(binding.route, { server, binding });
-          registry.register(binding.route, tool, { instances: spec.instances });
-          log.info(`MCP server ${spec.name}: tool ${binding.name} served as ${binding.route}`);
+          log.info(`MCP server ${spec.name}: tool ${binding.tool} bound`);
         }
       }
-      log.info(`MCP binding ready - ${servers.size} server(s), ${routes.size} route(s)`);
+      const bound = [...servers.values()].reduce((n, s) => n + s.bound.length, 0);
+      log.info(`MCP binding ready - ${servers.size} server(s), ${bound} bound tool(s)`);
     } catch (e) {
       log.error(`MCP binding cannot start - ${e.message}`);
       await shutdown();
@@ -486,7 +465,7 @@ export function createBinding({
 
   /**
    * Health check speaking the engines' interface contract (type=info / type=health): which
-   * servers are configured, how many tools each serves, and whether each is connected.
+   * servers are connected and how many tools the functions of the application bind on each.
    */
   async function health(headers) {
     if (headers.type === 'info') {
@@ -505,7 +484,10 @@ export function createBinding({
     return 'mcp.binding is running fine';
   }
 
-  /** Print each server's tools, their input-schema digests and a catalog row for the graph. */
+  /**
+   * Print each server's tools, their input-schema digests, the bind line that declares each and a
+   * catalog row for the graph.
+   */
   async function describe(names, err = (line) => console.error(line)) {
     let specs;
     try {
@@ -528,34 +510,53 @@ export function createBinding({
       } finally {
         await client.close().catch(() => undefined);
       }
-      const configured = new Map(spec.tools.map((b) => [b.name, b]));
+      const bindings = new Map(declaredFor(spec.name).map((d) => [d.tool, d]));
       out(`# MCP server ${spec.name} (${spec.transport}) offers ${offered.length} tool(s)`);
       for (const tool of offered) {
         const digest = schemaDigest(tool.input_schema);
-        const bound = configured.get(tool.name);
+        const bound = bindings.get(tool.name);
         const state = bound
-          ? `bound as ${bound.route} ${bound.schema_sha256 === digest ? '(digest ok)' : '(DIGEST CHANGED)'}`
-          : 'not allowlisted';
+          ? `bound ${bound.schema_sha256 === digest ? '(digest ok)' : '(DIGEST CHANGED)'}`
+          : 'not bound';
         out(`\n## ${tool.name} - ${state}\nschema_sha256: ${digest}`);
+        out(`bind('${spec.name}', '${tool.name}', { schemaSha256: '${digest}' })`);
         const row = {
           name: tool.name.replace(API_SAFE, '_').slice(0, 128) || 'tool',
-          route: bound ? bound.route : '<route>',
+          route: '<the route of the function that binds it>',
           description: tool.description,
           input_schema: tool.input_schema
         };
-        out('catalog row (review the description before the graph carries it):');
+        out("catalog row (name your function's route; review the description before the graph carries it):");
         out(JSON.stringify(row, null, 2));
       }
     }
     return 0;
   }
 
-  return { boot, shutdown, tool, health, describe, servers, routes };
+  return { bind, boot, shutdown, health, describe, servers, declared, declaredFor };
 }
 
 const binding = createBinding();
-preload('mcp.tool', { instances: DEFAULT_INSTANCES, isPrivate: true }, binding.tool);
+/** Declare a tool a function of this application serves - see createBinding().bind. */
+export const bind = binding.bind;
+
 preload('mcp.health', { instances: 5, isPrivate: true }, binding.health);
+
+// --- the functions: a tool of an MCP server is a composable function of this application -------
+//
+// Declare each tool with bind(server, tool, { schemaSha256 }) - the server as the server file names
+// it, the remote tool's name and the digest `describe` prints - and call it from an ordinary
+// preload function, which may pass the arguments through, shape them or add behaviour around the
+// call. Name the route after the capability, never the transport.
+
+/**
+ * Validate a Mermaid diagram and render it as SVG - the tool of the public Mermaid Chart MCP server
+ * the default server file names. The body is the tool's arguments (diagramCode); the reply is the
+ * server's structured result.
+ */
+export const renderMermaid = bind('mermaid', 'validate_and_render_mermaid_diagram',
+  { schemaSha256: '5ae6d75d4ecfab919d9ef934bd679605bdbfc8b90b4d46f4d9dbd54d19c275ad' });
+preload('mermaid.render', { instances: DEFAULT_INSTANCES }, async (_headers, body) => renderMermaid(body));
 
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
 if (isMain) {
@@ -570,7 +571,7 @@ if (isMain) {
     await platform.run();
   }
 } else {
-  // loaded by mercury-serve: the servers connect inside the serving loop, before the first request
+  // loaded by mercury-serve: the servers connect inside the serving loop, before the host listens
   platform.onStartup(binding.boot);
   platform.onCleanup(binding.shutdown);
 }

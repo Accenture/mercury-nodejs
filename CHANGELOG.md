@@ -130,6 +130,17 @@
    one aggregator now finds the field under one name. The value is unchanged (a logger's name, or an unnamed logger's
    call site as `name:line`), and so are `time`, `level`, `message` and `context`; the `text` presentation is untouched.
    **Upgrade note:** an aggregator query or dashboard field that read `logger` from this pack's JSON lines reads `source`.
+6. **Code quality: the findings of a local SonarQube round (2026-11-16) in the package, the extensions and the test
+   fixture, with no behaviour change** - in lockstep with the Python pack. Optional chains where a value was tested for
+   `undefined` first; the protobuf writer's buffer is `readonly`; the span mapper writes a type tag, never
+   `[object Object]` by accident, for a structure JSON cannot serialize; the bus awaits a handler inside its traced
+   callback and reads a failure's status without a nested ternary; the fixture MCP server marks the promises it drops.
+   The LLM helper's duration pattern uses `\d`, its done-stop set is a `Set`, `bedrockBackend(client, name, api)` takes
+   its defaulted parameters last, and its sorts take an explicit comparator; the MCP binding's server parser is split by
+   transport, its `describe` spells a tool's state without a nested ternary, it reads the server file's name as a
+   string, and its sorts take the same comparator - one that keeps the code-unit order Python's `sorted()` gives, so the
+   canonical JSON behind every shared digest is unchanged. **Upgrade note:** none - `bedrockBackend` is called by the
+   helper itself (`backendFor`); an application that called it directly swaps the first two arguments.
 
 ## 4.12.21 (2026-10-07)
 

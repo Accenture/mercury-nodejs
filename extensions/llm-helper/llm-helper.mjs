@@ -83,7 +83,7 @@ export const TOOL_KEYS = ['name', 'description', 'input_schema', 'strict'];
 // loop's catalog to an API-safe name, never advertised
 const TOOL_NAME = /^[a-zA-Z0-9_-]{1,128}$/;
 const CONVERSATION_ID = /^[0-9a-f]{32}$/;
-const DURATION = /^([0-9]+)([smhd]?)$/;
+const DURATION = /^(\d+)([smhd]?)$/;
 const DURATION_SECONDS = { '': 1, s: 1, m: 60, h: 3600, d: 86400 };
 export const DEFAULT_TRANSCRIPT_TTL = '7d';
 export const DEFAULT_TRANSCRIPT_RETENTION = '0';
@@ -92,7 +92,7 @@ export const STORE_REDIS = 'redis';
 export const STORES = [STORE_MEMORY, STORE_REDIS];
 // the store's key prefix, so a Redis ACL can confine this app's user to ~transcript:*
 export const TRANSCRIPT_PREFIX = 'transcript:';
-const DONE_STOPS = ['end_turn', 'stop_sequence'];
+const DONE_STOPS = new Set(['end_turn', 'stop_sequence']);
 // a turn cut off by a limit: the loop names which one in its envelope
 const CAPS = { max_tokens: 'max_tokens', model_context_window_exceeded: 'context' };
 const CACHE_CONTROL = { type: 'ephemeral' };
@@ -103,8 +103,17 @@ const STREAM_LOOP = 'tools and the loop fields are not part of the streaming con
 
 const isMap = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
 // a value Python reads as true: a non-empty list or map, a non-empty string, a non-zero number
-const present = (value) => (Array.isArray(value) ? value.length > 0
-  : isMap(value) ? Object.keys(value).length > 0 : Boolean(value));
+function present(value) {
+  if (Array.isArray(value)) return value.length > 0;
+  if (isMap(value)) return Object.keys(value).length > 0;
+  return Boolean(value);
+}
+// the order Python's sorted() gives the same keys (code units, which are code points in the BMP): an
+// explicit comparator, so a locale never enters a message or a digest the twin repeats
+function byCodeUnit(a, b) {
+  if (a < b) return -1;
+  return a > b ? 1 : 0;
+}
 
 /** A whole number from a JSON number or a config string, or a 400 naming the field. */
 function wholeNumber(name, value, minimum) {
@@ -189,7 +198,7 @@ export const bedrockModel = (model) => (model.startsWith('claude-') ? `${BEDROCK
 
 /** AWS Bedrock over the SDK's client for the chosen surface: the AWS credential chain (or a
  * Bedrock API key) signs each call, and server-side refusal fallbacks are not offered there. */
-export function bedrockBackend(name = BEDROCK_BACKEND, client, api = AWS_API_MANTLE) {
+export function bedrockBackend(client, name = BEDROCK_BACKEND, api = AWS_API_MANTLE) {
   return {
     name,
     client,
@@ -218,7 +227,7 @@ export function bedrockBackend(name = BEDROCK_BACKEND, client, api = AWS_API_MAN
 /** The backend of a route over a client: defaultBackend() builds the client, tests inject one.
  * For Bedrock, api names the surface, which decides how a model id is spelled. */
 export function backendFor(name, client, api = AWS_API_MANTLE) {
-  return name === BEDROCK_BACKEND ? bedrockBackend(name, client, api) : anthropicBackend(name, client);
+  return name === BEDROCK_BACKEND ? bedrockBackend(client, name, api) : anthropicBackend(name, client);
 }
 
 /** The Bedrock surface a call goes to: the Anthropic-shaped endpoint (mantle, the default) or
@@ -499,7 +508,7 @@ export function createLlmHelper({
       throw new AppException(400, 'params must be a map');
     }
     const params = { ...body.params };
-    const unknown = Object.keys(params).filter((key) => !PARAMS.includes(key)).sort();
+    const unknown = Object.keys(params).filter((key) => !PARAMS.includes(key)).sort(byCodeUnit);
     if (unknown.length) {
       throw new AppException(400,
         `unsupported params: ${unknown.join(', ')} - supported: ${PARAMS.join(', ')}`);
@@ -627,7 +636,7 @@ export function createLlmHelper({
       if (!isMap(tool)) {
         throw new AppException(400, `tools[${index}] must be a map`);
       }
-      const unknown = Object.keys(tool).filter((key) => !TOOL_KEYS.includes(key)).sort();
+      const unknown = Object.keys(tool).filter((key) => !TOOL_KEYS.includes(key)).sort(byCodeUnit);
       if (unknown.length) {
         throw new AppException(400,
           `tools[${index}]: unsupported keys: ${unknown.join(', ')} - supported: ${TOOL_KEYS.join(', ')}`);
@@ -679,7 +688,7 @@ export function createLlmHelper({
       if (!isMap(result)) {
         throw new AppException(400, `results[${index}] must be a map`);
       }
-      const unknown = Object.keys(result).filter((key) => !['id', 'output', 'error'].includes(key)).sort();
+      const unknown = Object.keys(result).filter((key) => !['id', 'output', 'error'].includes(key)).sort(byCodeUnit);
       if (unknown.length) {
         throw new AppException(400,
           `results[${index}]: unsupported keys: ${unknown.join(', ')} - supported: id, output, error`);
@@ -940,7 +949,7 @@ export function createLlmHelper({
       }
       return { status: 'tool_use', calls };
     }
-    if (DONE_STOPS.includes(stop)) {
+    if (DONE_STOPS.has(stop)) {
       const data = judge(request, done, done.text !== '');
       return request.schema !== undefined ? { status: 'done', data } : { status: 'done', text: done.text };
     }

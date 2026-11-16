@@ -81,6 +81,13 @@ function isMap(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
+// the order Python's sorted() gives the same keys (code units, which are code points in the BMP): an
+// explicit comparator, so a locale never enters a digest or a message the twin repeats
+function byCodeUnit(a, b) {
+  if (a < b) return -1;
+  return a > b ? 1 : 0;
+}
+
 /**
  * Canonical JSON: keys sorted, no spaces, Unicode kept, an integral number written without a
  * fraction - the same bytes the Python twin hashes (its json module sorts keys the same way and
@@ -91,7 +98,7 @@ export function canonical(value) {
     return '[' + value.map(canonical).join(',') + ']';
   }
   if (isMap(value)) {
-    return '{' + Object.keys(value).sort().map((k) => JSON.stringify(k) + ':' + canonical(value[k])).join(',') + '}';
+    return '{' + Object.keys(value).sort(byCodeUnit).map((k) => JSON.stringify(k) + ':' + canonical(value[k])).join(',') + '}';
   }
   return JSON.stringify(value === undefined ? null : value);
 }
@@ -113,7 +120,7 @@ export function verify(server, bindings, offered) {
   for (const binding of bindings) {
     const tool = byName.get(binding.tool);
     if (!tool) {
-      const names = [...byName.keys()].sort();
+      const names = [...byName.keys()].sort(byCodeUnit);
       throw new BindingError(`MCP server ${server} does not offer the tool ${binding.tool} - `
         + `it offers ${names.length ? names.join(', ') : 'no tools'}`);
     }
@@ -196,7 +203,7 @@ function serverOf(name, value, defaultTimeoutMs) {
   if (!isMap(value)) {
     throw new BindingError(`MCP server ${name} must be a map`);
   }
-  const unknown = Object.keys(value).filter((k) => !SERVER_KEYS.includes(k)).sort();
+  const unknown = Object.keys(value).filter((k) => !SERVER_KEYS.includes(k)).sort(byCodeUnit);
   if (unknown.length) {
     const hint = unknown.includes('tools') ? ' - the tools are bound in the code, not in this file' : '';
     throw new BindingError(`MCP server ${name} has unknown keys ${unknown.join(', ')} - the keys are ${SERVER_KEYS.join(', ')}${hint}`);
@@ -209,25 +216,32 @@ function serverOf(name, value, defaultTimeoutMs) {
   if (!Number.isFinite(timeoutMs) || timeoutMs < MIN_CALL_TIMEOUT_MS) {
     throw new BindingError(`MCP server ${name}: timeout_ms must be at least ${MIN_CALL_TIMEOUT_MS}`);
   }
-  if (transport === TRANSPORT_STDIO) {
-    const command = resolveValue(value.command);
-    if (!command) {
-      throw new BindingError(`MCP server ${name}: a stdio server needs a command`);
-    }
-    const rawArgs = value.args ?? [];
-    if (!Array.isArray(rawArgs)) {
-      throw new BindingError(`MCP server ${name}: args must be a list`);
-    }
-    if (value.url || value.headers) {
-      throw new BindingError(`MCP server ${name}: url and headers belong to an http server`);
-    }
-    const cwd = resolveValue(value.cwd);
-    return {
-      name, transport, command: String(command), args: rawArgs.map((a) => String(resolveValue(a))),
-      env: stringMap(name, 'env', value.env), cwd: cwd === undefined || cwd === null ? undefined : String(cwd),
-      url: undefined, headers: {}, timeout_ms: timeoutMs
-    };
+  return transport === TRANSPORT_STDIO ? stdioServer(name, value, timeoutMs) : httpServer(name, value, timeoutMs);
+}
+
+/** A stdio server: the command this process starts, its arguments, its environment references and its folder. */
+function stdioServer(name, value, timeoutMs) {
+  const command = resolveValue(value.command);
+  if (!command) {
+    throw new BindingError(`MCP server ${name}: a stdio server needs a command`);
   }
+  const rawArgs = value.args ?? [];
+  if (!Array.isArray(rawArgs)) {
+    throw new BindingError(`MCP server ${name}: args must be a list`);
+  }
+  if (value.url || value.headers) {
+    throw new BindingError(`MCP server ${name}: url and headers belong to an http server`);
+  }
+  const cwd = resolveValue(value.cwd);
+  return {
+    name, transport: TRANSPORT_STDIO, command: String(command), args: rawArgs.map((a) => String(resolveValue(a))),
+    env: stringMap(name, 'env', value.env), cwd: cwd === undefined || cwd === null ? undefined : String(cwd),
+    url: undefined, headers: {}, timeout_ms: timeoutMs
+  };
+}
+
+/** An http server: the streamable HTTP URL and the headers it is reached with. */
+function httpServer(name, value, timeoutMs) {
   const url = resolveValue(value.url);
   if (!url) {
     throw new BindingError(`MCP server ${name}: an http server needs a url`);
@@ -236,7 +250,7 @@ function serverOf(name, value, defaultTimeoutMs) {
     throw new BindingError(`MCP server ${name}: command, args, env and cwd belong to a stdio server`);
   }
   return {
-    name, transport, command: undefined, args: [], env: {}, cwd: undefined, url: String(url),
+    name, transport: TRANSPORT_HTTP, command: undefined, args: [], env: {}, cwd: undefined, url: String(url),
     headers: stringMap(name, 'headers', value.headers), timeout_ms: timeoutMs
   };
 }
@@ -250,7 +264,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 export function loadServers(path, log = defaultLog) {
   const config = appConfig();
   const defaultTimeout = Number(config.get('mcp.call.timeout.ms', DEFAULT_CALL_TIMEOUT_MS));
-  let file = path ?? String(config.get('mcp.servers', DEFAULT_SERVERS_FILE));
+  const configured = config.get('mcp.servers', DEFAULT_SERVERS_FILE);
+  let file = path ?? (typeof configured === 'string' ? configured : DEFAULT_SERVERS_FILE);
   if (!isAbsolute(file)) {
     const base = config.resourcesDir ?? join(HERE, 'resources');
     file = join(base, file);
@@ -497,7 +512,7 @@ export function createBinding({
       return 1;
     }
     const wanted = specs.filter((s) => names.length === 0 || names.includes(s.name));
-    const missing = names.filter((n) => !specs.some((s) => s.name === n)).sort();
+    const missing = names.filter((n) => !specs.some((s) => s.name === n)).sort(byCodeUnit);
     if (missing.length) {
       err(`Unknown server(s): ${missing.join(', ')} - configured: ${specs.map((s) => s.name).join(', ')}`);
       return 1;
@@ -515,9 +530,10 @@ export function createBinding({
       for (const tool of offered) {
         const digest = schemaDigest(tool.input_schema);
         const bound = bindings.get(tool.name);
-        const state = bound
-          ? `bound ${bound.schema_sha256 === digest ? '(digest ok)' : '(DIGEST CHANGED)'}`
-          : 'not bound';
+        let state = 'not bound';
+        if (bound) {
+          state = bound.schema_sha256 === digest ? 'bound (digest ok)' : 'bound (DIGEST CHANGED)';
+        }
         out(`\n## ${tool.name} - ${state}\nschema_sha256: ${digest}`);
         out(`bind('${spec.name}', '${tool.name}', { schemaSha256: '${digest}' })`);
         const row = {

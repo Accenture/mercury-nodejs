@@ -55,7 +55,7 @@ export function forwarder(exporter: Exporter): (headers: Record<string, string>,
 /** Whether `otel.forwarding` is switched on (the text `true`, case-insensitive). */
 export function enabled(config: AppConfig): boolean {
   const value = config.getProperty(FORWARDING_SWITCH);
-  return value !== undefined && value.trim().toLowerCase() === 'true';
+  return value?.trim().toLowerCase() === 'true';
 }
 
 /**

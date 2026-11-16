@@ -48,7 +48,7 @@ const MASK_64 = (1n << 64n) - 1n;
  * `oneof` members (which have explicit presence) - the `*Always` methods.
  */
 export class ProtoWriter {
-  private chunks: number[] = [];
+  private readonly chunks: number[] = [];
 
   intoBytes(): Uint8Array {
     return Uint8Array.from(this.chunks);

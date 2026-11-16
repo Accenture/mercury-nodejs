@@ -9,9 +9,11 @@
  * engines), else the log.level configuration key, else INFO. log.format
  * carries the engines' three presentations: text (default), json
  * (pretty-printed) and compact (the same object on a single line - JSONL -
- * for log aggregators). Inside a traced request, the JSON presentations add
- * the application log "context" block (the engines' app-log-context feature -
- * see log-context.ts).
+ * for log aggregators). A JSON line carries time, level, source (the emitting
+ * logger - a logger's name, or an unnamed logger's call site as name:line -
+ * under the label the Java engine's JSON layout uses) and message; inside a
+ * traced request, the JSON presentations add the application log "context"
+ * block (the engines' app-log-context feature - see log-context.ts).
  */
 import { appConfig } from './config.js';
 import { logContextConfig } from './log-context.js';
@@ -32,6 +34,11 @@ function setup(): void {
   minLevel = idx === -1 ? 1 : idx;
   logFormat = String(config.get('log.format', 'text')).toLowerCase();
   configured = true;
+}
+
+/** Re-read log.level and log.format on the next line (tests switch presentations). */
+export function resetLogForTest(): void {
+  configured = false;
 }
 
 function timestamp(): string {
@@ -77,12 +84,12 @@ function write(level: Level, name: string | undefined, message: LogMessage, args
   setup();
   if (LEVELS.indexOf(level) < minLevel) return;
   const rendered = renderMessage(message, args);
-  const logger = name ?? callSite();
+  const source = name ?? callSite();
   if (logFormat === 'json' || logFormat === 'compact') {
     const entry: Record<string, unknown> = {
       time: timestamp(),
       level,
-      logger,
+      source,
       message: rendered
     };
     // the application log context (the engines' app-log-context feature):
@@ -100,7 +107,7 @@ function write(level: Level, name: string | undefined, message: LogMessage, args
     process.stdout.write(JSON.stringify(entry, null, indent) + '\n');
   } else {
     const text = typeof rendered === 'string' ? rendered : JSON.stringify(rendered);
-    process.stdout.write(`${timestamp()} ${level.padEnd(5)} ${logger} - ${text}\n`);
+    process.stdout.write(`${timestamp()} ${level.padEnd(5)} ${source} - ${text}\n`);
   }
 }
 

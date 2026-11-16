@@ -35,6 +35,10 @@ preload('my.function', { instances: 10 }, async (headers, body) => {
   and reply headers, or a promise of either — the bus awaits the result.
 - **Route names** — lowercase letters, digits, period, hyphen, underscore, with at
   least one period (`hello.node`, not `HelloNode`).
+- **Route aliases** — the route is one name or a comma-separated list, the engines'
+  `@PreLoad(route = "hello.declarative, hello.world")`: every name is registered as the
+  same function with the same `instances` and visibility, and a handler reads the name
+  it was called as from `getTrace().route` (the engines' `my_route`).
 - **Statelessness** — anything a handler must keep belongs to the caller's flow model
   or graph state machine, never to module globals.
 

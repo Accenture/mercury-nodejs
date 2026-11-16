@@ -29,7 +29,10 @@ preload('hello.node', { instances: 10 }, async (headers, body) => {
   return { text: body.text.toUpperCase(), language: 'node.js' };
 });
 
-preload('hello.declarative', { instances: 10 }, async (headers, body) => {
+// Two routes, one function: hello.world is an alias of hello.declarative (the
+// engines' comma-separated PreLoad route list). The function sees the route it
+// was called as in getTrace().route.
+preload('hello.declarative, hello.world', { instances: 10 }, async (headers, body) => {
   return { body, headers, language: 'node.js' };
 });
 

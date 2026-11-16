@@ -92,6 +92,10 @@ status and reply headers). Node.js is non-blocking by nature; handlers may be as
   exception handler or the graph's `error.*` contract.
 - `getTrace()` exposes `traceId` / `tracePath` / `cid`; `annotateTrace(k, v)` sends an
   annotation back on the reply envelope.
+- **Route aliases**: the route is one name or a comma-separated list
+  (`preload('hello.declarative, hello.world', ...)`), the engines' `@PreLoad` semantics —
+  every name is the same function with the same `instances` and visibility, and a handler
+  reads the name it was called as from `getTrace().route`.
 - Functions must be stateless; anything you must keep belongs to the caller's flow model
   or state machine.
 

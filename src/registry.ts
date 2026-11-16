@@ -1,6 +1,7 @@
 /**
  * Function registry and the preload() registration, mirroring the engines'
- * PreLoad vocabulary: route name, instance count (concurrency limit) and a
+ * PreLoad vocabulary: route name - or a comma-separated list of route names,
+ * aliases of the same function - instance count (concurrency limit) and a
  * private flag. Handlers take (headers, body) — the same two-part input as a
  * TypedLambdaFunction — and return the reply body (or an EventEnvelope for
  * full control of status and reply headers).
@@ -44,6 +45,29 @@ export function validateRoute(route: string): string {
       'period, hyphen or underscore with at least one period');
   }
   return trimmed;
+}
+
+const ROUTE_SEPARATORS = /[,\s]+/;
+
+/**
+ * The engines' PreLoad route value: one route name, or a comma-separated list
+ * of names that are aliases of the same function. Mirrors the Java engine,
+ * which splits the annotation's value on commas and spaces and drops empty
+ * segments: every name is validated, a repeated name counts once (order
+ * kept), and a value with no name at all is refused the way the engine
+ * refuses it - "missing service route(s)".
+ */
+export function splitRoutes(route: string): string[] {
+  const names: string[] = [];
+  for (const name of (route ?? '').split(ROUTE_SEPARATORS)) {
+    if (name && !names.includes(name)) {
+      names.push(validateRoute(name));
+    }
+  }
+  if (!names.length) {
+    throw new Error('Unable to preload - missing service route(s)');
+  }
+  return names;
 }
 
 export class FunctionRegistry {
@@ -116,10 +140,21 @@ export const defaultRegistry = new FunctionRegistry();
  * Register a function handler under a route name (engine PreLoad analog).
  *
  *   preload('hello.node', { instances: 10 }, async (headers, body) => ({ ok: true }));
+ *
+ * The route is one name or a comma-separated list of names - the engines'
+ * `@PreLoad(route = "hello.declarative, hello.world")`: every name is
+ * registered as the same function with the same instances and visibility, so
+ * the second and later names are aliases of the first. A handler reads the
+ * name it was called as from getTrace().route (the engines' my_route).
+ *
+ *   preload('hello.declarative, hello.world', { instances: 10 },
+ *           async (headers, body) => ({ body, headers }));
  */
 export function preload(route: string,
                         options: { instances?: number; isPrivate?: boolean;
                                    interceptor?: boolean },
                         handler: Handler): void {
-  defaultRegistry.register(route, handler, options);
+  for (const name of splitRoutes(route)) {
+    defaultRegistry.register(name, handler, options);
+  }
 }

@@ -1,2 +1,2 @@
 /** Package version - the single TS-side source (package.json mirrors it). */
-export const VERSION = '4.12.21';
+export const VERSION = '4.12.30';

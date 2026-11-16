@@ -1682,6 +1682,8 @@ authored on the engine — use the
   error). Unexpected exception → 500 + message + stack. Never return HTTP-shaped
   objects like <code>{ status: 400 }</code>.</li>
 <li><code>getTrace()</code> → <code>{ traceId, tracePath, cid, annotations }</code> or <code>undefined</code>.</li>
+<li>The route is one name or a comma-separated list: aliases of one function, same
+  <code>instances</code> and visibility; <code>getTrace().route</code> is the name it was called as.</li>
 <li>Reserved inbound header <code>my_correlation_id</code> = the caller's business correlation id
   (read-only). Never send headers named <code>my_*</code> or <code>x-event-api</code>.</li>
 </ul>

@@ -4,6 +4,8 @@
   when its work is ready** and adopts whatever Java number is current then (every port adopts the Java number on catch-up).
   Content on main since 4.12.21: PRs #111, #112 and #113 (the Python twins: mercury-python #43, #44, #45), and since
   2026-11-03 #114 (the helper's move to `extensions/`, the twin of mercury-python #46) and #115 (the loop contract, the twin
-  of mercury-python #47; merge `d6a0bd9`, 2026-11-03). The previous catch-up's close record is [[pack-catch-up-release]].
+  of mercury-python #47; merge `d6a0bd9`, 2026-11-03). Since 2026-11-14: #118 to #120 (the MCP binding and the trace records, [[mcp-binding]] and
+  [[trace-records-engine-parity]]) and, 2026-11-16, #121 (route aliases in `preload` and the JSON log `source` label,
+  the Java engine's shapes; the twin of mercury-python #54). The previous catch-up's close record is [[pack-catch-up-release]].
   → serves: vision-mercury-nodejs
   <!-- id: pack-catch-up-4-12-25 | created: 2026-10-14 | last_used: 2026-11-13 | uses: 7 | tier: working | origin: 2026-10-14-015422 -->

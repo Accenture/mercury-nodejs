@@ -10,5 +10,6 @@
   pack):** a `preload` function per tool bound in code through `bind(server, tool, { schemaSha256 })`, no generic route,
   the server file servers-only, the extension's own `mermaid.render` out of the box; the shared vectors version 2 (49
   tests; the boot and a render driven live against the Mermaid server). Then the Playground calls `mermaid.render`.
-  Fact: [[mcp-binding-function-per-tool]].
+  PR #122 MERGED 2026-11-16 (merge `5157070`); the twin of mercury-python #55 (merge `cf216f3`); the engines' PR #630
+  carries the design spec and the Playground's `mermaid.render`. Fact: [[mcp-binding-function-per-tool]].
   <!-- id: mcp-binding | created: 2026-11-14 | last_used: 2026-11-14 | uses: 1 | tier: working | origin: 2026-11-14-074701 -->

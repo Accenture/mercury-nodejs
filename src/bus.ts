@@ -59,7 +59,7 @@ export function asyncAck(): EventEnvelope {
     .setBody({ type: 'async', delivered: true, time: isoUtc() });
 }
 
-interface TraceFields {
+export interface TraceFields {
   traceId?: string;
   tracePath?: string;
   cid?: string;

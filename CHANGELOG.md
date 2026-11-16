@@ -142,6 +142,14 @@
    canonical JSON behind every shared digest is unchanged. **Upgrade note:** none - `bedrockBackend` is called by the
    helper itself (`backendFor`); an application that called it directly swaps the first two arguments.
 
+7. **Code quality: the cognitive-complexity findings of a second local SonarQube round (2026-11-16), with no behaviour
+   change** - in lockstep with the Python pack. The two functions above the threshold of 15 are split along their
+   natural seams: the Event API host decodes the request body and delivers an RPC in helpers of their own, and the
+   interceptor dispatch reads the caller's `accept` header itself; the OTLP response decoder reads the `partial_success`
+   block and its fields in one helper each, the same shape as the Python twin. The span mapper, at the threshold's edge,
+   takes the twin's split too: the start time, the status and the attributes apart. Every check runs in the order it did
+   and writes the message it did, so the shared vector files pass unchanged. **Upgrade note:** none.
+
 ## 4.12.21 (2026-10-07)
 
 The lock-step round with the engines: the pack moves from 4.12.15 to 4.12.21, the number the Java engine and the

@@ -25,7 +25,7 @@
 import { randomBytes } from 'node:crypto';
 import * as http from 'node:http';
 import { Actuator, appOrigin, sendError } from './actuator.js';
-import { DeliveryTimeout, EventBus, Mailbox, raceMs, roundTripRecord } from './bus.js';
+import { DeliveryTimeout, EventBus, Mailbox, raceMs, roundTripRecord, TraceFields } from './bus.js';
 import { appConfig } from './config.js';
 import { EventEnvelope, isoUtc } from './envelope.js';
 import {
@@ -42,7 +42,6 @@ import {
   TEXT_EVENT_STREAM,
   X_TTL
 } from './event-stream.js';
-import { CompactFormatError } from './exceptions.js';
 import { getLogger } from './log.js';
 import { activate as activateOtelForwarder } from './otel/index.js';
 import { defaultRegistry, FunctionRegistry, ServiceDef } from './registry.js';
@@ -62,6 +61,17 @@ function transportError(res: http.ServerResponse, status: number, message: strin
   const bytes = reply.toBytes();
   res.writeHead(status, { 'content-type': OCTET_STREAM, 'content-length': bytes.length });
   res.end(bytes);
+}
+
+/** The request body as an envelope; a body the codec rejects is answered with the 400 and yields undefined. */
+function decodeEvent(res: http.ServerResponse, raw: Buffer): EventEnvelope | undefined {
+  try {
+    return EventEnvelope.fromBytes(raw);
+  } catch (e) {
+    // CompactFormatError is an Error - one catch covers the codec errors
+    transportError(res, 400, e instanceof Error ? e.message : String(e));
+    return undefined;
+  }
 }
 
 function handlerHeaders(event: EventEnvelope): Record<string, string> {
@@ -174,15 +184,8 @@ export class EventApiServer {
                             raw: Buffer): Promise<void> {
     const ttl = Math.max(1000, Number.parseInt(String(req.headers['x-ttl'] ?? '0'), 10) || 0);
     const isAsync = req.headers['x-async'] === 'true';
-    let event: EventEnvelope;
-    try {
-      event = EventEnvelope.fromBytes(raw);
-    } catch (e) {
-      if (e instanceof CompactFormatError || e instanceof Error) {
-        transportError(res, 400, e.message);
-        return;
-      }
-      transportError(res, 400, String(e));
+    const event = decodeEvent(res, raw);
+    if (!event) {
       return;
     }
     if (!event.to) {
@@ -228,14 +231,23 @@ export class EventApiServer {
       // interceptor dispatch (the reply_to mechanism): the handler receives
       // the raw envelope with a per-request reply sink as its reply address
       // and answers manually - single-shot or streaming
-      const capable = String(req.headers['accept'] ?? '').includes(TEXT_EVENT_STREAM);
-      await this.dispatchInterceptor(res, service, event, headers, ttl, capable, edge);
+      await this.dispatchInterceptor(req, res, service, event, headers, ttl, edge);
       return;
     }
+    await this.deliver(res, service, event, headers, ttl, trace, edge);
+  }
+
+  /**
+   * The RPC: the function's reply relayed on HTTP 200, or the 408 when the ttl expires - the
+   * function's round trip and the edge recorded when the call was traced.
+   */
+  private async deliver(res: http.ServerResponse, service: ServiceDef, event: EventEnvelope,
+                        headers: Record<string, string>, ttl: number, trace: TraceFields,
+                        edge?: Edge): Promise<void> {
     const dispatched = isoUtc();
     const started = process.hrtime.bigint();
     try {
-      const reply = await bus.deliver(service, headers, event.body, ttl, trace);
+      const reply = await this.registry.bus.deliver(service, headers, event.body, ttl, trace);
       log.info(`Handled ${event.to} status=${reply.getStatus()} ` +
         `exec_time=${reply.execTime}ms trace_id=${event.traceId ?? 'none'}`);
       const bytes = reply.toBytes();
@@ -266,11 +278,13 @@ export class EventApiServer {
    * marked = the envelope-mode SSE dialect for a caller that accepts
    * text/event-stream, or the pinned 406 refusal for one that does not.
    */
-  private async dispatchInterceptor(res: http.ServerResponse, service: ServiceDef,
-                                    event: EventEnvelope, headers: Record<string, string>,
-                                    ttl: number, capable: boolean, edge?: Edge): Promise<void> {
+  private async dispatchInterceptor(req: http.IncomingMessage, res: http.ServerResponse,
+                                    service: ServiceDef, event: EventEnvelope,
+                                    headers: Record<string, string>, ttl: number,
+                                    edge?: Edge): Promise<void> {
     const bus = this.registry.bus;
     const [sinkRoute, queue] = bus.openSink();
+    const capable = String(req.headers['accept'] ?? '').includes(TEXT_EVENT_STREAM);
     try {
       const handlerEvent = new EventEnvelope(event.to, event.body, headers);
       handlerEvent.setReplyTo(sinkRoute);

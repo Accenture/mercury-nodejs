@@ -76,26 +76,42 @@ export function spanFromDataset(dataset: unknown): Span | undefined {
   const traceId = hexId(trace.id, 16);
   const spanId = hexId(trace.span_id, 8);
   if (!traceId || !spanId) return undefined;
-  const parentSpanId = hexId(trace.parent_span_id, 8);
   const annotations = isRecord(dataset.annotations) ? dataset.annotations : {};
-  const startText = display(trace.start);
-  const startUnixNano = (startText !== undefined ? parseIso8601Nanos(startText) : undefined)
-    ?? nowNanos();
+  const startUnixNano = startNanos(trace.start);
   const execMs = toNumber(trace.exec_time);
-  const endUnixNano = startUnixNano + BigInt(Math.trunc(execMs * NANOS_PER_MILLI));
-  let statusCode = STATUS_OK;
-  let statusMessage = '';
-  if (!toBool(trace.success)) {
-    statusCode = STATUS_ERROR;
-    statusMessage = display(trace.exception) ?? `status=${display(trace.status) ?? 'null'}`;
-  }
+  const [statusCode, statusMessage] = spanStatus(trace);
   const service = display(trace.service);
   const path = display(trace.path);
-  const name = service ?? path ?? 'task';
   // the edge's round-trip record (service "http.request", emitted by an engine's REST
   // automation when the response completes) is the SERVER span; every function execution
   // - including the first one, whose "from" is http.request - is an INTERNAL hop under it
   const kind = service === HTTP_REQUEST ? KIND_SERVER : KIND_INTERNAL;
+  return { traceId, spanId, parentSpanId: hexId(trace.parent_span_id, 8),
+           name: service ?? path ?? 'task', kind, startUnixNano,
+           endUnixNano: startUnixNano + BigInt(Math.trunc(execMs * NANOS_PER_MILLI)),
+           attributes: spanAttributes(trace, annotations, service, path, execMs),
+           statusCode, statusMessage };
+}
+
+/** The dataset's `start` as nanoseconds since the epoch; now when it is missing or does not parse. */
+function startNanos(value: unknown): bigint {
+  const text = display(value);
+  return (text !== undefined ? parseIso8601Nanos(text) : undefined) ?? nowNanos();
+}
+
+/** The span status: OK for a success, else ERROR described by the exception, or by the status. */
+function spanStatus(trace: Record<string, unknown>): [number, string] {
+  if (toBool(trace.success)) return [STATUS_OK, ''];
+  return [STATUS_ERROR, display(trace.exception) ?? `status=${display(trace.status) ?? 'null'}`];
+}
+
+/**
+ * The span attributes: the trace metrics under the same names (`service` as `route`) and
+ * each annotation as `annotation.<key>`.
+ */
+function spanAttributes(trace: Record<string, unknown>, annotations: Record<string, unknown>,
+                        service: string | undefined, path: string | undefined,
+                        execMs: number): Array<[string, AttributeValue]> {
   const attributes: Array<[string, AttributeValue]> = [];
   const putStr = (key: string, value: string | undefined): void => {
     if (value !== undefined) attributes.push([key, { type: 'string', value }]);
@@ -111,16 +127,11 @@ export function spanFromDataset(dataset: unknown): Span | undefined {
   if (trace.round_trip !== undefined && trace.round_trip !== null) {
     attributes.push(['round_trip_ms', { type: 'double', value: toNumber(trace.round_trip) }]);
   }
-  const exception = display(trace.exception);
-  if (exception !== undefined) {
-    attributes.push(['exception', { type: 'string', value: exception }]);
-  }
+  putStr('exception', display(trace.exception));
   for (const [key, value] of Object.entries(annotations)) {
-    const text = display(value);
-    if (text !== undefined) attributes.push([`annotation.${key}`, { type: 'string', value: text }]);
+    putStr(`annotation.${key}`, display(value));
   }
-  return { traceId, spanId, parentSpanId, name, kind, startUnixNano, endUnixNano, attributes,
-           statusCode, statusMessage };
+  return attributes;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

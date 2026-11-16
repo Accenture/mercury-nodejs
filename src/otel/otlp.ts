@@ -356,39 +356,58 @@ export interface PartialSuccess {
 /** The response's partial-success block when it carries content, else undefined. */
 export function partialSuccess(body: Uint8Array): PartialSuccess | undefined {
   const reader = new ProtoReader(body);
-  let result: PartialSuccess | undefined;
+  let result: PartialSuccess | undefined = { rejectedSpans: 0, errorMessage: '' };
   while (reader.hasMore()) {
     const tag = reader.readTag();
     if (!tag) return undefined;
-    const [field, wire] = tag;
-    if (field === 1 && wire === WIRE_LEN) {
-      const block = reader.readBytes();
-      if (!block) return undefined;
-      const inner = new ProtoReader(block);
-      const partial: PartialSuccess = { rejectedSpans: 0, errorMessage: '' };
-      while (inner.hasMore()) {
-        const innerTag = inner.readTag();
-        if (!innerTag) return undefined;
-        const [f, w] = innerTag;
-        if (f === 1 && w === WIRE_VARINT) {
-          const value = inner.readVarint();
-          if (value === undefined) return undefined;
-          partial.rejectedSpans = Number(BigInt.asIntN(64, value));
-        } else if (f === 2 && w === WIRE_LEN) {
-          const text = inner.readString();
-          if (text === undefined) return undefined;
-          partial.errorMessage = text;
-        } else if (!inner.skip(w)) {
-          return undefined;
-        }
-      }
-      result = partial;
-    } else if (!reader.skip(wire)) {
-      return undefined;
-    }
+    result = responseField(reader, tag[0], tag[1], result);
+    if (!result) return undefined;
   }
-  if (result && (result.rejectedSpans !== 0 || result.errorMessage)) {
-    return result;
+  return result.rejectedSpans !== 0 || result.errorMessage ? result : undefined;
+}
+
+/**
+ * One field of the `ExportTraceServiceResponse`: field 1 is the `partial_success` block
+ * (the last one wins), anything else is skipped; undefined when the bytes are malformed.
+ */
+function responseField(reader: ProtoReader, field: number, wire: number,
+                       current: PartialSuccess): PartialSuccess | undefined {
+  if (field === 1 && wire === WIRE_LEN) {
+    return partialSuccessBlock(reader);
   }
-  return undefined;
+  return reader.skip(wire) ? current : undefined;
+}
+
+/** The `partial_success` message at the reader's position; undefined when malformed. */
+function partialSuccessBlock(reader: ProtoReader): PartialSuccess | undefined {
+  const block = reader.readBytes();
+  if (!block) return undefined;
+  const inner = new ProtoReader(block);
+  const partial: PartialSuccess = { rejectedSpans: 0, errorMessage: '' };
+  while (inner.hasMore()) {
+    const tag = inner.readTag();
+    if (!tag || !partialSuccessField(inner, tag[0], tag[1], partial)) return undefined;
+  }
+  return partial;
+}
+
+/**
+ * Read one field of the message into `partial`: `rejected_spans` (1, an int64 varint),
+ * `error_message` (2, a string); anything else is skipped. False when malformed.
+ */
+function partialSuccessField(reader: ProtoReader, field: number, wire: number,
+                             partial: PartialSuccess): boolean {
+  if (field === 1 && wire === WIRE_VARINT) {
+    const value = reader.readVarint();
+    if (value === undefined) return false;
+    partial.rejectedSpans = Number(BigInt.asIntN(64, value));
+    return true;
+  }
+  if (field === 2 && wire === WIRE_LEN) {
+    const text = reader.readString();
+    if (text === undefined) return false;
+    partial.errorMessage = text;
+    return true;
+  }
+  return reader.skip(wire);
 }

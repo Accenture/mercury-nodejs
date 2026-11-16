@@ -7,6 +7,7 @@
   of mercury-python #47; merge `d6a0bd9`, 2026-11-03). Since 2026-11-14: #118 to #120 (the MCP binding and the trace records, [[mcp-binding]] and
   [[trace-records-engine-parity]]) and, 2026-11-16, #121 (route aliases in `preload` and the JSON log `source` label,
   the Java engine's shapes; the twin of mercury-python #54) and #122 (the MCP binding's function-per-tool shape, the
-  twin of mercury-python #55), and #123 (the code-quality round of the local SonarQube scan, the twin of mercury-python #56). The previous catch-up's close record is [[pack-catch-up-release]].
+  twin of mercury-python #55), and #123 (the code-quality round of the local SonarQube scan, the twin of mercury-python #56) and #124 (the
+  cognitive-complexity findings of the same scan, the twin of mercury-python #57). The previous catch-up's close record is [[pack-catch-up-release]].
   → serves: vision-mercury-nodejs
   <!-- id: pack-catch-up-4-12-25 | created: 2026-10-14 | last_used: 2026-11-13 | uses: 7 | tier: working | origin: 2026-10-14-015422 -->

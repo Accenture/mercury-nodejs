@@ -13,15 +13,13 @@
 ## Project State
 
 - **project:** mercury-nodejs (npm: `mercury-composable`)
-- **status:** **v4.12.21 TAGGED 2026-10-07 (PR #110 merge `80d4889`, tag `v4.12.21` → `279e784` one memory commit past it, the version
-  at the tag, the GitHub release published 02:36:40Z, CI green on the tag commit; **npm PUBLISHED 02:43:40Z and VERIFIED** - `mercury-composable` 4.12.21 as `latest`; `package.json` and the README identical to the
-  tag, and all 41 compiled files identical to a build of the tag (`dist/` is not tracked, so the tag was built with `npm ci` and
-  `npm run build` and compared file by file); dependencies only `@msgpack/msgpack` and `yaml`, no LLM SDK)** · **v4.12.15 on npm (published 2026-09-23 02:34Z; `npm install mercury-composable`; tag `v4.12.15` → `4c43ffe`, PR #105
-  merge `13426732`, GitHub release 01:39Z — the lock-step round with both engines, adopting the Java number; the 4.12.15 line adds
-  the OpenTelemetry forwarder (opt-in, no SDK), the `llm.chat`/`llm.stream` AI nodes and the SERVER-iff-`http.request` span-kind
-  rule)**; Event-over-HTTP function host + thin client; engines own orchestration.
-  The next catch-up release ([[pack-catch-up-4-12-25]]) is no longer held: the 2026-10-14 hold was lifted on 2026-10-29
-  (Eric) and the pack releases when its work is ready.
+- **status:** **4.12.30 TAGGED 2026-11-16 (PR #125 merge `0591f15` 09:10:04Z, the tag `v4.12.30` on the merge commit, the
+  version at the tag, the GitHub release published 09:11:45Z as Latest, CI green on the tag commit); the npm publication is
+  PENDING** - at 09:16Z npm still served 4.12.21 as `latest` (the previous release, 2026-10-07, [[pack-catch-up-release]]).
+  The 4.12.30 line carries the pack's half of the engines' agent loop (ADR-0033): the loop contract with the transcript
+  stores, the Bedrock backend and the MCP binding ([[pack-catch-up-4-12-25]]), in lockstep with the Python pack — the
+  Node.js member of the Mercury Composable polyglot initiative: a lightweight Event-over-HTTP function host + thin client,
+  repurposed August 2026.
 - **last_enabled:** 2026-08-22
 - **last_review:** 2026-11-13 | through 2026-11-13-030139.md (on command — 5 sessions since 2026-11-03-005949, not yet due;
   `refresh-metadata` refreshed 3 footers, tier changes 2 (`examples-one-folder-per-app` and `llm-helper-bedrock-iam` →

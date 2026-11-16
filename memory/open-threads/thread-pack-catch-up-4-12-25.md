@@ -10,6 +10,8 @@
   twin of mercury-python #55), and #123 (the code-quality round of the local SonarQube scan, the twin of mercury-python #56) and #124 (the
   cognitive-complexity findings of the same scan, the twin of mercury-python #57). The previous catch-up's close record is [[pack-catch-up-release]]. **PREPARED 2026-11-16 as 4.12.30 on branch `release/4.12.30`** (the version in
   `package.json`, the lock's two root entries, `src/version.ts` and the README, the CHANGELOG section, `npm test` green;
-  the Python twin in lockstep); Eric's gates: PR, merge, tag, npm.
+  the Python twin in lockstep); Eric's gates: PR, merge, tag, npm. **MERGED and TAGGED 2026-11-16:** PR #125 (opened by Claude Code at Eric's request) merge
+  `0591f15` 09:10:04Z, the tag `v4.12.30` on the merge commit, the GitHub release 09:11:45Z as Latest, CI green; the npm
+  publication PENDING at 09:16Z.
   → serves: vision-mercury-nodejs
   <!-- id: pack-catch-up-4-12-25 | created: 2026-10-14 | last_used: 2026-11-13 | uses: 7 | tier: working | origin: 2026-10-14-015422 -->

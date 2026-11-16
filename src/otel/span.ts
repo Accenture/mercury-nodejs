@@ -133,16 +133,17 @@ function display(value: unknown): string | undefined {
   if (value === undefined || value === null) return undefined;
   if (typeof value === 'string') return value;
   if (typeof value === 'boolean') return value ? 'true' : 'false';
-  if (typeof value === 'bigint') return value.toString();
+  if (typeof value === 'number' || typeof value === 'bigint' || typeof value === 'symbol') return value.toString();
   if (value instanceof Uint8Array) return Buffer.from(value).toString('utf-8');
   if (typeof value === 'object') {
     try {
       return JSON.stringify(value);
     } catch {
-      return String(value);
+      // a structure JSON cannot write (circular, or a BigInt inside): its type tag, never '[object Object]' by accident
+      return Object.prototype.toString.call(value);
     }
   }
-  return String(value);
+  return '[function]';
 }
 
 /** Java `toDouble`: a number, a parseable string, else 0. */
@@ -172,7 +173,7 @@ function toBool(value: unknown): boolean {
 /** A W3C id: exactly `2 * size` lowercase hex digits, not all zeros. */
 function hexId(value: unknown, size: number): Uint8Array | undefined {
   const text = display(value);
-  if (text === undefined || text.length !== 2 * size || !/^[0-9a-f]+$/.test(text)) {
+  if (text?.length !== 2 * size || !/^[0-9a-f]+$/.test(text)) {
     return undefined;
   }
   const raw = Uint8Array.from(Buffer.from(text, 'hex'));

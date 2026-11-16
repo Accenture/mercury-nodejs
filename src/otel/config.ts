@@ -109,7 +109,7 @@ export function reloadingHeaders(raw: () => string | undefined): HeaderSupplier 
  */
 export function parseHeaders(raw: string | undefined): Array<[string, string]> {
   const out: Array<[string, string]> = [];
-  if (raw === undefined || !raw.trim() || raw.trim() === 'null') {
+  if (!raw?.trim() || raw.trim() === 'null') {
     return out;
   }
   for (const pair of raw.split(',')) {

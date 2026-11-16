@@ -54,8 +54,8 @@ if (process.argv[2] === 'http') {
     const server = build();
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
     res.on('close', () => {
-      transport.close();
-      server.close();
+      void transport.close();
+      void server.close();
     });
     await server.connect(transport);
     await transport.handleRequest(req, res);

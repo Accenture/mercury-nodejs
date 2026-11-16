@@ -395,7 +395,7 @@ export class EventBus {
     let reply: EventEnvelope;
     try {
       const result = await runWithTrace(info, async () =>
-        delivery.service.handler(headers, delivery.body));
+        await delivery.service.handler(headers, delivery.body));
       reply = result instanceof EventEnvelope ? result : new EventEnvelope(undefined, result);
     } catch (e) {
       if (e instanceof AppException) {
@@ -443,12 +443,17 @@ export class EventBus {
     let error: unknown;
     try {
       await runWithTrace(info, async () =>
-        delivery.service.handler(headers, event));
+        await delivery.service.handler(headers, event));
     } catch (e) {
       error = e;
       this.replyInterceptorError(delivery.service.route, event, e);
     }
-    const status = error instanceof AppException ? error.status : (error ? 500 : 200);
+    let status = 200;
+    if (error instanceof AppException) {
+      status = error.status;
+    } else if (error) {
+      status = 500;
+    }
     const execTime = Math.round(Number(process.hrtime.bigint() - start) / 1000) / 1000;
     this.forward(emitTrace(delivery, info, startIso, execTime, status, !error,
       error ? String((error as Error).message ?? error) : undefined));

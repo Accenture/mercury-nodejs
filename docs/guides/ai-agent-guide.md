@@ -57,6 +57,8 @@ Rules:
   error). Unexpected exception → 500 + message + stack. Never return HTTP-shaped
   objects like `{ status: 400 }`.
 - `getTrace()` → `{ traceId, tracePath, cid, annotations }` or `undefined`.
+- The route is one name or a comma-separated list: aliases of one function, same
+  `instances` and visibility; `getTrace().route` is the name it was called as.
 - Reserved inbound header `my_correlation_id` = the caller's business correlation id
   (read-only). Never send headers named `my_*` or `x-event-api`.
 

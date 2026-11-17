@@ -9,7 +9,7 @@
   on Haiku 4.5 with a refused decision, and the resume of a conversation the Python helper had started - this helper read
   the Python-written version 2 record, took the third turn, wrote the same rows and released the record; every turn in
   PostgreSQL with the graph and the node (the report: mercury-composable `docs/test-reports/transcript-audit-live-drive.md`).
-  Follow-up here: a server-side `statement_timeout` beside the client's `query_timeout`, and pgweb's restart policy (the PR
+  Follow-up here: a server-side `statement_timeout` beside the client's `query_timeout`, and pgweb's restart policy (PR #129,
   pending). Open: that PR's merge; then RFC-0012's promotion is Eric's call. The engines' memory tracks the design
   under `transcript-audit-store` (RFC-0012, settled 2026-11-17; the schema page is mercury-composable #639).
   → serves: vision-mercury-nodejs

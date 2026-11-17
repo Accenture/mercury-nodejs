@@ -637,14 +637,15 @@ test('the postgres store is built from its connection keys', async () => {
   assert.equal(await audit(), store, 'built once');
   assert.deepEqual(seen.options, {
     host: 'postgres.internal', port: 5433, database: 'audit', user: 'transcript_writer', password: 'test-only-password',
-    ssl: false, max: 4, connectionTimeoutMillis: 2500, query_timeout: 2500
+    ssl: false, max: 4, connectionTimeoutMillis: 2500, query_timeout: 2500, statement_timeout: 2500
   });
   assert.equal(typeof seen.error, 'function', 'a lost connection must not stop the process');
   // the defaults: localhost, the mercury database, TLS on, no credential in a file
   await defaultAudit(settings({ 'llm.transcript.audit': 'postgres' }), { importer: async () => fakeModule, log: silent })();
   assert.deepEqual(seen.options, {
     host: '127.0.0.1', port: 5432, database: 'mercury', user: undefined, password: undefined,
-    ssl: { rejectUnauthorized: false }, max: 4, connectionTimeoutMillis: 5000, query_timeout: 5000
+    ssl: { rejectUnauthorized: false }, max: 4, connectionTimeoutMillis: 5000, query_timeout: 5000,
+    statement_timeout: 5000
   });
 });
 

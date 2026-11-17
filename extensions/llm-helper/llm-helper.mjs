@@ -812,7 +812,11 @@ export async function postgresAuditStore(prop, { importer = (name) => import(nam
     ssl: ssl ? { rejectUnauthorized: false } : false,
     max: 4,
     connectionTimeoutMillis: timeoutMs,
-    query_timeout: timeoutMs
+    query_timeout: timeoutMs,
+    // the server-side bound on a statement too: a database that stalls (a paused container, a lock
+    // held) frees the function's mailbox after the timeout instead of holding it for the outage's
+    // length, as the live drive of 2026-11-17 showed a stopped one does by itself
+    statement_timeout: timeoutMs
   });
   // the pool reports an idle client's lost connection as an event; without a listener Node would stop
   pool.on('error', (error) => log.warn(`transcript audit store - ${error.name}: ${error.message}`));

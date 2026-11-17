@@ -16,7 +16,7 @@
   a Word table renders through mammoth's HTML (cells separated by spaces, rows as blocks) where Python joins cells with
   ` | `; integers come back as JavaScript numbers (`disableLosslessIntegers`). The Playground's three graphs
   (mercury-composable #647, step 4) were driven live through this pack on 2026-11-17 - ingest, query and the supervised
-  notes write all passed; the drive taught a relative `include` for the crawl (PR #131, with the README's
+  notes write all passed; the drive taught a relative `include` for the crawl (PR #131, merge `a0e1006`, MERGED 2026-11-17, with the README's
   Event-over-HTTP snippet corrected to one route per entry). Next: nothing here until the recipes page (step 5, the engine's).
   → serves: vision-mercury-nodejs
   <!-- id: bp-agent-tools-nodejs | created: 2026-11-17 | last_used: 2026-11-17 | uses: 1 | tier: working | origin: 2026-11-17-111036 -->

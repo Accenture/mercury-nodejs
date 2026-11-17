@@ -231,8 +231,11 @@
   twin. The schema files are byte-identical across the packs; retention and purge are the installation's. **How to
   apply:** a new audit fact is a field of the turn's facts in `turnFacts` and a column in both packs' schema and the
   published page, never a second key or a second write; anything the audit must know at the end of a run travels in
-  the record; a credential reaches the helper through the yml's `${ENV}` references, never a `-D` value (not
-  substituted - the enhancement Eric asked for next, 2026-11-17).
+  the record; the shipped yml takes the database credential from `${ENV}` references (since #127 a `-D` value
+  resolves them too). **Driven live 2026-11-17** (mercury-composable `docs/test-reports/transcript-audit-live-drive.md`): a
+  full run and a resume of a Python-started conversation, the same rows from the same record; #129 added a server-side
+  `statement_timeout` beside the client's `query_timeout`, because a paused database stalls a pooled statement where a
+  stopped one fails it.
   <!-- id: transcript-audit-store-nodejs | created: 2026-11-17 | last_used: 2026-11-17 | uses: 1 | tier: working | origin: 2026-11-17-082942 -->
 
 ## Conventions

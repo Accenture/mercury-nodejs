@@ -49,7 +49,8 @@
 - Runtime deps: `@msgpack/msgpack` (envelope codec), `yaml` (config) — deliberately minimal; dev dependency
   `@anthropic-ai/sdk` (the LLM helper app's SDK and the tests' error classes; the published package stays free of any
   LLM SDK — 2026-10-01, PR #106) `pg` >=8 is a dev dependency since 2026-11-17 (the transcript audit store, like `redis` for the
-  transcript store); the published package stays free of any database client.
+  transcript store), and so are `neo4j-driver` >=6, `mammoth` and `pdfjs-dist` (the agent tools' knowledge-graph tools and
+  `file.extract`, 2026-11-17); the published package stays free of any database client and document library.
   <!-- id: stack-deps-msgpack-yaml | created: 2026-08-22 | last_used: 2026-10-02 | uses: 3 | tier: archive-candidate | origin: 2026-08-22-171916 -->
 ## Architectural Invariants
 

@@ -4,7 +4,35 @@
 
 ### Added
 
-1. **The transcript audit store: a durable, queryable record of every model turn (RFC-0012 in mercury-composable), in
+1. **The built-in agent tools - files inside one workspace, the web inside an allowlist, the agent's knowledge graph
+   inside one database, and a clock (RFC-0013 in mercury-composable), in lockstep with the Python pack (mercury-python
+   #63 and #64).** `extensions/agent-tools/agent-tools.mjs` serves twelve composable functions an agent loop names in its
+   tool catalog: `file.read`, `file.write` (`write: true`, `create` the default and refusing an existing file),
+   `file.list`, `file.search` and `file.extract` (PDF through pdfjs-dist, Word through mammoth, HTML and text, with page
+   markers) inside `tools.file.root` - every path relative to the root, resolved with symbolic links followed and
+   refused outside it, hidden entries invisible unless `tools.file.hidden=true`; `web.fetch` and `web.crawl` inside
+   `tools.web.allow` - https unless a host is listed with `http://`, the host resolved and every address checked against
+   the loopback, private, link-local and multicast ranges before the request goes to the checked address (a pinned
+   `lookup` on `node:http`), every redirect checked again, the body cut at `tools.web.max.bytes`, HTML reduced to
+   readable text or Markdown by a small in-house tokenizer, a crawl same-host, breadth-first, `robots.txt` honoured by
+   an in-house parser, bounded by pages, depth, an include prefix and a delay; `graph.schema`, `graph.query`,
+   `graph.write` and `graph.ingest` over `neo4j-driver` in openCypher (`tools.graph.uri`; the reads register when the
+   URI is set, the writers only with `tools.graph.write=true`, `DELETE` and `DROP` refused unless
+   `tools.graph.delete=true`; every statement in a managed transaction with the configured timeout server-side; a query
+   refused before sending when it carries a write clause outside a string or a comment; an ingest merging a model's
+   extraction idempotently with every value a parameter and the relationship endpoints checked inside the transaction;
+   the schema from Neo4j's or Memgraph's procedures); and `time.now`. A tool whose sandbox is not configured does not
+   register; every refusal is a 400 naming the rule and the key. Each tool ships its catalog row as a constant, as a
+   file under `extensions/agent-tools/catalog/` - byte for byte the Python pack's files, pinned by a test - and through
+   `node agent-tools.mjs describe`, which also says what registers under the current configuration. `tools.health`
+   reports the routes, the workspace, the allowed sites and the graph's address. neo4j-driver, mammoth and pdfjs-dist
+   are dev dependencies of this repository, installed by the application that runs the graph tools or `file.extract`;
+   the file, web and clock tools need nothing beyond the package. `dev/graph-up.sh` and `graph-down.sh` run Neo4j
+   Community on Colima for development. Pinned by `test/agent-tools.test.mjs` (a temporary workspace with an escaping
+   link, a fixture site served in-process, a fake graph backend, a PDF generated in the test and a Word fixture) and a
+   live round trip against the development Neo4j when `TOOLS_GRAPH_TEST_URI` is set.
+
+2. **The transcript audit store: a durable, queryable record of every model turn (RFC-0012 in mercury-composable), in
    lockstep with the Python pack (mercury-python #59).** The LLM helper's transcript store is a working store - its time
    to live is the transaction's, and `retention` deletes a record at the end of the run by default - so an audit had no
    store to ask. `llm.transcript.audit: postgres` adds one beside it. Every turn is recorded asynchronously, off the

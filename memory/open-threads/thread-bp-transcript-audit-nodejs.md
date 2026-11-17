@@ -1,6 +1,6 @@
 - [ ] **(blueprint) The transcript audit store in the LLM helper: RFC-0012 build plan step 2, the Node twin in lockstep
-  with the Python pack (mercury-python #59, merged 2026-11-17).** Built 2026-11-17 on `feat/transcript-audit-store`
-  (the PR pending): record version 2 with each turn's facts, the store protocol's audit half on the memory and Redis
+  with the Python pack (mercury-python #59, merged 2026-11-17).** Built 2026-11-17 on `feat/transcript-audit-store`,
+  PR #126 OPENED 2026-11-17 (merge pending): record version 2 with each turn's facts, the store protocol's audit half on the memory and Redis
   stores, the `transcript.audit` function with one instance behind two local events (the write after every
   compare-and-set, the check behind a closing write), the sweep, PostgreSQL on `pg` (a dev dependency),
   `schema/postgres.sql` and `purge.sql` byte-identical with the Python pack, the `dev/` scripts on Colima with pgweb,

@@ -64,13 +64,11 @@
 
 ### Changed
 
-1. **CI runs the tests on Node 26** (Eric, 2026-11-17), the current line, instead of the Node 20 floor; the published package's
-   floor stays `node >= 20` in `package.json`. The agent tools' directory walk is in-house (`compileGlob`), so the
-   extension needs nothing newer than the floor either: `fs.glob` arrived in Node 22, and the in-house matcher reads a
-   pattern as the Python pack's `Path.glob` does and never descends into a symbolic link.
+1. **CI runs the tests on Node 26, the current LTS, and the package's floor is `node >= 22`, the oldest maintained LTS
+   (Eric, 2026-11-17: Node 20 is end of life).** The agent tools' directory walk is in-house (`compileGlob`): the in-house
+   matcher reads a pattern as the Python pack's `Path.glob` does and never descends into a symbolic link.
 
-
-1. **A `-D` override value is resolved with the same `${ENV_VAR:default}` substitution as a file value - the engines'
+2. **A `-D` override value is resolved with the same `${ENV_VAR:default}` substitution as a file value - the engines'
    change of the same day.** `AppConfig.get` returned an override as written, so a key moved from `application.yml` to
    a `-D` flag silently lost its substitution and a credential had to travel on the command line in clear. Now the value
    of a `-D` override (and of `appConfig().set`) - an environment variable with a default, or a reference to another

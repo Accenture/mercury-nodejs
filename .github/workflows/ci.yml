@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '26'   # the current line; the package's floor stays node >= 20 (package.json engines)
+          node-version: '26'   # the current LTS (Node 20 is end of life; the package's floor is node >= 22, the oldest maintained LTS)
       - name: Install dependencies
         run: npm ci
       - name: Build and test (tsc + node --test)

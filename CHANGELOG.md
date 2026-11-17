@@ -64,7 +64,12 @@
 
 ### Changed
 
-1. **CI runs the tests on Node 26, the current LTS, and the package's floor is `node >= 22`, the oldest maintained LTS
+1. **`web.crawl` accepts a relative `include`**, in lockstep with the Python pack: a prefix that does not start with `/` matches
+   anywhere in a link's path, since a model names a section as `guides/` as often as `/guides/` (the live drive of the
+   Playground's `site-notes` graph showed a crawl returning the start page alone). The README's Event-over-HTTP example lists
+   one route per entry - the engines' map takes no comma-separated list.
+
+2. **CI runs the tests on Node 26, the current LTS, and the package's floor is `node >= 22`, the oldest maintained LTS
    (Eric, 2026-11-17: Node 20 is end of life).** The agent tools' directory walk is in-house (`compileGlob`): the in-house
    matcher reads a pattern as the Python pack's `Path.glob` does and never descends into a symbolic link.
 

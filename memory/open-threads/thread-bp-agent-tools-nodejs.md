@@ -14,7 +14,9 @@
   binding's direct run already attached its hooks (no twin of the Python fix needed). Differences a reader should know:
   the HTML reader decodes the common named character references and every numeric one (Python's decodes all of HTML5's);
   a Word table renders through mammoth's HTML (cells separated by spaces, rows as blocks) where Python joins cells with
-  ` | `; integers come back as JavaScript numbers (`disableLosslessIntegers`). Next: nothing here until the Playground
-  graphs (step 4, engine repo) exercise both packs; the recipes page (step 5) is the engine's.
+  ` | `; integers come back as JavaScript numbers (`disableLosslessIntegers`). The Playground's three graphs
+  (mercury-composable #647, step 4) were driven live through this pack on 2026-11-17 - ingest, query and the supervised
+  notes write all passed; the drive taught a relative `include` for the crawl (PR opened the same day, with the README's
+  Event-over-HTTP snippet corrected to one route per entry). Next: nothing here until the recipes page (step 5, the engine's).
   → serves: vision-mercury-nodejs
   <!-- id: bp-agent-tools-nodejs | created: 2026-11-17 | last_used: 2026-11-17 | uses: 1 | tier: working | origin: 2026-11-17-111036 -->

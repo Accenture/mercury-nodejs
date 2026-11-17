@@ -1895,6 +1895,11 @@ export function parseRobots(text) {
   };
 }
 
+/** Whether a link's path is inside the crawl's include: a prefix when the include starts with a slash, else anywhere in the path - a model names a section as `guides/` as often as `/guides/`. */
+function under(path, include) {
+  return include.startsWith('/') ? path.startsWith(include) : path.includes(include);
+}
+
 /** The two web tools over one allowlist. */
 export function createWebTools(sandbox, { log = defaultLog } = {}) {
   /**
@@ -1979,7 +1984,6 @@ export function createWebTools(sandbox, { log = defaultLog } = {}) {
     if (include !== undefined && include !== null && typeof include !== 'string') {
       throw new AppException(400, 'include must be a string');
     }
-    if (include && !include.startsWith('/')) include = '/' + include;
     const start = sandbox.checkUrl(url);
     const site = `${start.scheme}://${start.host}:${start.port}`;
     const rules = await robots(start);
@@ -2032,7 +2036,7 @@ export function createWebTools(sandbox, { log = defaultLog } = {}) {
         const scheme = candidate.protocol.replace(/:$/, '').toLowerCase();
         const port = candidate.port ? Number(candidate.port) : scheme === 'https' ? 443 : 80;
         if (`${scheme}://${candidate.hostname.toLowerCase()}:${port}` !== site) continue;
-        if (include && !candidate.pathname.startsWith(include)) continue;
+        if (include && !under(candidate.pathname, include)) continue;
         candidate.hash = '';
         const normalized = candidate.href;
         if (!seen.has(normalized)) {

@@ -559,6 +559,8 @@ test('web.crawl follows links breadth-first inside the include', async () => {
   assert.deepEqual(reply.pages.map((p) => p.title), ['Home', 'Section A', 'Section B', 'Section C']);
   assert.equal(reply.pages[1].text, 'A\n\nText of A, see C.');
   assert.deepEqual([reply.visited, reply.truncated], [4, false]);
+  const relative = await web.webCrawl({}, { url: `${site}/`, include: 'ocs/' });
+  assert.deepEqual(relative.pages.map((p) => p.url), [`${site}/`, `${site}/docs/a`, `${site}/docs/b`, `${site}/docs/c`], 'a relative include matches anywhere in the path');
   const shallow = await web.webCrawl({}, { url: `${site}/`, include: 'docs/', max_depth: 1 });
   assert.deepEqual(shallow.pages.map((p) => p.url), [`${site}/`, `${site}/docs/a`, `${site}/docs/b`]);
   assert.equal(shallow.truncated, false);

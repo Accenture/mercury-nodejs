@@ -150,7 +150,12 @@ export class AppConfig {
   }
 
   get(key: string, defaultValue: unknown = undefined): unknown {
-    if (this.overrides.has(key)) return this.overrides.get(key);
+    if (this.overrides.has(key)) {
+      const value = this.overrides.get(key);
+      // an override's value resolves references the way a file value does, so a credential
+      // may be given as -Dkey='${ENV_VAR}' and never appear in the process list
+      return typeof value === 'string' ? this.substitute(value, defaultValue) : value;
+    }
     if (this.store.has(key)) {
       const value = this.store.get(key);
       return typeof value === 'string' ? this.substitute(value, defaultValue) : value;

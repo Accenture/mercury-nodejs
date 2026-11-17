@@ -134,8 +134,9 @@ the file `mercury-serve` is given — never the working directory, so the config
 depend on where the app is launched from — or an explicit `--config` path; see
 [`examples/demo-app/resources/application.yml`](examples/demo-app/resources/application.yml) for a worked
 sample. Values support `${ENV_VAR:default}` substitution. Runtime parameter overrides use the
-same `-D` syntax as the Java engine and the Rust port — checked first on every read
-(`appConfig().set(key, value)` does the same programmatically, the `f:setConfig` analog):
+same `-D` syntax as the Java engine and the Rust port — checked first on every read, their values
+resolved with the same substitution, so `-Dkey='${ENV_VAR}'` keeps a credential out of the process
+list (`appConfig().set(key, value)` does the same programmatically, the `f:setConfig` analog):
 
 ```bash
 mercury-serve app.mjs -Drest.server.port=8087 -Dlog.format=json

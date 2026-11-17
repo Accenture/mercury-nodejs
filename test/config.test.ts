@@ -39,6 +39,30 @@ test('-D argument overrides win (Java/Rust engine syntax)', () => {
   assert.equal(parseDArgs(['--port', '8080']).size, 0);
 });
 
+test('an override value resolves references like a file value', () => {
+  // -Dkey='${ENV_VAR}' keeps a credential out of the process list: the reference is resolved in
+  // the application with the same ${ENV:default} rule as a file value - an environment variable,
+  // a default, another configuration key - and so is a set() value
+  const file = tempFile('application.yml', 'peer:\n  port: 8085\n');
+  delete process.env.MERCURY_TEST_TOKEN;
+  const config = new AppConfig(file, [
+    '-Dpeer.url=http://127.0.0.1:${peer.port}/api',
+    '-Dwith.default=${NOT_SET_ANYWHERE_EITHER:from-default}',
+    '-Dtoken=${MERCURY_TEST_TOKEN}'
+  ]);
+  assert.equal(config.get('peer.url'), 'http://127.0.0.1:8085/api');
+  assert.equal(config.get('with.default'), 'from-default');
+  assert.equal(config.get('token'), undefined, 'an unresolved reference is no value, as in a file');
+  process.env.MERCURY_TEST_TOKEN = 'env-only';
+  try {
+    assert.equal(config.get('token'), 'env-only');
+    config.set('peer.url', '${MERCURY_TEST_TOKEN}');
+    assert.equal(config.get('peer.url'), 'env-only');
+  } finally {
+    delete process.env.MERCURY_TEST_TOKEN;
+  }
+});
+
 test('set() is a runtime override (f:setConfig analog)', () => {
   const file = tempFile('application.yml', "some:\n  key: 'original'\n");
   const config = new AppConfig(file, []);

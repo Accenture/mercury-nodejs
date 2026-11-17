@@ -1,7 +1,7 @@
 - [ ] **(blueprint) The essential built-in tools for agent loops in this pack - RFC-0013 build plan step 3, the Node twin
   of mercury-python's `extensions/agent-tools` (Eric: "proceed with essential tools", 2026-11-17; the spec is
   mercury-composable `draft-design-specs/agent-essential-tools.md`, settled, rulings R1-R16; the Python build's defaults
-  are its sections 13 and 14).** **Step 3 BUILT 2026-11-17** (PR opened the same day): `extensions/agent-tools/agent-tools.mjs`
+  are its sections 13 and 14).** **Step 3 BUILT 2026-11-17** as PR #130: `extensions/agent-tools/agent-tools.mjs`
   with the twelve routes - `file.read`, `file.write`, `file.list`, `file.search`, `file.extract` (pdfjs-dist, mammoth
   through the in-house HTML reader) inside `tools.file.root`; `web.fetch`, `web.crawl` inside `tools.web.allow` over
   `node:http` with a pinned `lookup` (the checked address, the TLS server name from the URL), an in-house HTML tokenizer

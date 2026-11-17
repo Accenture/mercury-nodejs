@@ -48,7 +48,8 @@
   <!-- id: stack-typescript-esm | created: 2026-08-22 | last_used: 2026-11-03 | uses: 8 | tier: active | origin: 2026-08-22-171916 -->
 - Runtime deps: `@msgpack/msgpack` (envelope codec), `yaml` (config) — deliberately minimal; dev dependency
   `@anthropic-ai/sdk` (the LLM helper app's SDK and the tests' error classes; the published package stays free of any
-  LLM SDK — 2026-10-01, PR #106)
+  LLM SDK — 2026-10-01, PR #106) `pg` >=8 is a dev dependency since 2026-11-17 (the transcript audit store, like `redis` for the
+  transcript store); the published package stays free of any database client.
   <!-- id: stack-deps-msgpack-yaml | created: 2026-08-22 | last_used: 2026-10-02 | uses: 3 | tier: archive-candidate | origin: 2026-08-22-171916 -->
 ## Architectural Invariants
 
@@ -206,6 +207,33 @@
   the Java engine and mirror that side; a lineage check parses every record of the trace from every process and verifies
   each parent is a span some record owns.
   <!-- id: trace-records-engine-parity | created: 2026-11-14 | last_used: 2026-11-14 | uses: 1 | tier: working | origin: 2026-11-14-115318 -->
+
+- **The transcript audit store: every model turn recorded by a composable function behind a local event, off the
+  turn's path, into PostgreSQL beside the working store - the Node twin of the Python pack's build (RFC-0012 in
+  mercury-composable, Eric's rulings of 2026-11-17; built here 2026-11-17, in lockstep with mercury-python #59).**
+  `llm.transcript.audit: postgres` registers `transcript.audit` at boot - private, ONE instance, so its mailbox orders
+  a conversation's writes and its check without a lock. The working record is version 2: beside the messages it
+  carries each turn's facts (trace id and path, correlation id, UTC bounds, status, stop reason, request id, usage,
+  `messages: [first request message, response]`), the first turn's system prompt, catalog, correlation id and the
+  loop's `x-graph-id` and `x-node`, and the closing `retention`, all saved inside the compare-and-set; `transcript()`
+  fills the defaults the Python dataclass has, so the JSON is the twin's field for field. After a compare-and-set
+  accepted turn N, `llm.chat` sends `{conversation, turn: N}` through a local `PostOffice.send`; a closing turn adds
+  `{conversation, check: true}` and the record waits with `llm.transcript.audit.grace` (`1d`) instead of `retention`.
+  The function writes the rows the store lacks in one transaction (the conversation row upserted, the turn rows
+  `ON CONFLICT DO NOTHING`, the totals recomputed from the turn rows), marks the record `audited` (a third hash field
+  the compare-and-set never touches; a check releases a closed record to its `retention` first and marks it after, a
+  closing write leaves both to its check, an open record is only filled); a sweep (`llm.transcript.audit.sweep.ms`,
+  60 s, `SET NX PX` on `transcript:audit:sweep`, `scanIterator` pages) sends a check for every record whose mark lags.
+  Failures are logged by type and SQLSTATE (pg's `code`), never by message, and never refuse a turn. `request` is the
+  array of messages the turn sent, `response` the array of assistant blocks, `calls` the normalized tool calls; JSON
+  travels as text cast to `jsonb`, stamps as text cast to `timestamptz`, with `$n` placeholders - the same statements
+  as the Python pack. `pg` is a dev dependency; `ssl: true` is `{ rejectUnauthorized: false }`, libpq's `sslmode=require`
+  twin. The schema files are byte-identical across the packs; retention and purge are the installation's. **How to
+  apply:** a new audit fact is a field of the turn's facts in `turnFacts` and a column in both packs' schema and the
+  published page, never a second key or a second write; anything the audit must know at the end of a run travels in
+  the record; a credential reaches the helper through the yml's `${ENV}` references, never a `-D` value (not
+  substituted - the enhancement Eric asked for next, 2026-11-17).
+  <!-- id: transcript-audit-store-nodejs | created: 2026-11-17 | last_used: 2026-11-17 | uses: 1 | tier: working | origin: 2026-11-17-082942 -->
 
 ## Conventions
 

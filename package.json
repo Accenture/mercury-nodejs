@@ -53,6 +53,7 @@
     "@anthropic-ai/sdk": "^0.131.0",
     "@modelcontextprotocol/sdk": "^1.32.2",
     "@types/node": "^22.0.0",
+    "pg": "^8.23.1",
     "redis": "^6.3.1",
     "typescript": "^5.6.0",
     "zod": "^4.6.7"

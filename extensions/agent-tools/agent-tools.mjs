@@ -42,7 +42,7 @@
  */
 import { lookup as dnsLookup } from 'node:dns/promises';
 import { createReadStream } from 'node:fs';
-import { glob, mkdir, open, readdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
+import { mkdir, open, readdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
 import http from 'node:http';
 import https from 'node:https';
 import { isIP } from 'node:net';
@@ -764,6 +764,79 @@ function modifiedOf(info) {
   return new Date(info.mtimeMs).toISOString().replace(/\.\d{3}Z$/, 'Z');
 }
 
+/**
+ * A glob pattern as Python's Path.glob reads it - `*` within a segment, `?` one character, `[...]` a class,
+ * `**` any number of segments - compiled to a matcher over slash-separated relative paths, with the depth the
+ * walk needs (undefined for a recursive pattern). Node 20 has no fs.glob, so the walk is in-house.
+ */
+export function compileGlob(pattern) {
+  if (pattern.startsWith('/') || pattern.startsWith('\\') || DRIVE.test(pattern) || !pattern.trim()) {
+    throw new AppException(400, 'glob is not a valid pattern (a pattern is relative to path)');
+  }
+  const segments = pattern.split('/').filter((part) => part && part !== '.');
+  if (segments.some((part) => part === '..')) {
+    throw new AppException(400, 'glob is not a valid pattern (no .. in a pattern)');
+  }
+  const recursive = segments.includes('**');
+  const parts = segments.map((segment) => {
+    if (segment === '**') return '(?:[^/]+/)*';
+    let out = '';
+    for (let i = 0; i < segment.length; i++) {
+      const ch = segment[i];
+      if (ch === '*') {
+        out += '[^/]*';
+      } else if (ch === '?') {
+        out += '[^/]';
+      } else if (ch === '[') {
+        const close = segment.indexOf(']', i + 1);
+        if (close < 0) {
+          out += '\\[';
+          continue;
+        }
+        let body = segment.slice(i + 1, close);
+        if (body.startsWith('!')) body = '^' + body.slice(1);
+        out += '[' + body.replace(/\\/g, '\\\\') + ']';
+        i = close;
+      } else {
+        out += ch.replace(/[.+^$(){}|\\]/g, (c) => '\\' + c);
+      }
+    }
+    return out + '/';
+  });
+  const source = '^' + parts.join('').replace(/\/$/, '') + '$';
+  let regex;
+  try {
+    regex = new RegExp(source);
+  } catch (e) {
+    throw new AppException(400, `glob is not a valid pattern (${e.message})`);
+  }
+  return { test: (relativePath) => regex.test(relativePath), depth: recursive ? undefined : segments.length };
+}
+
+/** Every entry under a directory that matches a compiled glob, as absolute paths, bounded by the scan limit; a symbolic link is an entry, never descended into. */
+async function globWalk(base, matcher) {
+  const found = [];
+  const queue = [{ dir: base, relativeDir: '', level: 1 }];
+  while (queue.length && found.length <= SCAN_LIMIT) {
+    const { dir, relativeDir, level } = queue.shift();
+    let entries;
+    try {
+      entries = await readdir(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const relativePath = relativeDir ? `${relativeDir}/${entry.name}` : entry.name;
+      if (matcher.test(relativePath)) found.push(join(dir, entry.name));
+      if (found.length > SCAN_LIMIT) break;
+      if (entry.isDirectory() && !entry.isSymbolicLink() && (matcher.depth === undefined || level < matcher.depth)) {
+        queue.push({ dir: join(dir, entry.name), relativeDir: relativePath, level: level + 1 });
+      }
+    }
+  }
+  return found;
+}
+
 /** The four file tools (five with the documents libraries) over one workspace; every path goes through resolvePath first. */
 export function createFileTools(sandbox, { log = defaultLog, documents = undefined } = {}) {
   const root = sandbox.root;
@@ -813,22 +886,11 @@ export function createFileTools(sandbox, { log = defaultLog, documents = undefin
   async function walk(base, pattern, { filesOnly }) {
     const found = [];
     let bounded = false;
-    const candidates = [];
-    try {
-      if (pattern) {
-        if (pattern.startsWith('/') || pattern.startsWith('\\') || DRIVE.test(pattern)) {
-          throw new AppException(400, 'glob is not a valid pattern (a pattern is relative to path)');
-        }
-        for await (const entry of glob(pattern, { cwd: base })) {
-          candidates.push(join(base, entry));
-          if (candidates.length > SCAN_LIMIT) break;
-        }
-      } else {
-        for (const entry of await readdir(base)) candidates.push(join(base, entry));
-      }
-    } catch (e) {
-      if (e instanceof AppException) throw e;
-      throw new AppException(400, `glob is not a valid pattern (${e.message})`);
+    let candidates;
+    if (pattern) {
+      candidates = await globWalk(base, compileGlob(pattern));
+    } else {
+      candidates = (await readdir(base)).map((entry) => join(base, entry));
     }
     for (const entry of candidates) {
       if (found.length >= SCAN_LIMIT) {

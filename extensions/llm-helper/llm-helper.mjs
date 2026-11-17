@@ -15,9 +15,12 @@
  * bedrock), llm.aws.api (mantle or runtime), llm.aws.region, llm.model, llm.max.tokens,
  * llm.timeout.ms, llm.max.retries, llm.fallbacks, llm.effort, and for the agent loop's turns
  * llm.transcript.store (memory or redis - the redis package), llm.transcript.ttl,
- * llm.transcript.retention and the llm.transcript.redis.* connection keys. The contract, the keys and the backends are documented in
- * README.md next to this file. The Python twin (mercury-python extensions/llm-helper) speaks
- * the same contract, and both are pinned by shared vector files.
+ * llm.transcript.retention and the llm.transcript.redis.* connection keys; the optional transcript
+ * audit store (RFC-0012) adds llm.transcript.audit (postgres - the pg package),
+ * llm.transcript.audit.retention, .grace, .sweep.ms and the llm.transcript.audit.postgres.*
+ * connection keys. The contract, the keys and the backends are documented in README.md next to
+ * this file. The Python twin (mercury-python extensions/llm-helper) speaks the same contract, and
+ * both are pinned by shared vector files.
  *
  * Then map the routes from a Mercury engine application (event-over-http.yaml):
  *
@@ -31,7 +34,8 @@
 import { randomUUID } from 'node:crypto';
 import Anthropic from '@anthropic-ai/sdk';
 import {
-  AppException, annotateTrace, appConfig, EventStreamWriter, getLogger, getTrace, preload
+  AppException, annotateTrace, appConfig, defaultRegistry, EventStreamWriter, getLogger, getTrace, isoUtc,
+  platform, PostOffice, preload
 } from 'mercury-composable';
 
 const defaultLog = getLogger('llm-helper');
@@ -100,6 +104,23 @@ const MISSING_STORE = 'transcript store not configured - set llm.transcript.stor
   + '(redis, or memory for a single process)';
 const MISSING_REDIS_SDK = 'The redis transcript store needs redis - npm install redis';
 const STREAM_LOOP = 'tools and the loop fields are not part of the streaming contract - use llm.chat';
+
+// --- the transcript audit store's defaults and limits (RFC-0012) ----------------------------
+// a durable, queryable record of every model turn, written by the transcript.audit function behind
+// a local event, never on the turn's path; PostgreSQL is the reference store, its schema published
+export const AUDIT_ROUTE = 'transcript.audit';
+export const AUDIT_POSTGRES = 'postgres';
+export const AUDITS = [AUDIT_POSTGRES];
+export const DEFAULT_AUDIT_RETENTION = '365d';
+export const DEFAULT_AUDIT_GRACE = '1d';
+export const DEFAULT_AUDIT_SWEEP_MS = 60000;
+// the sweep's lock on Redis, under the store's prefix so one ACL covers it; never a conversation key
+export const AUDIT_SWEEP_LOCK = `${TRANSCRIPT_PREFIX}audit:sweep`;
+// the graph context the engines' loop sends on a turn, recorded at the first turn (null without)
+export const GRAPH_ID_HEADER = 'x-graph-id';
+export const NODE_HEADER = 'x-node';
+const MISSING_AUDIT = 'transcript audit store not configured - set llm.transcript.audit (postgres)';
+const MISSING_POSTGRES_SDK = 'The postgres transcript audit store needs pg - npm install pg';
 
 const isMap = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
 // a value Python reads as true: a non-empty list or map, a non-empty string, a non-zero number
@@ -296,17 +317,43 @@ export function defaultBackend(prop) {
 // Only this app reads or writes a transcript. A record holds the model pinned at the first turn,
 // the messages in the provider's format, the turn count and the ids of the calls the last turn
 // made. A write is a compare-and-set on the turn count, so a duplicated turn can never fork a
-// conversation, and every write sets the record's time to live. The record's JSON is the Python
-// twin's, field for field.
+// conversation, and every write sets the record's time to live. Since record version 2
+// (RFC-0012) a record also carries the facts the audit rows need - saved inside the same
+// compare-and-set, so a turn that lost the race leaves no facts behind - and the store keeps a
+// third value beside the turn count and the record, the audited mark, owned by the audit
+// function. The record's JSON is the Python twin's, field for field.
 
-export const recordJson = (record) => JSON.stringify({
-  v: 1, model: record.model, turn: record.turn, pending: record.pending, closed: record.closed,
-  messages: record.messages
+/** A record with the version 2 defaults filled in - the Python twin's dataclass defaults. */
+export const transcript = (fields) => ({
+  model: fields.model,
+  messages: fields.messages,
+  turn: fields.turn,
+  pending: fields.pending,
+  closed: fields.closed ?? false,
+  // the audit facts (record version 2): what the audit rows need and the transcript did not hold
+  retention: fields.retention ?? 0, // the seconds the closing turn was given; the check applies them
+  correlation_id: fields.correlation_id ?? null, // the business correlation id of the transaction
+  graph_id: fields.graph_id ?? null, // the graph and the loop node, from the engines' two headers
+  node: fields.node ?? null,
+  system: fields.system ?? null, // the first turn's system prompt, stored once
+  tools: fields.tools ?? null, // the catalog as advertised at the first turn
+  turns: fields.turns ?? [] // one entry of facts per turn
 });
 
+export const recordJson = (record) => JSON.stringify({
+  v: 2, model: record.model, turn: record.turn, pending: record.pending, closed: record.closed,
+  retention: record.retention ?? 0, correlation_id: record.correlation_id ?? null,
+  graph_id: record.graph_id ?? null, node: record.node ?? null, system: record.system ?? null,
+  tools: record.tools ?? null, turns: record.turns ?? [], messages: record.messages
+});
+
+/** A version 2 record, or a version 1 record (a conversation that was open when the helper was
+ * upgraded): its turns so far carry no facts, and the audit's check says so. */
 export function recordFrom(text) {
-  const { model, turn, pending, closed, messages } = JSON.parse(text);
-  return { model, turn, pending, closed, messages };
+  const { model, turn, pending, closed, messages, retention, correlation_id, graph_id, node, system, tools, turns }
+    = JSON.parse(text);
+  return transcript({ model, messages, turn, pending, closed, retention: Number(retention ?? 0),
+    correlation_id, graph_id, node, system, tools, turns: turns ?? [] });
 }
 
 /** One process: for development and tests. A second replica cannot see these records. The
@@ -316,7 +363,7 @@ export class MemoryStore {
 
   constructor({ clock = () => performance.now() / 1000 } = {}) {
     this.clock = clock;
-    this.records = new Map(); // conversation -> [expiry, turn, record]
+    this.records = new Map(); // conversation -> [expiry, turn, record, audited]
   }
 
   live(conversation) {
@@ -345,13 +392,62 @@ export class MemoryStore {
     if (ttlS === 0) {
       this.records.delete(conversation);
     } else {
-      this.records.set(conversation, [this.clock() + ttlS, record.turn, recordJson(record)]);
+      const audited = entry === undefined ? 0 : entry[3]; // the compare-and-set never touches it
+      this.records.set(conversation, [this.clock() + ttlS, record.turn, recordJson(record), audited]);
     }
+    return true;
+  }
+
+  // the audit half (RFC-0012): the audited mark is the audit function's, never the turn's
+
+  /** The highest turn the audit store is known to hold for the record; 0 when none. */
+  async audited(conversation) {
+    const entry = this.live(conversation);
+    return entry === undefined ? 0 : entry[3];
+  }
+
+  /** Set the audited mark; a record that is gone stays gone, and its time to live stays. */
+  async markAudited(conversation, turn) {
+    const entry = this.live(conversation);
+    if (entry !== undefined) {
+      this.records.set(conversation, [entry[0], entry[1], entry[2], turn]);
+    }
+  }
+
+  /** The record's time to live becomes retentionS; 0 deletes it at once. */
+  async release(conversation, retentionS) {
+    const entry = this.live(conversation);
+    if (entry === undefined) {
+      return;
+    }
+    if (retentionS === 0) {
+      this.records.delete(conversation);
+    } else {
+      this.records.set(conversation, [this.clock() + retentionS, ...entry.slice(1)]);
+    }
+  }
+
+  /** The conversations whose audited mark is below their turn count - the sweep's work. */
+  async unaudited() {
+    const lagging = [];
+    for (const conversation of [...this.records.keys()]) {
+      const entry = this.live(conversation);
+      if (entry !== undefined && entry[3] < entry[1]) {
+        lagging.push(conversation);
+      }
+    }
+    return lagging;
+  }
+
+  /** Claim this interval's sweep: one process sweeps its own records. */
+  async sweepLock(_intervalMs) {
     return true;
   }
 }
 
-// one script, one key: atomic on a standalone server and safe on a cluster - the Python twin's
+// one script, one key: atomic on a standalone server and safe on a cluster - the Python twin's. It
+// writes the turn count and the record and sets the time to live - never the audited mark, which
+// the audit function owns, so the two writers share a key and not a field
 export const REDIS_SAVE = `
 local held = redis.call('HGET', KEYS[1], 'turn')
 if ARGV[1] == '0' then
@@ -368,9 +464,18 @@ end
 return 1
 `;
 
-/** A hash per conversation under transcript:{conversation}: the turn count and the record. The
- * client (the redis package) connects on the first command, and again after it gave up
- * reconnecting; a client that needs no connect (a test double) is used as given. */
+// the audited mark, set only on a record that still exists: a bare HSET would resurrect a released
+// record as a hash with no time to live
+export const REDIS_MARK_AUDITED = `
+if redis.call('EXISTS', KEYS[1]) == 1 then
+  redis.call('HSET', KEYS[1], 'audited', ARGV[1])
+end
+return 1
+`;
+
+/** A hash per conversation under transcript:{conversation}: the turn count, the record and the
+ * audited mark. The client (the redis package) connects on the first command, and again after it
+ * gave up reconnecting; a client that needs no connect (a test double) is used as given. */
 export class RedisStore {
   name = STORE_REDIS;
 
@@ -414,6 +519,54 @@ export class RedisStore {
       arguments: [String(expectedTurn), String(record.turn), recordJson(record), String(ttlS)]
     });
     return Number(written) === 1;
+  }
+
+  async audited(conversation) {
+    await this.ready();
+    const value = await this.client.hGet(TRANSCRIPT_PREFIX + conversation, 'audited');
+    return value ? Number(value) : 0;
+  }
+
+  async markAudited(conversation, turn) {
+    await this.ready();
+    await this.client.eval(REDIS_MARK_AUDITED, { keys: [TRANSCRIPT_PREFIX + conversation], arguments: [String(turn)] });
+  }
+
+  async release(conversation, retentionS) {
+    await this.ready();
+    const key = TRANSCRIPT_PREFIX + conversation;
+    if (retentionS === 0) {
+      await this.client.del(key);
+    } else {
+      await this.client.expire(key, retentionS);
+    }
+  }
+
+  /** Two hash fields per live record and no database query; the sweep's lock and anything else
+   * under the prefix that is not a conversation key are skipped. */
+  async unaudited() {
+    await this.ready();
+    const lagging = [];
+    for await (const page of this.client.scanIterator({ MATCH: `${TRANSCRIPT_PREFIX}*`, COUNT: 100 })) {
+      for (const key of Array.isArray(page) ? page : [page]) { // the client yields pages since v5
+        const conversation = String(key).slice(TRANSCRIPT_PREFIX.length);
+        if (!CONVERSATION_ID.test(conversation)) {
+          continue;
+        }
+        const [turn, audited] = await this.client.hmGet(key, ['turn', 'audited']);
+        if (turn !== null && turn !== undefined && Number(audited ?? 0) < Number(turn)) {
+          lagging.push(conversation);
+        }
+      }
+    }
+    return lagging;
+  }
+
+  /** SET NX PX: one sweep per interval across the replicas; the lock expires with the interval. */
+  async sweepLock(intervalMs) {
+    await this.ready();
+    const claimed = await this.client.set(AUDIT_SWEEP_LOCK, randomUUID(), { NX: true, PX: Math.max(1, intervalMs) });
+    return claimed === 'OK';
   }
 }
 
@@ -478,21 +631,313 @@ const storeFailure = (error) => new AppException(503,
  * (the SDK keeps its tool-input buffer out of them). Stored, and later sent, exactly so. */
 export const blockOf = (block) => JSON.parse(JSON.stringify(block));
 
+// --- the transcript audit store (RFC-0012) --------------------------------------------------
+//
+// The working store's expiry covers the transaction; the audit store covers the record. Every turn
+// is recorded, asynchronously: after the compare-and-set accepts a turn, llm.chat sends one local
+// event to transcript.audit, a composable function of this process with ONE instance, so its
+// mailbox orders the writes and the check of a conversation without a lock. The function reads the
+// working record - the one place the content lives - and writes the rows the audit store lacks.
+// The closing turn sends a second event behind its write, the integrity check, which repairs
+// whatever a failed write left behind and only then releases the working record. A sweep sends a
+// check for every record whose audited mark lags its turn count: the runs the loop stopped and
+// the writes a dying process lost. A failure is logged by type and never refuses a turn. The
+// Python twin writes the same rows from the same record.
+//
+// An audit store has open() (connect, at boot; a store that does not answer throws, and the sweep
+// repairs later), close(), turns(conversation) (the Set of turn numbers it holds) and
+// write(conversationRow, turnRows): the conversation row upserted and the turn rows inserted in
+// one transaction, idempotent - a turn row that exists is left as it is, the conversation row's
+// status, turn count, times and totals are brought up to date, the totals recomputed from the rows.
+
+// the conversation row's token totals, recomputed from the turn rows on every write
+export const TOKEN_COLUMNS = ['input_tokens', 'output_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens'];
+
+/** The reference semantics in memory, for the tests and the twins' parity - never a configured
+ * store: an audit needs a durable, governed database. */
+export class MemoryAuditStore {
+  name = 'memory';
+
+  constructor() {
+    this.conversations = new Map(); // conversation -> row
+    this.turnRows = new Map(); // conversation -> Map(turn -> row)
+  }
+
+  async open() {
+    return undefined;
+  }
+
+  async close() {
+    return undefined;
+  }
+
+  async turns(conversation) {
+    return new Set(this.turnRows.get(conversation)?.keys() ?? []);
+  }
+
+  async write(conversation, turns) {
+    const key = String(conversation.conversation);
+    let held = this.conversations.get(key);
+    if (held === undefined) {
+      held = { ...conversation }; // INSERT
+      this.conversations.set(key, held);
+    } else { // ON CONFLICT DO UPDATE of what a turn changes; the first-turn snapshot stays
+      for (const column of ['status', 'turns', 'updated_at', 'ended_at']) {
+        held[column] = conversation[column];
+      }
+    }
+    let rows = this.turnRows.get(key);
+    if (rows === undefined) {
+      rows = new Map();
+      this.turnRows.set(key, rows);
+    }
+    for (const row of turns) {
+      if (!rows.has(Number(row.turn))) { // ON CONFLICT DO NOTHING
+        rows.set(Number(row.turn), { ...row });
+      }
+    }
+    for (const column of TOKEN_COLUMNS) {
+      held[column] = [...rows.values()].reduce((sum, row) => sum + Number(row[column]), 0);
+    }
+  }
+}
+
+// the statements the reference store runs, with pg's placeholders. JSON travels as text cast to
+// jsonb and a UTC stamp as ISO-8601 text cast to timestamptz, so the Python twin runs the same
+// statements with its own placeholders and no driver-specific wrapper
+export const SQL_TURNS = 'SELECT turn FROM transcript_turn WHERE conversation = $1';
+export const SQL_UPSERT_CONVERSATION = `INSERT INTO transcript (conversation, correlation_id, graph_id, node, model, status, turns,
+  started_at, updated_at, ended_at, expires_at, system, tools)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz, $9::timestamptz, $10::timestamptz,
+  $11::timestamptz, $12, $13::jsonb)
+ON CONFLICT (conversation) DO UPDATE SET status = EXCLUDED.status, turns = EXCLUDED.turns,
+  updated_at = EXCLUDED.updated_at, ended_at = EXCLUDED.ended_at`;
+export const SQL_INSERT_TURN = `INSERT INTO transcript_turn (conversation, turn, trace_id, trace_path, correlation_id,
+  started_at, ended_at, stop_reason, status, request_id, input_tokens, output_tokens,
+  cache_creation_input_tokens, cache_read_input_tokens, request, response, calls)
+VALUES ($1, $2, $3, $4, $5, $6::timestamptz, $7::timestamptz, $8, $9, $10, $11, $12, $13, $14,
+  $15::jsonb, $16::jsonb, $17::jsonb)
+ON CONFLICT (conversation, turn) DO NOTHING`;
+export const SQL_TOTALS = `UPDATE transcript SET input_tokens = totals.input_tokens, output_tokens = totals.output_tokens,
+  cache_creation_input_tokens = totals.cache_creation_input_tokens,
+  cache_read_input_tokens = totals.cache_read_input_tokens
+FROM (SELECT COALESCE(SUM(input_tokens), 0) AS input_tokens,
+  COALESCE(SUM(output_tokens), 0) AS output_tokens,
+  COALESCE(SUM(cache_creation_input_tokens), 0) AS cache_creation_input_tokens,
+  COALESCE(SUM(cache_read_input_tokens), 0) AS cache_read_input_tokens
+  FROM transcript_turn WHERE conversation = $1) AS totals
+WHERE transcript.conversation = $2`;
+
+/** JSON for a jsonb column, compact and as the record holds it; null stays NULL. */
+const jsonText = (value) => (value === null || value === undefined ? null : JSON.stringify(value));
+
+const conversationParams = (row) => [row.conversation, row.correlation_id, row.graph_id, row.node, row.model,
+  row.status, row.turns, row.started_at, row.updated_at, row.ended_at, row.expires_at, row.system,
+  jsonText(row.tools)];
+
+const turnParams = (row) => [row.conversation, row.turn, row.trace_id, row.trace_path, row.correlation_id,
+  row.started_at, row.ended_at, row.stop_reason, row.status, row.request_id, row.input_tokens,
+  row.output_tokens, row.cache_creation_input_tokens, row.cache_read_input_tokens, jsonText(row.request),
+  jsonText(row.response), jsonText(row.calls)];
+
+/** The reference store: the pg package's pool. The function connects as a writer that may insert,
+ * select and update the two tables and nothing else (schema/postgres.sql); people and the SQL
+ * browser read. */
+export class PostgresAuditStore {
+  name = AUDIT_POSTGRES;
+
+  constructor(pool) {
+    this.pool = pool; // pg.Pool, or a recording fake in the tests
+  }
+
+  async open() {
+    const client = await this.pool.connect();
+    client.release();
+  }
+
+  async close() {
+    await this.pool.end();
+  }
+
+  async turns(conversation) {
+    const { rows } = await this.pool.query(SQL_TURNS, [conversation]);
+    return new Set(rows.map((row) => Number(row.turn)));
+  }
+
+  async write(conversation, turns) {
+    const key = String(conversation.conversation);
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(SQL_UPSERT_CONVERSATION, conversationParams(conversation));
+      for (const row of turns) {
+        await client.query(SQL_INSERT_TURN, turnParams(row));
+      }
+      await client.query(SQL_TOTALS, [key, key]);
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+}
+
+/** The pool from the llm.transcript.audit.postgres.* keys - the working store's connection set
+ * under the audit's own prefix. Nothing connects until open(); the credential comes from the
+ * environment, never from a file. */
+export async function postgresAuditStore(prop, { importer = (name) => import(name), log = defaultLog } = {}) {
+  let pg;
+  try {
+    pg = await importer('pg');
+  } catch (error) {
+    if (error?.code === 'ERR_MODULE_NOT_FOUND') {
+      throw new AppException(503, MISSING_POSTGRES_SDK);
+    }
+    throw error;
+  }
+  const Pool = pg.Pool ?? pg.default?.Pool;
+  const prefix = 'llm.transcript.audit.postgres.';
+  const timeoutMs = wholeNumber(`${prefix}timeout.ms`, prop(`${prefix}timeout.ms`, '5000'), 1);
+  const ssl = String(prop(`${prefix}ssl`, 'true')).toLowerCase() === 'true';
+  const pool = new Pool({
+    host: String(prop(`${prefix}host`, '127.0.0.1')),
+    port: wholeNumber(`${prefix}port`, prop(`${prefix}port`, '5432'), 1),
+    database: String(prop(`${prefix}database`, 'mercury')),
+    user: prop(`${prefix}username`) || undefined,
+    password: prop(`${prefix}password`) || undefined,
+    // the twin of libpq's sslmode=require: the connection is encrypted and the server's certificate
+    // is not verified, so a managed database's private CA works out of the box; sslmode=disable when false
+    ssl: ssl ? { rejectUnauthorized: false } : false,
+    max: 4,
+    connectionTimeoutMillis: timeoutMs,
+    query_timeout: timeoutMs
+  });
+  // the pool reports an idle client's lost connection as an event; without a listener Node would stop
+  pool.on('error', (error) => log.warn(`transcript audit store - ${error.name}: ${error.message}`));
+  return new PostgresAuditStore(pool);
+}
+
+/** The audit store, built on first use: llm.transcript.audit names it. */
+export function defaultAudit(prop, options = {}) {
+  let built;
+  return async () => {
+    if (built === undefined) {
+      const name = String(prop('llm.transcript.audit', '') ?? '').toLowerCase();
+      if (!name) {
+        throw new AppException(503, MISSING_AUDIT);
+      }
+      if (!AUDITS.includes(name)) {
+        throw new AppException(500, `llm.transcript.audit must be one of: ${AUDITS.join(', ')}`);
+      }
+      built = await postgresAuditStore(prop, options);
+    }
+    return built;
+  };
+}
+
+let localPostOffice;
+/** A local send over the in-process bus: no endpoint, the caller's trace inherited. */
+const localSend = (route, body) => (localPostOffice ??= new PostOffice()).send(route, body);
+
+/** An ISO-8601 UTC stamp moved by seconds (the conversation row's expires_at). */
+export const plusSeconds = (stamp, seconds) => new Date(Date.parse(stamp) + seconds * 1000).toISOString();
+
+/** The normalized calls of a tool_use response, for the person who queries. */
+export function callsOf(blocks) {
+  const calls = (Array.isArray(blocks) ? blocks : [])
+    .filter((block) => isMap(block) && block.type === 'tool_use')
+    .map((block) => ({ id: block.id, name: block.name, input: block.input }));
+  return calls.length ? calls : null;
+}
+
+/** A turn row from the record: the turn's facts, the messages it sent before the model answered
+ * (its request: the prompt, or the one message of tool results) and the assistant content blocks
+ * it got back (its response), as the model exchanged them. */
+export function turnRow(conversation, record, fact) {
+  const [first, answer] = fact.messages;
+  const usage = fact.usage ?? {};
+  const content = record.messages[answer].content;
+  const row = {
+    conversation,
+    turn: Number(fact.turn),
+    trace_id: fact.trace_id ?? null,
+    trace_path: fact.trace_path ?? null,
+    correlation_id: fact.correlation_id ?? null,
+    started_at: fact.started_at,
+    ended_at: fact.ended_at,
+    stop_reason: fact.stop_reason ?? null,
+    status: fact.status,
+    request_id: fact.request_id ?? null
+  };
+  for (const column of TOKEN_COLUMNS) {
+    row[column] = Number(usage[column] ?? 0);
+  }
+  row.request = record.messages.slice(first, answer);
+  row.response = content;
+  row.calls = fact.status === 'tool_use' ? callsOf(content) : null;
+  return row;
+}
+
+/** The conversation row from the record: the identity, the first-turn snapshot, the status and
+ * the bounds. A record from before version 2 carries no facts: its row opens now. */
+export function conversationRow(conversation, record, now, retentionS) {
+  const facts = record.turns ?? [];
+  const first = facts[0];
+  const last = facts[facts.length - 1];
+  const ended = record.closed && last !== undefined && Number(last.turn) === record.turn ? last : undefined;
+  const startedAt = first ? String(first.started_at) : now;
+  return {
+    conversation,
+    correlation_id: record.correlation_id ?? null,
+    graph_id: record.graph_id ?? null,
+    node: record.node ?? null,
+    model: record.model,
+    status: ended ? ended.status : 'open',
+    turns: record.turn,
+    started_at: startedAt,
+    updated_at: now,
+    ended_at: ended ? ended.ended_at : null,
+    expires_at: plusSeconds(startedAt, retentionS),
+    system: record.system ?? null,
+    tools: record.tools ?? null
+  };
+}
+
+/** A failure as a log may carry it: the type and the database's SQLSTATE (pg puts it in `code`,
+ * with a `severity`), never the message of a database error, which may detail the failing row;
+ * the first line of a connection failure or a configuration error, which quotes none. */
+export function auditFailure(error) {
+  const constructor = error?.constructor?.name;
+  const name = constructor && constructor !== 'Object' ? constructor : (error?.name ?? 'Error');
+  const database = error?.severity !== undefined || name === 'DatabaseError';
+  const detail = database && error?.code ? `${name} sqlstate=${error.code}` : name;
+  const quotesNoRow = !database && (error instanceof AppException || typeof error?.code === 'string'
+    || error instanceof AggregateError || /timeout/i.test(name));
+  const text = String(error?.message ?? '').trim();
+  return quotesNoRow && text ? `${detail}: ${text.split('\n')[0]}` : detail;
+}
+
 /** A tool's output or error as tool_result text; JSON is written compactly, keys in order. */
 const resultText = (value) => (typeof value === 'string' ? value : JSON.stringify(value));
 
 // --- the helper ------------------------------------------------------------------------
 
 /**
- * The three functions, wired to their dependencies: prop(key, default) reads a setting,
- * backend() returns the backend, store() the transcript store, newConversationId() a loop's
- * reference, writer(event) the stream writer, log the logger and trace(key, value) the trace
- * annotation. Tests inject fakes.
+ * The functions, wired to their dependencies: prop(key, default) reads a setting, backend()
+ * returns the backend, store() the transcript store, audit() the transcript audit store,
+ * send(route, body) a local drop-n-forget event, registry the function registry the audit
+ * function joins at boot, newConversationId() a loop's reference, writer(event) the stream writer,
+ * log the logger and trace(key, value) the trace annotation. Tests inject fakes.
  */
 export function createLlmHelper({
   prop = (key, fallback) => appConfig().getProperty(key, fallback),
   backend = defaultBackend((key, fallback) => appConfig().getProperty(key, fallback)),
   store = defaultStore((key, fallback) => appConfig().getProperty(key, fallback)),
+  audit = defaultAudit((key, fallback) => appConfig().getProperty(key, fallback)),
+  send = localSend,
+  registry = defaultRegistry,
   newConversationId = () => randomUUID().replaceAll('-', ''),
   writer = (event) => EventStreamWriter.fromRequest(event),
   log = defaultLog,
@@ -962,30 +1407,132 @@ export function createLlmHelper({
     throw new AppException(502, `LLM stop_reason=${stop} is not part of the loop contract`);
   }
 
+  // -- the transcript audit store (RFC-0012): what a turn records and sends -----------------
+
+  const auditConfigured = () => Boolean(prop('llm.transcript.audit'));
+  const auditGraceS = () => durationOf('llm.transcript.audit.grace',
+    prop('llm.transcript.audit.grace', DEFAULT_AUDIT_GRACE), 1);
+  const auditRetentionS = () => durationOf('llm.transcript.audit.retention',
+    prop('llm.transcript.audit.retention', DEFAULT_AUDIT_RETENTION), 0);
+  const auditSweepMs = () => wholeNumber('llm.transcript.audit.sweep.ms',
+    prop('llm.transcript.audit.sweep.ms', String(DEFAULT_AUDIT_SWEEP_MS)), 0);
+
+  /** The business correlation id of the transaction: the trace context's, which the host fills
+   * from the engine-managed tag at delivery, else the read-only header view of the same value. */
+  function correlationId(headers) {
+    return getTrace()?.myCorrelationId || headers.my_correlation_id || null;
+  }
+
+  /** A new conversation's record: the model pinned, the first turn's messages, and what the audit
+   * rows need (record version 2) - the correlation id, the graph and the node the engines' loop
+   * sends as headers (null when a caller sends none), the system prompt and the catalog once. */
+  function firstRecord(request, loop, headers) {
+    return transcript({
+      model: request.model,
+      messages: [...request.messages],
+      turn: 0,
+      pending: [],
+      correlation_id: correlationId(headers),
+      graph_id: headers[GRAPH_ID_HEADER] || null,
+      node: headers[NODE_HEADER] || null,
+      system: request.system ?? null,
+      tools: loop.tools
+    });
+  }
+
+  /** The facts of one turn, saved in the record inside the compare-and-set: the identity from
+   * the trace context, the model call's UTC bounds, its outcome and usage, and where the turn's
+   * request and response sit in the messages ([first request message, response]). */
+  function turnFacts(turn, status, done, [startedAt, endedAt], headers, indexes) {
+    const info = getTrace();
+    return {
+      turn,
+      trace_id: info?.traceId ?? null,
+      trace_path: info?.tracePath ?? null,
+      correlation_id: correlationId(headers),
+      started_at: startedAt,
+      ended_at: endedAt,
+      status,
+      stop_reason: done.stopReason,
+      request_id: done.requestId ?? null,
+      usage: {
+        input_tokens: done.inputTokens,
+        output_tokens: done.outputTokens,
+        cache_creation_input_tokens: done.cacheCreationInputTokens,
+        cache_read_input_tokens: done.cacheReadInputTokens
+      },
+      messages: indexes
+    };
+  }
+
+  /** How long the saved record lives. A run the model ended takes the retention; a run the loop
+   * stops (a cut-off turn, or the loop's own limits) keeps its time to live and expires with it.
+   * With an audit store, a closed record waits for its integrity check instead, which releases it
+   * to the retention once the audit holds every turn (RFC-0012, section 4). */
+  function recordTtl(loop, outcome, closed, audited) {
+    if (audited && closed) {
+      return auditGraceS();
+    }
+    const modelEnded = outcome.status === 'done' || outcome.status === 'refusal' || outcome.cap === 'context';
+    return modelEnded ? loop.retentionS : loop.ttlS;
+  }
+
+  /** A local drop-n-forget event to transcript.audit over the in-process bus, the turn's trace
+   * inherited so the write shows as the function's own execution. A failure to send is logged by
+   * type and never refuses the turn: the sweep repairs what a lost event leaves behind. */
+  async function auditSend(event) {
+    let ack;
+    try {
+      ack = await send(AUDIT_ROUTE, event);
+    } catch (error) {
+      log.warn(`${AUDIT_ROUTE} event not sent - ${error?.name ?? 'Error'}`);
+      return;
+    }
+    if (ack.hasError()) {
+      log.warn(`${AUDIT_ROUTE} event not accepted - status=${ack.getStatus()}`);
+    }
+  }
+
+  /** Tell transcript.audit, off the turn's path: the write of this turn and, behind it, the
+   * integrity check when the turn closed the run - one mailbox, one worker, so the check can
+   * never overtake the write it verifies. */
+  async function notifyAudit(conversation, turn, closed) {
+    await auditSend({ conversation, turn });
+    if (closed) {
+      await auditSend({ conversation, check: true });
+    }
+  }
+
   /** One model turn of an agent loop: load and check the record, append the tool results, call
-   * the model, append its turn, and save under the compare-and-set. */
-  async function loopTurn(body) {
+   * the model, append its turn and its facts, save under the compare-and-set, and tell the audit
+   * function when one is configured - off the turn's path. */
+  async function loopTurn(headers, body) {
     const loop = prepareLoop(body);
     let request = prepare(body, { streaming: false, continuation: loop.conversation !== undefined });
     const transcripts = await store();
+    const audited = auditConfigured();
     let conversation;
     let record;
     let messages;
+    let first;
     try {
       if (loop.conversation === undefined) {
         conversation = newConversationId();
-        record = { model: request.model, messages: [...request.messages], turn: 0, pending: [], closed: false };
+        record = firstRecord(request, loop, headers);
         messages = [...record.messages];
+        first = 0; // a first turn's request is every message it sent
       } else {
         conversation = loop.conversation;
         record = checkTurn(conversation, await transcripts.load(conversation), loop, body);
         messages = [...record.messages, toolResults(record.pending, loop.results)];
+        first = record.messages.length; // the one message of tool results
       }
     } catch (error) {
       throw error instanceof AppException ? error : storeFailure(error);
     }
     request = { ...request, model: record.model, messages, tools: loop.tools };
     const started = performance.now();
+    const startedAt = isoUtc();
     let done;
     try {
       done = await complete(request, await backend());
@@ -997,27 +1544,32 @@ export function createLlmHelper({
       log.warn(`llm.chat failed - status=${mapped.status} turn=${record.turn + 1}`);
       throw mapped;
     }
+    const endedAt = isoUtc();
     const outcome = loopOutcome(request, done);
     const turn = record.turn + 1;
-    const saved = {
-      model: record.model,
+    const closed = outcome.status !== 'tool_use';
+    const facts = turnFacts(turn, outcome.status, done, [startedAt, endedAt], headers, [first, messages.length]);
+    const saved = transcript({
+      ...record,
       messages: [...messages, { role: 'assistant', content: done.content }],
       turn,
       pending: (outcome.calls ?? []).map((call) => call.id),
-      closed: outcome.status !== 'tool_use'
-    };
-    // a run the model ended takes the retention; a run the loop stops (a cut-off turn, or the
-    // loop's own limits) keeps its time to live and expires with it
-    const modelEnded = outcome.status === 'done' || outcome.status === 'refusal' || outcome.cap === 'context';
+      closed,
+      retention: loop.retentionS,
+      turns: [...record.turns, facts]
+    });
     let written;
     try {
-      written = await transcripts.save(conversation, record.turn, saved, modelEnded ? loop.retentionS : loop.ttlS);
+      written = await transcripts.save(conversation, record.turn, saved, recordTtl(loop, outcome, closed, audited));
     } catch (error) {
       throw storeFailure(error);
     }
     if (!written) {
       throw new AppException(409, `conversation ${conversation} moved on before turn ${turn} was saved - `
         + 'a duplicated turn');
+    }
+    if (audited) {
+      await notifyAudit(conversation, turn, closed);
     }
     annotateUsage(done);
     trace('llm_status', outcome.status);
@@ -1069,11 +1621,12 @@ export function createLlmHelper({
    * A request that carries `tools` is one turn of an agent loop (RFC-0011): conversation, turn,
    * results, ttl and retention come with it, and the reply carries status (done, tool_use,
    * refusal or cap), calls, conversation and turn. The transcript stays in this app's store;
-   * see README.md, "The loop contract".
+   * see README.md, "The loop contract". The loop's x-graph-id and x-node headers are recorded
+   * for the audit store, when one is configured (README.md, "The audit store").
    */
-  async function chat(_headers, body) {
+  async function chat(headers, body) {
     if (isMap(body) && LOOP_KEYS.some((key) => key in body)) {
-      return loopTurn(body);
+      return loopTurn(headers, body);
     }
     const request = prepare(body, { streaming: false });
     const started = performance.now();
@@ -1210,6 +1763,10 @@ export function createLlmHelper({
       if (transcriptStore) {
         info.transcript_store = transcriptStore; // where a loop's transcripts are kept
       }
+      const transcriptAudit = prop('llm.transcript.audit');
+      if (transcriptAudit) {
+        info.transcript_audit = transcriptAudit; // where every model turn is recorded for audit
+      }
       return info;
     }
     const problem = await provider.credentialProblem();
@@ -1219,10 +1776,147 @@ export function createLlmHelper({
     return 'llm.helper is running fine';
   }
 
-  return { prepare, plan, chat, stream, health };
+  // -- the audit function, its sweep and its boot (RFC-0012) --------------------------------
+
+  /** One event: write what the audit store lacks of the conversation's record, then mark the
+   * record audited. A check on a closed record releases it first, so the mark says the check is
+   * done; a write of a closing turn leaves both to the check right behind it; an open record (a
+   * run waiting for a tool result, a person or the loop's next turn) is only filled. */
+  async function auditApply(conversation, check) {
+    const transcripts = await store();
+    const auditStore = await audit();
+    const record = await transcripts.load(conversation);
+    if (record === undefined) {
+      log.warn(`${AUDIT_ROUTE} conversation=${conversation} no working record - expired or released`);
+      return;
+    }
+    const held = await auditStore.turns(conversation);
+    const facts = new Map((record.turns ?? []).map((fact) => [Number(fact.turn), fact]));
+    const missing = [];
+    for (let turn = 1; turn <= record.turn; turn += 1) {
+      if (!held.has(turn)) {
+        missing.push(turn);
+      }
+    }
+    const rows = missing.filter((turn) => facts.has(turn)).map((turn) => turnRow(conversation, record, facts.get(turn)));
+    await auditStore.write(conversationRow(conversation, record, isoUtc(), auditRetentionS()), rows);
+    const unauditable = missing.filter((turn) => !facts.has(turn));
+    if (unauditable.length) {
+      // a record from before version 2: its earlier turns carry no facts (the one time the audit
+      // is knowingly incomplete)
+      log.warn(`${AUDIT_ROUTE} conversation=${conversation} turn(s) ${unauditable.join(',')} carry no facts - unaudited`);
+    }
+    let released = false;
+    if (record.closed && check) {
+      await transcripts.release(conversation, record.retention);
+      released = true;
+    }
+    if (check || !record.closed) {
+      await transcripts.markAudited(conversation, record.turn);
+    }
+    log.info(`${AUDIT_ROUTE} conversation=${conversation} turn=${record.turn} written=${rows.length} `
+      + `check=${check} released=${released}`);
+  }
+
+  /**
+   * The audit function (RFC-0012): registered at boot as a private route with ONE instance when
+   * llm.transcript.audit is configured. Two events, both local and drop-n-forget from llm.chat -
+   * {conversation, turn} after a compare-and-set accepted the turn, and {conversation, check: true}
+   * behind the write of a closing turn (and from the sweep). A failure is logged by type - never a
+   * prompt, a completion, an argument or a result - and the sweep repairs it.
+   */
+  async function transcriptAudit(_headers, body) {
+    const event = isMap(body) ? body : {};
+    const { conversation } = event;
+    if (typeof conversation !== 'string' || !CONVERSATION_ID.test(conversation)) {
+      log.warn(`${AUDIT_ROUTE} event without a conversation reference ignored`);
+      return;
+    }
+    const check = Boolean(event.check);
+    try {
+      await auditApply(conversation, check);
+    } catch (error) { // off the turn's path: logged by type, the sweep repairs
+      log.warn(`${AUDIT_ROUTE} conversation=${conversation} ${check ? 'check' : 'write'} failed - ${auditFailure(error)}`);
+    }
+  }
+
+  /** One sweep: a check event for every live record whose audited mark lags its turn count -
+   * the runs the loop stopped, and the writes a dying process lost. On Redis one replica per
+   * interval does it; the memory store sweeps its own process. The number of checks sent. */
+  async function auditSweep() {
+    const transcripts = await store();
+    if (!(await transcripts.sweepLock(auditSweepMs()))) {
+      return 0;
+    }
+    const lagging = await transcripts.unaudited();
+    for (const conversation of lagging) {
+      await auditSend({ conversation, check: true });
+    }
+    if (lagging.length) {
+      log.info(`${AUDIT_ROUTE} sweep: ${lagging.length} record(s) behind their audit`);
+    }
+    return lagging.length;
+  }
+
+  let sweepTimer;
+  let auditStoreOpened; // the store the boot built, closed at shutdown
+
+  /** Start the audit when llm.transcript.audit is configured: register transcript.audit with one
+   * instance, open the store and start the sweep. A driver that is not installed stops the
+   * application by name (a deployment error); a database that does not answer is logged, and the
+   * sweep repairs what the outage defers. */
+  async function auditBoot() {
+    if (!auditConfigured()) {
+      return;
+    }
+    try {
+      auditStoreOpened = await audit();
+    } catch (error) {
+      log.error(`transcript audit store cannot start - ${error.message}`);
+      throw error;
+    }
+    if (!registry.exists(AUDIT_ROUTE)) {
+      registry.register(AUDIT_ROUTE, transcriptAudit, { instances: 1, isPrivate: true });
+      log.info(`Loaded PRIVATE ${AUDIT_ROUTE}, instances=1 - audit store ${auditStoreOpened.name}`);
+    }
+    try {
+      await auditStoreOpened.open();
+      log.info(`transcript audit store ${auditStoreOpened.name} ready`);
+    } catch (error) { // an outage, not a deployment error
+      log.warn(`transcript audit store ${auditStoreOpened.name} not answering at start - ${auditFailure(error)}; `
+        + 'the sweep repairs what the outage defers');
+    }
+    const sweepMs = auditSweepMs();
+    if (sweepMs > 0 && sweepTimer === undefined) {
+      sweepTimer = setInterval(() => {
+        auditSweep().catch((error) => log.warn(`${AUDIT_ROUTE} sweep failed - ${auditFailure(error)}`));
+      }, sweepMs);
+      sweepTimer.unref?.(); // the sweep never keeps a stopping process alive
+    }
+  }
+
+  async function auditShutdown() {
+    if (sweepTimer !== undefined) {
+      clearInterval(sweepTimer);
+      sweepTimer = undefined;
+    }
+    const closing = auditStoreOpened;
+    auditStoreOpened = undefined;
+    if (closing !== undefined) {
+      await closing.close();
+    }
+  }
+
+  return {
+    prepare, plan, chat, stream, health, transcriptAudit, auditSweep, auditBoot, auditShutdown,
+    sweeping: () => sweepTimer !== undefined
+  };
 }
 
 const helper = createLlmHelper();
 preload('llm.chat', { instances: 50 }, helper.chat);
 preload('llm.stream', { instances: 50, interceptor: true }, helper.stream);
 preload('llm.health', { instances: 5, isPrivate: true }, helper.health);
+// the audit starts inside the serving loop, before the host listens, when it is configured
+platform.onStartup(helper.auditBoot);
+platform.onCleanup(helper.auditShutdown);

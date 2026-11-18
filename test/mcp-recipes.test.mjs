@@ -23,11 +23,11 @@ const RECIPES = fileURLToPath(new URL('../extensions/mcp-binding/resources/mcp-r
 const REPOSITORY = fileURLToPath(new URL('..', import.meta.url));
 const DIGESTS_FILE = new URL('./vectors/mcp-recipes.json', import.meta.url);
 // the Python twin pins the same digest: change the file in both packs or in neither
-const DIGESTS_SHA256 = '10c70fe179d315cb0932d56cf0bc1e11290eb7c922ff439e5b9e7944df437d53';
+const DIGESTS_SHA256 = '844e729bc41e667892ecd5a6e864568b2c10d4785f0624864c91834074b47aac';
 const DIGESTS = JSON.parse(readFileSync(DIGESTS_FILE, 'utf8'));
 const LIVE = Boolean(process.env.MCP_RECIPES_LIVE);
 const RECIPE_SERVERS = ['fetch', 'filesystem', 'git', 'github', 'neo4j', 'playwright', 'time'];
-// the servers that list their tools without a credential - the ones the page pins
+// the servers that list their tools without a credential; GitHub's hosted server lists with a token
 const CREDENTIAL_FREE = ['git', 'time', 'fetch', 'filesystem', 'playwright'];
 // a credential the file references but these tests never send gets a placeholder, so the file
 // loads; a real value already in the environment (the Neo4j run) is kept
@@ -102,7 +102,8 @@ test('the references resolve from the environment', () => {
 test('every pinned server has a recipe and tools', () => {
   const specs = recipes();
   const pinned = DIGESTS.servers;
-  assert.deepEqual(Object.keys(pinned).sort(), [...CREDENTIAL_FREE, 'neo4j'].sort());
+  assert.deepEqual(Object.keys(pinned).sort(), RECIPE_SERVERS);
+  for (const name of pinned.github.read_only_tools) assert.ok(name in pinned.github.tools, name);
   for (const [name, server] of Object.entries(pinned)) {
     assert.ok(specs.has(name), name);
     assert.ok(Object.keys(server.tools).length > 0, name);
@@ -138,4 +139,29 @@ test('live digests of the neo4j recipe', {
   const { missing, changed } = rot(actual, DIGESTS.servers.neo4j.tools);
   assert.ok(missing.length === 0 && changed.length === 0,
     `the neo4j recipe rotted - missing ${JSON.stringify(missing)}, changed ${JSON.stringify(changed)}`);
+});
+
+// --- GitHub's hosted server, live with a token (gated) -------------------------------------------
+
+const GITHUB_SKIP = LIVE && process.env.GITHUB_MCP_TOKEN ? false
+  : "set MCP_RECIPES_LIVE=1 and GITHUB_MCP_TOKEN (a fine-grained, read-only token) to list GitHub's hosted server";
+
+test('live: the read-only header hides every write of the github recipe', { skip: GITHUB_SKIP }, async () => {
+  // the recipe's default, X-MCP-Readonly true: exactly the pinned read tools, with their digests
+  const actual = await offeredDigests(recipes().get('github'));
+  const pinned = DIGESTS.servers.github;
+  const expected = Object.fromEntries(pinned.read_only_tools.map((name) => [name, pinned.tools[name]]));
+  assert.deepEqual(actual, expected, 'the read-only listing differs from the pinned read tools');
+});
+
+test('live digests of the github recipe, writes included', { skip: GITHUB_SKIP }, async () => {
+  process.env.GITHUB_MCP_READONLY = 'false';
+  try {
+    const actual = await offeredDigests(recipes().get('github'));
+    const { missing, changed } = rot(actual, DIGESTS.servers.github.tools);
+    assert.ok(missing.length === 0 && changed.length === 0,
+      `the github recipe rotted - missing ${JSON.stringify(missing)}, changed ${JSON.stringify(changed)}`);
+  } finally {
+    delete process.env.GITHUB_MCP_READONLY;
+  }
 });

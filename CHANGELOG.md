@@ -62,6 +62,17 @@
    record saved by the previous helper (version 1) continues under the new one; its turns before the upgrade carry no
    facts, and the check logs them as unaudited.
 
+3. **Recipes for tools from existing MCP servers (RFC-0013 in mercury-composable, step 5), in lockstep with the Python
+   pack.** `extensions/mcp-binding/resources/mcp-recipes.yml` holds one ready server-file entry for each server of the
+   engines' page *Tools from MCP Servers* - the reference servers Git, Time, Fetch and Filesystem (`uvx` and `npx`,
+   versions pinned), Neo4j's Cypher server, GitHub's hosted server and Playwright's browser - with every
+   environment-specific value a `${NAME:default}` reference and every credential a reference without a default. The
+   binding does not load the file; an entry is copied into `mcp-servers.yml` and its tools declared with `bind` as
+   before. `test/vectors/mcp-recipes.json`, shared byte for byte with the Python pack, pins the input-schema digests of
+   the six servers that list their tools without a credential (56 tools, read 2026-11-18 through both packs' `describe`,
+   identical), and `test/mcp-recipes.test.mjs` loads the recipes file on every run and, with `MCP_RECIPES_LIVE=1`,
+   starts each server through the binding's own client and compares the digests, so a recipe that rots fails by name.
+
 ### Changed
 
 1. **`web.crawl` accepts a relative `include`**, in lockstep with the Python pack: a prefix that does not start with `/` matches

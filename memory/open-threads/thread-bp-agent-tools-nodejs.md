@@ -21,7 +21,7 @@
   `extensions/mcp-binding/resources/mcp-recipes.yml` (seven server entries with `${NAME:default}` references and pinned
   versions, not loaded by default), the shared digest vector `test/vectors/mcp-recipes.json` (56 tools of six servers,
   read through `describe`, identical from both packs) and `test/mcp-recipes.test.mjs` (five tests on every run, six
-  gated live on `MCP_RECIPES_LIVE=1`; 11 passed live); the page is the engine's `docs/guides/tools-from-mcp-servers.md`.
+  gated live on `MCP_RECIPES_LIVE=1`; 11 passed live; PR #132); the page is the engine's `docs/guides/tools-from-mcp-servers.md`.
   Next: nothing until Eric rules on RFC-0013's promotion.
   → serves: vision-mercury-nodejs
   <!-- id: bp-agent-tools-nodejs | created: 2026-11-17 | last_used: 2026-11-17 | uses: 1 | tier: working | origin: 2026-11-17-111036 -->

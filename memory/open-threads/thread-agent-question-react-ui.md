@@ -1,7 +1,9 @@
-- [ ] **(blueprint) The agent-question app's person's side as a small React app, maintained here for both packs (Eric,
+- [ ] **(blueprint) The React UI - the one front-end of the agent-question app, maintained here for both packs (Eric,
   2026-11-19: "a useful tool for demo and real-world operation"; "putting it only in the mercury-nodejs language pack so
-  there is one app to maintain in one place").** The page shipped with RFC-0014 step 3 is one vanilla HTML file the
-  extension generates, byte-identical in both packs - cards grouped by case, a name field, the replay and the stream;
+  there is one app to maintain in one place"; "the agent-question app is the backend in both python and node repos and
+  the React UI is the front-end").** The agent-question app of each pack is the backend: the inbox, the three endpoints,
+  the stream and the identity modes - one contract, pinned by the shared vectors. The page it generates today (RFC-0014
+  step 3) is one vanilla HTML file, byte-identical in both packs - cards grouped by case, a name field, the replay and the stream;
   on 2026-11-19 it gained a sticky header with the count of open cards, a *Waiting for you* section and a scrollable
   *History* panel that keeps its place while cards arrive. The upgrade: a small React app over the same three endpoints
   (`GET /questions?since`, `GET /questions/events`, `POST /questions/{id}/decide` and `/seen`) and the same message

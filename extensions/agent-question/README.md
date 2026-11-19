@@ -27,6 +27,10 @@ application is one of those routes. It is a standalone application on the packag
   never overwrites it (the live drive of 2026-11-19). Rows are never deleted here; `schema/purge.sql` is the
   installation's.
 
+This app is the backend - the inbox, the endpoints, the stream; the page is its vanilla front-end. The front-end that will
+replace it, a small React app pointed at either pack's backend, is on this pack's backlog
+(`memory/open-threads/thread-agent-question-react-ui.md`) and will be maintained here only (Eric, 2026-11-19).
+
 The Python twin (mercury-python `extensions/agent-question`) serves the same route, the same page and the same schema,
 pinned by the same vector file (`test/vectors/agent-question-vectors.json`, byte-identical in both packs).
 

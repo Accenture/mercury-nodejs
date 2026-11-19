@@ -249,7 +249,11 @@
   `GET /questions/events` with `Last-Event-ID`, the automated click `POST /questions/{id}/decide` to the link's own base under
   the app's bearer, `seen`; states open, answered, expired, seen; a sweeper for expiry; identity as the main flow's. Pinned by
   `test/vectors/agent-question-vectors.json` (30 cases, byte-identical, SHA-pinned - the reference inbox replayed on the scripted
-  sequence lands on the same rows, ids and change sequence) and 48 tests. **How to apply:** the app never talks to the engine,
+  sequence lands on the same rows, ids and change sequence) and 48 tests. **Driven live 2026-11-19 (RFC-0014 step 5, in the
+  engines' `docs/test-reports/ask-a-person-live-drive.md`):** the Node twins carried a question, a decision, the advices and
+  two devices on one card end to end behind the Java Playground; the first-decision rule found by the drive is in both
+  packs - a decision's write applies when the row is still open or when the engine accepted it, so `answered` always wins
+  and the losing device gets the row as it stands (vectors version 2, 31 cases). **How to apply:** the app never talks to the engine,
   only to the reply endpoint the link names; a row is never deleted by the app; the runtime's differences - `$n` placeholders,
   int8 as text, `jose` - stay inside the module, never in the contract.
   <!-- id: agent-question-app-node | created: 2026-11-19 | last_used: 2026-11-19 | uses: 1 | tier: working | origin: 2026-11-19-074617 -->

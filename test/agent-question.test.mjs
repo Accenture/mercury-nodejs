@@ -20,7 +20,7 @@ import * as aq from '../extensions/agent-question/agent-question.mjs';
 
 const VECTORS_FILE = new URL('./vectors/agent-question-vectors.json', import.meta.url);
 // the Python twin runs the same file: change it in both packs or in neither
-const VECTORS_SHA256 = '65acc6da940618b53e74ed22ddff102df4fb0d4961688cea0aca2c16c3a5f735';
+const VECTORS_SHA256 = '4ccf076692bbc87b656cefd874f4474a5141fb8c7882f2833267c1c6ddb93844';
 const VECTORS = JSON.parse(readFileSync(VECTORS_FILE, 'utf8'));
 const SCHEMA = new URL('../extensions/agent-question/schema/postgres.sql', import.meta.url);
 
@@ -65,7 +65,7 @@ const postJson = (url, body, headers = {}) => fetch(url, { method: 'POST', heade
 test('the vector file is the one the Python twin runs', () => {
   assert.equal(createHash('sha256').update(readFileSync(VECTORS_FILE)).digest('hex'), VECTORS_SHA256);
   assert.equal(VECTORS.contract, 'agent-question');
-  assert.equal(VECTORS.version, 1);
+  assert.equal(VECTORS.version, 2);
 });
 
 for (const c of VECTORS.row_cases) {
@@ -456,7 +456,7 @@ test('the postgres inbox runs the statements and maps the records', async () => 
   await box.decided(7, [{ id: 'toolu_01A', approved: true }], 'operator-17', 'answered', { status: 200, body: {} }, now);
   [sql, params] = pool.log.at(-1);
   assert.equal(sql, aq.SQL_DECIDED);
-  assert.deepEqual(params, ['answered', '[{"id":"toolu_01A","approved":true}]', '{"status":200,"body":{}}', 'operator-17', now, now, 7]);
+  assert.deepEqual(params, ['answered', '[{"id":"toolu_01A","approved":true}]', '{"status":200,"body":{}}', 'operator-17', now, now, 7, 'answered']);
   await box.seen(8, now);
   assert.deepEqual(pool.log.at(-1), [aq.SQL_SEEN, [now, 8]]);
   await box.expire(now);

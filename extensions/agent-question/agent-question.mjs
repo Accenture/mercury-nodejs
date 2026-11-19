@@ -306,6 +306,7 @@ export class MemoryInbox {
   async decided(id, decisions, who, state, outcome, now) {
     const row = this.rows.get(id);
     if (!row) return null;
+    if (row.state !== 'open' && state !== 'answered') return row; // decided first by another device: a later nothing-waiting never overwrites it
     const updated = { ...row, seq: this.bump(), state, decisions, outcome, answered_by: who, answered_at: now, updated_at: now };
     this.rows.set(id, updated);
     return updated;
@@ -357,7 +358,7 @@ export const SQL_GET = `SELECT ${COLUMNS} FROM question_inbox WHERE id = $1`;
 export const SQL_SINCE = `SELECT ${COLUMNS} FROM question_inbox WHERE seq > $1 ORDER BY seq LIMIT $2`;
 export const SQL_DECIDED = "UPDATE question_inbox SET seq = nextval('question_inbox_seq'), state = $1, decisions = $2::jsonb, "
   + 'outcome = $3::jsonb, answered_by = $4, answered_at = $5::timestamptz, updated_at = $6::timestamptz '
-  + `WHERE id = $7 RETURNING ${COLUMNS}`;
+  + `WHERE id = $7 AND (state = 'open' OR $8::text = 'answered') RETURNING ${COLUMNS}`;
 export const SQL_SEEN = "UPDATE question_inbox SET seq = nextval('question_inbox_seq'), state = 'seen', updated_at = $1::timestamptz "
   + `WHERE id = $2 AND kind = 'advice' RETURNING ${COLUMNS}`;
 export const SQL_EXPIRE = "UPDATE question_inbox SET seq = nextval('question_inbox_seq'), state = 'expired', updated_at = $1::timestamptz "
@@ -436,7 +437,9 @@ export class PostgresInbox {
   }
 
   async decided(id, decisions, who, state, outcome, now) {
-    return this.one(SQL_DECIDED, [state, compact(decisions), compact(outcome), who, now, now, id]);
+    const row = await this.one(SQL_DECIDED, [state, compact(decisions), compact(outcome), who, now, now, id, state]);
+    // no row: the guard kept a row another device decided first (or the row is gone) - answer with it as stored
+    return row ?? await this.get(id);
   }
 
   async seen(id, now) {
@@ -775,7 +778,8 @@ async function forward(url, body, config) {
   }
 }
 
-/** POST /questions/{id}/decide with {decisions, decided_by?}: the click, automated. */
+/** POST /questions/{id}/decide with {decisions, decided_by?}: the click, automated. The first accepted decision
+ * stands: an acceptance always wins the row, and a nothing-waiting that lands after one never overwrites it. */
 export async function decide(req, res, id) {
   const config = currentSettings();
   let body;
@@ -814,8 +818,15 @@ export async function decide(req, res, id) {
     ? { status: 502, body: { type: 'error', message: `the reply endpoint did not answer - ${error}` } }
     : { status, body: answer };
   const state = stateAfter(outcome.status, outcome.body);
-  const updated = await inbox().decided(id, decisions.map((d) => ({ ...d })), identity.who, state, outcome, isoUtc());
+  const now = isoUtc();
+  const updated = await inbox().decided(id, decisions.map((d) => ({ ...d })), identity.who, state, outcome, now);
   if (!updated) return sendError(res, 404, `row ${id} is not in the inbox`);
+  if (updated.answered_by !== identity.who || updated.answered_at !== now) {
+    // two devices on one card: the other one's decision was accepted while this one was in flight, so the engine
+    // answered nothing-waiting here and the row stands as the first decision left it - this device sees who
+    log.info(`Row ${id}: ${identity.who}'s decision met a row ${updated.state} by ${updated.answered_by} - the row stands`);
+    return sendJson(res, 200, { row: publicRow(updated), outcome });
+  }
   wakeups.publish([updated]);
   log.info(`Row ${id} decided by ${identity.who} via ${identity.via} - ${outcome.status} -> ${state}`);
   return sendJson(res, 200, { row: publicRow(updated), outcome });

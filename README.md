@@ -28,6 +28,12 @@ This package is a deliberately **lightweight wrapper of the Event-over-HTTP prot
   in its catalog — files inside one workspace, the web inside an allowlist of sites, the agent's knowledge
   graph inside one database, a clock — each a composable function whose sandbox is deployment
   configuration, never an argument of a call, with its catalog row published.
+- the **ask-a-person main flow** extension (`extensions/ask-person`): `person.ask`, the function a graph's hold path
+  calls before it suspends for a person - a signed, stateless ticket, the resume link and one message event to the
+  installation's channels; the reply page and endpoint that bring the decision back (RFC-0014, step 1);
+- the **agent-question app** (`extensions/agent-question`): the first channel of that design, a store-and-forward
+  inbox for a person whose device is not always connected - the intake, the replay, the stream and the automated click
+  (RFC-0014, step 3).
 
 Orchestration deliberately stays in the engines. Functions written here are addressed by
 route name through the engines' declarative `yaml.event.over.http` map, so a flow or a
@@ -225,6 +231,10 @@ a loop names in its catalog, each a composable function inside a sandbox the dep
 (the npm package does not ship it). Its `llm.chat` is configurable: a stateless chat, or one
 turn of a multi-turn tool-use loop whose transcript lives in the store the helper is configured
 with.
+The ask-a-person main flow in `extensions/ask-person/` carries such a loop's wait for a person to the installation's
+channels and brings the decision back through a resume link, knowing no channel and keeping no store; the
+agent-question app in `extensions/agent-question/` is one of those channels, a store-and-forward inbox for an
+occasionally connected device, a separate application on the same package.
 
 ## License
 

@@ -6,4 +6,4 @@
   GitHub release and a registry publication are two acts, and npm's tarball follows its listing by minutes (five here) -
   verify the bytes, not the listing. Origin: 2026-10-14-015422; the record in 2026-11-16-090525.md.
   → serves: vision-mercury-nodejs
-  <!-- id: pack-catch-up-4-12-25 | created: 2026-10-14 | last_used: 2026-11-13 | uses: 7 | tier: working | origin: 2026-10-14-015422 -->
+  <!-- id: pack-catch-up-4-12-25 | created: 2026-10-14 | last_used: 2026-11-16 | uses: 13 | tier: archive-candidate | origin: 2026-10-14-015422 -->

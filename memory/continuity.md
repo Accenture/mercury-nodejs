@@ -22,11 +22,15 @@
   lockstep with the Python pack — the Node.js member of the Mercury Composable polyglot initiative: a lightweight
   Event-over-HTTP function host + thin client, repurposed August 2026.
 - **last_enabled:** 2026-08-22
-- **last_review:** 2026-11-13 | through 2026-11-13-030139.md (on command — 5 sessions since 2026-11-03-005949, not yet due;
-  `refresh-metadata` refreshed 3 footers, tier changes 2 (`examples-one-folder-per-app` and `llm-helper-bedrock-iam` →
-  archive-candidate); archived 0 (none faded, none superseded), swept 0 (no completed thread past `archive_window`); one stale
-  statement corrected ([[pack-catch-up-4-12-25]]: the Java number is 4.12.30); invariants not due (3 of 40); stalled none;
-  contradictions none; live facts 20. Smoke test not run.)
+- **last_review:** 2026-11-19 | through 2026-11-19-075437.md (cadence — 16 sessions since 2026-11-13-030139; `refresh-metadata`
+  refreshed 17 footers, tier changes 13; archived 1 faded fact `otel-forwarder-nodejs` (33; step 6: the window's two commits on
+  its paths were quality sweeps with no behaviour change, and no window log reasons from its rule) - the other candidate,
+  [[conv-resources-next-to-the-application-file]], is a declaration gap re-affirmed (the twins of 2026-11-19-074617 placed and
+  loaded `resources` next to each module); swept 4 completed threads (bp-publish-interop-gate 33, llm-helper-bedrock-iam 26,
+  otel-forwarder-lockstep 34, vision-versioning-vs-java-number 21) → 2026-Q4; invariants not due (19 of 40); stalled none;
+  contradictions none; live facts 29 → 24. Smoke test not run.)
+  Prior: 2026-11-13 | through 2026-11-13-030139.md (on command — 5 sessions since 2026-11-03-005949, not yet due; 3 footers
+  refreshed, 2 tier changes; archived 0, swept 0; one stale statement corrected; invariants not due (3 of 40); live facts 20)
   Prior: 2026-11-03 | through 2026-11-03-005949.md (cadence — archived 3 faded facts, swept 3 threads; invariants DUE →
   [[reverify-invariants-20261103]]; one drift raised)
   Prior: 2026-09-23 | through 2026-09-23-004556.md (cadence — 11 sessions since; archived 1 faded fact
@@ -45,14 +49,14 @@
   compiled to `dist/` (ESM); npm package `mercury-composable` v4.12.30 (2026-11-16; the first publication v4.12.1 was
   2026-09-01; the Java release number it caught up to; build copies default-log-context.yaml
   into dist/src); scripts: `build`, `test`, `prepack`
-  <!-- id: stack-typescript-esm | created: 2026-08-22 | last_used: 2026-11-03 | uses: 8 | tier: active | origin: 2026-08-22-171916 -->
+  <!-- id: stack-typescript-esm | created: 2026-08-22 | last_used: 2026-11-16 | uses: 9 | tier: archive-candidate | origin: 2026-08-22-171916 -->
 - Runtime deps: `@msgpack/msgpack` (envelope codec), `yaml` (config) — deliberately minimal; dev dependency
   `@anthropic-ai/sdk` (the LLM helper app's SDK and the tests' error classes; the published package stays free of any
   LLM SDK — 2026-10-01, PR #106) `pg` >=8 is a dev dependency since 2026-11-17 (the transcript audit store, like `redis` for the
   transcript store), and so are `neo4j-driver` >=6, `mammoth` and `pdfjs-dist` (the agent tools' knowledge-graph tools and
   `file.extract`, 2026-11-17), and `jose` >=6 (the ask-person reply page's and the agent-question app's `oauth2` mode,
   2026-11-19); the published package stays free of any database client and document library.
-  <!-- id: stack-deps-msgpack-yaml | created: 2026-08-22 | last_used: 2026-10-02 | uses: 3 | tier: archive-candidate | origin: 2026-08-22-171916 -->
+  <!-- id: stack-deps-msgpack-yaml | created: 2026-08-22 | last_used: 2026-11-19 | uses: 6 | tier: active | origin: 2026-08-22-171916 -->
 ## Architectural Invariants
 
 > Hard constraints that must never change. These never decay (treated as `core`).
@@ -87,21 +91,6 @@
   <!-- id: stateless-functions-contract | created: 2026-08-22 | last_used: 2026-08-22 | uses: 1 | tier: core | origin: 2026-08-22-171916 -->
 
 ## Key Decisions
-
-- **The OpenTelemetry forwarder is a zero-dependency port of the Rust engine's hand-written OTLP encoder, attached
-  at the engines' extension route (Eric, 2026-09-22; the mercury-python twin merged the same day).** `src/otel/`
-  (the `otel` namespace): with `otel.forwarding=true` the bus routes every emitted trace dataset to
-  `distributed.trace.forwarder` through the registry's envelope router — WITHOUT a trace, so the forwarder's own
-  execution emits none — and the built-in forwarder (private, two workers; an application's own function on the
-  route wins) maps it to one span with the host's exact W3C ids and exports it over OTLP/HTTP protobuf through the
-  runtime's `fetch`, retrying transport failures and 408/429/502/503/504 on the SDK backoff and re-reading the
-  credential headers per export. Same `otel.*` keys as Java/Rust/Python; deltas: `otel.exporter.otlp.connect.timeout`
-  has no effect (one overall fetch timeout), scope `mercury-composable-nodejs`. Rejected: the OTel SDKs as an
-  optional dependency (~ten packages against this package's two). Shipped: PR #101, merge `586c3f63` (2026-09-22).
-  **Kind rule since 2026-09-22 (PR #104 MERGED, `5569357c`):** SERVER iff the record's `service` is `http.request` — an
-  engine edge's round-trip record — and every function execution is INTERNAL; a record's `from` no longer decides the kind
-  (the engines' connected-span-tree fix, mercury-composable/mercury `fix/connected-edge-spans`).
-  <!-- id: otel-forwarder-nodejs | created: 2026-09-22 | last_used: 2026-10-02 | uses: 3 | tier: archive-candidate | origin: 2026-09-22-165807 -->
 
 - **The LLM helper is a dedicated function host on the Anthropic SDK: the engines stay LLM-free, the AI node is a bounded
   function, and one contract is proven by a vector file shared with the Python pack (Eric's rulings, 2026-10-01; PR #106, merge
@@ -147,7 +136,7 @@
   2026-11-03 on branch `feat/llm-chat-loop-contract` (`268dc7b`, PR #115): the same contract and messages, a `MemoryStore` and a
   `RedisStore` on the `redis` package with the Python twin's Lua script (a record one pack writes the other reads), the
   shared 66 cases green on memory, a Redis fake and a live Redis.
-  <!-- id: llm-helper-app | created: 2026-10-01 | last_used: 2026-11-03 | uses: 6 | tier: active | origin: 2026-10-02-001255 -->
+  <!-- id: llm-helper-app | created: 2026-10-01 | last_used: 2026-11-17 | uses: 7 | tier: active | origin: 2026-10-02-001255 -->
 
 - **The MCP binding serves one composable route per allowlisted MCP tool, and the server cannot change a tool under the
   graph (RFC-0011 / ADR-0033 step 4; the Node.js twin built 2026-11-14, the same day as the Python one).**
@@ -188,7 +177,7 @@
   tool is a `bind` line, a few-line `preload` function, a catalog row on the graph and an Event-over-HTTP entry; a schema
   change is a digest re-reviewed next to the function; a new server is a server-file entry; never a route in a YAML file
   and never engine code.
-  <!-- id: mcp-binding-function-per-tool | created: 2026-11-16 | last_used: 2026-11-16 | uses: 1 | tier: working | origin: 2026-11-16-044314 | supersedes: mcp-binding-route-per-tool -->
+  <!-- id: mcp-binding-function-per-tool | created: 2026-11-16 | last_used: 2026-11-19 | uses: 3 | tier: active | origin: 2026-11-16-044314 | supersedes: mcp-binding-route-per-tool -->
 
 - **A traced call into the pack leaves the records a Java or Rust callee leaves, so a span lineage is continuous from an
   engine into the pack (2026-11-14, the twin of mercury-python #53; Eric's criterion: for OpenTelemetry to be certified,
@@ -208,7 +197,7 @@
   exists - every traced execution leaves exactly one; before changing a host or client path, ask which side records it in
   the Java engine and mirror that side; a lineage check parses every record of the trace from every process and verifies
   each parent is a span some record owns.
-  <!-- id: trace-records-engine-parity | created: 2026-11-14 | last_used: 2026-11-14 | uses: 1 | tier: working | origin: 2026-11-14-115318 -->
+  <!-- id: trace-records-engine-parity | created: 2026-11-14 | last_used: 2026-11-14 | uses: 1 | tier: archive-candidate | origin: 2026-11-14-115318 -->
 
 - **The transcript audit store: every model turn recorded by a composable function behind a local event, off the
   turn's path, into PostgreSQL beside the working store - the Node twin of the Python pack's build (RFC-0012 in
@@ -238,7 +227,7 @@
   full run and a resume of a Python-started conversation, the same rows from the same record; #129 added a server-side
   `statement_timeout` beside the client's `query_timeout`, because a paused database stalls a pooled statement where a
   stopped one fails it.
-  <!-- id: transcript-audit-store-nodejs | created: 2026-11-17 | last_used: 2026-11-17 | uses: 1 | tier: working | origin: 2026-11-17-082942 -->
+  <!-- id: transcript-audit-store-nodejs | created: 2026-11-17 | last_used: 2026-11-17 | uses: 4 | tier: active | origin: 2026-11-17-082942 -->
 
 - **Ask a person, the main flow, is the Node twin of the Python pack's (RFC-0014 step 4; built here 2026-11-19 in lockstep
   with mercury-python #68).** `extensions/ask-person/ask-person.mjs` serves `person.ask`: the graph's hold path calls it before
@@ -270,7 +259,7 @@
 - Engine-mirrored configuration/logging/trace conventions (see the invariant above and
   `instructions.md`); GitHub flow with tests + a CHANGELOG entry per change
   (CONTRIBUTING.md).
-  <!-- id: conv-github-flow-changelog | created: 2026-08-22 | last_used: 2026-11-03 | uses: 6 | tier: active | origin: 2026-08-22-171916 -->
+  <!-- id: conv-github-flow-changelog | created: 2026-08-22 | last_used: 2026-11-17 | uses: 7 | tier: active | origin: 2026-08-22-171916 -->
 - **Each example app lives in a folder of its own, with a README and its own `resources/` (Eric, 2026-10-01; PR #106).**
   `examples/demo-app/` (the minimal polyglot app: `hello.node`, `hello.declarative`, `hello.chain`, `hello.tokens`, the private
   `demo.suffix.helper` and `demo.health`) and `examples/llm-helper/`; run one as
@@ -279,7 +268,7 @@
   share the default port 8087, so give one of them another with `-Drest.server.port` to run both. The demo stays provider-free and
   credential-free: no LLM code goes into it. **2026-11-03 (Eric):** the LLM helper graduates from an example to an extension,
   `extensions/llm-helper/` (the same folder shape), so `examples/` holds the demo app - lockstep with mercury-python #46.
-  <!-- id: examples-one-folder-per-app | created: 2026-10-01 | last_used: 2026-11-03 | uses: 2 | tier: archive-candidate | origin: 2026-10-02-001255 -->
+  <!-- id: examples-one-folder-per-app | created: 2026-10-01 | last_used: 2026-11-17 | uses: 3 | tier: active | origin: 2026-10-02-001255 -->
 
 - **The `resources` folder is resolved next to the application file - the file `mercury-serve` is given, or the script Node ran
   - and the working directory is never searched (Eric's rule, 2026-10-14; PR #113 merge `f4132d4`).** The engines' classpath convention: the
@@ -291,7 +280,7 @@
   unconfigured during the Bedrock drive ([[llm-helper-app]]); pinned by subprocess tests that run from a decoy working directory.
   Lock-step with the Python pack (`__main__.__file__`, mercury-python #45 merge `a3c5a26`). Upgrade: a layout that kept `resources/` in the
   working directory with the app elsewhere passes `--config` or moves the folder.
-  <!-- id: conv-resources-next-to-the-application-file | created: 2026-10-14 | last_used: 2026-10-14 | uses: 1 | tier: archive-candidate | origin: 2026-10-14-015422 -->
+  <!-- id: conv-resources-next-to-the-application-file | created: 2026-10-14 | last_used: 2026-11-19 | uses: 2 | tier: active | origin: 2026-10-14-015422 -->
 
 - **The previous Node.js port's releases v4.2.40 to v4.3.28 live here as tags and GitHub releases; their branches are gone
   (Eric, 2026-11-13).** Before the August 2026 repurposing this repository held the previous Node.js port, whose releases
@@ -302,7 +291,7 @@
   GitHub keeps only `main` and `gh-pages`. Twins: mercury-composable `historical-releases-tags-and-pages`, mercury
   `historical-releases-tags-and-pages-rust`. **How to apply:** find a legacy release by its tag or release page, never a
   branch; a release published after the fact passes `--latest=false`.
-  <!-- id: historical-releases-tags-and-pages-nodejs | created: 2026-11-13 | last_used: 2026-11-13 | uses: 1 | tier: working | origin: 2026-11-13-025101 -->
+  <!-- id: historical-releases-tags-and-pages-nodejs | created: 2026-11-13 | last_used: 2026-11-13 | uses: 1 | tier: archive-candidate | origin: 2026-11-13-025101 -->
 
 ## Open Threads
 

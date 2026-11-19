@@ -7,4 +7,4 @@
   route names the capability, never the transport - a tool may start as an MCP tool and later be implemented another
   way, and the graph must not know. Origin: 2026-11-14-074701; the record in 2026-11-16-090525.md.
   → serves: vision-mercury-nodejs
-  <!-- id: mcp-binding | created: 2026-11-14 | last_used: 2026-11-14 | uses: 1 | tier: working | origin: 2026-11-14-074701 -->
+  <!-- id: mcp-binding | created: 2026-11-14 | last_used: 2026-11-16 | uses: 4 | tier: archive-candidate | origin: 2026-11-14-074701 -->

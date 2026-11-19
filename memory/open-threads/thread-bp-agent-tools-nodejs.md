@@ -25,4 +25,4 @@
   GitHub's digests pinned the same day with Eric's token (39 tools, 22 under the read-only header; two live tests gated
   on `GITHUB_MCP_TOKEN`; PR #133, merge `442149b8a`, MERGED 2026-11-18). Next: nothing until Eric rules on RFC-0013's promotion.
   → serves: vision-mercury-nodejs
-  <!-- id: bp-agent-tools-nodejs | created: 2026-11-17 | last_used: 2026-11-17 | uses: 1 | tier: working | origin: 2026-11-17-111036 -->
+  <!-- id: bp-agent-tools-nodejs | created: 2026-11-17 | last_used: 2026-11-18 | uses: 3 | tier: working | origin: 2026-11-17-111036 -->

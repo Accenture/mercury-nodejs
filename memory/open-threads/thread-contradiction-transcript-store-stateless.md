@@ -4,4 +4,4 @@
   invariant and the scope fence now say so, and the package itself stays persistence-free. Lesson: a configurable
   contract is not an exception to the rule it configures; state it in the rule so the next review does not re-raise it.
   origin: 2026-11-03-004721; closed 2026-11-03-012056.
-  <!-- id: contradiction-transcript-store-stateless | created: 2026-11-03 | last_used: 2026-11-03 | uses: 2 | tier: active | origin: 2026-11-03-004721 -->
+  <!-- id: contradiction-transcript-store-stateless | created: 2026-11-03 | last_used: 2026-11-03 | uses: 2 | tier: archive-candidate | origin: 2026-11-03-004721 -->

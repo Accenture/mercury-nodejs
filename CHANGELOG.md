@@ -112,6 +112,17 @@
    `test/agent-question.test.mjs` (48 tests; a live PostgreSQL gated on `AGENT_QUESTION_TEST_URL`). **Upgrade note:**
    none - a new application.
 
+### Fixed
+
+1. **The agent-question app keeps the first accepted decision when two devices decide one card at the same moment**
+   (RFC-0014 step 5, the live drive of 2026-11-19), in lockstep with the Python pack. Both clicks pass the open check and
+   reach the engine, which resumes at most once; the device that lost got `nothing waiting`, and the row took whichever
+   outcome landed last - so a late 410 could overwrite the accepted decision and its operator. A decision's write now
+   applies when the row is still open or when the engine accepted the decision (`state = 'answered'`), in the memory inbox
+   and in `SQL_DECIDED` alike; a refused write answers the losing device with the row as it stands, and nothing is
+   broadcast for it. The shared vectors are version 2 with the two-devices transition case, byte-identical with the Python
+   pack and SHA-pinned. **Upgrade note:** none - the schema is unchanged.
+
 ### Changed
 
 1. **`web.crawl` accepts a relative `include`**, in lockstep with the Python pack: a prefix that does not start with `/` matches

@@ -50,7 +50,8 @@
   `@anthropic-ai/sdk` (the LLM helper app's SDK and the tests' error classes; the published package stays free of any
   LLM SDK — 2026-10-01, PR #106) `pg` >=8 is a dev dependency since 2026-11-17 (the transcript audit store, like `redis` for the
   transcript store), and so are `neo4j-driver` >=6, `mammoth` and `pdfjs-dist` (the agent tools' knowledge-graph tools and
-  `file.extract`, 2026-11-17); the published package stays free of any database client and document library.
+  `file.extract`, 2026-11-17), and `jose` >=6 (the ask-person reply page's and the agent-question app's `oauth2` mode,
+  2026-11-19); the published package stays free of any database client and document library.
   <!-- id: stack-deps-msgpack-yaml | created: 2026-08-22 | last_used: 2026-10-02 | uses: 3 | tier: archive-candidate | origin: 2026-08-22-171916 -->
 ## Architectural Invariants
 
@@ -238,6 +239,31 @@
   `statement_timeout` beside the client's `query_timeout`, because a paused database stalls a pooled statement where a
   stopped one fails it.
   <!-- id: transcript-audit-store-nodejs | created: 2026-11-17 | last_used: 2026-11-17 | uses: 1 | tier: working | origin: 2026-11-17-082942 -->
+
+- **Ask a person, the main flow, is the Node twin of the Python pack's (RFC-0014 step 4; built here 2026-11-19 in lockstep
+  with mercury-python #68).** `extensions/ask-person/ask-person.mjs` serves `person.ask`: the graph's hold path calls it before
+  `graph.suspend` with the graph id, a description, the correlation id, the turn, the waiting calls and the suspension's ttl;
+  the function issues the signed, stateless ticket (`v1.<payload>.<mac>`, canonical JSON, HMAC-SHA256, base64url - the same
+  ticket from the same key as the Python pack, the shared file proves it), builds the resume link and sends one message event
+  to every route in `ask.channels`, best effort; `kind: advice` has no ticket and no link. The reply page (`GET /ask/{ticket}`,
+  the wait read by re-advice, never resuming) and endpoint (`POST /ask/reply`, the `ask.graphs` allowlist, `[who at time]` on
+  each tool call's note) are mounted through the host's new `Platform.addRoutes` / `EventApiServer.createServer(routes)`;
+  identity `none`, `proxy`, `oauth2` (`jose`), a channel app's bearer. Pinned by `test/vectors/ask-person-vectors.json` (72
+  cases, byte-identical, SHA-pinned) and 97 tests. **How to apply:** the engine waits and the pack delivers and collects; a
+  channel is a route in `ask.channels`; the vectors change in both packs or in neither.
+  <!-- id: ask-person-main-flow-node | created: 2026-11-19 | last_used: 2026-11-19 | uses: 1 | tier: working | origin: 2026-11-19-074617 -->
+- **The agent-question app is the Node twin of the Python pack's first channel of RFC-0014 (step 4; built here 2026-11-19 in
+  lockstep with mercury-python #70).** `extensions/agent-question/agent-question.mjs`, a standalone application on the package:
+  `agent.question.inbox` upserts a wait on `(graph_id, correlation_id, turn)` and appends an advice, in memory or PostgreSQL
+  (`pg`, the audit store's connection keys, `schema/postgres.sql` and `purge.sql` byte-identical with the Python pack, the
+  change sequence `question_inbox_seq` as the replay cursor); the page, the replay `GET /questions?since=<seq>`, the stream
+  `GET /questions/events` with `Last-Event-ID`, the automated click `POST /questions/{id}/decide` to the link's own base under
+  the app's bearer, `seen`; states open, answered, expired, seen; a sweeper for expiry; identity as the main flow's. Pinned by
+  `test/vectors/agent-question-vectors.json` (30 cases, byte-identical, SHA-pinned - the reference inbox replayed on the scripted
+  sequence lands on the same rows, ids and change sequence) and 48 tests. **How to apply:** the app never talks to the engine,
+  only to the reply endpoint the link names; a row is never deleted by the app; the runtime's differences - `$n` placeholders,
+  int8 as text, `jose` - stay inside the module, never in the contract.
+  <!-- id: agent-question-app-node | created: 2026-11-19 | last_used: 2026-11-19 | uses: 1 | tier: working | origin: 2026-11-19-074617 -->
 
 ## Conventions
 

@@ -30,6 +30,7 @@ export { getLogger, Logger } from './log.js';
 export { defaultRegistry, FunctionRegistry, preload, splitRoutes, validateRoute } from './registry.js';
 export type { Handler, ServiceDef } from './registry.js';
 export { EventApiServer, Platform, platform } from './server.js';
+export type { RouteMounter } from './server.js';
 export * as otel from './otel/index.js';
 export { annotateTrace, DISTRIBUTED_TRACE_FORWARDER, getTrace, runWithTrace, updateContext } from './trace.js';
 export type { TraceInfo } from './trace.js';

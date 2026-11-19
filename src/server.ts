@@ -53,6 +53,13 @@ const EVENT_API_SERVICE = 'event.api.service';
 // the edge's own service name and path in its round-trip record (the engines' REST edge)
 const HTTP_REQUEST = 'http.request';
 const EDGE_PATH = 'POST /api/event';
+
+/**
+ * An extension's route mounter (`Platform.addRoutes`): asked, in order, after the host's own paths and
+ * before the catch-all, whether it serves this request - a page a person opens, a stream a browser
+ * holds. It answers true when it has taken the response, false to let the next one look.
+ */
+export type RouteMounter = (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => Promise<boolean>;
 const TRACEPARENT = /^00-([0-9a-f]{32})-([0-9a-f]{16})-[0-9a-f]{2}$/;
 const log = getLogger('mercury.server');
 
@@ -343,19 +350,22 @@ export class EventApiServer {
     }
   }
 
-  createServer(): http.Server {
+  /**
+   * The Event API host: `POST /api/event`, the actuator paths, then the routes of the extensions given
+   * (`Platform.addRoutes`) and, last, the engines' error shape - so the host's paths always win and an
+   * extension's path wins over the catch-all.
+   */
+  createServer(routes: RouteMounter[] = []): http.Server {
+    const extension = async (req: http.IncomingMessage, res: http.ServerResponse, url: URL): Promise<boolean> => {
+      for (const mount of routes) {
+        if (await mount(req, res, url)) {
+          return true;
+        }
+      }
+      return false;
+    };
     return http.createServer((req, res) => {
       const url = new URL(req.url ?? '/', 'http://localhost');
-      if (req.method === 'GET') {
-        this.actuator.handle(url.pathname, res).then((handled) => {
-          if (!handled) {
-            sendError(res, 404, 'Resource not found');
-          }
-        }).catch((e) => {
-          sendError(res, 500, (e as Error).message ?? String(e));
-        });
-        return;
-      }
       if (req.method === 'POST' && url.pathname === '/api/event') {
         const chunks: Buffer[] = [];
         req.on('data', (chunk: Buffer) => chunks.push(chunk));
@@ -367,7 +377,20 @@ export class EventApiServer {
         req.on('error', () => res.destroy());
         return;
       }
-      sendError(res, 404, 'Resource not found');
+      // the actuator's paths stay the host's; an extension's path is asked next; anything else is
+      // the engines' error shape, not Node's default
+      const own = req.method === 'GET' ? this.actuator.handle(url.pathname, res) : Promise.resolve(false);
+      own.then(async (handled) => handled || extension(req, res, url)).then((handled) => {
+        if (!handled) {
+          sendError(res, 404, 'Resource not found');
+        }
+      }).catch((e) => {
+        if (!res.headersSent) {
+          sendError(res, 500, (e as Error).message ?? String(e));
+        } else {
+          res.destroy();
+        }
+      });
     });
   }
 }
@@ -492,6 +515,7 @@ async function nextSegment(res: http.ServerResponse, queue: Mailbox<EventEnvelop
 export class Platform {
   private readonly startup: Array<() => Promise<void>> = [];
   private readonly cleanup: Array<() => Promise<void>> = [];
+  private readonly routes: RouteMounter[] = [];
 
   constructor(readonly registry: FunctionRegistry = defaultRegistry) {}
 
@@ -507,6 +531,21 @@ export class Platform {
   /** Run an async callback when the host shuts down (`shutdown`, or SIGINT/SIGTERM while running). */
   onCleanup(callback: () => Promise<void>): void {
     this.cleanup.push(callback);
+  }
+
+  /**
+   * Mount an extension's own HTTP routes on the host - a page a person opens, a stream a browser
+   * holds - in the same process and port as `/api/event`, under the same logging and shutdown. The
+   * mounter is asked, in order, after the host's paths and before the catch-all that answers the
+   * engines' error shape, and answers true when it has taken the response.
+   */
+  addRoutes(mount: RouteMounter): void {
+    this.routes.push(mount);
+  }
+
+  /** The Event API server with this platform's extension routes - `run` listens on it. */
+  createServer(): http.Server {
+    return new EventApiServer(this.registry).createServer(this.routes);
   }
 
   /** Run the cleanup callbacks, last registered first. */
@@ -535,7 +574,7 @@ export class Platform {
       log.info(`Loaded ${visibility} ${service.route}, instances=${service.instances}`);
     }
     log.info(`Configuration: ${config.source}`);
-    const server = new EventApiServer(this.registry).createServer();
+    const server = this.createServer();
     await new Promise<void>((resolve) => server.listen(port, host, resolve));
     log.info(`${appName} - Event API service started on port ${port}`);
     if (this.cleanup.length > 0) {

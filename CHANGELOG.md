@@ -75,6 +75,43 @@
    through the binding's own client and compares the digests (GitHub's when `GITHUB_MCP_TOKEN` is set, in both modes),
    so a recipe that rots fails by name.
 
+4. **Ask a person, the main flow (RFC-0014 in mercury-composable, build plan step 1), in lockstep with the Python
+   pack.** `extensions/ask-person/ask-person.mjs` serves `person.ask`, the composable function a graph's hold path calls
+   before it suspends for a person: the message names the graph (`graph_id`, `description`, `node`), the transaction
+   (`correlation_id`, `turn`), the waiting `calls` as the loop returned them and the suspension's `ttl`; the function
+   issues a signed, stateless ticket (`v1.<payload>.<mac>`, the canonical payload and its HMAC-SHA256 under
+   `ask.ticket.key`, a previous key verifying after a rotation), builds the resume link and sends the whole message as
+   one event to every route in `ask.channels` - the agent-question app's intake, a chat poster, a mail sender, a topic
+   publisher - knowing nothing of what a route does with it; a channel that fails is logged by type and never fails the
+   hold. `kind: advice` travels with no ticket and no link. The resume link opens the wait on the process's reply page,
+   `GET /ask/{ticket}`, read from the engine by the reference graph's re-advice and never resuming; `POST /ask/reply`
+   with `{ticket, decisions}` verifies the ticket, maps the graph id to the engine's entry through the `ask.graphs`
+   allowlist, prefixes who decided and when to each tool call's note, sends the resume and returns the engine's outcome;
+   an expired ticket is a 410 without a call to the engine. Who may answer is `ask.reply.auth`: `none` (development),
+   `proxy` (the gateway's trusted header) or `oauth2` (an access token validated against the issuer's keys with `jose`,
+   imported on first use), and a channel app's bearer with `decided_by`. The host gains `Platform.addRoutes` and
+   `EventApiServer.createServer(routes)`: an extension mounts its own pages and streams after the host's paths and
+   before the catch-all. Pinned by `test/vectors/ask-person-vectors.json` (72 cases, byte-identical with the Python pack
+   - the ticket's HMAC reproduced from the file alone) and `test/ask-person.test.mjs` (97 tests). **Upgrade note:** none
+   - `addRoutes` is additive.
+
+5. **The agent-question app: a store-and-forward inbox for the person an agent asks (RFC-0014, build plan step 3), in
+   lockstep with the Python pack.** `extensions/agent-question/agent-question.mjs` is a standalone application on the
+   package and the first channel of the design; the main flow knows nothing of it. `agent.question.inbox` is the intake:
+   a wait is upserted on `(graph_id, correlation_id, turn)` and an advice appended, the row committed before any push.
+   The person's side runs under the host: `GET /questions/app` (the page), `GET /questions?since=<seq>` (the replay a
+   reconnecting device calls first, with the cursor to continue from), `GET /questions/events` (the stream,
+   `Last-Event-ID` the same cursor), `POST /questions/{id}/decide` (the automated click: `{ticket, decisions,
+   decided_by}` to the link's own base under the app's bearer, the outcome recorded and broadcast; accepted →
+   `answered`, nothing waiting → `expired`, refused or unreachable → `open`) and `POST /questions/{id}/seen`. A sweeper
+   and every replay expire open waits past their expiry. The inbox is memory (development) or PostgreSQL
+   (`question.inbox: postgres`, the `pg` driver, `schema/postgres.sql` and `purge.sql` byte-identical with the Python
+   pack, `dev/schema-apply.sh` for the helper's development database). Who may use the page is `question.auth`: `none`,
+   `proxy` or `oauth2`. Pinned by `test/vectors/agent-question-vectors.json` (30 cases, byte-identical - the reference
+   inbox replayed on the scripted sequence lands on the same rows, ids and change sequence) and
+   `test/agent-question.test.mjs` (48 tests; a live PostgreSQL gated on `AGENT_QUESTION_TEST_URL`). **Upgrade note:**
+   none - a new application.
+
 ### Changed
 
 1. **`web.crawl` accepts a relative `include`**, in lockstep with the Python pack: a prefix that does not start with `/` matches

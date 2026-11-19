@@ -250,7 +250,9 @@ test('the replay lists every change since the cursor', async () => {
     assert.equal(response.status, 400);
     response = await fetch(`${host}/questions/app`);
     assert.equal(response.status, 200);
-    assert.ok((await response.text()).includes('Agent questions'));
+    const html = await response.text();
+    assert.ok(html.includes('Agent questions'));
+    assert.ok(html.includes('id="history"') && html.includes('Waiting for you'), 'the page separates what waits from the history');
   } finally {
     clear();
   }

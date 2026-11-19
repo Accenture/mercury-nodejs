@@ -125,7 +125,16 @@
 
 ### Changed
 
-1. **`web.crawl` accepts a relative `include`**, in lockstep with the Python pack: a prefix that does not start with `/` matches
+1. **The agent-question page separates what waits from the history (Eric, 2026-11-19), in lockstep with the Python
+   pack.** A sticky header carries the person's name and the count of open cards (also in the tab's title); *Waiting for
+   you* lists the cases with an open card - a wait to decide or an advice to read - newest activity first; *History* is a
+   scrollable panel with the closed cases, newest first, that keeps its scroll position while new cards arrive. The page
+   is byte-identical with the Python pack's. The agent-question app of each pack is the backend - the inbox, the endpoints,
+   the stream - and the front-end that will replace this page, a small React app, is on this pack's backlog
+   (`memory/open-threads/thread-agent-question-react-ui.md`): one front-end for both backends, maintained here (Eric,
+   2026-11-19); the Python pack points to it.
+
+2. **`web.crawl` accepts a relative `include`**, in lockstep with the Python pack: a prefix that does not start with `/` matches
    anywhere in a link's path, since a model names a section as `guides/` as often as `/guides/` (the live drive of the
    Playground's `site-notes` graph showed a crawl returning the start page alone). The README's Event-over-HTTP example lists
    one route per entry - the engines' map takes no comma-separated list.

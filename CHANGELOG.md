@@ -148,6 +148,32 @@
    and `transition_cases`, byte-identical with the Python pack. The agent-question app becomes a reader of this record
    in the next step; until then it keeps its own inbox.
 
+8. **The React UI of the agent-question app: `extensions/agent-question-ui/`, the one front-end of both packs'
+   backends (RFC-0014 round 4, section 21.4; build plan step 11; Eric, 2026-11-19: one app to maintain in one place).**
+   A subproject on the engines' Playground web app's toolchain (Vite, React 19, TypeScript, vitest with testing-library
+   on happy-dom) with three panels: *Waiting for you* - the cases with a card that waits, an approval approved or
+   refused per call with a note for the model, a question answered by an option or a typed answer, sent through the
+   backend's click; *History* - the closed cases in a viewport with infinite scroll, the newest page at start and older
+   pages by `GET /questions?before=<seq>` as the person scrolls, kept current by the stream, which is read with `fetch`
+   and `Last-Event-ID` so it carries the bearer `EventSource` cannot; *Transcripts* - the transcript audit store, the
+   conversations newest first filtered by correlation id or graph (a case's own by one link), one conversation with its
+   turns as the model exchanged them; *Actuator* - the host's actuator endpoints as a menu, as the Playground web app
+   offers the engine's (`/info`, `/info/routes`, `/health`, `/env`, `/livenessprobe`, read from the same origin and
+   shown with their status). One rule for a row: the UI holds rows by id and a change with a higher sequence
+   wins, whatever path brought it - the first page, an older page, the stream or the decision's reply; the stream starts
+   at the newest page's highest sequence and reopens from the last sequence seen. Sign-in follows `GET /questions/config`:
+   `none` offers a name field the decision carries as `decided_by`; `oauth2` makes the UI a public client -
+   Authorization Code with PKCE (`oidc-client-ts`) against the issuer, client id, scopes and audience the backend names,
+   the token kept for the tab, a bearer on every call, a 401 on the stream sending the person back to the issuer. The
+   brand mark is the Material Design *atom* icon of the engine docs (`@mdi/js`, Apache-2.0), favicon and header.
+   `npm run release` builds the bundle (no source maps) and deploys it into both packs' agent-question
+   `resources/public` (the Python pack beside this repository, or `MERCURY_PYTHON_REPO`), where it is committed, so each
+   backend serves it from its own origin at `/` through the hosts' static content service - no CORS, nothing configured.
+   `dev/keycloak.sh` runs a Keycloak development issuer with the realm of `dev/realm.json` - a public client with PKCE
+   whose tokens carry the audience `agent-question`, redirect URIs for the dev server and both apps; no credential in
+   the file, the passwords from the shell. 36 tests on a fake `fetch` (rows as the backend serves them, the pages, a
+   pushable stream, the click) and a fake `UserManager`. The published package ships no extension.
+
 ### Fixed
 
 1. **The agent-question app keeps the first accepted decision when two devices decide one card at the same moment**
@@ -197,6 +223,13 @@
    the stream - and the front-end that will replace this page, a small React app, is on this pack's backlog
    (`memory/open-threads/thread-agent-question-react-ui.md`): one front-end for both backends, maintained here (Eric,
    2026-11-19); the Python pack points to it.
+
+4. **The agent-question app generates no page: `GET /questions/app` is retired, in lockstep with the Python pack.** The
+   React UI's bundle is committed in `extensions/agent-question/resources/public` and served by the host at the root
+   (`static.html.folder`); the engines' actuator endpoints stay at their paths beside it - a host path always wins over
+   a file - so Kubernetes probes and operations work unchanged. The test checks the committed bundle is there and served
+   (`/`, the hashed script and stylesheet, `/favicon.svg`) and the five actuator endpoints answer beside it.
+   **Upgrade note:** open `http://127.0.0.1:8092/` instead of `/questions/app`.
 
 2. **`web.crawl` accepts a relative `include`**, in lockstep with the Python pack: a prefix that does not start with `/` matches
    anywhere in a link's path, since a model names a section as `guides/` as often as `/guides/` (the live drive of the

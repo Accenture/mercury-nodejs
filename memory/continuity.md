@@ -240,7 +240,7 @@
   identity `none`, `proxy`, `oauth2` (`jose`), a channel app's bearer. Pinned by `test/vectors/ask-person-vectors.json` (72
   cases, byte-identical, SHA-pinned) and 97 tests. **How to apply:** the engine waits and the pack delivers and collects; a
   channel is a route in `ask.channels`; the vectors change in both packs or in neither.
-  **Round 4 (Eric's sprint of 2026-11-20; PR #139, in lockstep with mercury-python #74):** the main flow keeps the
+  **Round 4 (Eric's sprint of 2026-11-20; PR #139 MERGED 2026-11-20, in lockstep with mercury-python #74):** the main flow keeps the
   question record - the main flow records and the channels deliver. `question.audit`, a private function of this process
   registered at boot with `ask.audit.instances` workers behind local requests, writes every wait and advice `person.ask`
   sends (before the channels are told) and every answer the reply endpoint brings back (the stamped decisions, who

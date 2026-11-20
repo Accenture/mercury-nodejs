@@ -98,12 +98,20 @@ export class AppConfig {
   readonly resourcesDir?: string;
 
   /**
+   * The application file's folder - the `appDir` given (the CLI passes the application file's),
+   * else the folder of the script Node ran; undefined in an interactive session. The `resources`
+   * folder and the static content folder are resolved under it.
+   */
+  readonly appDir?: string;
+
+  /**
    * `path` names the configuration file explicitly; otherwise the file is one of
    * DEFAULT_CANDIDATES under `appDir` - the application file's folder, defaulting
    * to the folder of the script Node ran. The working directory is never searched.
    */
   constructor(path?: string, argv?: string[], appDir?: string) {
     this.overrides = parseDArgs(argv ?? process.argv.slice(2));
+    this.appDir = appDir ?? mainScriptDir();
     let loaded = 'none';
     if (path) {
       if (!isFile(path)) {

@@ -189,3 +189,15 @@ test('mercury-serve resolves next to the application file', () => {
   fs.writeFileSync(other, "application:\n  name: 'other'\n");
   assert.equal(runFrom(cwd, out, [cli, app, '--config', other]), `other ${other}`);
 });
+
+test('the application folder is known', () => {
+  const appDir = tempDir();
+  withResources(appDir, "application:\n  name: 'demo-app'\n");
+  assert.equal(new AppConfig(undefined, [], appDir).appDir, appDir);
+  // an explicit file keeps the application folder it was given - the static content folder
+  // resolves under it, the companions beside the file
+  const other = tempFile('other.yml', "application:\n  name: 'other'\n");
+  const config = new AppConfig(other, [], appDir);
+  assert.equal(config.appDir, appDir);
+  assert.equal(config.resourcesDir, path.dirname(other));
+});

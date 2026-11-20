@@ -28,6 +28,7 @@ import { Actuator, appOrigin, sendError } from './actuator.js';
 import { DeliveryTimeout, EventBus, Mailbox, raceMs, roundTripRecord, TraceFields } from './bus.js';
 import { appConfig } from './config.js';
 import { EventEnvelope, isoUtc } from './envelope.js';
+import { resolveFolder, StaticContent } from './static-content.js';
 import {
   DATA,
   dataFrame,
@@ -181,10 +182,14 @@ function refuse(res: http.ServerResponse, edge: Edge | undefined, status: number
 
 export class EventApiServer {
   private readonly actuator: Actuator;
+  private readonly files: StaticContent;
 
   /** Thin ingress: protocol guards + header hygiene, then the registry's bus. */
   constructor(readonly registry: FunctionRegistry = defaultRegistry) {
     this.actuator = new Actuator(registry);
+    // the static content folder is resolved from the configuration at construction, as the
+    // Actuator's settings are
+    this.files = new StaticContent(resolveFolder(appConfig()));
   }
 
   private async handleEvent(req: http.IncomingMessage, res: http.ServerResponse,
@@ -352,8 +357,9 @@ export class EventApiServer {
 
   /**
    * The Event API host: `POST /api/event`, the actuator paths, then the routes of the extensions given
-   * (`Platform.addRoutes`) and, last, the engines' error shape - so the host's paths always win and an
-   * extension's path wins over the catch-all.
+   * (`Platform.addRoutes`), then the static content folder for a GET or HEAD and, last, the engines'
+   * error shape - so the host's paths always win, an extension's path wins over a file and a file wins
+   * over the catch-all. A folder's `index.html` replaces the engines' landing page at `/`.
    */
   createServer(routes: RouteMounter[] = []): http.Server {
     const extension = async (req: http.IncomingMessage, res: http.ServerResponse, url: URL): Promise<boolean> => {
@@ -377,10 +383,24 @@ export class EventApiServer {
         req.on('error', () => res.destroy());
         return;
       }
-      // the actuator's paths stay the host's; an extension's path is asked next; anything else is
-      // the engines' error shape, not Node's default
-      const own = req.method === 'GET' ? this.actuator.handle(url.pathname, res) : Promise.resolve(false);
-      own.then(async (handled) => handled || extension(req, res, url)).then((handled) => {
+      // the actuator's paths stay the host's (a static folder's index.html replaces the landing page
+      // at /); an extension's path is asked next, then the static folder for a GET or HEAD; anything
+      // else is the engines' error shape, not Node's default
+      const method = req.method ?? '';
+      const fileRequest = method === 'GET' || method === 'HEAD';
+      const own = async (): Promise<boolean> => {
+        if (fileRequest && url.pathname === '/' && await this.files.serve(req, res, '/')) {
+          return true;
+        }
+        if (method === 'GET' && await this.actuator.handle(url.pathname, res)) {
+          return true;
+        }
+        if (await extension(req, res, url)) {
+          return true;
+        }
+        return fileRequest && await this.files.serve(req, res, url.pathname);
+      };
+      own().then((handled) => {
         if (!handled) {
           sendError(res, 404, 'Resource not found');
         }

@@ -478,15 +478,26 @@ export function failure(error) {
 // --- the wake-ups and the feed ----------------------------------------------------------------
 
 /** Every connected device holds a queue; a changed row goes to all of them. */
+/** The item a closing Wakeups puts on every queue: the application is stopping, the stream ends. */
+export const CLOSED = Symbol('closed');
+
 export class Wakeups {
   constructor() {
     this.queues = new Set();
+    this.closing = false;
   }
 
   subscribe() {
     const queue = { items: [], waiter: null };
     this.queues.add(queue);
+    if (this.closing) queue.items.push(CLOSED);
     return queue;
+  }
+
+  /** The application is stopping: every connected device's stream ends now, a stream opened from here on ends at once. */
+  close() {
+    this.closing = true;
+    this.publish([CLOSED]);
   }
 
   unsubscribe(queue) {
@@ -823,6 +834,7 @@ export async function events(req, res, url) {
     while (!res.writableEnded && !res.destroyed) {
       const row = await Wakeups.next(queue, pingMs > 0 ? pingMs : 3_600_000);
       if (res.writableEnded || res.destroyed) break;
+      if (row === CLOSED) break; // the application is stopping; the device reconnects
       if (row === null) {
         res.write(': ping\n\n');
         continue;
@@ -1033,6 +1045,15 @@ export async function boot() {
   log.info(`agent-question ready - store ${theReader.name} (feed from ${feed.cursor}), stream ${EVENTS_PATH}, poll ${config.pollMs} ms, auth ${config.auth}`);
 }
 
+/**
+ * The application is stopping (Platform.onShutdown): end every connected device's stream, so the server can close its
+ * connections and the process exits within a container manager's grace period; a device reconnects to the next
+ * instance from its last sequence and misses nothing.
+ */
+export async function closeStreams() {
+  wakeups.close();
+}
+
 export async function shutdown() {
   await feed.stop();
   if (theReader) await theReader.close();
@@ -1042,6 +1063,7 @@ export const feedRunning = () => feed.running;
 
 export function attach(target = platform) {
   target.onStartup(boot);
+  target.onShutdown(closeStreams);
   target.onCleanup(shutdown);
   target.addRoutes(mount);
 }

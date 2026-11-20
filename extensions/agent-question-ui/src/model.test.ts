@@ -20,19 +20,20 @@ describe('mergeRows', () => {
 
 describe('groupCases', () => {
   const rows = [
-    row({ id: 1, seq: 3, state: 'answered', correlation_id: 'c-1' }),
-    row({ id: 2, seq: 2, kind: 'advice', state: null, correlation_id: 'c-1' }),
+    row({ id: 1, seq: 3, state: 'answered', correlation_id: 'c-1', requested_at: '2026-11-20T07:00:00.000Z' }),
+    row({ id: 2, seq: 2, kind: 'advice', state: null, correlation_id: 'c-1', requested_at: '2026-11-20T07:05:00.000Z' }),
     row({ id: 3, seq: 5, kind: 'question', state: 'open', correlation_id: 'c-2', description: 'Second case' }),
     row({ id: 4, seq: 4, state: 'expired', correlation_id: 'c-3' }),
     row({ id: 5, seq: 7, state: 'open', correlation_id: 'c-3' }),
     row({ id: 6, seq: 6, kind: 'advice', state: null, correlation_id: 'c-2' }),
-    row({ id: 7, seq: 1, state: 'answered', correlation_id: 'c-1' })
+    row({ id: 7, seq: 1, state: 'answered', correlation_id: 'c-1', requested_at: '2026-11-20T06:00:00.000Z' })
   ];
 
-  it('groups by graph and correlation id, cases newest first, rows oldest change first', () => {
+  it('groups by graph and correlation id, cases newest first, rows in the order they were recorded', () => {
     const cases = groupCases(rows);
     expect(cases.map((c) => c.correlation_id)).toEqual(['c-3', 'c-2', 'c-1']);
-    expect(cases[2].rows.map((r) => r.id)).toEqual([7, 2, 1]);
+    // the answered wait (id 1) was recorded before the advice (id 2) and keeps its place although its answer moved its seq
+    expect(cases[2].rows.map((r) => r.id)).toEqual([7, 1, 2]);
     expect(cases[1].description).toBe('Second case');
     expect(cases.map((c) => c.open)).toEqual([1, 1, 0]);
   });

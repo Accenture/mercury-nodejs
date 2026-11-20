@@ -106,3 +106,5 @@ details summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
 .actuator .result .head code { font-size: .9rem; }
 .actuator .status-ok { color: var(--answered); }
 .actuator .status-bad { color: #d9534f; }
+.seen-all { display: flex; align-items: center; gap: .6rem; margin: .4rem 0 .8rem; }
+.seen-all button { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: .35rem .8rem; color: var(--ink); }

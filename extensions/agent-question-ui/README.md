@@ -90,13 +90,14 @@ environment; the dev server proxies the backend, and the issuer's redirect URI i
 
 - **`seen` is the device's:** the record keeps no `seen` (RFC-0014 round 4), so the UI does. A case stays under
   *Waiting for you* while it has an open card or an advice this device has not seen - the acknowledgement and the
-  outcome that follow a decision are read before the case leaves - and a *Seen* button moves it to the history. The
+  outcome that follow a decision are read before the case leaves - and a *Seen* button moves it to the history (a
+  *Mark all notices as seen* button clears a flood of advices at once; the cases that wait for a decision stay). The
   baseline is the newest sequence of the first page a device ever loaded, kept in local storage with the marked ids,
   so an older page of the history never floods the waiting panel.
 - **One rule for a row:** the UI holds rows by id and a change with a higher sequence wins, whatever path it came by
   - the first page, an older page, the stream or the decision's reply. A case is a graph id plus a correlation id;
-  its cards are shown oldest change first, the cases newest activity first; a case with an open card waits, the rest
-  are history.
+  its cards are shown in the order they were recorded (a wait stays above the advices that follow it), the cases
+  newest activity first; a case with an open card or an unseen advice waits, the rest are history.
 - **The stream starts where the first page ended:** the newest page's highest sequence is the cursor, so nothing
   between the page and the stream is missed; a stream that ends or fails reopens after two seconds from the last
   sequence seen.

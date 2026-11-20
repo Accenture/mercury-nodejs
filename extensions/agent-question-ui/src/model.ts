@@ -22,7 +22,11 @@ export function mergeRows(held: Map<number, Row>, rows: Row[]): Map<number, Row>
   return merged;
 }
 
-/** The rows grouped by case - the graph and the correlation id - each case's rows oldest change first, the cases newest activity first. */
+/**
+ * The rows grouped by case - the graph and the correlation id - the cases newest activity first, each case's rows in
+ * the order they were recorded (a wait keeps its place above the advices that follow it when its answer moves its
+ * sequence).
+ */
 export function groupCases(rows: Iterable<Row>): Case[] {
   const groups = new Map<string, Case>();
   for (const row of rows) {
@@ -37,7 +41,7 @@ export function groupCases(rows: Iterable<Row>): Case[] {
     if (row.state === 'open') group.open += 1;
   }
   const cases = [...groups.values()];
-  for (const group of cases) group.rows.sort((a, b) => a.seq - b.seq);
+  for (const group of cases) group.rows.sort((a, b) => a.requested_at.localeCompare(b.requested_at) || a.id - b.id);
   return cases.sort((a, b) => b.newest - a.newest);
 }
 

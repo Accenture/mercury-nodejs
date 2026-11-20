@@ -139,11 +139,11 @@ export default function App({ fetchImpl, establishSession = establish }: AppProp
     setTab('transcripts');
   }, []);
 
-  const markSeen = useCallback((item: Case) => {
+  const markSeen = useCallback((items: Case[]) => {
     setSeen((current) => {
       const base = current ?? NOTHING_SEEN;
       const ids = new Set(base.ids);
-      for (const row of item.rows) if (row.kind === 'advice') ids.add(row.id);
+      for (const item of items) for (const row of item.rows) if (row.kind === 'advice') ids.add(row.id);
       const next = { upTo: base.upTo, ids };
       storeSeen(next);
       return next;

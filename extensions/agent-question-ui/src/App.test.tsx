@@ -93,6 +93,22 @@ describe('App', () => {
     expect(document.title).toBe('Agent questions');
   });
 
+  it('marks every notice seen at once and leaves the cases that wait for a decision', async () => {
+    const be = backend([OPEN]);
+    render(<App fetchImpl={be.fetch} establishSession={async () => NONE} />);
+    await screen.findByText('Order assistant');
+    for (const n of [1, 2, 3]) {
+      be.stream.push(frame(row({ id: 20 + n, seq: 10 + n, kind: 'advice', state: null, ticket: null, link: null, calls: null, correlation_id: `n-${n}`, description: `Notice ${n}`, summary: `Batch ${n} done` })));
+    }
+    expect(await screen.findByText('Batch 3 done')).toBeTruthy();
+    expect(tab(/Waiting for you/)).toHaveTextContent('4'); // one open card, three unseen notices
+    fireEvent.click(screen.getByRole('button', { name: 'Mark all 3 notices as seen' }));
+    await vi.waitFor(() => expect(screen.queryByText('Batch 1 done')).toBeNull());
+    expect(screen.getByText('Order assistant')).toBeTruthy();
+    expect(tab(/Waiting for you/)).toHaveTextContent('1');
+    expect(JSON.parse(window.localStorage.getItem('agent-question.seen')!).ids.sort()).toEqual([21, 22, 23]);
+  });
+
   it('sends a decision under the typed name and moves the case to the history', async () => {
     const be = backend([OPEN]);
     render(<App fetchImpl={be.fetch} establishSession={async () => NONE} />);

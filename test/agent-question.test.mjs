@@ -633,7 +633,53 @@ test('a configured driver that is not installed stops the boot by name', async (
   }
 });
 
+test('a stopping application ends its streams', async () => {
+  // a device's stream otherwise keeps the server from closing past SIGTERM (found by the UI drive of 2026-11-20): the
+  // shutdown hook ends every stream, a stream opened while stopping ends at once, and the device reconnects
+  const clear = configure(BASE);
+  try {
+    const controller = new AbortController();
+    const response = await fetch(`${host}/questions/events`, { signal: controller.signal });
+    assert.equal(response.status, 200);
+    const reader = response.body.getReader();
+    await new Promise((r) => setTimeout(r, 100));
+    assert.equal(aq.wakeups.connected, 1);
+    await aq.closeStreams();
+    let done = false;
+    const deadline = setTimeout(() => controller.abort(), 5000);
+    while (!done) ({ done } = await reader.read());
+    clearTimeout(deadline);
+    assert.ok(!controller.signal.aborted, 'the stream ended on its own');
+    const late = await fetch(`${host}/questions/events`);
+    const text = await late.text(); // ends at once
+    assert.ok(!text.includes('event: question'));
+    await new Promise((r) => setTimeout(r, 50));
+    assert.equal(aq.wakeups.connected, 0);
+  } finally {
+    clear();
+  }
+});
+
 // --- the platform hooks and the boot -------------------------------------------------------------------
+
+test('attach registers the boot, the stream closer on shutdown and the cleanup, and the platform runs them in that order', async () => {
+  const calls = [];
+  const target = {
+    onStartup: (cb) => calls.push(['startup', cb]), onShutdown: (cb) => calls.push(['shutdown', cb]),
+    onCleanup: (cb) => calls.push(['cleanup', cb]), addRoutes: (m) => calls.push(['routes', m])
+  };
+  aq.attach(target);
+  assert.deepEqual(calls.map(([phase]) => phase), ['startup', 'shutdown', 'cleanup', 'routes']);
+  assert.equal(calls[1][1], aq.closeStreams);
+  // the platform's shutdown: the shutdown callbacks first (the streams end), then the cleanup, last registered first
+  const order = [];
+  const fresh = new Platform(new FunctionRegistry());
+  fresh.onCleanup(async () => { order.push('cleanup-1'); });
+  fresh.onShutdown(async () => { order.push('shutdown'); });
+  fresh.onCleanup(async () => { order.push('cleanup-2'); });
+  await fresh.shutdown();
+  assert.deepEqual(order, ['shutdown', 'cleanup-2', 'cleanup-1']);
+});
 
 test('the platform hooks mount the routes and run the boot, and the host serves the committed UI bundle at the root', async () => {
   // the React UI is built in extensions/agent-question-ui and its bundle committed in resources/public next to the

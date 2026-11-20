@@ -40,16 +40,27 @@ export interface QuestionsProps {
   waiting: Case[];
   onDecide: (row: Row, decisions: Decision[]) => Promise<void>;
   onTranscripts: (correlationId: string) => void;
-  onSeen: (item: Case) => void;
+  onSeen: (items: Case[]) => void;
 }
 
-/** The question-and-answer panel: every case with a card that waits for the person, or an advice not yet seen. */
+/**
+ * The question-and-answer panel: every case with a card that waits for the person, or an advice not yet seen. The
+ * cases that only carry notices can be marked seen one by one or all at once - a channel's history of a hundred
+ * advices arriving on a device that has not looked for a while asks for one click, not a hundred.
+ */
 export function Questions({ waiting, onDecide, onTranscripts, onSeen }: QuestionsProps) {
   if (waiting.length === 0) return <div className="empty">Nothing waits for you.</div>;
+  const notices = waiting.filter((item) => item.open === 0);
   return (
     <>
+      {notices.length > 1 && (
+        <div className="seen-all">
+          <button type="button" onClick={() => onSeen(notices)}>Mark all {notices.length} notices as seen</button>
+          <span className="meta"> the cases that wait for a decision stay</span>
+        </div>
+      )}
       {waiting.map((item) => (
-        <CaseView key={item.key} item={item} onDecide={onDecide} onTranscripts={onTranscripts} onSeen={item.open === 0 ? () => onSeen(item) : undefined} />
+        <CaseView key={item.key} item={item} onDecide={onDecide} onTranscripts={onTranscripts} onSeen={item.open === 0 ? () => onSeen([item]) : undefined} />
       ))}
     </>
   );

@@ -174,6 +174,17 @@
    the file, the passwords from the shell. 36 tests on a fake `fetch` (rows as the backend serves them, the pages, a
    pushable stream, the click) and a fake `UserManager`. The published package ships no extension.
 
+9. **`Platform.onShutdown(callback)`: the moment the application starts to stop, before the cleanup and before the
+   server closes - the place to end a long-lived response, in lockstep with the Python pack's `Platform.on_shutdown`.**
+   The live drive of the React UI (2026-11-20) found that a device holding the agent-question stream kept a stopping
+   backend alive: `server.close()` waits for its connections and a server-sent events response never ends on its
+   own, so a SIGTERM in a container would run into the manager's grace period and a SIGKILL. The agent-question app
+   now ends every connected device's stream in that hook (`closeStreams`: the wake-ups close, a stream opened while
+   stopping ends at once) and the devices reconnect to the next instance from their last sequence, missing nothing;
+   `Platform.shutdown()` runs the shutdown callbacks in order, then the cleanup callbacks last registered first.
+   **How to apply:** an extension that holds a stream or a socket open ends it in `onShutdown` and closes its stores
+   in `onCleanup`.
+
 ### Fixed
 
 1. **The agent-question app keeps the first accepted decision when two devices decide one card at the same moment**

@@ -25,10 +25,9 @@ need() { command -v "$1" >/dev/null 2>&1 || { echo "$1 is required" >&2; exit 1;
 
 admin_token() {
   : "${KC_BOOTSTRAP_ADMIN_PASSWORD:?set KC_BOOTSTRAP_ADMIN_PASSWORD - the admin console password this issuer was started with}"
-  # the password travels on stdin to curl, never on a command line
-  curl -sS --fail -X POST "${BASE}/realms/master/protocol/openid-connect/token" \
-    -d grant_type=password -d client_id=admin-cli --data-urlencode "username=${ADMIN_USER}" \
-    --data-urlencode "password@<(printf %s "${KC_BOOTSTRAP_ADMIN_PASSWORD}")" \
+  # the password travels on stdin to curl (--data-urlencode reads '@-' from stdin), never on a command line
+  printf '%s' "${KC_BOOTSTRAP_ADMIN_PASSWORD}" | curl -sS --fail -X POST "${BASE}/realms/master/protocol/openid-connect/token" \
+    -d grant_type=password -d client_id=admin-cli --data-urlencode "username=${ADMIN_USER}" --data-urlencode "password@-" \
     | python3 -c 'import json, sys; print(json.load(sys.stdin)["access_token"])'
 }
 

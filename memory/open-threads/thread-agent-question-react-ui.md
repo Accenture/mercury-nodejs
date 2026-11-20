@@ -11,10 +11,22 @@
   case, state, who decided, time), a per-device cursor kept in local storage, the identity modes unchanged (`none`,
   `proxy`, `oauth2`) - pointed at either backend: served by a backend as its page at `/questions/app` (same origin, no
   CORS), or hosted apart with the backend's base URL configured and its origin allowed. The Python pack's README points
-  here; the vanilla page of both backends stays as the fallback. Open before building: where the source lives (a `ui/`
-  folder under the extension with its own `package.json`, the bundle committed or built in CI), how a backend serves the
-  bundle (a static folder both twins serve, or the generated page replaced), CORS for a front-end hosted apart, whether
-  the Java Playground links to it, and whether the bundle ships in the published npm package or the front-end is run from
-  the repository. Not started.
+  here; the vanilla page of both backends stays as the fallback. Settled 2026-11-20 (Eric's review of the sprint and his rulings): the source is `extensions/agent-question-ui/`, a
+  subproject with its own `package.json` on the engines' Playground web app's toolchain (Vite, React 19, TypeScript,
+  vitest with testing-library); one release script builds the bundle and deploys it into both packs'
+  `extensions/agent-question/resources/public` (the Python checkout by its sibling path, an environment override),
+  committed in both repositories, no source maps; each backend serves it from its own origin through the hosts' static
+  content service ([[static-content-resources-public-node]], PR #138 and mercury-python #73), so no CORS; the published
+  packages ship no extension. Three panels: the question-and-answer panel, the history with infinite scroll
+  (`GET /questions?before=<seq>`, a backwards page beside the replay) and the transcript browser (`GET /transcripts`,
+  `GET /transcripts/{conversation}` over the audit store) - useful to inspect what a chat, mail or topic channel
+  delivered even when nobody answers here, since a topic has no convenient browser of its history. Sign-in `none` or
+  `oauth2` only, `proxy` removed (the field's installations use 3-legged SSO and OAuth 2.0 access tokens): Authorization
+  Code with PKCE in the browser against the issuer named by `GET /questions/config`, the bearer on every call, the
+  stream read with `fetch` and `Last-Event-ID` since `EventSource` carries no bearer; a Keycloak development container
+  and a mock issuer fixture for the tests; the Material Design `atom` icon of the engine docs (Apache-2.0) as the
+  favicon and header mark; the vanilla page retired in both packs when the UI lands. Depends on the question record
+  joining the audit log, which the backend reads (mercury-python thread `bp-question-record-and-ui`). Status: static
+  content built (PR #138); next the backend's reads in both packs, then the UI.
   → serves: vision-mercury-nodejs
   <!-- id: agent-question-react-ui | created: 2026-11-19 | last_used: 2026-11-19 | uses: 1 | tier: working | origin: 2026-11-19-094720 -->

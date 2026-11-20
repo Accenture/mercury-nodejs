@@ -269,7 +269,7 @@
   and the losing device gets the row as it stands (vectors version 2, 31 cases). **How to apply:** the app never talks to the engine,
   only to the reply endpoint the link names; a row is never deleted by the app; the runtime's differences - `$n` placeholders,
   int8 as text, `jose` - stay inside the module, never in the contract.
-  **Round 4 (Eric's sprint of 2026-11-20; PR #140, in lockstep with mercury-python #75):** the app reads the question
+  **Round 4 (Eric's sprint of 2026-11-20; PR #140, in lockstep with mercury-python #75, both MERGED 2026-11-20):** the app reads the question
   record and writes nothing - the backend of the React UI. Its inbox is gone with its schema; the main flow's recorder
   writes the `question` table and this app reads it and the transcript audit tables under a reader's role
   (`question.store: postgres`; `memory` for the tests, where nothing writes it at run time). The intake wakes the feed,

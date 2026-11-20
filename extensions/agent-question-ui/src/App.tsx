@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Api, ApiError } from './api';
 import { establish, type Session } from './auth';
-import { groupCases, maxSeq, mergeRows, openCount, split } from './model';
+import { attentionCount, groupCases, maxSeq, mergeRows, NOTHING_SEEN, split, type Case, type Seen } from './model';
 import type { Decision, Row, UiConfig } from './types';
 import { AtomIcon } from './components/AtomIcon';
 import { History, Questions } from './components/Cases';
@@ -13,12 +13,36 @@ type Phase = { kind: 'loading' } | { kind: 'signing-in' } | { kind: 'ready'; con
 
 const FIRST_PAGE = 100;
 const NAME_KEY = 'agent-question.name';
+const SEEN_KEY = 'agent-question.seen';
+const SEEN_IDS_KEPT = 1000;
 
 function storedName(): string {
   try {
     return window.localStorage.getItem(NAME_KEY) ?? '';
   } catch {
     return '';
+  }
+}
+
+/** The device's seen state from local storage; null when this device has never loaded the record. */
+function storedSeen(): Seen | null {
+  try {
+    const raw = window.localStorage.getItem(SEEN_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { upTo?: unknown; ids?: unknown };
+    const upTo = typeof parsed.upTo === 'number' ? parsed.upTo : 0;
+    const ids = Array.isArray(parsed.ids) ? parsed.ids.filter((id): id is number => typeof id === 'number') : [];
+    return { upTo, ids: new Set(ids) };
+  } catch {
+    return null;
+  }
+}
+
+function storeSeen(seen: Seen): void {
+  try {
+    window.localStorage.setItem(SEEN_KEY, JSON.stringify({ upTo: seen.upTo, ids: [...seen.ids].slice(-SEEN_IDS_KEPT) }));
+  } catch {
+    // a browser without storage keeps the state for the page's life
   }
 }
 
@@ -36,6 +60,7 @@ export default function App({ fetchImpl, establishSession = establish }: AppProp
   const [historyLoading, setHistoryLoading] = useState(false);
   const [status, setStatus] = useState<'connecting' | 'connected' | 'reconnecting'>('connecting');
   const [name, setName] = useState(storedName);
+  const [seen, setSeen] = useState<Seen | null>(storedSeen);
   const [correlationId, setCorrelationId] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
   const sessionRef = useRef<Session | null>(null);
@@ -62,6 +87,13 @@ export default function App({ fetchImpl, establishSession = establish }: AppProp
         setHistoryNext(first.next);
         setHistoryMore(first.more);
         const cursor = maxSeq(held.values());
+        // a device that has never loaded the record has seen everything up to this page: what follows asks for attention
+        setSeen((current) => {
+          if (current) return current;
+          const fresh = { upTo: cursor, ids: new Set<number>() };
+          storeSeen(fresh);
+          return fresh;
+        });
         void api.stream(cursor, (row) => {
           held = mergeRows(held, [row]);
           setRows(held);
@@ -107,9 +139,20 @@ export default function App({ fetchImpl, establishSession = establish }: AppProp
     setTab('transcripts');
   }, []);
 
+  const markSeen = useCallback((item: Case) => {
+    setSeen((current) => {
+      const base = current ?? NOTHING_SEEN;
+      const ids = new Set(base.ids);
+      for (const row of item.rows) if (row.kind === 'advice') ids.add(row.id);
+      const next = { upTo: base.upTo, ids };
+      storeSeen(next);
+      return next;
+    });
+  }, []);
+
   const cases = useMemo(() => groupCases(rows.values()), [rows]);
-  const { waiting, history } = useMemo(() => split(cases), [cases]);
-  const open = openCount(waiting);
+  const { waiting, history } = useMemo(() => split(cases, seen ?? NOTHING_SEEN), [cases, seen]);
+  const open = attentionCount(waiting, seen ?? NOTHING_SEEN);
   useEffect(() => {
     if (phase.kind === 'ready') document.title = `${open ? `(${open}) ` : ''}${phase.config.title}`;
   }, [open, phase]);
@@ -171,7 +214,7 @@ export default function App({ fetchImpl, establishSession = establish }: AppProp
       </nav>
       <main>
         {problem && <div className="notice error" role="alert">{problem} <button type="button" onClick={() => setProblem(null)}>dismiss</button></div>}
-        {tab === 'questions' && <Questions waiting={waiting} onDecide={decide} onTranscripts={showTranscripts} />}
+        {tab === 'questions' && <Questions waiting={waiting} onDecide={decide} onTranscripts={showTranscripts} onSeen={markSeen} />}
         {tab === 'history' && <History history={history} more={historyMore} loading={historyLoading} onMore={() => void loadOlder()} onTranscripts={showTranscripts} />}
         {tab === 'transcripts' && <Transcripts api={api} correlationId={correlationId} onCorrelationId={setCorrelationId} />}
         {tab === 'actuator' && <Actuator api={api} />}

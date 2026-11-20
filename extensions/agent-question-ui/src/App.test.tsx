@@ -59,10 +59,11 @@ describe('App', () => {
     const streamCall = be.calls.find((c) => c.url === '/questions/events')!;
     expect(headerOf(streamCall.init, 'last-event-id')).toBe('7');
     expect(await screen.findByTestId('status')).toHaveTextContent('connected');
-    // an advice arrives on the open case
+    // an advice arrives on the open case: it asks for attention until seen
     be.stream.push(frame(row({ id: 9, seq: 8, kind: 'advice', state: null, ticket: null, link: null, calls: null, correlation_id: 'c-3', summary: 'The model is waiting' })));
     expect(await screen.findByText('The model is waiting')).toBeTruthy();
-    expect(document.title).toBe('(1) Agent questions');
+    expect(document.title).toBe('(2) Agent questions');
+    expect(JSON.parse(window.localStorage.getItem('agent-question.seen')!)).toEqual({ upTo: 7, ids: [] });
     // the history holds the closed case and loads the older page on demand
     fireEvent.click(tab(/History/));
     expect(await screen.findByText('Refund assistant')).toBeTruthy();
@@ -71,6 +72,25 @@ describe('App', () => {
     expect(await screen.findByText('Shipping assistant')).toBeTruthy();
     expect(be.calls.some((c) => c.url === '/questions?before=3&limit=100')).toBe(true);
     expect(screen.queryByRole('button', { name: 'Load older' })).toBeNull();
+  });
+
+  it('keeps a case whose advices are unseen until the person marks it, and never an older page\'s advice', async () => {
+    const oldAdvice = row({ id: 8, seq: 2, kind: 'advice', state: null, ticket: null, link: null, calls: null, correlation_id: 'c-9', description: 'An old notice', summary: 'Long ago' });
+    const be = backend([CLOSED], [oldAdvice]);
+    render(<App fetchImpl={be.fetch} establishSession={async () => NONE} />);
+    expect(await screen.findByText('Nothing waits for you.')).toBeTruthy();
+    be.stream.push(frame(row({ id: 11, seq: 9, kind: 'advice', state: null, ticket: null, link: null, calls: null, correlation_id: 'c-5', description: 'Status assistant', summary: 'Come back tomorrow' })));
+    expect(await screen.findByText('Come back tomorrow')).toBeTruthy();
+    expect(tab(/Waiting for you/)).toHaveTextContent('1');
+    fireEvent.click(tab(/History/));
+    fireEvent.click(await screen.findByRole('button', { name: 'Load older' }));
+    expect(await screen.findByText('Long ago')).toBeTruthy(); // in the history, not asking for attention
+    fireEvent.click(tab(/Waiting for you/));
+    expect(screen.queryByText('Long ago')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Seen' }));
+    expect(await screen.findByText('Nothing waits for you.')).toBeTruthy();
+    expect(JSON.parse(window.localStorage.getItem('agent-question.seen')!)).toEqual({ upTo: 3, ids: [11] });
+    expect(document.title).toBe('Agent questions');
   });
 
   it('sends a decision under the typed name and moves the case to the history', async () => {

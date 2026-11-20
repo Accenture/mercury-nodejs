@@ -41,10 +41,30 @@ export function groupCases(rows: Iterable<Row>): Case[] {
   return cases.sort((a, b) => b.newest - a.newest);
 }
 
-/** The cases with an open card wait for the person; the rest are the history. */
-export function split(cases: Case[]): { waiting: Case[]; history: Case[] } {
-  return { waiting: cases.filter((c) => c.open > 0), history: cases.filter((c) => c.open === 0) };
+/**
+ * What this device has seen: `seen` leaves the record (RFC-0014 round 4) and is the device's. An advice is unseen when
+ * its change is later than the device's baseline `upTo` - set to the newest sequence the first page showed, so an older
+ * page never floods the waiting panel - and the person has not marked its case seen (`ids`).
+ */
+export interface Seen {
+  upTo: number;
+  ids: ReadonlySet<number>;
 }
+
+export const NOTHING_SEEN: Seen = { upTo: 0, ids: new Set() };
+
+export const unseenAdvices = (item: Case, seen: Seen): Row[] =>
+  item.rows.filter((r) => r.kind === 'advice' && r.seq > seen.upTo && !seen.ids.has(r.id));
+
+/** The cases with an open card, or an advice this device has not seen, wait for the person; the rest are the history. */
+export function split(cases: Case[], seen: Seen = NOTHING_SEEN): { waiting: Case[]; history: Case[] } {
+  const waits = (c: Case) => c.open > 0 || unseenAdvices(c, seen).length > 0;
+  return { waiting: cases.filter(waits), history: cases.filter((c) => !waits(c)) };
+}
+
+/** What asks for attention: the open cards and the advices not yet seen. */
+export const attentionCount = (cases: Case[], seen: Seen = NOTHING_SEEN): number =>
+  cases.reduce((n, c) => n + c.open + unseenAdvices(c, seen).length, 0);
 
 export const openCount = (cases: Case[]): number => cases.reduce((n, c) => n + c.open, 0);
 

@@ -69,6 +69,8 @@ main { flex: 1; width: 100%; max-width: 1080px; margin: 0 auto; padding: 1rem; }
 .card .head strong { flex: 1; }
 .card .details { margin: .3rem 0; }
 .card .outcome { font-size: .85rem; margin-top: .4rem; }
+.case .seen { border-top: 1px solid var(--line); padding-top: .6rem; margin-top: .5rem; }
+.case .seen button { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: .3rem .8rem; color: var(--ink); }
 
 fieldset { border: 1px solid var(--line); border-radius: 8px; margin: .5rem 0; padding: .5rem .8rem; }
 legend { font-weight: 600; font-size: .9rem; }

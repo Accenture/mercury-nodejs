@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupCases, maxSeq, mergeRows, openCount, outcomeText, shortTime, split } from './model';
+import { attentionCount, groupCases, maxSeq, mergeRows, openCount, outcomeText, shortTime, split } from './model';
 import { row } from './test/fixtures';
 
 describe('mergeRows', () => {
@@ -43,12 +43,25 @@ describe('groupCases', () => {
   });
 
   it('splits what waits from the history and counts the open cards', () => {
-    const { waiting, history } = split(groupCases(rows));
+    const { waiting, history } = split(groupCases(rows), { upTo: 7, ids: new Set() });
     expect(waiting.map((c) => c.correlation_id)).toEqual(['c-3', 'c-2']);
     expect(history.map((c) => c.correlation_id)).toEqual(['c-1']);
     expect(openCount(waiting)).toBe(2);
     expect(maxSeq(rows)).toBe(7);
     expect(maxSeq([])).toBe(0);
+  });
+
+  it('keeps a case with an advice this device has not seen in the waiting panel, and never an older page', () => {
+    const cases = groupCases(rows);
+    // the device's baseline is the newest sequence of its first page: advices up to it are history
+    expect(split(cases, { upTo: 7, ids: new Set() }).waiting.map((c) => c.correlation_id)).toEqual(['c-3', 'c-2']);
+    // a baseline before the advices: both advice cases ask for attention until marked seen
+    const early = { upTo: 1, ids: new Set<number>() };
+    expect(split(cases, early).waiting.map((c) => c.correlation_id)).toEqual(['c-3', 'c-2', 'c-1']);
+    expect(attentionCount(cases, early)).toBe(4); // two open cards, two unseen advices
+    const marked = { upTo: 1, ids: new Set([2, 6]) };
+    expect(split(cases, marked).history.map((c) => c.correlation_id)).toEqual(['c-1']);
+    expect(attentionCount(cases, marked)).toBe(2);
   });
 });
 

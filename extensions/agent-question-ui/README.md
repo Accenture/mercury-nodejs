@@ -7,10 +7,10 @@ the transcripts behind them - RFC-0014 round 4, build plan step 11.
 
 Three panels:
 
-- **Waiting for you** - every case with a card that waits for a decision: an approval (approve or refuse each waiting
-  call, with a note for the model) or a question (pick an option or type an answer). The decision goes to the
-  backend's click, `POST /questions/{id}/decide`, which invokes the link on the person's behalf; the card closes
-  when the record says so.
+- **Waiting for you** - every case with a card that waits for a decision - an approval (approve or refuse each waiting
+  call, with a note for the model) or a question (pick an option or type an answer) - or an advice this device has
+  not seen. The decision goes to the backend's click, `POST /questions/{id}/decide`, which invokes the link on the
+  person's behalf; the card closes when the record says so, the advices that follow stay until marked *Seen*.
 - **History** - the closed cases in a viewport with infinite scroll: the newest page is read at start
   (`GET /questions?before=`), older pages as the person scrolls to the end (`GET /questions?before=<seq>`), and the
   stream (`GET /questions/events`, read with `fetch` and `Last-Event-ID` so it carries the bearer `EventSource`
@@ -88,6 +88,11 @@ environment; the dev server proxies the backend, and the issuer's redirect URI i
 
 ## Design notes
 
+- **`seen` is the device's:** the record keeps no `seen` (RFC-0014 round 4), so the UI does. A case stays under
+  *Waiting for you* while it has an open card or an advice this device has not seen - the acknowledgement and the
+  outcome that follow a decision are read before the case leaves - and a *Seen* button moves it to the history. The
+  baseline is the newest sequence of the first page a device ever loaded, kept in local storage with the marked ids,
+  so an older page of the history never floods the waiting panel.
 - **One rule for a row:** the UI holds rows by id and a change with a higher sequence wins, whatever path it came by
   - the first page, an older page, the stream or the decision's reply. A case is a graph id plus a correlation id;
   its cards are shown oldest change first, the cases newest activity first; a case with an open card waits, the rest

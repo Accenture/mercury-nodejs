@@ -7,10 +7,12 @@ export interface CaseViewProps {
   item: Case;
   onDecide?: (row: Row, decisions: Decision[]) => Promise<void>;
   onTranscripts?: (correlationId: string) => void;
+  /** When given, the case has advices this device has not seen and no open card: the person can mark it seen. */
+  onSeen?: () => void;
 }
 
 /** One case: the use case, the graph and the correlation id, and its cards oldest first. */
-export function CaseView({ item, onDecide, onTranscripts }: CaseViewProps) {
+export function CaseView({ item, onDecide, onTranscripts, onSeen }: CaseViewProps) {
   return (
     <section className="case">
       <h2>{item.description}</h2>
@@ -24,6 +26,12 @@ export function CaseView({ item, onDecide, onTranscripts }: CaseViewProps) {
         )}
       </div>
       {item.rows.map((row) => <Card key={row.id} row={row} onDecide={onDecide} />)}
+      {onSeen && (
+        <div className="seen">
+          <button type="button" onClick={onSeen}>Seen</button>
+          <span className="meta"> nothing waits here any more - move the case to the history</span>
+        </div>
+      )}
     </section>
   );
 }
@@ -32,12 +40,19 @@ export interface QuestionsProps {
   waiting: Case[];
   onDecide: (row: Row, decisions: Decision[]) => Promise<void>;
   onTranscripts: (correlationId: string) => void;
+  onSeen: (item: Case) => void;
 }
 
-/** The question-and-answer panel: every case with a card that waits for the person. */
-export function Questions({ waiting, onDecide, onTranscripts }: QuestionsProps) {
+/** The question-and-answer panel: every case with a card that waits for the person, or an advice not yet seen. */
+export function Questions({ waiting, onDecide, onTranscripts, onSeen }: QuestionsProps) {
   if (waiting.length === 0) return <div className="empty">Nothing waits for you.</div>;
-  return <>{waiting.map((item) => <CaseView key={item.key} item={item} onDecide={onDecide} onTranscripts={onTranscripts} />)}</>;
+  return (
+    <>
+      {waiting.map((item) => (
+        <CaseView key={item.key} item={item} onDecide={onDecide} onTranscripts={onTranscripts} onSeen={item.open === 0 ? () => onSeen(item) : undefined} />
+      ))}
+    </>
+  );
 }
 
 export interface HistoryProps {

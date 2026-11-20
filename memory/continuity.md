@@ -279,14 +279,14 @@
   click answers with the row as the recorder left it; `seen` and the sweeper are gone; identity `none` or `oauth2`.
   Vectors version 3. **How to apply (amended):** this app never writes the record - a new fact of a row is the
   recorder's and the schema's; a new read for the UI is an endpoint here, in both packs and in the vectors.
-  **2026-11-20 (PR #141):** the generated page is gone - `GET /questions/app` retired; the React UI's bundle
+  **2026-11-20 (PR #141, MERGED 2026-11-20):** the generated page is gone - `GET /questions/app` retired; the React UI's bundle
   ([[agent-question-ui]]) is served at `/` from `resources/public`, the engines' actuator endpoints beside it for
   Kubernetes probes (Eric).
   **The streams end when the application stops** (2026-11-20, [[platform-on-shutdown-hook-node]]).
   <!-- id: agent-question-app-node | created: 2026-11-19 | last_used: 2026-11-19 | uses: 1 | tier: working | origin: 2026-11-19-074617 -->
 
 - **The React UI is one subproject here, `extensions/agent-question-ui/`, and one bundle committed in both packs
-  (RFC-0014 round 4, section 21.4; built 2026-11-20, PR #141 / mercury-python #76).** Vite + React 19 + TypeScript on
+  (RFC-0014 round 4, section 21.4; built and MERGED 2026-11-20, PR #141 merge `344b34f07` / mercury-python #76).** Vite + React 19 + TypeScript on
   the Playground web app's toolchain; four panels - *Waiting for you*, *History* (infinite scroll over `before` pages),
   *Transcripts* (the audit store) and *Actuator* (the host's `/info`, `/info/routes`, `/health`, `/env`,
   `/livenessprobe` as a menu, labels as the Playground's; Eric, 2026-11-20: the endpoints stay at their paths beside
@@ -311,8 +311,8 @@
   <!-- id: agent-question-ui | created: 2026-11-20 | last_used: 2026-11-20 | uses: 1 | tier: working | origin: 2026-11-20-094734 -->
 
 - **`Platform.onShutdown` runs the moment the application starts to stop - before the cleanup callbacks and before
-  `server.close()` - and an extension that holds a stream or a socket ends it there (2026-11-20, PR #141; the Python
-  twin `Platform.on_shutdown`, mercury-python #76).** Found by the React UI's live drive: `server.close()` waits for
+  `server.close()` - and an extension that holds a stream or a socket ends it there (2026-11-20, PR #141 MERGED 2026-11-20; the
+  Python twin `Platform.on_shutdown`, mercury-python #76, merged the same minute).** Found by the React UI's live drive: `server.close()` waits for
   a connection a server-sent events response never ends, so a device holding the agent-question stream kept a
   stopping backend alive - in a container, the manager's grace period and a SIGKILL on every rollout; the Python host
   waits the same way in aiohttp's graceful shutdown (sampled 75 s, still alive). The agent-question app ends every

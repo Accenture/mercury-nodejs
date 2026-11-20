@@ -1,28 +1,33 @@
 /**
  * The agent-question app - the first channel of RFC-0014 (the engines' draft-design-specs/ask-a-person-channel.md,
- * Part II), the Node.js twin of mercury-python's extensions/agent-question: a store-and-forward inbox for a person
- * whose device is not always connected, standing beside a chat, a mail server or a topic as one channel among equals.
- * The main flow (person.ask in extensions/ask-person) knows nothing of it: it sends one message event with the resume
- * link to the routes it is configured with, and this application is one of those routes.
+ * Part II) and, since round 4 of the paper (section 21.3), the backend of the React UI maintained in this pack: a
+ * reader of the question record the main flow keeps in the audit database, a feed of its changes for a person's
+ * device, and the automated click that answers a wait. The Node.js twin of mercury-python's extensions/agent-question.
+ * The main flow (person.ask in extensions/ask-person) knows nothing of it: it records every message and answer itself,
+ * then sends the message event to the routes it is configured with, and this application is one of those routes.
  *
- * - agent.question.inbox is the intake, a composable function reached over Event-over-HTTP like any peer function. A
- *   wait (kind approval or question) is upserted on (graph_id, correlation_id, turn) - a re-advice for the same turn
- *   updates the card rather than adding one - and an advice (a status update, an acknowledgement, an outcome) is
- *   appended. Write first: the row is committed before any push to a browser.
- * - The browser side runs under the pack's host (Platform.addRoutes): GET /questions/app is the page,
- *   GET /questions?since=<seq> the replay a reconnecting device calls first - every row that changed since its cursor -
- *   and GET /questions/events the stream a connected device holds; Last-Event-ID is the same cursor. The person selects
- *   which card to answer; the card's button automates the click: POST /questions/{id}/decide posts
- *   {ticket, decisions, decided_by} to the main flow's reply endpoint - the link's own base, under this app's bearer -
- *   records the outcome on the row and tells every connected device. POST /questions/{id}/seen marks an advice read.
- * - The inbox is PostgreSQL (question.inbox: postgres, the pg driver, schema/postgres.sql) or, for development and
- *   tests, memory. The engine stays the authority on an answer; rows are never deleted here (schema/purge.sql is the
- *   installation's). Who may use the page is question.auth: none (development), proxy (the installation's SSO, a
- *   trusted header set by the gateway) or oauth2 (an access token validated against the issuer's published keys).
+ * - agent.question.inbox is the intake, a composable function reached over Event-over-HTTP like any peer function. It
+ *   writes nothing: the record is the recorder's (question.audit in the ask-person process). It checks the event and
+ *   wakes the feed, so a connected device sees the row the moment it is recorded.
+ * - The browser side runs under the pack's host (Platform.addRoutes). GET /questions/config tells the UI how to sign
+ *   in; GET /questions?since=<seq> is the replay a reconnecting device calls first - every row that changed since its
+ *   cursor, oldest change first; GET /questions?before=<seq>&limit=<n> the history's older page, newest first, for an
+ *   infinite scroll; GET /questions/events the stream a connected device holds, each event a changed row, Last-Event-ID
+ *   the same cursor. GET /transcripts and GET /transcripts/{conversation} browse the transcript audit store the LLM
+ *   helper writes beside the record. The person selects which card to answer; the card's button automates the click:
+ *   POST /questions/{id}/decide posts {ticket, decisions, decided_by} to the main flow's reply endpoint - the link's own
+ *   base, under this app's bearer - and the answer lands on the row through the recorder; the feed carries the change
+ *   to every device.
+ * - The store this app reads is PostgreSQL (question.store: postgres, the pg driver, the audit database the main flow
+ *   and the LLM helper write) or, for the tests, memory - nothing writes a memory store at run time. The feed polls the
+ *   record's change sequence (question.poll) and the intake wakes it. Who may use the UI is question.auth: none in
+ *   development, oauth2 (an OAuth 2.0 access token validated against the issuer's published keys; the UI obtains one by
+ *   Authorization Code with PKCE from the issuer named by /questions/config).
  *
- * Run:  node dist/src/cli.js extensions/agent-question/agent-question.mjs
+ * Run:  node dist/src/cli.js extensions/agent-question/agent-question.mjs -Dquestion.store=postgres -Dquestion.store.postgres.ssl=false
  *
- * The pure half is pinned by test/vectors/agent-question-vectors.json, byte-identical with the Python pack.
+ * The pure half - the event the intake accepts, the request the click sends, the pages the feed and the history read -
+ * is pinned by test/vectors/agent-question-vectors.json, byte-identical with the Python pack.
  */
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -37,29 +42,36 @@ export const INTAKE_ROUTE = 'agent.question.inbox';
 export const HEALTH_ROUTE = 'question.health';
 export const KINDS = ['approval', 'question', 'advice'];
 export const WAIT_KINDS = ['approval', 'question'];
-export const STATES = ['open', 'answered', 'expired', 'seen'];
+// a wait's states; an advice has none (null) - whether a person read it is the device's business
+export const STATES = ['open', 'answered', 'expired'];
 export const PAGE_PATH = '/questions/app';
 export const LIST_PATH = '/questions';
 export const EVENTS_PATH = '/questions/events';
-export const AUTH_MODES = ['none', 'proxy', 'oauth2'];
+export const CONFIG_PATH = '/questions/config';
+export const TRANSCRIPTS_PATH = '/transcripts';
+export const AUTH_MODES = ['none', 'oauth2'];
 export const JWT_ALGORITHMS = ['RS256', 'RS384', 'RS512', 'ES256', 'ES384', 'ES512', 'PS256', 'PS384', 'PS512'];
 export const LIST_LIMIT = 200;
 export const LIST_LIMIT_MAX = 1000;
+export const TRANSCRIPTS_LIMIT = 50;
+export const TRANSCRIPTS_LIMIT_MAX = 200;
+const CONVERSATION_ID = /^[0-9a-f]{32}$/;
 
 // configuration keys
-export const INBOX = 'question.inbox';
-export const POSTGRES_PREFIX = 'question.inbox.postgres.';
-export const SWEEP = 'question.sweep';
+export const STORE = 'question.store';
+export const POSTGRES_PREFIX = 'question.store.postgres.';
+export const POLL = 'question.poll';
 export const AUTH = 'question.auth';
-export const AUTH_HEADER = 'question.auth.header';
 export const OAUTH2_ISSUER = 'question.auth.oauth2.issuer';
 export const OAUTH2_AUDIENCE = 'question.auth.oauth2.audience';
 export const OAUTH2_JWKS_URL = 'question.auth.oauth2.jwks-url';
+export const OAUTH2_CLIENT_ID = 'question.auth.oauth2.client-id';
+export const OAUTH2_SCOPES = 'question.auth.oauth2.scopes';
 export const REPLY_TOKEN = 'question.reply.token';
 export const REPLY_TIMEOUT = 'question.reply.timeout';
 export const PAGE_TITLE = 'question.page.title';
 
-export const MISSING_POSTGRES = 'question.inbox is postgres but the pg driver is not installed - npm install pg';
+export const MISSING_POSTGRES = 'question.store is postgres but the pg driver is not installed - npm install pg';
 const DURATION = /^(\d+)\s*(ms|s|m|h|d)?$/;
 const UNIT_MS = { ms: 1, s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 };
 
@@ -119,21 +131,25 @@ function wholeMs(config, key, defaultValue) {
 }
 
 export function loadSettings(config) {
-  const inbox = text(config, INBOX, 'memory').toLowerCase();
-  if (!['memory', 'postgres'].includes(inbox)) throw new QuestionError(`${INBOX} must be memory or postgres`);
+  const store = text(config, STORE, 'memory').toLowerCase();
+  if (!['memory', 'postgres'].includes(store)) throw new QuestionError(`${STORE} must be memory or postgres`);
   const auth = text(config, AUTH, 'none').toLowerCase();
   if (!AUTH_MODES.includes(auth)) throw new QuestionError(`${AUTH} must be one of ${AUTH_MODES.join(', ')}`);
-  const authHeader = text(config, AUTH_HEADER, 'x-forwarded-user').toLowerCase();
-  if (auth === 'proxy' && !authHeader) throw new QuestionError(`${AUTH_HEADER} names the header the gateway sets - it must not be empty`);
   const issuer = text(config, OAUTH2_ISSUER).replace(/\/+$/, '');
   const jwksUrl = text(config, OAUTH2_JWKS_URL);
-  if (auth === 'oauth2' && !issuer && !jwksUrl) throw new QuestionError(`${AUTH} is oauth2 - set ${OAUTH2_ISSUER} or ${OAUTH2_JWKS_URL}`);
+  const clientId = text(config, OAUTH2_CLIENT_ID);
+  if (auth === 'oauth2') {
+    if (!issuer && !jwksUrl) throw new QuestionError(`${AUTH} is oauth2 - set ${OAUTH2_ISSUER} or ${OAUTH2_JWKS_URL}`);
+    if (!issuer || !clientId) {
+      log.warn(`${AUTH} is oauth2 without ${OAUTH2_ISSUER} and ${OAUTH2_CLIENT_ID} - the UI cannot sign a person in; a token obtained elsewhere still works`);
+    }
+  }
   const timeoutMs = wholeMs(config, `${POSTGRES_PREFIX}timeout.ms`, 5000);
   const portText = text(config, `${POSTGRES_PREFIX}port`, '5432');
   if (!/^\d+$/.test(portText) || Number.parseInt(portText, 10) <= 0) throw new QuestionError(`${POSTGRES_PREFIX}port must be a port number`);
   const ssl = text(config, `${POSTGRES_PREFIX}ssl`, 'true').toLowerCase() !== 'false';
   return {
-    inbox,
+    store,
     postgres: {
       host: text(config, `${POSTGRES_PREFIX}host`, '127.0.0.1'),
       port: Number.parseInt(portText, 10),
@@ -148,12 +164,13 @@ export function loadSettings(config) {
       statement_timeout: timeoutMs
     },
     postgresTimeoutMs: timeoutMs,
-    sweepMs: timeout(config, SWEEP, '30s'),
+    pollMs: timeout(config, POLL, '1s'),
     auth,
-    authHeader,
     oauth2Issuer: issuer,
     oauth2Audience: text(config, OAUTH2_AUDIENCE),
     oauth2JwksUrl: jwksUrl,
+    oauth2ClientId: clientId,
+    oauth2Scopes: text(config, OAUTH2_SCOPES, 'openid profile email'),
     replyToken: text(config, REPLY_TOKEN),
     replyTimeoutMs: timeout(config, REPLY_TIMEOUT, '10s'),
     pageTitle: text(config, PAGE_TITLE, 'Agent questions')
@@ -173,7 +190,7 @@ export function currentSettings() {
 
 // --- the row and the pure half ----------------------------------------------------------------
 
-/** The row as the page and the replay carry it. */
+/** The row as the UI, the replay and the stream carry it (the row the main flow's recorder writes). */
 export function publicRow(row) {
   return {
     id: row.id, seq: row.seq, kind: row.kind, graph_id: row.graph_id, correlation_id: row.correlation_id, turn: row.turn,
@@ -184,7 +201,7 @@ export function publicRow(row) {
   };
 }
 
-/** The message event the main flow sends, checked for what a row stores - or an AppException(400). */
+/** The message event the main flow sends, checked for what a channel needs - or an AppException(400). */
 export function validateEvent(event) {
   if (!isMap(event)) throw new AppException(400, 'the inbox takes the message event as a map');
   const kind = event.kind;
@@ -210,45 +227,6 @@ export function validateEvent(event) {
   return { ...event };
 }
 
-/** The key a wait upserts on; an advice has none and appends. */
-export function waitKey(event) {
-  if (!WAIT_KINDS.includes(event.kind)) return null;
-  return [String(event.graph_id), String(event.correlation_id), Number(event.turn)];
-}
-
-/** What a row takes from a message event. */
-export function rowFields(event, now) {
-  const wait = WAIT_KINDS.includes(event.kind);
-  return {
-    kind: event.kind,
-    graph_id: event.graph_id,
-    correlation_id: event.correlation_id,
-    turn: event.turn ?? null,
-    ticket: wait ? (event.ticket ?? null) : null,
-    link: wait ? (event.link ?? null) : null,
-    description: event.description,
-    summary: event.summary,
-    details: event.details ?? null,
-    message: { ...event },
-    state: 'open',
-    requested_at: event.requested_at || now,
-    expires_at: wait ? (event.expires_at ?? null) : null,
-    updated_at: now,
-    answered_at: null,
-    answered_by: null,
-    decisions: null,
-    outcome: null
-  };
-}
-
-/** The state a decision's outcome leaves: answered, expired, or open (refused or unreachable). */
-export function stateAfter(status, body) {
-  const kind = isMap(body) ? body.type : null;
-  if (status === 410 || kind === 'nothing-waiting') return 'expired';
-  if (status !== null && status !== undefined && status >= 200 && status < 300 && !(isMap(body) && body.error)) return 'answered';
-  return 'open';
-}
-
 /** The click, automated: the reply endpoint is the link's own base, the body what a person's browser would post. */
 export function replyRequest(link, ticket, decisions, who) {
   const at = link.indexOf('/ask/');
@@ -256,43 +234,49 @@ export function replyRequest(link, ticket, decisions, who) {
   return [`${link.slice(0, at)}/ask/reply`, { ticket, decisions: decisions.map((d) => ({ ...d })), decided_by: who }];
 }
 
-// --- the inboxes ------------------------------------------------------------------------------
+/** The replay's page: the rows whose sequence passed the cursor, oldest change first, and the cursor to continue from. */
+export function pageSince(rows, since, limit) {
+  const changed = rows.filter((row) => row.seq > since).sort((a, b) => a.seq - b.seq).slice(0, limit);
+  return { rows: changed.map(publicRow), next: Math.max(since, ...changed.map((row) => row.seq)), more: changed.length >= limit };
+}
 
-/** The reference semantics in one process: ids and a change sequence assigned here. */
-export class MemoryInbox {
+/**
+ * The history's page: the rows whose sequence is before the cursor (every row when there is none), newest change
+ * first, and the cursor of the older page (the smallest sequence shown; null when nothing was).
+ */
+export function pageBefore(rows, before, limit) {
+  const older = rows.filter((row) => before === null || before === undefined || row.seq < before).sort((a, b) => b.seq - a.seq).slice(0, limit);
+  return { rows: older.map(publicRow), next: older.length > 0 ? Math.min(...older.map((row) => row.seq)) : null, more: older.length >= limit };
+}
+
+// --- the readers ------------------------------------------------------------------------------
+//
+// The app reads the question record the main flow writes and the transcript audit store the LLM helper writes, both
+// in the audit database, under a reader's role; it writes nothing. The memory reader carries the contract's
+// semantics for the tests: rows and conversations put there stand for what the recorder and the helper wrote.
+
+export class MemoryReader {
   name = 'memory';
 
   constructor() {
     this.rows = new Map();
-    this.keys = new Map();
-    this.nextId = 0;
-    this.seq = 0;
+    this.conversationRows = new Map();
+    this.turnRows = new Map();
   }
 
   async open() {}
 
   async close() {}
 
-  bump() {
-    this.seq += 1;
-    return this.seq;
-  }
-
-  async take(event, now) {
-    const fields = rowFields(event, now);
-    const key = waitKey(event);
-    const keyText = key ? key.join('\u0000') : null;
-    const existingId = keyText !== null ? this.keys.get(keyText) : undefined;
-    let row;
-    if (existingId !== undefined) {
-      row = { ...this.rows.get(existingId), ...fields, seq: this.bump() };
-    } else {
-      this.nextId += 1;
-      row = { id: this.nextId, seq: this.bump(), ...fields };
-      if (keyText !== null) this.keys.set(keyText, row.id);
-    }
+  put(row) {
     this.rows.set(row.id, row);
     return row;
+  }
+
+  putConversation(conversation, turns) {
+    const key = String(conversation.conversation);
+    this.conversationRows.set(key, { ...conversation });
+    this.turnRows.set(key, turns.map((turn) => ({ ...turn })));
   }
 
   async get(id) {
@@ -303,69 +287,59 @@ export class MemoryInbox {
     return [...this.rows.values()].filter((r) => r.seq > seq).sort((a, b) => a.seq - b.seq).slice(0, limit);
   }
 
-  async decided(id, decisions, who, state, outcome, now) {
-    const row = this.rows.get(id);
-    if (!row) return null;
-    if (row.state !== 'open' && state !== 'answered') return row; // decided first by another device: a later nothing-waiting never overwrites it
-    const updated = { ...row, seq: this.bump(), state, decisions, outcome, answered_by: who, answered_at: now, updated_at: now };
-    this.rows.set(id, updated);
-    return updated;
+  async before(seq, limit) {
+    return [...this.rows.values()].filter((r) => seq === null || seq === undefined || r.seq < seq).sort((a, b) => b.seq - a.seq).slice(0, limit);
   }
 
-  async seen(id, now) {
-    const row = this.rows.get(id);
-    if (!row) return null;
-    const updated = { ...row, seq: this.bump(), state: 'seen', updated_at: now };
-    this.rows.set(id, updated);
-    return updated;
-  }
-
-  async expire(now) {
-    const changed = [];
-    for (const row of [...this.rows.values()]) {
-      if (row.state === 'open' && WAIT_KINDS.includes(row.kind) && row.expires_at && row.expires_at < now) {
-        const updated = { ...row, seq: this.bump(), state: 'expired', updated_at: now };
-        this.rows.set(row.id, updated);
-        changed.push(updated);
-      }
-    }
-    return changed;
+  async latest() {
+    return Math.max(0, ...[...this.rows.values()].map((r) => r.seq));
   }
 
   async counts() {
     const result = {};
-    for (const row of this.rows.values()) result[row.state] = (result[row.state] ?? 0) + 1;
+    for (const row of this.rows.values()) {
+      const label = row.state ?? row.kind;
+      result[label] = (result[label] ?? 0) + 1;
+    }
     return result;
+  }
+
+  async conversations(before, limit, correlationId, graphId) {
+    const light = ({ system: _system, tools: _tools, ...rest }) => rest;
+    return [...this.conversationRows.values()]
+      .filter((c) => (before === null || before === undefined || String(c.started_at) < before)
+        && (correlationId === null || correlationId === undefined || c.correlation_id === correlationId)
+        && (graphId === null || graphId === undefined || c.graph_id === graphId))
+      .sort((a, b) => (String(a.started_at) < String(b.started_at) ? 1 : -1))
+      .slice(0, limit)
+      .map(light);
+  }
+
+  async conversation(key) {
+    const held = this.conversationRows.get(key);
+    if (!held) return null;
+    return { conversation: { ...held }, turns: (this.turnRows.get(key) ?? []).map((turn) => ({ ...turn })) };
   }
 }
 
-// the statements the reference inbox runs, with pg's placeholders; JSON travels as compact text cast to jsonb and
-// stamps as text cast to timestamptz, so the Python twin runs the same statements
+// the statements the reference reader runs, with pg's placeholders - selects only, on the question record
+// (extensions/ask-person/schema/postgres.sql) and the transcript audit tables (extensions/llm-helper/schema/postgres.sql)
 export const COLUMNS = 'id, seq, ticket, graph_id, correlation_id, turn, kind, description, summary, details, message, link, '
   + 'state, requested_at, expires_at, updated_at, answered_at, answered_by, decisions, outcome';
-export const SQL_UPSERT_WAIT = 'INSERT INTO question_inbox (seq, ticket, graph_id, correlation_id, turn, kind, description, summary, '
-  + "details, message, link, state, requested_at, expires_at, updated_at) VALUES (nextval('question_inbox_seq'), $1, $2, $3, $4, $5, "
-  + "$6, $7, NULL, $8::jsonb, $9, 'open', $10::timestamptz, $11::timestamptz, $12::timestamptz) "
-  + "ON CONFLICT (graph_id, correlation_id, turn) WHERE kind <> 'advice' DO UPDATE SET seq = nextval('question_inbox_seq'), "
-  + 'ticket = EXCLUDED.ticket, description = EXCLUDED.description, summary = EXCLUDED.summary, details = NULL, '
-  + "message = EXCLUDED.message, link = EXCLUDED.link, state = 'open', requested_at = EXCLUDED.requested_at, "
-  + 'expires_at = EXCLUDED.expires_at, updated_at = EXCLUDED.updated_at, answered_at = NULL, answered_by = NULL, '
-  + `decisions = NULL, outcome = NULL RETURNING ${COLUMNS}`;
-export const SQL_INSERT_ADVICE = 'INSERT INTO question_inbox (seq, ticket, graph_id, correlation_id, turn, kind, description, summary, '
-  + "details, message, link, state, requested_at, expires_at, updated_at) VALUES (nextval('question_inbox_seq'), NULL, $1, $2, $3, "
-  + `'advice', $4, $5, $6, $7::jsonb, NULL, 'open', $8::timestamptz, NULL, $9::timestamptz) RETURNING ${COLUMNS}`;
-export const SQL_GET = `SELECT ${COLUMNS} FROM question_inbox WHERE id = $1`;
-export const SQL_SINCE = `SELECT ${COLUMNS} FROM question_inbox WHERE seq > $1 ORDER BY seq LIMIT $2`;
-export const SQL_DECIDED = "UPDATE question_inbox SET seq = nextval('question_inbox_seq'), state = $1, decisions = $2::jsonb, "
-  + 'outcome = $3::jsonb, answered_by = $4, answered_at = $5::timestamptz, updated_at = $6::timestamptz '
-  + `WHERE id = $7 AND (state = 'open' OR $8::text = 'answered') RETURNING ${COLUMNS}`;
-export const SQL_SEEN = "UPDATE question_inbox SET seq = nextval('question_inbox_seq'), state = 'seen', updated_at = $1::timestamptz "
-  + `WHERE id = $2 AND kind = 'advice' RETURNING ${COLUMNS}`;
-export const SQL_EXPIRE = "UPDATE question_inbox SET seq = nextval('question_inbox_seq'), state = 'expired', updated_at = $1::timestamptz "
-  + `WHERE state = 'open' AND kind <> 'advice' AND expires_at < $2::timestamptz RETURNING ${COLUMNS}`;
-export const SQL_COUNTS = 'SELECT state, count(*) FROM question_inbox GROUP BY state';
-
-const compact = (value) => JSON.stringify(value);
+export const SQL_GET = `SELECT ${COLUMNS} FROM question WHERE id = $1`;
+export const SQL_SINCE = `SELECT ${COLUMNS} FROM question WHERE seq > $1 ORDER BY seq LIMIT $2`;
+export const SQL_BEFORE = `SELECT ${COLUMNS} FROM question WHERE $1::bigint IS NULL OR seq < $1::bigint ORDER BY seq DESC LIMIT $2`;
+export const SQL_LATEST = 'SELECT COALESCE(max(seq), 0) AS latest FROM question';
+export const SQL_COUNTS = 'SELECT COALESCE(state, kind) AS label, count(*) FROM question GROUP BY COALESCE(state, kind)';
+export const CONVERSATION_COLUMNS = 'conversation, correlation_id, graph_id, node, model, status, turns, started_at, updated_at, '
+  + 'ended_at, expires_at, input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens';
+export const SQL_CONVERSATIONS = `SELECT ${CONVERSATION_COLUMNS} FROM transcript `
+  + 'WHERE ($1::timestamptz IS NULL OR started_at < $1::timestamptz) AND ($2::text IS NULL OR correlation_id = $2::text) '
+  + 'AND ($3::text IS NULL OR graph_id = $3::text) ORDER BY started_at DESC LIMIT $4';
+export const SQL_CONVERSATION = `SELECT ${CONVERSATION_COLUMNS}, system, tools FROM transcript WHERE conversation = $1`;
+export const TURN_COLUMNS = 'turn, trace_id, trace_path, correlation_id, started_at, ended_at, stop_reason, status, request_id, '
+  + 'input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens, request, response, calls';
+export const SQL_TURNS = `SELECT ${TURN_COLUMNS} FROM transcript_turn WHERE conversation = $1 ORDER BY turn`;
 
 function stamp(value) {
   if (value === null || value === undefined) return null;
@@ -382,15 +356,43 @@ export function rowFromRecord(record) {
     id: Number(record.id), seq: Number(record.seq), kind: String(record.kind), graph_id: String(record.graph_id),
     correlation_id: String(record.correlation_id), turn: record.turn === null || record.turn === undefined ? null : Number(record.turn),
     ticket: record.ticket ?? null, link: record.link ?? null, description: String(record.description), summary: String(record.summary),
-    details: record.details ?? null, message: json(record.message) ?? {}, state: String(record.state),
+    details: record.details ?? null, message: json(record.message) ?? {},
+    state: record.state === null || record.state === undefined ? null : String(record.state),
     requested_at: stamp(record.requested_at) ?? '', expires_at: stamp(record.expires_at), updated_at: stamp(record.updated_at) ?? '',
     answered_at: stamp(record.answered_at), answered_by: record.answered_by ?? null, decisions: json(record.decisions),
     outcome: json(record.outcome)
   };
 }
 
-/** The reference inbox: the pg driver's pool. The application inserts, selects and updates one table and nothing else. */
-export class PostgresInbox {
+const STAMPS = new Set(['started_at', 'updated_at', 'ended_at', 'expires_at']);
+const COUNTS = new Set(['turns', 'input_tokens', 'output_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens']);
+
+/** A conversation row of the transcript audit store, as the UI shows it (the snapshot columns when selected). */
+export function conversationFromRecord(record) {
+  const result = {};
+  for (const [name, value] of Object.entries(record)) {
+    if (STAMPS.has(name)) result[name] = stamp(value);
+    else if (COUNTS.has(name)) result[name] = Number(value ?? 0);
+    else if (name === 'tools') result[name] = json(value);
+    else result[name] = value === null || value === undefined ? null : String(value);
+  }
+  return result;
+}
+
+/** A turn row of the transcript audit store: the facts, and the request and response as the model exchanged them. */
+export function turnFromRecord(record) {
+  const result = {};
+  for (const [name, value] of Object.entries(record)) {
+    if (name === 'started_at' || name === 'ended_at') result[name] = stamp(value);
+    else if (name === 'turn' || COUNTS.has(name)) result[name] = Number(value ?? 0);
+    else if (name === 'request' || name === 'response' || name === 'calls') result[name] = json(value);
+    else result[name] = value === null || value === undefined ? null : String(value);
+  }
+  return result;
+}
+
+/** The reference reader: the pg driver's pool, selects only - a reader role suffices. */
+export class PostgresReader {
   name = 'postgres';
 
   constructor(pool) {
@@ -407,59 +409,49 @@ export class PostgresInbox {
     await this.pool.end();
   }
 
-  async one(sql, params) {
+  async records(sql, params) {
     const { rows } = await this.pool.query(sql, params);
-    return rows.length > 0 ? rowFromRecord(rows[0]) : null;
-  }
-
-  async many(sql, params) {
-    const { rows } = await this.pool.query(sql, params);
-    return rows.map(rowFromRecord);
-  }
-
-  async take(event, now) {
-    const f = rowFields(event, now);
-    const row = waitKey(event) !== null
-      ? await this.one(SQL_UPSERT_WAIT, [f.ticket, f.graph_id, f.correlation_id, f.turn, f.kind, f.description, f.summary,
-        compact(f.message), f.link, f.requested_at, f.expires_at, now])
-      : await this.one(SQL_INSERT_ADVICE, [f.graph_id, f.correlation_id, f.turn, f.description, f.summary, f.details,
-        compact(f.message), f.requested_at, now]);
-    if (!row) throw new AppException(500, 'the inbox returned no row');
-    return row;
+    return rows;
   }
 
   async get(id) {
-    return this.one(SQL_GET, [id]);
+    const rows = await this.records(SQL_GET, [id]);
+    return rows.length > 0 ? rowFromRecord(rows[0]) : null;
   }
 
   async since(seq, limit) {
-    return this.many(SQL_SINCE, [seq, limit]);
+    return (await this.records(SQL_SINCE, [seq, limit])).map(rowFromRecord);
   }
 
-  async decided(id, decisions, who, state, outcome, now) {
-    const row = await this.one(SQL_DECIDED, [state, compact(decisions), compact(outcome), who, now, now, id, state]);
-    // no row: the guard kept a row another device decided first (or the row is gone) - answer with it as stored
-    return row ?? await this.get(id);
+  async before(seq, limit) {
+    return (await this.records(SQL_BEFORE, [seq ?? null, limit])).map(rowFromRecord);
   }
 
-  async seen(id, now) {
-    return this.one(SQL_SEEN, [now, id]);
-  }
-
-  async expire(now) {
-    return this.many(SQL_EXPIRE, [now, now]);
+  async latest() {
+    const rows = await this.records(SQL_LATEST, []);
+    return rows.length > 0 && rows[0].latest !== null && rows[0].latest !== undefined ? Number(rows[0].latest) : 0;
   }
 
   async counts() {
-    const { rows } = await this.pool.query(SQL_COUNTS, []);
     const result = {};
-    for (const row of rows) result[String(row.state)] = Number(row.count);
+    for (const row of await this.records(SQL_COUNTS, [])) result[String(row.label)] = Number(row.count);
     return result;
+  }
+
+  async conversations(before, limit, correlationId, graphId) {
+    return (await this.records(SQL_CONVERSATIONS, [before ?? null, correlationId ?? null, graphId ?? null, limit])).map(conversationFromRecord);
+  }
+
+  async conversation(key) {
+    const rows = await this.records(SQL_CONVERSATION, [key]);
+    if (rows.length === 0) return null;
+    const turns = await this.records(SQL_TURNS, [key]);
+    return { conversation: conversationFromRecord(rows[0]), turns: turns.map(turnFromRecord) };
   }
 }
 
-/** The pool from the question.inbox.postgres.* keys; nothing connects until open(). */
-export async function postgresInbox(config, importer = (name) => import(name)) {
+/** The pool from the question.store.postgres.* keys; nothing connects until open(). */
+export async function postgresReader(config, importer = (name) => import(name)) {
   let pg;
   try {
     pg = await importer('pg');
@@ -469,8 +461,8 @@ export async function postgresInbox(config, importer = (name) => import(name)) {
   }
   const Pool = pg.Pool ?? pg.default?.Pool;
   const pool = new Pool({ ...config.postgres });
-  pool.on('error', (error) => log.warn(`inbox - ${error.name}: ${error.message}`));
-  return new PostgresInbox(pool);
+  pool.on('error', (error) => log.warn(`store - ${error.name}: ${error.message}`));
+  return new PostgresReader(pool);
 }
 
 /** A failure as a log may carry it: the type and the database's SQLSTATE, never a message that could quote a row. */
@@ -481,7 +473,7 @@ export function failure(error) {
   return database && error?.code ? `${name} sqlstate=${error.code}` : name;
 }
 
-// --- the wake-ups -----------------------------------------------------------------------------
+// --- the wake-ups and the feed ----------------------------------------------------------------
 
 /** Every connected device holds a queue; a changed row goes to all of them. */
 export class Wakeups {
@@ -531,37 +523,108 @@ export class Wakeups {
   }
 }
 
-let theInbox = null;
-export let wakeups = new Wakeups();
-let sweeper = null;
+/**
+ * The record's changes, read by their sequence and handed to the connected devices: a poll every question.poll and a
+ * wake-up from the intake or a click, whichever comes first.
+ */
+export class Feed {
+  constructor() {
+    this.cursor = 0;
+    this.wake = null;
+    this.pending = false;
+    this.loop = null;
+    this.stopped = false;
+  }
 
-export function inbox() {
-  theInbox ??= new MemoryInbox();
-  return theInbox;
+  kick() {
+    if (this.wake) {
+      const wake = this.wake;
+      this.wake = null;
+      wake();
+    } else {
+      this.pending = true;
+    }
+  }
+
+  /** Read what changed since the cursor, tell every device, move the cursor; a store that cannot be read is logged by type. */
+  async pollOnce() {
+    let rows;
+    try {
+      rows = await reader().since(this.cursor, LIST_LIMIT_MAX);
+    } catch (error) {
+      log.warn(`The feed could not read the record - ${failure(error)}`); // the next poll retries
+      return [];
+    }
+    if (rows.length > 0) {
+      this.cursor = Math.max(this.cursor, ...rows.map((row) => row.seq));
+      wakeups.publish(rows);
+    }
+    return rows;
+  }
+
+  async run(pollMs) {
+    while (!this.stopped) {
+      if (!this.pending) {
+        let timer;
+        await new Promise((resolveWait) => {
+          this.wake = resolveWait;
+          timer = setTimeout(resolveWait, pollMs);
+          timer.unref();
+        });
+        clearTimeout(timer);
+        this.wake = null;
+      }
+      this.pending = false;
+      if (this.stopped) break;
+      await this.pollOnce();
+    }
+  }
+
+  start(pollMs) {
+    if (this.loop) return;
+    this.stopped = false;
+    this.loop = this.run(pollMs);
+  }
+
+  async stop() {
+    this.stopped = true;
+    this.kick();
+    if (this.loop) await this.loop;
+    this.loop = null;
+  }
+
+  get running() {
+    return this.loop !== null && !this.stopped;
+  }
 }
 
-/** A test hook: a fresh inbox and fresh wake-ups. */
-export function reset(freshInbox = new MemoryInbox()) {
-  theInbox = freshInbox;
+let theReader = null;
+export let wakeups = new Wakeups();
+export let feed = new Feed();
+
+export function reader() {
+  theReader ??= new MemoryReader();
+  return theReader;
+}
+
+/** A test hook: a fresh reader, fresh wake-ups and a fresh feed. */
+export function reset(freshReader = new MemoryReader()) {
+  theReader = freshReader;
   wakeups = new Wakeups();
+  feed = new Feed();
 }
 
 // --- the intake -------------------------------------------------------------------------------
 
-/** Take a message event from the main flow: a wait upserted, an advice appended, every connected device told. */
+/**
+ * Take a message event from the main flow: nothing to write - the recorder has the row - but every connected device is
+ * told to look, so the card is on its screen the moment it is recorded.
+ */
 export async function intake(_headers, body) {
   const event = validateEvent(body);
-  let row;
-  try {
-    row = await inbox().take(event, isoUtc());
-  } catch (error) {
-    // the main flow logs a channel failure by type and never fails the hold
-    log.warn(`The inbox could not take a ${event.kind} for ${event.graph_id} - ${failure(error)}`);
-    throw new AppException(503, 'the inbox is not available');
-  }
-  wakeups.publish([row]);
-  log.info(`Inbox took ${row.kind} ${row.id} for ${row.graph_id} turn ${row.turn} (seq ${row.seq})`);
-  return { stored: true, id: row.id, seq: row.seq, state: row.state };
+  feed.kick();
+  log.info(`Intake took ${event.kind} for ${event.graph_id} turn ${event.turn ?? null} - the feed looks`);
+  return { accepted: true, kind: event.kind, graph_id: event.graph_id, turn: event.turn ?? null };
 }
 
 export async function questionHealth(headers) {
@@ -569,16 +632,19 @@ export async function questionHealth(headers) {
   if (headers.type === 'info') {
     let counts;
     try {
-      counts = await inbox().counts();
+      counts = await reader().counts();
     } catch (error) {
       counts = { error: failure(error) };
     }
-    return { service: INTAKE_ROUTE, href: 'http://127.0.0.1', inbox: inbox().name, rows: counts, connected: wakeups.connected, auth: config.auth };
+    return {
+      service: INTAKE_ROUTE, href: 'http://127.0.0.1', store: reader().name, rows: counts, feed: feed.cursor,
+      connected: wakeups.connected, auth: config.auth
+    };
   }
   return 'agent.question.inbox is running fine';
 }
 
-preload(INTAKE_ROUTE, { instances: 1 }, intake);
+preload(INTAKE_ROUTE, { instances: 5 }, intake);
 preload(HEALTH_ROUTE, { instances: 5, isPrivate: true }, questionHealth);
 
 // --- identity ---------------------------------------------------------------------------------
@@ -641,14 +707,9 @@ function oauth2(config) {
   return verifier;
 }
 
-/** Who is at the page: nobody is asked in development, the gateway's trusted header, or a validated access token. */
+/** Who is at the UI: nobody is asked in development, or a validated access token (obtained by the UI through PKCE). */
 export async function identify(req, config, claimed) {
   if (config.auth === 'none') return { who: claimed || 'anonymous', via: 'none' };
-  if (config.auth === 'proxy') {
-    const who = String(req.headers[config.authHeader] ?? '').trim();
-    if (!who) throw new ReplyError(401, `sign-in required - the ${config.authHeader} header names the person`);
-    return { who, via: 'proxy' };
-  }
   const bearer = bearerOf(req);
   if (!bearer) throw new ReplyError(401, 'sign-in required - a bearer access token');
   const claims = await oauth2(config).verify(bearer);
@@ -672,19 +733,31 @@ async function readBody(req) {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-/** Open waits past their expiry become expired, and every device is told. */
-async function expireNow() {
-  let changed;
-  try {
-    changed = await inbox().expire(isoUtc());
-  } catch (error) {
-    log.warn(`The inbox could not expire its waits - ${failure(error)}`);
-    return;
+/** What the UI needs before it signs in: the auth mode, the title and, under oauth2, the issuer, the public client id, the scopes and the audience. */
+export function uiConfig(config) {
+  const result = { auth: config.auth, title: config.pageTitle };
+  if (config.auth === 'oauth2') {
+    result.oauth2 = { issuer: config.oauth2Issuer, client_id: config.oauth2ClientId, scopes: config.oauth2Scopes, audience: config.oauth2Audience };
   }
-  if (changed.length > 0) wakeups.publish(changed);
+  return result;
 }
 
-/** GET /questions?since=<seq>&limit=<n>: every row that changed since the cursor, and the cursor to continue from. */
+/** GET /questions/config: the UI's sign-in configuration - open, it holds no secret. */
+export async function showConfig(_req, res) {
+  sendJson(res, 200, uiConfig(currentSettings()));
+}
+
+/** A whole number from a query value, the default when absent; null when not a number. */
+function whole(value, defaultValue) {
+  if (value === null || value === undefined || value === '') return defaultValue;
+  return /^\d+$/.test(value) ? Number.parseInt(value, 10) : null;
+}
+
+/**
+ * GET /questions?since=<seq>&limit=<n>: every row that changed since the cursor, oldest change first, and the cursor to
+ * continue from - the replay. GET /questions?before=<seq>&limit=<n>: the history's older page, newest change first, and
+ * the cursor of the page before it - the infinite scroll.
+ */
 export async function listRows(req, res, url) {
   const config = currentSettings();
   try {
@@ -693,21 +766,25 @@ export async function listRows(req, res, url) {
     if (!(error instanceof ReplyError)) throw error;
     return sendError(res, error.status, error.message);
   }
-  const since = Number(url.searchParams.get('since') ?? '0');
-  const limitRaw = Number(url.searchParams.get('limit') ?? String(LIST_LIMIT));
-  if (!Number.isInteger(since) || !Number.isInteger(limitRaw)) return sendError(res, 400, 'since and limit must be whole numbers');
-  const limit = Math.min(LIST_LIMIT_MAX, Math.max(1, limitRaw));
-  await expireNow();
-  let rows;
-  try {
-    rows = await inbox().since(since, limit);
-  } catch (error) {
-    log.warn(`The inbox could not list - ${failure(error)}`);
-    return sendError(res, 503, 'the inbox is not available');
+  const limitRaw = whole(url.searchParams.get('limit'), LIST_LIMIT);
+  const history = url.searchParams.has('before');
+  const before = history ? whole(url.searchParams.get('before'), null) : null;
+  const since = history ? 0 : whole(url.searchParams.get('since'), 0);
+  if (limitRaw === null || since === null || (history && url.searchParams.get('before') && before === null)) {
+    return sendError(res, 400, 'since, before and limit must be whole numbers');
   }
-  return sendJson(res, 200, {
-    since, rows: rows.map(publicRow), next: Math.max(since, ...rows.map((r) => r.seq)), more: rows.length >= limit
-  });
+  const limit = Math.min(LIST_LIMIT_MAX, Math.max(1, limitRaw));
+  try {
+    if (history) {
+      const older = await reader().before(before, limit);
+      return sendJson(res, 200, { ...pageBefore(older, null, limit), before });
+    }
+    const rows = await reader().since(since, limit);
+    return sendJson(res, 200, { ...pageSince(rows, since, limit), since });
+  } catch (error) {
+    log.warn(`The record could not be read - ${failure(error)}`);
+    return sendError(res, 503, 'the question record is not available');
+  }
 }
 
 const frame = (row) => `id: ${row.seq}\nevent: question\ndata: ${JSON.stringify(publicRow(row))}\n\n`;
@@ -722,7 +799,7 @@ export function keepAliveMs() {
   return Number.parseInt(match[1], 10) * (unit === 'ms' ? 1 : unit === 'm' ? 60_000 : 1000);
 }
 
-/** GET /questions/events: rows since Last-Event-ID (or since) first, then every change; keep-alive comments. */
+/** GET /questions/events: rows since Last-Event-ID (or since) first, then every change the feed finds; keep-alive comments. */
 export async function events(req, res, url) {
   const config = currentSettings();
   try {
@@ -737,8 +814,7 @@ export async function events(req, res, url) {
   const queue = wakeups.subscribe();
   const pingMs = keepAliveMs();
   try {
-    await expireNow();
-    for (const row of await inbox().since(since, LIST_LIMIT_MAX)) {
+    for (const row of await reader().since(since, LIST_LIMIT_MAX)) {
       res.write(frame(row));
       since = row.seq;
     }
@@ -754,10 +830,61 @@ export async function events(req, res, url) {
         since = row.seq;
       }
     }
+  } catch (error) {
+    log.warn(`The stream could not read the record - ${failure(error)}`); // the device reconnects
   } finally {
     wakeups.unsubscribe(queue);
   }
   if (!res.writableEnded) res.end();
+}
+
+/** GET /transcripts?before=<iso>&limit=<n>&correlation_id=&graph_id=: the audit store's conversations, newest first. */
+export async function listTranscripts(req, res, url) {
+  const config = currentSettings();
+  try {
+    await identify(req, config, null);
+  } catch (error) {
+    if (!(error instanceof ReplyError)) throw error;
+    return sendError(res, error.status, error.message);
+  }
+  let before = url.searchParams.get('before') || null;
+  if (before !== null) {
+    const parsed = parseIso(before);
+    if (parsed === null) return sendError(res, 400, 'before must be an ISO-8601 time');
+    before = isoUtc(parsed);
+  }
+  const limitRaw = whole(url.searchParams.get('limit'), TRANSCRIPTS_LIMIT);
+  if (limitRaw === null) return sendError(res, 400, 'limit must be a whole number');
+  const limit = Math.min(TRANSCRIPTS_LIMIT_MAX, Math.max(1, limitRaw));
+  let rows;
+  try {
+    rows = await reader().conversations(before, limit, url.searchParams.get('correlation_id') || null, url.searchParams.get('graph_id') || null);
+  } catch (error) {
+    log.warn(`The transcripts could not be read - ${failure(error)}`);
+    return sendError(res, 503, 'the transcript audit store is not available');
+  }
+  return sendJson(res, 200, { conversations: rows, next: rows.length > 0 ? rows.at(-1).started_at : null, more: rows.length >= limit });
+}
+
+/** GET /transcripts/{conversation}: one conversation of the audit store with its turns, as the model exchanged them. */
+export async function showTranscript(req, res, conversation) {
+  const config = currentSettings();
+  try {
+    await identify(req, config, null);
+  } catch (error) {
+    if (!(error instanceof ReplyError)) throw error;
+    return sendError(res, error.status, error.message);
+  }
+  if (!CONVERSATION_ID.test(conversation)) return sendError(res, 400, 'a conversation is 32 hexadecimal characters');
+  let found;
+  try {
+    found = await reader().conversation(conversation);
+  } catch (error) {
+    log.warn(`The transcript could not be read - ${failure(error)}`);
+    return sendError(res, 503, 'the transcript audit store is not available');
+  }
+  if (!found) return sendError(res, 404, `conversation ${conversation} is not in the audit store`);
+  return sendJson(res, 200, found);
 }
 
 async function forward(url, body, config) {
@@ -778,8 +905,11 @@ async function forward(url, body, config) {
   }
 }
 
-/** POST /questions/{id}/decide with {decisions, decided_by?}: the click, automated. The first accepted decision
- * stands: an acceptance always wins the row, and a nothing-waiting that lands after one never overwrites it. */
+/**
+ * POST /questions/{id}/decide with {decisions, decided_by?}: the click, automated - the decisions go to the link's
+ * reply endpoint under this app's bearer, the recorder behind that endpoint writes the answer on the row, and the
+ * invoker gets the row as it then stands with the engine's outcome; the feed carries the change to every device.
+ */
 export async function decide(req, res, id) {
   const config = currentSettings();
   let body;
@@ -802,8 +932,14 @@ export async function decide(req, res, id) {
   if (!Array.isArray(decisions) || decisions.length === 0 || !decisions.every(isMap)) {
     return sendError(res, 400, 'decisions must be a non-empty list, one per waiting call');
   }
-  const row = await inbox().get(id);
-  if (!row) return sendError(res, 404, `row ${id} is not in the inbox`);
+  let row;
+  try {
+    row = await reader().get(id);
+  } catch (error) {
+    log.warn(`The record could not be read - ${failure(error)}`);
+    return sendError(res, 503, 'the question record is not available');
+  }
+  if (!row) return sendError(res, 404, `row ${id} is not in the record`);
   if (!WAIT_KINDS.includes(row.kind) || !row.ticket || !row.link) return sendError(res, 409, `row ${id} is an advice - nothing to decide`);
   if (row.state !== 'open') return sendError(res, 409, `row ${id} is ${row.state} - decided by ${row.answered_by ?? 'nobody'}`);
   let target;
@@ -817,37 +953,18 @@ export async function decide(req, res, id) {
   const outcome = error
     ? { status: 502, body: { type: 'error', message: `the reply endpoint did not answer - ${error}` } }
     : { status, body: answer };
-  const state = stateAfter(outcome.status, outcome.body);
-  const now = isoUtc();
-  const updated = await inbox().decided(id, decisions.map((d) => ({ ...d })), identity.who, state, outcome, now);
-  if (!updated) return sendError(res, 404, `row ${id} is not in the inbox`);
-  if (updated.answered_by !== identity.who || updated.answered_at !== now) {
-    // two devices on one card: the other one's decision was accepted while this one was in flight, so the engine
-    // answered nothing-waiting here and the row stands as the first decision left it - this device sees who
-    log.info(`Row ${id}: ${identity.who}'s decision met a row ${updated.state} by ${updated.answered_by} - the row stands`);
-    return sendJson(res, 200, { row: publicRow(updated), outcome });
-  }
-  wakeups.publish([updated]);
-  log.info(`Row ${id} decided by ${identity.who} via ${identity.via} - ${outcome.status} -> ${state}`);
-  return sendJson(res, 200, { row: publicRow(updated), outcome });
-}
-
-/** POST /questions/{id}/seen: an advice the person has read. */
-export async function markSeen(req, res, id) {
-  const config = currentSettings();
+  // the recorder behind the reply endpoint has written the answer by now: read the row as it stands and let the feed
+  // carry the change to every device
+  feed.kick();
+  let updated = null;
   try {
-    await identify(req, config, null);
-  } catch (error) {
-    if (!(error instanceof ReplyError)) throw error;
-    return sendError(res, error.status, error.message);
+    updated = await reader().get(id);
+  } catch (readError) {
+    log.warn(`The record could not be re-read after a decision - ${failure(readError)}`); // the decision reached the engine
   }
-  const row = await inbox().get(id);
-  if (!row) return sendError(res, 404, `row ${id} is not in the inbox`);
-  if (row.kind !== 'advice') return sendError(res, 409, `row ${id} is a wait - decide it instead`);
-  const updated = await inbox().seen(id, isoUtc());
-  if (!updated) return sendError(res, 404, `row ${id} is not in the inbox`);
-  wakeups.publish([updated]);
-  return sendJson(res, 200, { row: publicRow(updated) });
+  const shown = updated ?? row;
+  log.info(`Row ${id} decided by ${identity.who} via ${identity.via} - ${outcome.status} -> ${shown.state}`);
+  return sendJson(res, 200, { row: publicRow(shown), outcome });
 }
 
 const STYLE = 'body{font-family:-apple-system,Helvetica,Arial,sans-serif;margin:0;color:#222;background:#f4f5f7}'
@@ -858,7 +975,7 @@ const STYLE = 'body{font-family:-apple-system,Helvetica,Arial,sans-serif;margin:
   + '.case h2{font-size:1rem;margin:0 0 .3rem}.meta{color:#667;font-size:.8rem}'
   + '.card{border-top:1px solid #eee;padding:.7rem 0}.card.open{border-left:4px solid #e0a800;padding-left:.8rem}'
   + '.card.answered{border-left:4px solid #2e9e5b;padding-left:.8rem;opacity:.85}'
-  + '.card.expired{border-left:4px solid #999;padding-left:.8rem;opacity:.7}.card.seen{opacity:.6}'
+  + '.card.expired{border-left:4px solid #999;padding-left:.8rem;opacity:.7}'
   + '.card.advice{border-left:4px solid #3a7bd5;padding-left:.8rem}pre{background:#f3f3f3;border-radius:6px;'
   + 'padding:.5rem .7rem;overflow:auto;font-size:.8rem}fieldset{border:1px solid #ddd;border-radius:8px;margin:.5rem 0}'
   + 'textarea,input[type=text]{width:100%;box-sizing:border-box;margin:.2rem 0}button{padding:.4rem 1rem;border-radius:6px;'
@@ -901,9 +1018,9 @@ function callForm(call, i) {
 }
 function card(r) {
   const when = esc((r.updated_at || '').replace('T', ' ').slice(0, 19));
-  let body = '<div class="card ' + esc(r.state) + ' ' + esc(r.kind) + '" data-row="' + r.id + '"><div><strong>' + esc(r.summary) + '</strong> <span class="meta">' + esc(r.kind) + (r.turn != null ? ' · turn ' + r.turn : '') + ' · ' + esc(r.state) + ' · ' + when + '</span></div>';
+  let body = '<div class="card ' + esc(r.state || '') + ' ' + esc(r.kind) + '" data-row="' + r.id + '"><div><strong>' + esc(r.summary) + '</strong> <span class="meta">' + esc(r.kind) + (r.turn != null ? ' · turn ' + r.turn : '') + (r.state ? ' · ' + esc(r.state) : '') + ' · ' + when + '</span></div>';
   if (r.details) body += '<p>' + esc(r.details) + '</p>';
-  if (r.kind === 'advice') { if (r.state === 'open') body += '<button data-seen="' + r.id + '">Seen</button>'; }
+  if (r.kind === 'advice') { /* an advice is a notice: nothing to decide */ }
   else if (r.state === 'open') {
     body += '<form data-decide="' + r.id + '">' + (r.calls || []).map(callForm).join('') + '<button class="primary" type="submit">Send the decision</button></form>';
     if (r.expires_at) body += '<div class="meta">expires ' + esc(r.expires_at.replace('T', ' ').slice(0, 19)) + '</div>';
@@ -936,10 +1053,6 @@ function render() {
   history.innerHTML = closed.length ? closed.map(caseHtml).join('') : '<div class="empty">Nothing yet.</div>';
   history.scrollTop = keep;
 }
-document.getElementById('cases').addEventListener('click', async (ev) => {
-  const seen = ev.target.closest('button[data-seen]');
-  if (seen) { await fetch(LIST + '/' + seen.dataset.seen + '/seen', {method: 'POST', credentials: 'same-origin'}); }
-});
 document.getElementById('cases').addEventListener('submit', async (ev) => {
   const form = ev.target.closest('form[data-decide]'); if (!form) return;
   ev.preventDefault();
@@ -966,6 +1079,7 @@ replay().then(listen);
 
 const escapeHtml = (value) => String(value).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+/** The development page (question.auth: none): the React UI of this pack replaces it, served from resources/public when deployed there. */
 export function page(title) {
   return `<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n`
     + '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
@@ -997,30 +1111,41 @@ export async function servePage(req, res) {
 /** The browser side on the host (Platform.addRoutes). */
 export async function mount(req, res, url) {
   const path = url.pathname;
-  if (req.method === 'GET' && path === PAGE_PATH) {
-    await servePage(req, res);
-    return true;
+  if (req.method === 'GET') {
+    if (path === CONFIG_PATH) {
+      await showConfig(req, res);
+      return true;
+    }
+    if (path === PAGE_PATH) {
+      await servePage(req, res);
+      return true;
+    }
+    if (path === EVENTS_PATH) {
+      await events(req, res, url);
+      return true;
+    }
+    if (path === LIST_PATH) {
+      await listRows(req, res, url);
+      return true;
+    }
+    if (path === TRANSCRIPTS_PATH) {
+      await listTranscripts(req, res, url);
+      return true;
+    }
+    const transcript = /^\/transcripts\/([^/]+)$/.exec(path);
+    if (transcript) {
+      await showTranscript(req, res, decodeURIComponent(transcript[1]));
+      return true;
+    }
   }
-  if (req.method === 'GET' && path === EVENTS_PATH) {
-    await events(req, res, url);
-    return true;
-  }
-  if (req.method === 'GET' && path === LIST_PATH) {
-    await listRows(req, res, url);
-    return true;
-  }
-  const action = /^\/questions\/([^/]+)\/(decide|seen)$/.exec(path);
+  const action = /^\/questions\/([^/]+)\/decide$/.exec(path);
   if (req.method === 'POST' && action) {
     const id = Number(action[1]);
     if (!Number.isInteger(id)) {
       sendError(res, 400, 'the row id must be a whole number');
       return true;
     }
-    if (action[2] === 'decide') {
-      await decide(req, res, id);
-    } else {
-      await markSeen(req, res, id);
-    }
+    await decide(req, res, id);
     return true;
   }
   return false;
@@ -1028,35 +1153,35 @@ export async function mount(req, res, url) {
 
 // --- boot -------------------------------------------------------------------------------------
 
-/** Load the settings and open the inbox before the host listens; a bad configuration or a silent database stops it by name. */
+/**
+ * Load the settings and open the reader before the host listens; a bad configuration or a silent database stops it by
+ * name. The feed starts at the record's newest sequence and follows from there.
+ */
 export async function boot() {
   const config = configure();
-  if (config.inbox === 'postgres') {
-    theInbox = await postgresInbox(config);
+  if (config.store === 'postgres') {
+    theReader = await postgresReader(config);
   } else {
-    theInbox = new MemoryInbox();
-    log.warn(`The inbox is in memory - a restart forgets every card; set ${INBOX}=postgres for a deployment`);
+    theReader = new MemoryReader();
+    log.warn(`The store is in memory - nothing is recorded there at run time; set ${STORE}=postgres to read the question record and the transcripts the main flow and the LLM helper write`);
   }
   try {
-    await theInbox.open();
+    await theReader.open();
+    feed.cursor = await theReader.latest();
   } catch (error) {
     if (error instanceof QuestionError) throw error;
-    throw new QuestionError(`the ${config.inbox} inbox could not open - ${failure(error)}`);
+    throw new QuestionError(`the ${config.store} store could not open - ${failure(error)}`);
   }
-  sweeper = setInterval(() => { expireNow().catch(() => {}); }, config.sweepMs);
-  sweeper.unref();
-  log.info(`agent-question ready - inbox ${theInbox.name}, page ${PAGE_PATH}, stream ${EVENTS_PATH}, auth ${config.auth}`);
+  feed.start(config.pollMs);
+  log.info(`agent-question ready - store ${theReader.name} (feed from ${feed.cursor}), page ${PAGE_PATH}, stream ${EVENTS_PATH}, poll ${config.pollMs} ms, auth ${config.auth}`);
 }
 
 export async function shutdown() {
-  if (sweeper) {
-    clearInterval(sweeper);
-    sweeper = null;
-  }
-  if (theInbox) await theInbox.close();
+  await feed.stop();
+  if (theReader) await theReader.close();
 }
 
-export const sweeperRunning = () => sweeper !== null;
+export const feedRunning = () => feed.running;
 
 export function attach(target = platform) {
   target.onStartup(boot);

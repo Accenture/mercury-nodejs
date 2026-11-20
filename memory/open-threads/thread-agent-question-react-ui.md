@@ -29,6 +29,11 @@
   joining the audit log, which the backend reads (mercury-python thread `bp-question-record-and-ui`). Status: static
   content built and MERGED 2026-11-20 (PR #138); the question record's Node twin built and MERGED 2026-11-20 (PR #139; mercury-python #74
   MERGED); the backend's reads built and MERGED in both packs 2026-11-20 (PR #140, mercury-python #75: the history's
-  pages, the transcript browser, the UI's config endpoint); next the UI itself, `extensions/agent-question-ui/`.
+  pages, the transcript browser, the UI's config endpoint); the UI BUILT 2026-11-20 as PR #141 (the subproject - four
+  panels including the Actuator menu, PKCE, the release script, the Keycloak development issuer, the device-side seen
+  state - the bundle committed in both packs, mercury-python #76, and the vanilla page retired); DRIVEN LIVE 2026-11-20
+  through both backends and a Keycloak issuer (mercury-composable `docs/test-reports/agent-question-ui-live-drive.md`):
+  one host defect fixed in both packs ([[platform-on-shutdown-hook-node]]), two UI fixes; next the record-on-merge of
+  #141 / mercury-python #76, then the reply page's own sign-in against the same issuer (a follow-up).
   → serves: vision-mercury-nodejs
   <!-- id: agent-question-react-ui | created: 2026-11-19 | last_used: 2026-11-19 | uses: 1 | tier: working | origin: 2026-11-19-094720 -->

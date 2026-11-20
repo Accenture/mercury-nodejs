@@ -14,6 +14,7 @@ import assert from 'node:assert/strict';
 import { createHash, generateKeyPairSync } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import http from 'node:http';
+import { fileURLToPath } from 'node:url';
 import { after, before, test } from 'node:test';
 import { AppException, appConfig, EventApiServer, FunctionRegistry, isoUtc, Platform, PostOffice } from 'mercury-composable';
 import * as aq from '../extensions/agent-question/agent-question.mjs';
@@ -23,6 +24,7 @@ const VECTORS_FILE = new URL('./vectors/agent-question-vectors.json', import.met
 const VECTORS_SHA256 = 'ec5f3490cb2993feaf40e9ac91c8fc1748d5e2c6fa1c8cd55122ad9f84d22dba';
 const VECTORS = JSON.parse(readFileSync(VECTORS_FILE, 'utf8'));
 const RECORD_SCHEMA = new URL('../extensions/ask-person/schema/postgres.sql', import.meta.url);
+const PUBLIC = fileURLToPath(new URL('../extensions/agent-question/resources/public', import.meta.url));
 const TRANSCRIPT_SCHEMA = new URL('../extensions/llm-helper/schema/postgres.sql', import.meta.url);
 
 const ISSUER = 'https://issuer.example.test';
@@ -297,11 +299,6 @@ test('the replay and the history page the record', async () => {
     assert.equal(page.more, false);
     assert.equal((await getJson(`${host}/questions?since=x`))[0], 400);
     assert.equal((await getJson(`${host}/questions?before=x`))[0], 400);
-    const response = await fetch(`${host}/questions/app`);
-    assert.equal(response.status, 200);
-    const html = await response.text();
-    assert.ok(html.includes('Agent questions') && html.includes('id="history"') && html.includes('Waiting for you'));
-    assert.ok(!html.includes('data-seen'), 'the Seen button is gone with the state');
   } finally {
     clear();
   }
@@ -486,7 +483,7 @@ test('the oauth2 mode guards every read and the click', async () => {
       .setProtectedHeader({ alg: 'RS256', kid: 'k1' }).setIssuer(ISSUER).setAudience(AUDIENCE).setIssuedAt().setExpirationTime('5m').sign(privateKey);
     const row = put(waitEvent({ base: replyUrl }), 1, 1);
     const decisions = [{ id: 'toolu_01A', approved: false }];
-    for (const path of ['/questions?since=0', '/questions/events', '/questions/app', '/transcripts', `/transcripts/${CONVERSATION_A}`]) {
+    for (const path of ['/questions?since=0', '/questions/events', '/transcripts', `/transcripts/${CONVERSATION_A}`]) {
       const response = await fetch(`${host}${path}`);
       assert.equal(response.status, 401, path);
     }
@@ -636,10 +633,58 @@ test('a configured driver that is not installed stops the boot by name', async (
   }
 });
 
+test('a stopping application ends its streams', async () => {
+  // a device's stream otherwise keeps the server from closing past SIGTERM (found by the UI drive of 2026-11-20): the
+  // shutdown hook ends every stream, a stream opened while stopping ends at once, and the device reconnects
+  const clear = configure(BASE);
+  try {
+    const controller = new AbortController();
+    const response = await fetch(`${host}/questions/events`, { signal: controller.signal });
+    assert.equal(response.status, 200);
+    const reader = response.body.getReader();
+    await new Promise((r) => setTimeout(r, 100));
+    assert.equal(aq.wakeups.connected, 1);
+    await aq.closeStreams();
+    let done = false;
+    const deadline = setTimeout(() => controller.abort(), 5000);
+    while (!done) ({ done } = await reader.read());
+    clearTimeout(deadline);
+    assert.ok(!controller.signal.aborted, 'the stream ended on its own');
+    const late = await fetch(`${host}/questions/events`);
+    const text = await late.text(); // ends at once
+    assert.ok(!text.includes('event: question'));
+    await new Promise((r) => setTimeout(r, 50));
+    assert.equal(aq.wakeups.connected, 0);
+  } finally {
+    clear();
+  }
+});
+
 // --- the platform hooks and the boot -------------------------------------------------------------------
 
-test('the platform hooks mount the routes and run the boot', async () => {
-  const clear = configure(BASE);
+test('attach registers the boot, the stream closer on shutdown and the cleanup, and the platform runs them in that order', async () => {
+  const calls = [];
+  const target = {
+    onStartup: (cb) => calls.push(['startup', cb]), onShutdown: (cb) => calls.push(['shutdown', cb]),
+    onCleanup: (cb) => calls.push(['cleanup', cb]), addRoutes: (m) => calls.push(['routes', m])
+  };
+  aq.attach(target);
+  assert.deepEqual(calls.map(([phase]) => phase), ['startup', 'shutdown', 'cleanup', 'routes']);
+  assert.equal(calls[1][1], aq.closeStreams);
+  // the platform's shutdown: the shutdown callbacks first (the streams end), then the cleanup, last registered first
+  const order = [];
+  const fresh = new Platform(new FunctionRegistry());
+  fresh.onCleanup(async () => { order.push('cleanup-1'); });
+  fresh.onShutdown(async () => { order.push('shutdown'); });
+  fresh.onCleanup(async () => { order.push('cleanup-2'); });
+  await fresh.shutdown();
+  assert.deepEqual(order, ['shutdown', 'cleanup-2', 'cleanup-1']);
+});
+
+test('the platform hooks mount the routes and run the boot, and the host serves the committed UI bundle at the root', async () => {
+  // the React UI is built in extensions/agent-question-ui and its bundle committed in resources/public next to the
+  // application file; the host's static content service serves it at the root - the app generates no page
+  const clear = configure({ ...BASE, 'static.html.folder': `file:${PUBLIC}` });
   const fresh = new Platform(new FunctionRegistry());
   aq.attach(fresh);
   let server;
@@ -649,11 +694,30 @@ test('the platform hooks mount the routes and run the boot', async () => {
     assert.ok(aq.feedRunning(), 'the boot started the feed');
     assert.equal(aq.feed.cursor, 0);
     const base = `http://127.0.0.1:${server.address().port}`;
-    for (const [path, expected] of [['/questions/app', 200], ['/questions/config', 200], ['/questions?since=0', 200], ['/transcripts', 200],
-      [`/transcripts/${CONVERSATION_A}`, 404], ['/transcripts/nope', 400], ['/nothing', 404]]) {
+    for (const [path, expected] of [['/', 200], ['/favicon.svg', 200], ['/questions/config', 200], ['/questions?since=0', 200], ['/transcripts', 200],
+      [`/transcripts/${CONVERSATION_A}`, 404], ['/transcripts/nope', 400], ['/questions/app', 404], ['/nothing', 404]]) {
       const response = await fetch(`${base}${path}`);
       assert.equal(response.status, expected, path);
     }
+    // the engines' actuator endpoints stay at their paths beside the bundle - Kubernetes probes and operations depend on them
+    for (const path of ['/info', '/info/routes', '/health', '/env']) {
+      const response = await fetch(`${base}${path}`);
+      assert.equal(response.status, 200, path);
+      assert.ok(response.headers.get('content-type').startsWith('application/json'), path);
+      await response.json();
+    }
+    const probe = await fetch(`${base}/livenessprobe`);
+    assert.equal(probe.status, 200);
+    assert.equal(await probe.text(), 'OK');
+    const home = await fetch(`${base}/`);
+    assert.ok(home.headers.get('content-type').startsWith('text/html'), home.headers.get('content-type'));
+    const index = await home.text();
+    assert.ok(index.includes('<div id="root">') && index.includes('href="/favicon.svg"'), 'the bundle\'s index.html');
+    const scripts = [...index.matchAll(/src="(\/assets\/[^"]+\.js)"/g)].map((m) => m[1]);
+    const styles = [...index.matchAll(/href="(\/assets\/[^"]+\.css)"/g)].map((m) => m[1]);
+    assert.equal(scripts.length, 1); assert.equal(styles.length, 1);
+    assert.ok((await fetch(`${base}${scripts[0]}`)).headers.get('content-type').startsWith('text/javascript'));
+    assert.ok((await fetch(`${base}${styles[0]}`)).headers.get('content-type').startsWith('text/css'));
     const info = await aq.questionHealth({ type: 'info' });
     assert.equal(info.service, 'agent.question.inbox');
     assert.equal(info.store, 'memory');

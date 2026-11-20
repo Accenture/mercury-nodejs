@@ -279,7 +279,49 @@
   click answers with the row as the recorder left it; `seen` and the sweeper are gone; identity `none` or `oauth2`.
   Vectors version 3. **How to apply (amended):** this app never writes the record - a new fact of a row is the
   recorder's and the schema's; a new read for the UI is an endpoint here, in both packs and in the vectors.
+  **2026-11-20 (PR #141):** the generated page is gone - `GET /questions/app` retired; the React UI's bundle
+  ([[agent-question-ui]]) is served at `/` from `resources/public`, the engines' actuator endpoints beside it for
+  Kubernetes probes (Eric).
+  **The streams end when the application stops** (2026-11-20, [[platform-on-shutdown-hook-node]]).
   <!-- id: agent-question-app-node | created: 2026-11-19 | last_used: 2026-11-19 | uses: 1 | tier: working | origin: 2026-11-19-074617 -->
+
+- **The React UI is one subproject here, `extensions/agent-question-ui/`, and one bundle committed in both packs
+  (RFC-0014 round 4, section 21.4; built 2026-11-20, PR #141 / mercury-python #76).** Vite + React 19 + TypeScript on
+  the Playground web app's toolchain; four panels - *Waiting for you*, *History* (infinite scroll over `before` pages),
+  *Transcripts* (the audit store) and *Actuator* (the host's `/info`, `/info/routes`, `/health`, `/env`,
+  `/livenessprobe` as a menu, labels as the Playground's; Eric, 2026-11-20: the endpoints stay at their paths beside
+  the bundle for Kubernetes, and the UI offers them). One rule for a row: held by id, the higher sequence wins whatever
+  path brought it; the stream (fetch + `Last-Event-ID`, since `EventSource` carries no bearer) starts at the first
+  page's highest sequence and reopens from the last seen. `seen` is the device's: `{upTo, ids}` in local storage,
+  the baseline the newest sequence of the first page a device ever loaded, so an older page never floods the waiting
+  panel; a case waits while it has an open card or an unseen advice. Sign-in from `GET /questions/config`: a name
+  field under `none`; under `oauth2` a public client, Authorization Code with PKCE (`oidc-client-ts`), the bearer on
+  every call. `npm run release` builds (no source maps) and deploys into both packs' agent-question
+  `resources/public` (the Python checkout beside this one, or `MERCURY_PYTHON_REPO`); the bundle is committed, so a
+  backend serves the UI at `/` out of the box and the published packages ship no extension. `dev/keycloak.sh` runs a
+  Keycloak development issuer from `dev/realm.json` (public client `agent-question-ui`, audience `agent-question`; no
+  credential in the file). The backends' generated page is retired. **How to apply:** a change to the UI is a build
+  here and a commit of the bundle in both packs, never a second front-end; a new panel over a new backend read is a
+  component here plus the endpoint in both backends and the shared vectors; the actuator paths are never shadowed by
+  a file.
+  **Driven live 2026-11-20** (mercury-composable `docs/test-reports/agent-question-ui-live-drive.md`): both backends in
+  headless Chrome, PKCE against a Keycloak container, the decision recorded under the token's name; fixes from the
+  drive - a case's cards ordered by the time recorded, *Mark all notices as seen*, the Keycloak script's stdin password;
+  the graceful-stop finding became [[platform-on-shutdown-hook-node]].
+  <!-- id: agent-question-ui | created: 2026-11-20 | last_used: 2026-11-20 | uses: 1 | tier: working | origin: 2026-11-20-094734 -->
+
+- **`Platform.onShutdown` runs the moment the application starts to stop - before the cleanup callbacks and before
+  `server.close()` - and an extension that holds a stream or a socket ends it there (2026-11-20, PR #141; the Python
+  twin `Platform.on_shutdown`, mercury-python #76).** Found by the React UI's live drive: `server.close()` waits for
+  a connection a server-sent events response never ends, so a device holding the agent-question stream kept a
+  stopping backend alive - in a container, the manager's grace period and a SIGKILL on every rollout; the Python host
+  waits the same way in aiohttp's graceful shutdown (sampled 75 s, still alive). The agent-question app ends every
+  device's stream in the hook (`closeStreams`: the wake-ups close, a stream opened while stopping ends at once) and
+  the devices reconnect to the next instance from their last sequence; `Platform.shutdown()` runs the shutdown
+  callbacks in order, then the cleanup callbacks last registered first. **How to apply:** a stream or a socket ends in
+  `onShutdown`, a store closes in `onCleanup`; never a shorter grace period as the remedy - only the extension knows
+  a response is a stream.
+  <!-- id: platform-on-shutdown-hook-node | created: 2026-11-20 | last_used: 2026-11-20 | uses: 1 | tier: working | origin: 2026-11-20-094734 -->
 
 - **The host serves static web content from `resources/public` next to the application file - the engines' `public`
   folder (Eric, 2026-11-20; PR #138, in lockstep with mercury-python #73).** `static.html.folder` is honoured as the

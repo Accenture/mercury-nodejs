@@ -1,0 +1,37 @@
+{
+  "name": "agent-question-ui",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The front-end of the agent-question app: the questions an agent asks a person, their answers and advices, and the transcripts behind them - one React app for the Python and the Node.js backends",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run typecheck && node scripts/favicon.mjs && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "clean": "node scripts/clean.mjs node && node scripts/clean.mjs python",
+    "deploy": "node scripts/deploy.mjs node && node scripts/deploy.mjs python",
+    "deploy:node": "node scripts/deploy.mjs node",
+    "deploy:python": "node scripts/deploy.mjs python",
+    "release": "npm run clean && npm run build && npm run deploy"
+  },
+  "dependencies": {
+    "@mdi/js": "^7.4.47",
+    "oidc-client-ts": "^3.5.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "happy-dom": "^21.0.4",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.1"
+  }
+}

@@ -534,6 +534,7 @@ async function nextSegment(res: http.ServerResponse, queue: Mailbox<EventEnvelop
 
 export class Platform {
   private readonly startup: Array<() => Promise<void>> = [];
+  private readonly stopping: Array<() => Promise<void>> = [];
   private readonly cleanup: Array<() => Promise<void>> = [];
   private readonly routes: RouteMounter[] = [];
 
@@ -548,7 +549,17 @@ export class Platform {
     this.startup.push(callback);
   }
 
-  /** Run an async callback when the host shuts down (`shutdown`, or SIGINT/SIGTERM while running). */
+  /**
+   * Run an async callback the moment the application starts to stop (`shutdown`, or SIGINT/SIGTERM
+   * while running), before the cleanup callbacks and before the server closes - the place to end a
+   * long-lived response, such as a stream a browser holds, which otherwise keeps the server from
+   * closing past a container manager's grace period.
+   */
+  onShutdown(callback: () => Promise<void>): void {
+    this.stopping.push(callback);
+  }
+
+  /** Run an async callback when the host shuts down (`shutdown`, or SIGINT/SIGTERM while running), after the shutdown callbacks. */
   onCleanup(callback: () => Promise<void>): void {
     this.cleanup.push(callback);
   }
@@ -568,8 +579,11 @@ export class Platform {
     return new EventApiServer(this.registry).createServer(this.routes);
   }
 
-  /** Run the cleanup callbacks, last registered first. */
+  /** Run the shutdown callbacks in order (the streams end), then the cleanup callbacks, last registered first. */
   async shutdown(): Promise<void> {
+    for (const callback of this.stopping) {
+      await callback();
+    }
     for (const callback of [...this.cleanup].reverse()) {
       await callback();
     }
@@ -597,8 +611,8 @@ export class Platform {
     const server = this.createServer();
     await new Promise<void>((resolve) => server.listen(port, host, resolve));
     log.info(`${appName} - Event API service started on port ${port}`);
-    if (this.cleanup.length > 0) {
-      // only an application with cleanup work takes over the signals: the others stop as before
+    if (this.cleanup.length > 0 || this.stopping.length > 0) {
+      // only an application with shutdown or cleanup work takes over the signals: the others stop as before
       const stop = (): void => {
         this.shutdown()
           .catch((e: unknown) => log.warn(`Cleanup failed - ${(e as Error).message}`))

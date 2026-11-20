@@ -1,0 +1,52 @@
+{
+  "realm": "mercury",
+  "displayName": "Mercury Composable (development)",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "accessTokenLifespan": 1800,
+  "ssoSessionIdleTimeout": 3600,
+  "clients": [
+    {
+      "clientId": "agent-question-ui",
+      "name": "Agent questions - the React UI and the ask-person reply page",
+      "description": "A public client: Authorization Code with PKCE in the browser. The access token names the backends by the audience 'agent-question'.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:5173/*",
+        "http://127.0.0.1:5173/*",
+        "http://localhost:8092/*",
+        "http://127.0.0.1:8092/*",
+        "http://localhost:8091/*",
+        "http://127.0.0.1:8091/*"
+      ],
+      "webOrigins": ["+"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*##http://127.0.0.1:5173/*##http://localhost:8092/*##http://127.0.0.1:8092/*##http://localhost:8091/*##http://127.0.0.1:8091/*"
+      },
+      "defaultClientScopes": ["openid", "profile", "email"],
+      "protocolMappers": [
+        {
+          "name": "agent-question audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "agent-question",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+  "users": []
+}

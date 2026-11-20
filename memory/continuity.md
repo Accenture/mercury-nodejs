@@ -279,7 +279,31 @@
   click answers with the row as the recorder left it; `seen` and the sweeper are gone; identity `none` or `oauth2`.
   Vectors version 3. **How to apply (amended):** this app never writes the record - a new fact of a row is the
   recorder's and the schema's; a new read for the UI is an endpoint here, in both packs and in the vectors.
+  **2026-11-20 (PR #141):** the generated page is gone - `GET /questions/app` retired; the React UI's bundle
+  ([[agent-question-ui]]) is served at `/` from `resources/public`, the engines' actuator endpoints beside it for
+  Kubernetes probes (Eric).
   <!-- id: agent-question-app-node | created: 2026-11-19 | last_used: 2026-11-19 | uses: 1 | tier: working | origin: 2026-11-19-074617 -->
+
+- **The React UI is one subproject here, `extensions/agent-question-ui/`, and one bundle committed in both packs
+  (RFC-0014 round 4, section 21.4; built 2026-11-20, PR #141 / mercury-python #76).** Vite + React 19 + TypeScript on
+  the Playground web app's toolchain; four panels - *Waiting for you*, *History* (infinite scroll over `before` pages),
+  *Transcripts* (the audit store) and *Actuator* (the host's `/info`, `/info/routes`, `/health`, `/env`,
+  `/livenessprobe` as a menu, labels as the Playground's; Eric, 2026-11-20: the endpoints stay at their paths beside
+  the bundle for Kubernetes, and the UI offers them). One rule for a row: held by id, the higher sequence wins whatever
+  path brought it; the stream (fetch + `Last-Event-ID`, since `EventSource` carries no bearer) starts at the first
+  page's highest sequence and reopens from the last seen. `seen` is the device's: `{upTo, ids}` in local storage,
+  the baseline the newest sequence of the first page a device ever loaded, so an older page never floods the waiting
+  panel; a case waits while it has an open card or an unseen advice. Sign-in from `GET /questions/config`: a name
+  field under `none`; under `oauth2` a public client, Authorization Code with PKCE (`oidc-client-ts`), the bearer on
+  every call. `npm run release` builds (no source maps) and deploys into both packs' agent-question
+  `resources/public` (the Python checkout beside this one, or `MERCURY_PYTHON_REPO`); the bundle is committed, so a
+  backend serves the UI at `/` out of the box and the published packages ship no extension. `dev/keycloak.sh` runs a
+  Keycloak development issuer from `dev/realm.json` (public client `agent-question-ui`, audience `agent-question`; no
+  credential in the file). The backends' generated page is retired. **How to apply:** a change to the UI is a build
+  here and a commit of the bundle in both packs, never a second front-end; a new panel over a new backend read is a
+  component here plus the endpoint in both backends and the shared vectors; the actuator paths are never shadowed by
+  a file.
+  <!-- id: agent-question-ui | created: 2026-11-20 | last_used: 2026-11-20 | uses: 1 | tier: working | origin: 2026-11-20-094734 -->
 
 - **The host serves static web content from `resources/public` next to the application file - the engines' `public`
   folder (Eric, 2026-11-20; PR #138, in lockstep with mercury-python #73).** `static.html.folder` is honoured as the

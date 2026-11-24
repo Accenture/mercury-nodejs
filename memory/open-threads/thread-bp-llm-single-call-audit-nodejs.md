@@ -10,8 +10,9 @@
     mutations each caught. One test first hung instead of failing under a mutation (the reply waiting for the save
     deadlocks it); it now races the reply against a timer.
   - **Defaults:** the Python step's, which are RFC-0015's open questions as proposed.
-  - **Next:** the record of this step in RFC-0015's entry; the schema page in mercury-composable; the reader's
-    filter on the kind of row in the agent-question backend and its UI; a live drive.
+  - **Recorded in RFC-0015's entry** by mercury-composable #670 (MERGED 2026-11-24).
+  - **Next:** the schema page in mercury-composable; the reader's filter on the kind of row in the agent-question
+    backend and its UI; a live drive.
   → proposal: RFC-0015 (mercury-composable)
   → serves: vision-mercury-nodejs
   <!-- id: bp-llm-single-call-audit-nodejs | created: 2026-11-24 | last_used: 2026-11-24 | uses: 1 | tier: working | origin: 2026-11-24-064840 -->

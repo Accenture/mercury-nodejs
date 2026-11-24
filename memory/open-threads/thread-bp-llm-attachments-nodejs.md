@@ -17,8 +17,9 @@
     and was not enough.
   - **Not done:** a live call (no token was spent); the measurement of a PDF cut beside a running stream, which the
     worker thread answers by construction but nothing has measured.
-  - **Next:** the record of this step in RFC-0016's entry; the schema page in mercury-composable; a live drive on
-    both backends.
+  - **Recorded in RFC-0016's entry** by mercury-composable #670 (MERGED 2026-11-24), where the Node twin's PDF
+    library leaves the open questions.
+  - **Next:** the schema page in mercury-composable; a live drive on both backends.
   → proposal: RFC-0016 (mercury-composable)
   → serves: vision-mercury-nodejs
   <!-- id: bp-llm-attachments-nodejs | created: 2026-11-24 | last_used: 2026-11-24 | uses: 1 | tier: working | origin: 2026-11-24-064840 -->

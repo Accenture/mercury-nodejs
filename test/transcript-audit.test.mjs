@@ -12,6 +12,7 @@
  * side effect of a turn, not part of the loop contract the twins repeat.
  */
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { AppException, FunctionRegistry, PostOffice, runWithTrace } from 'mercury-composable';
@@ -20,7 +21,7 @@ import {
   plusSeconds, PostgresAuditStore, recordFrom, recordJson, REDIS_MARK_AUDITED, REDIS_SAVE, RedisStore,
   SQL_INSERT_TURN, SQL_TOTALS, SQL_TURNS, SQL_UPSERT_CONVERSATION, transcript
 } from '../extensions/llm-helper/llm-helper.mjs';
-import { fakeBackend, settings, silent } from './fixtures/llm-helper-fakes.mjs';
+import { fakeBackend, FakeWriter, settings, silent } from './fixtures/llm-helper-fakes.mjs';
 
 const SCHEMA = new URL('../extensions/llm-helper/schema/', import.meta.url);
 const CONFIG = { 'llm.transcript.store': 'memory', 'llm.transcript.audit': 'postgres' };
@@ -808,4 +809,255 @@ test('live postgres: the rows land on a real PostgreSQL', { skip: !LIVE_POSTGRES
     }
     await audit.close();
   }
+});
+
+// --- a single call (RFC-0015): a conversation of one turn, carried by the working record ----------
+//
+// test/vectors/llm-audit-vectors.json (byte-identical in mercury-python) states the rows a call
+// without tools leaves and when it leaves none. Every case runs the real path: the call, the save
+// the reply does not wait for, the check event over the in-process bus, the unchanged function.
+
+const AUDIT_VECTORS_FILE = new URL('./vectors/llm-audit-vectors.json', import.meta.url);
+// the Python twin pins the same digest: change the file in both packs or in neither
+const AUDIT_VECTORS_SHA256 = 'd6f5ff9ba8d56d7397e13db406c9d31a146aaf7d4e5d69d219df8bc2ff8ab57f';
+const AUDIT_VECTORS = JSON.parse(readFileSync(AUDIT_VECTORS_FILE, 'utf8'));
+const SINGLE_CASES = AUDIT_VECTORS.cases;
+const SINGLE = { ...CONFIG, 'llm.transcript.audit.single': 'true' };
+const REFERENCE = /^[0-9a-f]{32}$/;
+const STAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+const ANSWER = {
+  kind: 'message', model: 'claude-opus-5-5', stop_reason: 'end_turn',
+  content: [{ type: 'text', text: 'REPLY-MARKER-1' }],
+  usage: { input_tokens: 11, output_tokens: 3 }, request_id: 'req_single_test'
+};
+
+/** The real path under a single call: the function behind its mailbox, the memory working store,
+ * the reference audit store, and every event the helper sends, kept in order. */
+function singleRig({ provider = ANSWER, config = SINGLE, store = new MemoryStore(), audit = new MemoryAuditStore(),
+  log = silent, backendOptions = {} } = {}) {
+  const registry = new FunctionRegistry();
+  const postOffice = new PostOffice(undefined, {}, registry);
+  const events = [];
+  const out = new FakeWriter();
+  const { backend, ledger } = fakeBackend(provider,
+    { name: config['llm.backend'] ?? 'anthropic', api: config['llm.aws.api'] ?? 'mantle', ...backendOptions });
+  const helper = createLlmHelper({
+    prop: settings(config), backend: () => backend, store: async () => store, audit: async () => audit,
+    send: (route, event) => { events.push(event); return postOffice.send(route, event); },
+    registry, writer: () => out, log, trace: () => {}
+  });
+  registry.register(AUDIT_ROUTE, helper.transcriptAudit, { instances: 1, isPrivate: true });
+  /** Wait for the saves in flight, then for the mailbox to reach done(). */
+  const settled = async (done) => {
+    await helper.auditSingleIdle();
+    for (let i = 0; i < 400; i += 1) {
+      if (done()) {
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    assert.fail('the audit function did not settle');
+  };
+  return { helper, store, audit, events, out, ledger, settled };
+}
+
+test('the audit vector file is the one the python twin runs', () => {
+  const digest = createHash('sha256').update(readFileSync(AUDIT_VECTORS_FILE)).digest('hex');
+  assert.equal(digest, AUDIT_VECTORS_SHA256, 'the shared vector file changed - update both packs');
+  assert.deepEqual([AUDIT_VECTORS.contract, AUDIT_VECTORS.version], ['llm-audit-single', 1]);
+  assert.deepEqual([...new Set(SINGLE_CASES.map((c) => c.route))].sort(), ['llm.chat', 'llm.stream']);
+});
+
+function assertCallerError(error, wanted) {
+  assert.ok(error instanceof AppException, 'an AppException was expected');
+  assert.equal(error.status, wanted.status, error.message);
+  for (const fragment of wanted.message_contains) {
+    assert.ok(error.message.includes(fragment), `${JSON.stringify(fragment)} not in ${JSON.stringify(error.message)}`);
+  }
+}
+
+/** Run the case's call and check what the caller received. */
+async function singleCall(rig, c) {
+  const wanted = c.expect.caller;
+  const headers = { ...c.headers };
+  if (c.route === 'llm.stream') {
+    await rig.helper.stream(headers, { body: c.body });
+    if (wanted.error) {
+      assertCallerError(rig.out.error, wanted.error);
+    } else {
+      assert.equal(rig.out.error, null);
+      assert.deepEqual(rig.out.segments, wanted.frames);
+    }
+    return;
+  }
+  let result;
+  try {
+    result = await rig.helper.chat(headers, c.body);
+  } catch (error) {
+    assert.ok(wanted.error, String(error));
+    assertCallerError(error, wanted.error);
+    return;
+  }
+  assert.equal(wanted.error, undefined, 'an error was expected');
+  for (const [key, value] of Object.entries(wanted.result)) {
+    assert.deepEqual(result[key], value, key);
+  }
+  assert.ok(!('conversation' in result), "a single call's reply carries no reference");
+}
+
+const without = (row, keys) => Object.fromEntries(Object.entries(row).filter(([key]) => !keys.includes(key)));
+
+for (const c of SINGLE_CASES) {
+  test(`single call audit contract: ${c.name}`, async () => {
+    const rig = singleRig({ provider: c.provider, config: c.config });
+    const { expect } = c;
+    if (c.trace) {
+      await runWithTrace({ traceId: c.trace.trace_id, tracePath: c.trace.trace_path }, () => singleCall(rig, c));
+    } else {
+      await singleCall(rig, c);
+    }
+    if (expect.conversation === null) {
+      await rig.settled(() => true);
+      assert.equal(expect.turn, null);
+      assert.deepEqual([rig.events, rig.store.records.size], [[], 0]);
+      assert.deepEqual([rig.audit.conversations.size, rig.audit.turnRows.size], [0, 0]);
+      return;
+    }
+    await rig.settled(() => rig.audit.conversations.size > 0 && rig.store.records.size === 0);
+    assert.equal(rig.audit.conversations.size, 1);
+    const [[conversation, row]] = [...rig.audit.conversations];
+    assert.match(conversation, REFERENCE);
+    assert.equal(row.conversation, conversation);
+    assert.deepEqual(rig.events, [{ conversation, check: true }]);
+    assert.deepEqual([...rig.audit.turnRows.get(conversation).keys()], [1]);
+    const turn = rig.audit.turnRows.get(conversation).get(1);
+    const { expires_after_s: expiresAfterS, ...wanted } = expect.conversation;
+    assert.deepEqual(without(row, ['conversation', 'started_at', 'updated_at', 'ended_at', 'expires_at']), wanted);
+    assert.deepEqual(without(turn, ['conversation', 'started_at', 'ended_at']), expect.turn);
+    assert.equal(turn.conversation, conversation);
+    for (const stamp of [row.started_at, row.updated_at, row.ended_at, row.expires_at]) {
+      assert.match(stamp, STAMP);
+    }
+    assert.deepEqual([turn.started_at, turn.ended_at], [row.started_at, row.ended_at]);
+    assert.ok(row.started_at <= row.ended_at && row.ended_at <= row.updated_at);
+    assert.equal(row.expires_at, plusSeconds(row.started_at, expiresAfterS));
+  });
+}
+
+test('the reply does not wait for the save and the shutdown drains it', async () => {
+  // the audit never sits on the call's path: with a working store that does not answer, the call
+  // has replied; once the store answers, the save and the check follow, and a shutdown waits for
+  // a save in flight before the audit store closes
+  let open;
+  const gate = new Promise((resolve) => { open = resolve; });
+  class SlowStore extends MemoryStore {
+    async save(...args) {
+      await gate;
+      return super.save(...args);
+    }
+  }
+  const rig = singleRig({ store: new SlowStore() });
+  let late;
+  const waited = new Promise((_, reject) => {
+    late = setTimeout(() => reject(new Error('the reply waited for the save')), 1000);
+  });
+  try {
+    const reply = await Promise.race([rig.helper.chat({}, { prompt: 'hello' }), waited]);
+    assert.equal(reply.text, 'REPLY-MARKER-1');
+    assert.deepEqual([rig.helper.singleSaves(), rig.events.length, rig.audit.conversations.size], [1, 0, 0]);
+    let stopped = false;
+    const shutdown = rig.helper.auditShutdown().then(() => { stopped = true; });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(stopped, false, 'the shutdown waits for the save in flight');
+    open();
+    await shutdown;
+    assert.deepEqual([rig.helper.singleSaves(), rig.events.length], [0, 1]);
+  } finally {
+    clearTimeout(late);
+    open(); // whatever failed, nothing is left waiting on the store
+  }
+});
+
+test('a working store that fails is logged by type and never refuses the call', async () => {
+  // a store that is down, or not configured, costs that call's audit and nothing else: the call
+  // answers, no event is sent, and the log names the failure without a word of content
+  const log = lines();
+  const down = Object.assign(new Error('PROMPT-MARKER-1 down'), { code: 'ECONNREFUSED' });
+  const broken = { name: 'redis', save: async () => { throw down; } };
+  const rig = singleRig({ store: broken, log });
+  const reply = await rig.helper.chat({}, { prompt: 'PROMPT-MARKER-1' });
+  await rig.settled(() => true);
+  assert.equal(reply.text, 'REPLY-MARKER-1');
+  assert.deepEqual(rig.events, []);
+  assert.ok(log.seen.some((line) => line.startsWith('transcript.audit single call not saved - Error')), log.seen.join('\n'));
+  // and with no working store at all: the store's own 503, by name
+  const missing = new AppException(503, 'transcript store not configured - set llm.transcript.store '
+    + '(redis, or memory for a single process)');
+  const events = [];
+  const { backend } = fakeBackend(ANSWER);
+  const helper = createLlmHelper({
+    prop: settings(SINGLE), backend: () => backend, store: async () => { throw missing; },
+    audit: async () => new MemoryAuditStore(), send: async (_route, event) => { events.push(event); return accepted; },
+    log, trace: () => {}
+  });
+  assert.equal((await helper.chat({}, { prompt: 'PROMPT-MARKER-1' })).text, 'REPLY-MARKER-1');
+  await helper.auditSingleIdle();
+  assert.ok(log.seen.includes('transcript.audit single call not saved - AppException: transcript store not configured - '
+    + 'set llm.transcript.store (redis, or memory for a single process)'), log.seen.join('\n'));
+  assert.deepEqual(events, []);
+  const text = log.seen.join('\n');
+  assert.ok(!text.includes('REPLY-MARKER-1'));
+  assert.equal(text.split('PROMPT-MARKER-1').length - 1, 1, "only the store's own connection error");
+});
+
+test('a failed write keeps the record and the sweep repairs it', async () => {
+  // what a single call gains from the record as its carrier: a write the database refused is not
+  // lost. The record waits with the grace, the sweep sends the check again, and only then is the
+  // record released - and the log of the failure quotes no row
+  const clock = { now: 1000 };
+  const log = lines();
+  const rig = singleRig({ audit: new FlakyAudit(1), store: new MemoryStore({ clock: () => clock.now }), log });
+  await rig.helper.chat(HEADERS, { prompt: 'PROMPT-MARKER-1', system: 'SYSTEM-MARKER-1' });
+  await rig.settled(() => log.seen.some((line) => line.includes('check failed')));
+  const [conversation] = [...rig.store.records.keys()];
+  assert.equal(ttlOf(rig.store, conversation, clock), 86400, "the record waits with the audit's grace (1d)");
+  assert.equal(rig.audit.conversations.size, 0);
+  assert.deepEqual(await rig.store.unaudited(), [conversation]);
+  assert.ok(log.seen.includes(`transcript.audit conversation=${conversation} check failed - DatabaseError sqlstate=23514`),
+    log.seen.join('\n'));
+  assert.equal(await rig.helper.auditSweep(), 1);
+  await rig.settled(() => rig.store.records.size === 0);
+  assert.equal(rig.audit.conversations.get(conversation).status, 'done');
+  assert.deepEqual(rig.audit.turnRows.get(conversation).get(1).request, [{ role: 'user', content: 'PROMPT-MARKER-1' }]);
+  assert.deepEqual(rig.events, [{ conversation, check: true }, { conversation, check: true }]);
+  assert.equal(await rig.helper.auditSweep(), 0, 'nothing lags once the record is released');
+  for (const marker of ['PROMPT-MARKER-1', 'SYSTEM-MARKER-1', 'REPLY-MARKER-1', 'SECRET-MARKER-ROW']) {
+    assert.ok(!log.seen.join('\n').includes(marker), marker);
+  }
+});
+
+test('a loop turn is not a single call', async () => {
+  // the switch changes nothing for a call with tools: a loop turn sends its own two kinds of
+  // event and its conversation row keeps its catalog, the column that tells the kinds apart
+  const rig = singleRig({ provider: TURN });
+  const reply = await rig.helper.chat(HEADERS, { ...PROMPT_BODY });
+  const { conversation } = reply;
+  await rig.settled(() => rig.audit.conversations.has(conversation));
+  assert.deepEqual(rig.events, [{ conversation, turn: 1 }]);
+  assert.equal(rig.helper.singleSaves(), 0);
+  assert.deepEqual([rig.audit.conversations.get(conversation).tools, rig.audit.conversations.get(conversation).status],
+    [[TOOL], 'open']);
+});
+
+test('single calls without a working store stop the application by name', async () => {
+  const log = lines();
+  const helper = createLlmHelper({
+    prop: settings({ 'llm.transcript.audit': 'postgres', 'llm.transcript.audit.single': 'true' }),
+    audit: async () => new MemoryAuditStore(), registry: new FunctionRegistry(), log, trace: () => {}
+  });
+  await assert.rejects(helper.auditBoot(), (error) => error.status === 503
+    && error.message.startsWith('llm.transcript.audit.single needs the working store'));
+  assert.ok(log.seen.some((line) => line.startsWith('transcript audit store cannot start - llm.transcript.audit.single needs')),
+    log.seen.join('\n'));
+  assert.equal(helper.sweeping(), false);
 });

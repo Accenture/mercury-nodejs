@@ -185,6 +185,22 @@
    **How to apply:** an extension that holds a stream or a socket open ends it in `onShutdown` and closes its stores
    in `onCleanup`.
 
+10. **The audit of a single call: `llm.transcript.audit.single` records a call without `tools` in the transcript audit
+    store (RFC-0015 in mercury-composable, build plan step 2), in lockstep with the Python pack (mercury-python #81).**
+    The audit store held an agent loop's turns only, so a graph whose model calls are bounded AI nodes had no audit
+    of its model use. With the switch on, a call on `llm.chat` or `llm.stream` is recorded as a conversation of one
+    turn, carried the way a loop's turns are: once the model has answered, the helper saves a closed version 2
+    record under a new reference with the audit's grace as its time to live and sends the check event;
+    `transcript.audit` is unchanged, writes the conversation row and the turn row from the record and releases it,
+    and the sweep sends a check that failed again. The reply never waits for the save, and no content crosses the
+    bus. The row has `turns` 1 and `tools` null, which a loop's row never has, so `tools IS NULL` selects the single
+    calls with no change to the schema. `status` is the model's outcome and `model` the model that answered; a
+    refusal, a cut-off reply and a reply the helper judged unusable (its 422) are recorded with their cost. Pinned
+    by the shared file `test/vectors/llm-audit-vectors.json`, byte for byte the Python pack's (25 cases through the
+    save, the check event and the function behind its mailbox), and six tests; sixteen mutations of the code and the
+    file were each caught by a test. **Upgrade note:** none without the switch; it is off by default. With it on,
+    `llm.transcript.store` must be set, or the application stops at start by name.
+
 ### Fixed
 
 1. **The agent-question app keeps the first accepted decision when two devices decide one card at the same moment**

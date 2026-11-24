@@ -17,7 +17,8 @@
  * llm.transcript.store (memory or redis - the redis package), llm.transcript.ttl,
  * llm.transcript.retention and the llm.transcript.redis.* connection keys; the optional transcript
  * audit store (RFC-0012) adds llm.transcript.audit (postgres - the pg package),
- * llm.transcript.audit.retention, .grace, .sweep.ms and the llm.transcript.audit.postgres.*
+ * llm.transcript.audit.retention, .grace, .sweep.ms, .single (a call without tools recorded too,
+ * RFC-0015) and the llm.transcript.audit.postgres.*
  * connection keys. The contract, the keys and the backends are documented in README.md next to
  * this file. The Python twin (mercury-python extensions/llm-helper) speaks the same contract, and
  * both are pinned by shared vector files.
@@ -121,6 +122,11 @@ export const GRAPH_ID_HEADER = 'x-graph-id';
 export const NODE_HEADER = 'x-node';
 const MISSING_AUDIT = 'transcript audit store not configured - set llm.transcript.audit (postgres)';
 const MISSING_POSTGRES_SDK = 'The postgres transcript audit store needs pg - npm install pg';
+// a call without tools in the audit store (RFC-0015): a conversation of one turn, recorded only
+// where the installation switched it on - on by itself it would multiply what the store holds
+export const AUDIT_SINGLE = 'llm.transcript.audit.single';
+const MISSING_SINGLE_STORE = 'llm.transcript.audit.single needs the working store - set llm.transcript.store '
+  + '(redis, or memory for a single process)';
 
 const isMap = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
 // a value Python reads as true: a non-empty list or map, a non-empty string, a non-zero number
@@ -1507,6 +1513,90 @@ export function createLlmHelper({
     }
   }
 
+  // -- a single call in the audit store (RFC-0015) ------------------------------------------
+  //
+  // A call without tools keeps no working record, so the audit had nothing to read. With
+  // llm.transcript.audit.single on, the call becomes a conversation of ONE turn carried the way a
+  // loop's turns are: a closed version 2 record saved under a new reference with the audit's
+  // grace, and the one event a closed record needs, the check. transcript.audit is unchanged - the
+  // check writes the two rows from the record and releases it, and the sweep re-sends a check that
+  // failed. No content crosses the bus, and the reply never waits for the save.
+
+  const auditSingleConfigured = () => auditConfigured()
+    && String(prop(AUDIT_SINGLE, 'false')).toLowerCase() === 'true';
+
+  /** A single call's status by the loop's table: a refusal, a reply cut off at a limit, else
+   * done - the model's outcome, whatever the caller then received; the provider's own word stays
+   * in stop_reason. */
+  function singleStatus(stopReason) {
+    if (stopReason === 'refusal') {
+      return 'refusal';
+    }
+    return Object.hasOwn(CAPS, stopReason) ? 'cap' : 'done';
+  }
+
+  /** The closed record of a single call: the messages as sent and the assistant's content blocks
+   * as returned, the model that answered (a server-side fallback may have), no tools - which a
+   * loop's record never lacks, so the audit row tells the two apart - and the one turn's facts.
+   * Retention zero: the check deletes the record once the audit holds the turn. */
+  function singleRecord(headers, request, done, bounds) {
+    const messages = request.messages.map((turn) => ({ ...turn }));
+    return transcript({
+      model: done.model,
+      messages: [...messages, { role: 'assistant', content: done.content }],
+      turn: 1,
+      pending: [],
+      closed: true,
+      correlation_id: correlationId(headers),
+      graph_id: headers[GRAPH_ID_HEADER] || null,
+      node: headers[NODE_HEADER] || null,
+      system: request.system ?? null,
+      turns: [turnFacts(1, singleStatus(done.stopReason), done, bounds, headers, [0, messages.length])]
+    });
+  }
+
+  // the saves in flight, so the shutdown can wait for them
+  const singleSaves = new Set();
+
+  /** Save the record under a new reference and send its check. Nothing here may fail the call:
+   * a store that is missing or unreachable is logged by type, and that call is not audited. */
+  async function saveSingle(record) {
+    const conversation = newConversationId();
+    try {
+      const transcripts = await store();
+      if (!(await transcripts.save(conversation, 0, record, auditGraceS()))) {
+        // a new reference never meets a record; named for the day one does
+        log.warn(`${AUDIT_ROUTE} single call not saved - conversation ${conversation} exists`);
+        return;
+      }
+    } catch (error) { // off the call's path: logged, never raised
+      log.warn(`${AUDIT_ROUTE} single call not saved - ${auditFailure(error)}`);
+      return;
+    }
+    await auditSend({ conversation, check: true });
+  }
+
+  /** Record a call the model answered, off the call's path: the record is built here, where the
+   * call's trace is, and saved by a promise the reply does not wait for. */
+  function auditSingle(headers, request, done, bounds) {
+    let saving;
+    try {
+      saving = saveSingle(singleRecord(headers, request, done, bounds));
+    } catch (error) { // the audit is a side effect; the call answers
+      log.warn(`${AUDIT_ROUTE} single call not recorded - ${error?.name ?? 'Error'}`);
+      return;
+    }
+    const tracked = saving.catch(() => {}).finally(() => singleSaves.delete(tracked));
+    singleSaves.add(tracked);
+  }
+
+  /** Wait for the saves in flight - the shutdown's drain, and the tests' seam. */
+  async function auditSingleIdle() {
+    while (singleSaves.size) {
+      await Promise.allSettled([...singleSaves]);
+    }
+  }
+
   /** One model turn of an agent loop: load and check the record, append the tool results, call
    * the model, append its turn and its facts, save under the compare-and-set, and tell the audit
    * function when one is configured - off the turn's path. */
@@ -1634,6 +1724,7 @@ export function createLlmHelper({
     }
     const request = prepare(body, { streaming: false });
     const started = performance.now();
+    const startedAt = isoUtc();
     let done;
     try {
       done = await complete(request, await backend());
@@ -1644,6 +1735,11 @@ export function createLlmHelper({
       }
       log.warn(`llm.chat failed - status=${mapped.status}`);
       throw mapped;
+    }
+    if (auditSingleConfigured()) {
+      // before the reply is judged: a refusal, a cut-off reply and a reply that is a 422 below
+      // were answered by the model and cost tokens, so they are recorded too
+      auditSingle(headers, request, done, [startedAt, isoUtc()]);
     }
     const data = judge(request, done, done.text !== '');
     annotateUsage(done);
@@ -1712,8 +1808,13 @@ export function createLlmHelper({
       }
     };
     let done;
+    const startedAt = isoUtc();
     try {
       done = await complete(request, provider, forward);
+      if (auditSingleConfigured()) {
+        // a stream the model completed is a single call like any other (RFC-0015)
+        auditSingle(headers, request, done, [startedAt, isoUtc()]);
+      }
       judge(request, done, frames > 0);
     } catch (error) {
       const mapped = failure(error, request.timeoutMs);
@@ -1879,6 +1980,11 @@ export function createLlmHelper({
       log.error(`transcript audit store cannot start - ${error.message}`);
       throw error;
     }
+    if (auditSingleConfigured() && !prop('llm.transcript.store')) {
+      // a single call's record waits in the working store for its check: a deployment error
+      log.error(`transcript audit store cannot start - ${MISSING_SINGLE_STORE}`);
+      throw new AppException(503, MISSING_SINGLE_STORE);
+    }
     if (!registry.exists(AUDIT_ROUTE)) {
       registry.register(AUDIT_ROUTE, transcriptAudit, { instances: 1, isPrivate: true });
       log.info(`Loaded PRIVATE ${AUDIT_ROUTE}, instances=1 - audit store ${auditStoreOpened.name}`);
@@ -1904,6 +2010,7 @@ export function createLlmHelper({
       clearInterval(sweepTimer);
       sweepTimer = undefined;
     }
+    await auditSingleIdle(); // a single call's save in flight reaches the store before it closes
     const closing = auditStoreOpened;
     auditStoreOpened = undefined;
     if (closing !== undefined) {
@@ -1913,6 +2020,7 @@ export function createLlmHelper({
 
   return {
     prepare, plan, chat, stream, health, transcriptAudit, auditSweep, auditBoot, auditShutdown,
+    auditSingleIdle, singleSaves: () => singleSaves.size,
     sweeping: () => sweepTimer !== undefined
   };
 }

@@ -5,3 +5,7 @@ memory/archive/*.md merge=union
 *.sh        text eol=lf
 .githooks/* text eol=lf
 .githooks/*.d/* text eol=lf
+
+# the attachment fixtures are pinned byte for byte (test/llm-attachments.test.mjs) and shared with the Python
+# pack: never convert a line ending in them, whatever a checkout's autocrlf says
+test/fixtures/attachments/* -text

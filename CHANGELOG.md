@@ -268,6 +268,13 @@
    server after the same `timeout.ms` as well, so a stalled database behaves like a stopped one: a logged failure,
    repaired by the sweep. In lockstep with the Python pack. **Upgrade note:** none.
 
+9. **The CI workflows' actions run on Node 24, in step with the engines (mercury #418).** GitHub's runners have retired
+   the Node 20 runtime that `actions/checkout@v4`, `actions/setup-node@v4` and `actions/setup-python@v5` declare, and
+   run them on Node 24 with a deprecation warning. An action declares its own runtime, and Node 24 is the newest GitHub
+   offers, so all three move to v7. The tests still run on Node 26: `node-version` sets what the job's own steps use,
+   not the runtime an action runs on. In lockstep with the Python pack. **Upgrade note:** none - CI only; nothing in the
+   package changes.
+
 ## 4.12.30 (2026-11-16)
 
 The catch-up round with the engines: the pack moves from 4.12.21 to 4.12.30, the number the Java engine released on

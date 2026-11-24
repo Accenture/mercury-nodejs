@@ -201,6 +201,28 @@
     file were each caught by a test. **Upgrade note:** none without the switch; it is off by default. With it on,
     `llm.transcript.store` must be set, or the application stops at start by name.
 
+11. **Attachments on a single `llm.chat` call: images and PDF pages named by reference and read by the helper
+    (RFC-0016 in mercury-composable, build plan step 2), in lockstep with the Python pack (mercury-python #82).** A
+    request may carry `attachments`, a non-empty list whose entries are a path inside `llm.attachments.root` or
+    `{path, pages}`. The request names a file and never carries one: the helper reads the file in its folder and
+    sends its bytes to the model as an `image` block (PNG, JPEG, GIF, WebP) or a `document` block (PDF) before the
+    text of the last turn, the kind decided by the file's first bytes. `pages` sends a new PDF with only those
+    pages, in the order named. One folder, resolved once at start, with the agent tools' workspace rules; the
+    provider's limits refused by name before any model call (the count, the bytes of files, an image's size by
+    backend, an encrypted or unreadable PDF, a page the document does not have); never on `llm.stream` or a loop
+    turn. The reading is `extensions/llm-helper/attachments.mjs`, run in a **worker thread** of its own, because a
+    hash, base64 and a PDF's cut are CPU work and the helper's event loop carries every other call and stream; the
+    call's deadline (`params.timeout_ms`) covers the reading, and the model gets what is left of it. With the audit
+    of a single call, the turn's `request` keeps each file as a reference with the size and the SHA-256 of the
+    source file, never its bytes. **A new optional package, `@cantoo/pdf-lib`** (MIT, the maintained fork of
+    pdf-lib; a devDependency here, `npm install @cantoo/pdf-lib` where pages are used): it cuts pages and tells an
+    encrypted PDF; without it a whole document goes as it is and `pages` is a 503 that names it. Pinned by the
+    shared file `test/vectors/llm-attachments-vectors.json` and the eight fixture files of
+    `test/fixtures/attachments`, byte for byte the Python pack's (48 cases), and seven tests; thirty-three mutations
+    of the code, the file and a fixture were each caught by a test. **Read:** the folder is readable through the
+    model by every caller that can reach the helper, and its files are sent to the provider. **Upgrade note:** none
+    without `attachments`.
+
 ### Fixed
 
 1. **The agent-question app keeps the first accepted decision when two devices decide one card at the same moment**

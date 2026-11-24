@@ -19,7 +19,9 @@
  * audit store (RFC-0012) adds llm.transcript.audit (postgres - the pg package),
  * llm.transcript.audit.retention, .grace, .sweep.ms, .single (a call without tools recorded too,
  * RFC-0015) and the llm.transcript.audit.postgres.*
- * connection keys. The contract, the keys and the backends are documented in README.md next to
+ * connection keys; llm.attachments.root, .max.count and .max.bytes let a single llm.chat call name
+ * images and PDF pages by reference (RFC-0016, attachments.mjs next to this file). The contract,
+ * the keys and the backends are documented in README.md next to
  * this file. The Python twin (mercury-python extensions/llm-helper) speaks the same contract, and
  * both are pinned by shared vector files.
  *
@@ -38,6 +40,9 @@ import {
   AppException, annotateTrace, appConfig, defaultRegistry, EventStreamWriter, getLogger, getTrace, isoUtc,
   platform, PostOffice, preload
 } from 'mercury-composable';
+import {
+  ATTACHMENTS_MAX_BYTES, ATTACHMENTS_ROOT, AttachmentError, loadInWorker, PDF_LIBRARY, resolveRoot
+} from './attachments.mjs';
 
 const defaultLog = getLogger('llm-helper');
 
@@ -105,6 +110,23 @@ const MISSING_STORE = 'transcript store not configured - set llm.transcript.stor
   + '(redis, or memory for a single process)';
 const MISSING_REDIS_SDK = 'The redis transcript store needs redis - npm install redis';
 const STREAM_LOOP = 'tools and the loop fields are not part of the streaming contract - use llm.chat';
+
+// --- attachments on a single llm.chat call (RFC-0016) ------------------------------------------
+// a request names a file inside one configured root and never carries one: the helper reads it
+// (attachments.mjs), decides its kind by its first bytes and sends it as an image or a document block
+export const ATTACHMENTS_MAX_COUNT = 'llm.attachments.max.count';
+// 20: the most image and document blocks a request carries before the provider tightens each
+// image's dimension limit
+export const DEFAULT_ATTACHMENTS_MAX_COUNT = 20;
+export const DEFAULT_ATTACHMENTS_MAX_BYTES = 20 * 1024 * 1024;
+const ATTACHMENT_KEYS = ['path', 'pages'];
+const PAGES = /^\d+(-\d+)?(,\d+(-\d+)?)*$/;
+// an image's limit as the provider counts it, base64-encoded: by the route to the models
+export const IMAGE_MAX_ENCODED = 10 * 1024 * 1024;
+export const BEDROCK_IMAGE_MAX_ENCODED = 5 * 1024 * 1024;
+const STREAM_ATTACHMENTS = 'attachments are not part of the streaming contract - use llm.chat';
+const LOOP_ATTACHMENTS = 'attachments are not part of the loop contract - a loop turn carries text';
+const ATTACHMENTS_SHAPE = 'attachments must be a non-empty list of paths or {path, pages}';
 
 // --- the transcript audit store's defaults and limits (RFC-0012) ----------------------------
 // a durable, queryable record of every model turn, written by the transcript.audit function behind
@@ -211,6 +233,7 @@ export function anthropicBackend(name = DEFAULT_BACKEND, client = new Anthropic(
     name,
     client,
     supportsFallbacks: true,
+    imageMaxEncoded: IMAGE_MAX_ENCODED, // an attached image's limit, base64-encoded
     providerModel: (model) => model,
     /** What is missing for a call to be sent, or undefined. No token is spent. */
     credentialProblem: () => (['apiKey', 'authToken', 'credentials'].some((key) => client[key])
@@ -231,6 +254,7 @@ export function bedrockBackend(client, name = BEDROCK_BACKEND, api = AWS_API_MAN
     client,
     api,
     supportsFallbacks: false,
+    imageMaxEncoded: BEDROCK_IMAGE_MAX_ENCODED,
     providerModel: api === AWS_API_MANTLE ? bedrockModel : (model) => model,
     /** A Bedrock API key (the classic client holds it as its auth token), else what the AWS
      * credential chain resolves - the environment, a profile, a role; on an EC2 or ECS host that
@@ -939,7 +963,9 @@ const resultText = (value) => (typeof value === 'string' ? value : JSON.stringif
  * returns the backend, store() the transcript store, audit() the transcript audit store,
  * send(route, body) a local drop-n-forget event, registry the function registry the audit
  * function joins at boot, newConversationId() a loop's reference, writer(event) the stream writer,
- * log the logger and trace(key, value) the trace annotation. Tests inject fakes.
+ * log the logger and trace(key, value) the trace annotation; loadAttachments(request) reads the
+ * files a call names (in a worker thread) and pdfLibrary names the library that cuts a PDF. Tests
+ * inject fakes.
  */
 export function createLlmHelper({
   prop = (key, fallback) => appConfig().getProperty(key, fallback),
@@ -951,7 +977,9 @@ export function createLlmHelper({
   newConversationId = () => randomUUID().replaceAll('-', ''),
   writer = (event) => EventStreamWriter.fromRequest(event),
   log = defaultLog,
-  trace = annotateTrace
+  trace = annotateTrace,
+  loadAttachments = loadInWorker,
+  pdfLibrary = PDF_LIBRARY
 } = {}) {
   /** Precedence: the call's param, then the config key, then the built-in default. */
   const setting = (params, key, configKey, fallback) => params[key] ?? prop(configKey, fallback);
@@ -1038,6 +1066,76 @@ export function createLlmHelper({
     return { additionalProperties: false, ...body.schema };
   }
 
+  /** The pages of a PDF to send, as ranges in the order named, with the text as written. A
+   * mapping may carry a page number as a number. Whether a page exists is the document's to say,
+   * when it is read. */
+  function pagesOf(index, raw) {
+    let text;
+    if (typeof raw === 'string') {
+      text = raw.replace(/\s+/g, '');
+    } else if (typeof raw === 'number' && Number.isInteger(raw)) {
+      text = String(raw);
+    }
+    const malformed = () => new AppException(400,
+      `attachments[${index}].pages must name pages from 1, such as 13 or 1-3,7`);
+    if (text === undefined || !PAGES.test(text)) {
+      throw malformed();
+    }
+    const ranges = [];
+    for (const part of text.split(',')) {
+      const [first, last] = part.split('-');
+      const low = Number(first);
+      const high = Number(last ?? first);
+      if (low < 1 || high < low) {
+        throw malformed();
+      }
+      if (ranges.some(([heldLow, heldHigh]) => low <= heldHigh && heldLow <= high)) {
+        throw new AppException(400, `attachments[${index}].pages names a page twice`);
+      }
+      ranges.push([low, high]);
+    }
+    return { pages: ranges, pagesText: text };
+  }
+
+  /** One attachment: a path, or a map with a path and the pages of a PDF. */
+  function attachmentOf(index, entry) {
+    let named = entry;
+    let pages;
+    if (isMap(entry)) {
+      const unknown = Object.keys(entry).filter((key) => !ATTACHMENT_KEYS.includes(key)).sort(byCodeUnit);
+      if (unknown.length) {
+        throw new AppException(400, `attachments[${index}]: unsupported keys: ${unknown.join(', ')} - `
+          + `supported: ${ATTACHMENT_KEYS.join(', ')}`);
+      }
+      named = entry.path;
+      pages = entry.pages;
+    } else if (typeof entry !== 'string') {
+      throw new AppException(400, `attachments[${index}] must be a path or {path, pages}`);
+    }
+    if (typeof named !== 'string' || !named.trim()) {
+      throw new AppException(400, `attachments[${index}].path must be a path inside ${ATTACHMENTS_ROOT}`);
+    }
+    return pages === undefined || pages === null ? { path: named } : { path: named, ...pagesOf(index, pages) };
+  }
+
+  /** The files a single call names (RFC-0016): the shape only. The files themselves are read by
+   * attach(), after every other check of the request has passed. */
+  function attachmentsOf(body) {
+    const raw = body.attachments;
+    if (raw === undefined || raw === null) {
+      return [];
+    }
+    if (!Array.isArray(raw) || !raw.length) {
+      throw new AppException(400, ATTACHMENTS_SHAPE);
+    }
+    const limit = wholeNumber(ATTACHMENTS_MAX_COUNT,
+      prop(ATTACHMENTS_MAX_COUNT, String(DEFAULT_ATTACHMENTS_MAX_COUNT)), 1);
+    if (raw.length > limit) {
+      throw new AppException(400, `attachments: ${raw.length} files exceed ${ATTACHMENTS_MAX_COUNT} (${limit})`);
+    }
+    return raw.map((entry, index) => attachmentOf(index, entry));
+  }
+
   function fallbacksEnabled() {
     const mode = String(prop('llm.fallbacks', 'default')).toLowerCase();
     if (mode !== 'default' && mode !== 'off') {
@@ -1051,6 +1149,9 @@ export function createLlmHelper({
   function prepare(body, { streaming, continuation = false }) {
     if (streaming && isMap(body) && LOOP_KEYS.some((key) => key in body)) {
       throw new AppException(400, STREAM_LOOP);
+    }
+    if (streaming && isMap(body) && 'attachments' in body) {
+      throw new AppException(400, STREAM_ATTACHMENTS);
     }
     if (!isMap(body)
         || !(continuation || body.prompt || (Array.isArray(body.messages) && body.messages.length))) {
@@ -1075,6 +1176,7 @@ export function createLlmHelper({
       effort: effortOf(params),
       stopSequences: stopSequencesOf(params),
       schema: schemaOf(body, streaming),
+      attachments: attachmentsOf(body), // llm.chat only, never a loop turn
       fallbacks: fallbacksEnabled()
     };
   }
@@ -1246,7 +1348,8 @@ export function createLlmHelper({
     }
     const options = { timeout: request.timeoutMs, maxRetries: request.maxRetries };
     if (deadline) {
-      options.signal = AbortSignal.timeout(request.timeoutMs);
+      // true: the whole allowance; a number: what the reading of the attachments left of it
+      options.signal = AbortSignal.timeout(deadline === true ? request.timeoutMs : deadline);
     }
     // never on a loop turn: the record pins the model at the first turn, and a fallback would move
     // the conversation to another model whose replay rules edit the history
@@ -1266,8 +1369,9 @@ export function createLlmHelper({
   /** Run the call on the SDK's streaming transport. The transport never trips the SDK's
    * long-request guard, however large max_tokens is; llm.chat just takes the final message
    * while llm.stream forwards the token batches as they arrive. */
-  async function complete(request, provider, onText) {
-    const { namespace, params, options } = plan(request, provider, { deadline: onText === undefined });
+  async function complete(request, provider, onText, remainingMs) {
+    const { namespace, params, options } = plan(request, provider,
+      { deadline: onText === undefined && (remainingMs ?? true) });
     const api = namespace === 'beta.messages' ? provider.client.beta.messages : provider.client.messages;
     const messageStream = api.stream(params, options);
     if (onText !== undefined) {
@@ -1601,6 +1705,11 @@ export function createLlmHelper({
    * the model, append its turn and its facts, save under the compare-and-set, and tell the audit
    * function when one is configured - off the turn's path. */
   async function loopTurn(headers, body) {
+    if ('attachments' in body) {
+      // a transcript keeps every turn, so it would have to keep the files or references whose
+      // files may change between turns: a single call only (RFC-0016)
+      throw new AppException(400, LOOP_ATTACHMENTS);
+    }
     const loop = prepareLoop(body);
     let request = prepare(body, { streaming: false, continuation: loop.conversation !== undefined });
     const transcripts = await store();
@@ -1696,6 +1805,75 @@ export function createLlmHelper({
 
   // -- the functions --------------------------------------------------------------------
 
+  // -- attachments: the files a single call names (RFC-0016) --------------------------------
+
+  let attachmentsRoot; // resolved on first use, and kept: the folder the links led to then
+
+  const refusal = (error) => (error instanceof AttachmentError
+    ? new AppException(error.status, error.message) : error);
+
+  /** The one folder a request may name files in. Unset, every attachment is refused. */
+  async function rootOf() {
+    attachmentsRoot ??= await resolveRoot(prop(ATTACHMENTS_ROOT));
+    return attachmentsRoot;
+  }
+
+  /** Read the files a call names and put them before the text of the last turn, which must be
+   * the user's: the request the model gets, and the one the audit may keep, with a reference in
+   * place of each file. */
+  async function attach(request, provider) {
+    const last = request.messages.at(-1);
+    if (last.role !== 'user') {
+      throw new AppException(400, "attachments go with the last turn, which must be the user's");
+    }
+    let loaded;
+    try {
+      const root = await rootOf();
+      const maxBytes = wholeNumber(ATTACHMENTS_MAX_BYTES,
+        prop(ATTACHMENTS_MAX_BYTES, String(DEFAULT_ATTACHMENTS_MAX_BYTES)), 1);
+      loaded = await loadAttachments({
+        specs: request.attachments, root, maxBytes, imageMaxEncoded: provider.imageMaxEncoded, library: pdfLibrary
+      });
+    } catch (error) {
+      throw refusal(error);
+    }
+    const text = { type: 'text', text: last.content };
+    const before = request.messages.slice(0, -1);
+    return {
+      request: { ...request, messages: [...before, { role: 'user', content: [...loaded.blocks, text] }] },
+      recorded: { ...request, messages: [...before, { role: 'user', content: [...loaded.references, text] }] },
+      count: loaded.blocks.length,
+      size: loaded.size
+    };
+  }
+
+  /** A piece of work under the call's deadline: at the deadline the caller has its 408, whatever
+   * the work is still doing. */
+  function withinDeadline(work, timeoutMs) {
+    let timer;
+    const late = new Promise((_resolve, reject) => {
+      timer = setTimeout(() => reject(new AppException(408, `LLM request timed out after ${timeoutMs} ms`)),
+        timeoutMs);
+    });
+    work.catch(() => {}); // a read that ends after the deadline has nobody waiting for it
+    return Promise.race([work, late]).finally(() => clearTimeout(timer));
+  }
+
+  /** A root that is configured and is not a folder is a deployment error: stop by name at start,
+   * before a request finds it. */
+  async function attachmentsBoot() {
+    if (!prop(ATTACHMENTS_ROOT)) {
+      return;
+    }
+    try {
+      await rootOf();
+    } catch (error) {
+      log.error(`attachments cannot start - ${error.message}`);
+      throw refusal(error);
+    }
+    log.info(`attachments ready - ${ATTACHMENTS_ROOT} is set`);
+  }
+
   /**
    * Single-shot completion - the AI node a graph's graph.task or a flow's task calls.
    *
@@ -1709,8 +1887,13 @@ export function createLlmHelper({
    * Output (map): text | data, model, stop_reason, usage {input_tokens, output_tokens},
    * request_id; stop_details when the model refused.
    *
-   * params.timeout_ms bounds the whole call, SDK retries included - the x-ttl pattern. A reply
-   * that carries nothing usable (refused, empty, or a schema reply cut off) is a 422.
+   * params.timeout_ms bounds the whole call, SDK retries included - the x-ttl pattern - and the
+   * reading of the attachments. A reply that carries nothing usable (refused, empty, or a schema
+   * reply cut off) is a 422.
+   *
+   * attachments (optional) names files for the model to look at, by reference inside
+   * llm.attachments.root: a path, or {path, pages} for pages of a PDF (RFC-0016; README.md,
+   * "Attachments"). Never on a loop turn.
    *
    * A request that carries `tools` is one turn of an agent loop (RFC-0011): conversation, turn,
    * results, ttl and retention come with it, and the reply carries status (done, tool_use,
@@ -1726,8 +1909,17 @@ export function createLlmHelper({
     const started = performance.now();
     const startedAt = isoUtc();
     let done;
+    let attached;
     try {
-      done = await complete(request, await backend());
+      const provider = await backend();
+      let remainingMs;
+      if (request.attachments.length) {
+        // one deadline covers the files and the model: a file that is refused is refused here,
+        // before any token is spent
+        attached = await withinDeadline(attach(request, provider), request.timeoutMs);
+        remainingMs = Math.max(1, Math.ceil(request.timeoutMs - (performance.now() - started)));
+      }
+      done = await complete(attached?.request ?? request, provider, undefined, remainingMs);
     } catch (error) {
       const mapped = failure(error, request.timeoutMs);
       if (mapped === undefined) {
@@ -1738,11 +1930,18 @@ export function createLlmHelper({
     }
     if (auditSingleConfigured()) {
       // before the reply is judged: a refusal, a cut-off reply and a reply that is a 422 below
-      // were answered by the model and cost tokens, so they are recorded too
-      auditSingle(headers, request, done, [startedAt, isoUtc()]);
+      // were answered by the model and cost tokens, so they are recorded too. With attachments
+      // the record keeps a reference to each file, never its bytes
+      auditSingle(headers, attached?.recorded ?? request, done, [startedAt, isoUtc()]);
     }
     const data = judge(request, done, done.text !== '');
     annotateUsage(done);
+    if (attached) {
+      trace('llm_attachments', String(attached.count));
+      trace('llm_attachment_bytes', String(attached.size));
+      // the count and the bytes only - a path or a file's content never reaches a log
+      log.info(`llm.chat attachments=${attached.count} bytes=${attached.size}`);
+    }
     summary('llm.chat', done, started);
     const result = {
       model: done.model,
@@ -2020,7 +2219,7 @@ export function createLlmHelper({
 
   return {
     prepare, plan, chat, stream, health, transcriptAudit, auditSweep, auditBoot, auditShutdown,
-    auditSingleIdle, singleSaves: () => singleSaves.size,
+    auditSingleIdle, singleSaves: () => singleSaves.size, attachmentsBoot,
     sweeping: () => sweepTimer !== undefined
   };
 }
@@ -2031,4 +2230,5 @@ preload('llm.stream', { instances: 50, interceptor: true }, helper.stream);
 preload('llm.health', { instances: 5, isPrivate: true }, helper.health);
 // the audit starts inside the serving loop, before the host listens, when it is configured
 platform.onStartup(helper.auditBoot);
+platform.onStartup(helper.attachmentsBoot); // a configured root that is not a folder stops the start
 platform.onCleanup(helper.auditShutdown);

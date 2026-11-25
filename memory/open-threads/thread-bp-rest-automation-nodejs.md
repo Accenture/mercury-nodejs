@@ -52,6 +52,18 @@
     `EventStreamWriter.connected` over `EventBus.hasSink`; the writer still closes on a dropped segment (Node only,
     a superset). The exact-bytes replies and the dropped `id:` line were already the same decision in both packs. Both
     packs now serve their first adopters from one shape; what remains of the thread is the live drive and the guide.
+  - **DOCUMENTED 2026-11-25 (Eric: "REST automation documentation for python and node"; branch
+    `docs/rest-automation-guide`, raised as PR #149):** the documentation site gains the REST Automation guide
+    (`docs/guides/rest-automation.md`: turning it on, the file as the router, the function behind an entry with the
+    `AsyncHttpRequest` accessors and the reply rules, what the edge does, authentication and the session map, streaming
+    entries, the bounded upload, the `static-content` block, the default entries and the precedence, what a pack
+    refuses and defers, the shipped examples, testing an entry) and the references follow - the HTTP Surface
+    Reference's entries table, the Configuration Reference's seven keys, the AI Agent Guide's pre-write checklist and
+    DO/DON'T row, the site index, `llms.txt`, the nav and the static-content note of the configuration guide - in
+    lockstep with the Python pack, whose guide of the same day is the reference: the two sites twin section for
+    section, the Node idiom in the code and the names. Every claim was checked against `src/rest-automation.ts`,
+    `src/rest-routing.ts`, `src/event-stream.ts` and `src/async-http-request.ts`; no behaviour difference between the
+    two edges surfaced. `mkdocs build --strict` green (the CI's command). Session 2026-11-25-034242.
   - **Next:** a live drive of the Node edge through an engine with the trace lineage checked; the engines' polyglot
     guide; the Python twins' first adopters.
   → proposal: RFC-0018 (mercury-composable)

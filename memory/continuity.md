@@ -372,7 +372,7 @@
   unconfigured during the Bedrock drive ([[llm-helper-app]]); pinned by subprocess tests that run from a decoy working directory.
   Lock-step with the Python pack (`__main__.__file__`, mercury-python #45 merge `a3c5a26`). Upgrade: a layout that kept `resources/` in the
   working directory with the app elsewhere passes `--config` or moves the folder.
-  <!-- id: conv-resources-next-to-the-application-file | created: 2026-10-14 | last_used: 2026-11-20 | uses: 3 | tier: active | origin: 2026-10-14-015422 -->
+  <!-- id: conv-resources-next-to-the-application-file | created: 2026-10-14 | last_used: 2026-11-20 | uses: 3 | tier: archive-candidate | origin: 2026-10-14-015422 -->
 
 - **The previous Node.js port's releases v4.2.40 to v4.3.28 live here as tags and GitHub releases; their branches are gone
   (Eric, 2026-11-13).** Before the August 2026 repurposing this repository held the previous Node.js port, whose releases
@@ -384,6 +384,16 @@
   `historical-releases-tags-and-pages-rust`. **How to apply:** find a legacy release by its tag or release page, never a
   branch; a release published after the fact passes `--latest=false`.
   <!-- id: historical-releases-tags-and-pages-nodejs | created: 2026-11-13 | last_used: 2026-11-25 | uses: 2 | tier: active | origin: 2026-11-13-025101 -->
+
+- **The live interop gate is a release convention (Eric, 2026-11-25; the twin of the Python pack's
+  `conv-release-interop-gate`, which closed its Blueprint thread `bp-publish-interop-gate` - this pack's closed at publication
+  on 2026-09-01).** Every pack release is driven live against both engines before it is published - the Vision's success
+  criterion met by practice, never tracked as a gap: 4.12.0 (progressive rendering across the wrappers), 4.12.15 (the
+  four-runtime Dynatrace drive of 2026-09-22), 4.12.21 (the LLM helper certified through both engines), 4.12.30 (the agent
+  loop's pack half driven live through both packs). **How to apply:** a release thread names the live drive and the report
+  it left before the publication, and a release with no drive is not cut; the cadence and the supply-chain posture stay
+  Eric's (design P5/D6).
+  <!-- id: conv-release-interop-gate | created: 2026-11-25 | last_used: 2026-11-25 | uses: 1 | tier: working | origin: 2026-11-25-002457 -->
 
 ## Open Threads
 

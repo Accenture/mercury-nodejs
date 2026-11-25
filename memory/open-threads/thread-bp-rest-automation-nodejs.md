@@ -41,7 +41,7 @@
     200 bound the devices; the entries' timeouts exceed the apps' engine and reply timeouts. The Python twins' refactor
     was in flight the same hour with a shape of its own; it merged as mercury-python #87.
   - **ALIGNED to the Python shape 2026-11-25 (Eric: "Python PR merged, please align the Node shape"; branch
-    `refactor/first-adopters-python-shape`, raised as PR #148):** the route names `ask.config`/`ask.page`/
+    `refactor/first-adopters-python-shape`, raised as PR #148 and MERGED 2026-11-25, merge `4bd3bc1`):** the route names `ask.config`/`ask.page`/
     `ask.wait`/`ask.reply` and `question.config`/`question.list`/`question.events`/`question.decide`/`transcript.list`/
     `transcript.show`; the entries' `authentication` functions `ask.identity`, `ask.reply.identity` and
     `question.identity` leaving `who`/`via` in the session map (a refusal the engines' standard error body; the
@@ -50,7 +50,8 @@
     header block; the rest.yaml files copied from the Python pack. Two host changes mirrored: a keep-alive comment that
     cannot be written ends a stream and closes its sink (`CLIENT_GONE` from `nextSegment`, both edges), and
     `EventStreamWriter.connected` over `EventBus.hasSink`; the writer still closes on a dropped segment (Node only,
-    a superset). The exact-bytes replies and the dropped `id:` line were already the same decision in both packs.
+    a superset). The exact-bytes replies and the dropped `id:` line were already the same decision in both packs. Both
+    packs now serve their first adopters from one shape; what remains of the thread is the live drive and the guide.
   - **Next:** a live drive of the Node edge through an engine with the trace lineage checked; the engines' polyglot
     guide; the Python twins' first adopters.
   → proposal: RFC-0018 (mercury-composable)

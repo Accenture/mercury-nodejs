@@ -1,0 +1,29 @@
+#
+# REST automation (the engines' rest.yaml) for the ask-a-person main flow: the reply page and
+# endpoint (RFC-0014), served because application.yml sets rest.automation: true. Each entry
+# maps a URL to a private function of this process, which receives the whole request as the
+# AsyncHttpRequest map (see ask-person.mjs). POST /api/event and the actuators stay served as
+# the engines' default entries.
+#
+# The timeouts of the wait and the reply must exceed ask.engine.timeout (60s by default): the
+# function waits for the graph's entry that long before it gives up on its own.
+#
+rest:
+  - service: "ask.reply.config"
+    methods: ['GET']
+    url: "/ask/config"
+    timeout: 10s
+  - service: "ask.reply.page"
+    methods: ['GET']
+    url: "/ask/{ticket}"
+    timeout: 10s
+  - service: "ask.reply.wait"
+    methods: ['GET']
+    url: "/ask/{ticket}/wait"
+    timeout: 90s
+    tracing: true
+  - service: "ask.reply"
+    methods: ['POST']
+    url: "/ask/reply"
+    timeout: 90s
+    tracing: true

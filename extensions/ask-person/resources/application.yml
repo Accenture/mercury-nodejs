@@ -9,6 +9,11 @@ info.app.description: 'Mercury Composable ask-a-person: the resume link, the mes
 
 rest.server.port: 8091
 
+# REST automation - the engines' rest.yaml: resources/rest.yaml maps the reply page and endpoint
+# (GET /ask/config, GET /ask/{ticket}, GET /ask/{ticket}/wait, POST /ask/reply) to this process's
+# functions. Off by default in the package; the main flow turns it on.
+rest.automation: true
+
 # text (default) | json (pretty-printed) | compact (single-line JSONL)
 log.format: text
 log.level: INFO

@@ -18,10 +18,13 @@ import { createHash, generateKeyPairSync } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import http from 'node:http';
 import { after, before, test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { AppException, appConfig, defaultRegistry, EventApiServer, FunctionRegistry, isoUtc, Platform, PostOffice } from 'mercury-composable';
 import * as ask from '../extensions/ask-person/ask-person.mjs';
 
 const VECTORS_FILE = new URL('./vectors/ask-person-vectors.json', import.meta.url);
+// the reply page and endpoint are rest.yaml entries: the host reads the extension's file (RFC-0018)
+const REST_YAML = fileURLToPath(new URL('../extensions/ask-person/resources/rest.yaml', import.meta.url));
 // the Python twin runs the same file: change it in both packs or in neither
 const VECTORS_SHA256 = 'd825e6296ff3b5b808c921d94e19b902c05f14fafcdc4cb383bbd6dcfd39fa7f';
 const VECTORS = JSON.parse(readFileSync(VECTORS_FILE, 'utf8'));
@@ -383,7 +386,10 @@ let host;
 before(async () => {
   engine = new FakeEngine();
   engineUrl = await listen(engine.server);
-  hostServer = new EventApiServer(new FunctionRegistry()).createServer([ask.mount]);
+  // the host serves the extension's rest.yaml entries with the functions the module preloaded
+  appConfig().set('rest.automation', true);
+  appConfig().set('yaml.rest.automation', `file:${REST_YAML}`);
+  hostServer = new EventApiServer(defaultRegistry).createServer();
   host = await listen(hostServer);
 });
 
@@ -712,16 +718,22 @@ test('a configured driver that is not installed stops the boot by name', async (
 
 // --- the host hook, the boot and the inspect command -------------------------------------------------
 
-test('the host mounts the routes before the catch-all and keeps its own', async () => {
+test("the rest.yaml entries serve the reply page and endpoint, and the host keeps its own paths", async () => {
   const clear = configure(BASE);
   try {
     let response = await fetch(`${host}/nothing/here`);
     assert.equal(response.status, 404);
-    assert.equal((await response.json()).status, 404, "the catch-all still answers the engines' shape");
+    assert.equal((await response.json()).status, 404, "an unclaimed path is the engines' shape");
     response = await fetch(`${host}/health`);
-    assert.equal(response.status, 200, "the actuator stays the host's");
+    assert.equal(response.status, 200, "the actuator stays the host's, a default entry");
     response = await fetch(`${host}/ask/reply`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
-    assert.equal(response.status, 400, "the extension's path wins over the catch-all");
+    assert.equal(response.status, 400, 'the entry serves the endpoint');
+    response = await fetch(`${host}/ask/reply`, { method: 'PUT' });
+    assert.equal(response.status, 405, 'a known path under another method');
+    // the functions behind the entries are private: never reachable from another application over Event-over-HTTP
+    for (const route of [ask.CONFIG_ROUTE, ask.PAGE_ROUTE, ask.WAIT_ROUTE, ask.REPLY_ROUTE]) {
+      assert.equal(defaultRegistry.get(route)?.isPrivate, true, route);
+    }
   } finally {
     clear();
   }

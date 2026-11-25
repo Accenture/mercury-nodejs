@@ -300,6 +300,13 @@ their bytes in `contents`, read with `AsyncHttpRequest.files()`, all together wi
 `rest.upload.max.bytes` (16 MiB; 413 beyond it); the form's text fields become query parameters. The
 edge is `node:http`, as the host is: no web framework and no new dependency.
 
+The pack's own applications are the first adopters: the ask-a-person main flow's reply page and endpoint
+and the agent-question app's browser side are `rest.yaml` entries of their applications
+(`extensions/ask-person/resources/rest.yaml`, `extensions/agent-question/resources/rest.yaml`), each a
+private function of its process reading the `AsyncHttpRequest` map; the agent-question stream is an
+interceptor behind an entry with `stream: true`. `Platform.addRoutes` stays for a route `rest.yaml`
+cannot express.
+
 ## Wire compatibility
 
 The codec implements the

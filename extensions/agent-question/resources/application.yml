@@ -9,6 +9,11 @@ info.app.description: 'Mercury Composable agent-question app: the UI backend of 
 
 rest.server.port: 8092
 
+# REST automation - the engines' rest.yaml: resources/rest.yaml maps the browser side (GET /questions/config,
+# GET /questions, GET /questions/events, GET /transcripts, GET /transcripts/{conversation},
+# POST /questions/{id}/decide) to this process's functions. Off by default in the package; the app turns it on.
+rest.automation: true
+
 # text (default) | json (pretty-printed) | compact (single-line JSONL)
 log.format: text
 log.level: INFO

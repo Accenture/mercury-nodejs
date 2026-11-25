@@ -34,7 +34,9 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { AppException, appConfig, defaultRegistry, getLogger, isoUtc, loadConfig, platform, PostOffice, preload } from 'mercury-composable';
+import {
+  AppException, appConfig, AsyncHttpRequest, defaultRegistry, EventEnvelope, getLogger, isoUtc, loadConfig, platform, PostOffice, preload
+} from 'mercury-composable';
 
 const log = getLogger('ask-person');
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -54,6 +56,12 @@ export const SHOW_PREFIX = '/ask/';
 export const WAIT_SUFFIX = '/wait';
 export const REPLY_PATH = '/ask/reply';
 export const CONFIG_PATH = '/ask/config';
+// the reply page and endpoint are REST automation entries of resources/rest.yaml (RFC-0018), served by these
+// private functions of this process - never routes another application can call over Event-over-HTTP
+export const CONFIG_ROUTE = 'ask.reply.config';
+export const PAGE_ROUTE = 'ask.reply.page';
+export const WAIT_ROUTE = 'ask.reply.wait';
+export const REPLY_ROUTE = 'ask.reply';
 export const AUTH_MODES = ['none', 'oauth2'];
 export const JWT_ALGORITHMS = ['RS256', 'RS384', 'RS512', 'ES256', 'ES384', 'ES512', 'PS256', 'PS384', 'PS512'];
 export const GRAPH_ID_HEADER = 'x-graph-id';
@@ -904,11 +912,16 @@ export async function askHealth(headers) {
 
 preload(ROUTE, { instances: INSTANCES }, personAsk);
 preload(HEALTH_ROUTE, { instances: 5, isPrivate: true }, askHealth);
+for (const [route, handler] of [[CONFIG_ROUTE, showConfig], [PAGE_ROUTE, showWait], [WAIT_ROUTE, readWait], [REPLY_ROUTE, postReply]]) {
+  preload(route, { instances: 10, isPrivate: true }, handler); // the reply page and endpoint (resources/rest.yaml)
+}
 
 // --- identity ---------------------------------------------------------------------------------
 
-function bearerOf(req) {
-  const value = req.headers.authorization ?? '';
+/** The bearer token of a request's headers (the AsyncHttpRequest map's, matched case-insensitively), or null. */
+function bearerOf(headers) {
+  const name = Object.keys(headers).find((key) => key.toLowerCase() === 'authorization');
+  const value = name ? headers[name] : '';
   const at = value.indexOf(' ');
   if (at < 0) return null;
   const scheme = value.slice(0, at).toLowerCase();
@@ -980,8 +993,8 @@ function oauth2(config) {
  * configured mode - nobody in development, or a validated OAuth 2.0 access token (the page obtains one by
  * Authorization Code with PKCE, a channel app's device through its own UI).
  */
-export async function identify(req, config, decidedBy, allowApp) {
-  const bearer = bearerOf(req);
+export async function identify(headers, config, decidedBy, allowApp) {
+  const bearer = bearerOf(headers);
   if (allowApp && config.appToken && bearer && sameSecret(bearer, config.appToken)) {
     return { who: decidedBy || 'channel', via: 'app' };
   }
@@ -1132,17 +1145,16 @@ function page(title, body, script = '') {
     + (script ? `<script>${script}</script>\n` : '') + '</body>\n</html>\n';
 }
 
-function sendHtml(res, status, html) {
-  res.writeHead(status, { 'content-type': 'text/html; charset=utf-8' });
-  res.end(html);
-}
+/**
+ * A reply the REST edge renders as it is: the status, the content type and the text - the page and the endpoint keep
+ * the exact bytes they always sent (the JSON compact, its nulls kept), where a map body would be pretty-printed with
+ * its nulls omitted, the engines' serializer default.
+ */
+const textReply = (status, contentType, text) => new EventEnvelope().setStatus(status).setHeader('content-type', contentType).setBody(text);
+const htmlReply = (status, html) => textReply(status, 'text/html; charset=utf-8', html);
+const jsonReply = (status, body) => textReply(status, 'application/json', JSON.stringify(body));
 
-function sendJson(res, status, body) {
-  res.writeHead(status, { 'content-type': 'application/json' });
-  res.end(JSON.stringify(body));
-}
-
-const notice = (res, status, title, message) => sendHtml(res, status, page(title, `<p>${escapeHtml(message)}</p>`));
+const notice = (status, title, message) => htmlReply(status, page(title, `<p>${escapeHtml(message)}</p>`));
 
 /**
  * The page for a wait: the kind and the graph from the ticket, and the script that signs the person in when the
@@ -1169,9 +1181,9 @@ export function pageConfig(config) {
   return result;
 }
 
-/** GET /ask/config: the sign-in configuration the page reads first - open, it holds no secret. */
-export async function showConfig(_req, res) {
-  sendJson(res, 200, pageConfig(currentSettings()));
+/** GET /ask/config (ask.reply.config): the sign-in configuration the page reads first - open, it holds no secret. */
+export async function showConfig() {
+  return jsonReply(200, pageConfig(currentSettings()));
 }
 
 /** Send a request to the graph's entry and map what comes back. */
@@ -1191,30 +1203,28 @@ async function engine(request, timeoutMs) {
   }
 }
 
-async function readBody(req) {
-  const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
-  return Buffer.concat(chunks).toString('utf8');
-}
+/** The ticket a REST entry's {ticket} path parameter carries. */
+const ticketOf = (request) => request.pathParameter('ticket') ?? '';
 
 /**
- * GET /ask/{ticket}: the page for the wait - a shell whose script signs the person in when the installation asks for
- * it and reads the wait from GET /ask/{ticket}/wait. A ticket that cannot be used is told so here, before any sign-in;
- * the graph is never resumed.
+ * GET /ask/{ticket} (ask.reply.page): the page for the wait - a shell whose script signs the person in when the
+ * installation asks for it and reads the wait from GET /ask/{ticket}/wait. A ticket that cannot be used is told so
+ * here, before any sign-in; the graph is never resumed.
  */
-export async function showWait(_req, res, ticket) {
+export async function showWait(_headers, body) {
+  const ticket = ticketOf(new AsyncHttpRequest(body));
   const config = currentSettings();
   let payload;
   try {
     payload = verifyTicket(ticket, config.keys, Date.now() / 1000);
   } catch (error) {
     if (!(error instanceof TicketError)) throw error;
-    return notice(res, error.status, error.status === 410 ? 'This wait has expired' : 'This link cannot be used', error.message);
+    return notice(error.status, error.status === 410 ? 'This wait has expired' : 'This link cannot be used', error.message);
   }
   if (!config.graphs[String(payload.g)]) {
-    return notice(res, 404, 'This graph is not configured', `graph ${payload.g} is not configured for replies`);
+    return notice(404, 'This graph is not configured', `graph ${payload.g} is not configured for replies`);
   }
-  return sendHtml(res, 200, shellPage(ticket, payload));
+  return htmlReply(200, shellPage(ticket, payload));
 }
 
 /**
@@ -1222,66 +1232,68 @@ export async function showWait(_req, res, ticket) {
  * person's request; never a resume. 410 nothing-waiting when the engine holds nothing; the engine's own status and body
  * when it refuses.
  */
-export async function readWait(req, res, ticket) {
+export async function readWait(_headers, body) {
+  const request = new AsyncHttpRequest(body);
+  const ticket = ticketOf(request);
   const config = currentSettings();
   let payload;
   try {
     payload = verifyTicket(ticket, config.keys, Date.now() / 1000);
   } catch (error) {
     if (!(error instanceof TicketError)) throw error;
-    return sendJson(res, error.status, { type: error.status === 410 ? 'expired' : 'error', message: error.message });
+    return jsonReply(error.status, { type: error.status === 410 ? 'expired' : 'error', message: error.message });
   }
   let readvice;
   try {
-    await identify(req, config, null, false);
+    await identify(request.headers, config, null, false);
     readvice = readviceRequest(payload, config.graphs);
   } catch (error) {
     if (!(error instanceof ReplyError)) throw error;
-    return sendJson(res, error.status, { type: 'error', message: error.message });
+    return jsonReply(error.status, { type: 'error', message: error.message });
   }
   const [status, advice] = await engine(readvice, config.engineTimeoutMs);
   if (status === 410 || advice.type === 'nothing-waiting') {
-    return sendJson(res, 410, {
+    return jsonReply(410, {
       type: 'nothing-waiting',
       message: 'Nothing is waiting for this decision any more - it was decided already, or the suspension expired.'
     });
   }
-  if (status >= 400) return sendJson(res, status, advice);
-  return sendJson(res, 200, { payload: { g: payload.g, c: payload.c, t: payload.t, k: payload.k }, advice });
+  if (status >= 400) return jsonReply(status, advice);
+  return jsonReply(200, { payload: { g: payload.g, c: payload.c, t: payload.t, k: payload.k }, advice });
 }
 
-/** POST /ask/reply: verify the ticket, identify who decides, forward the resume and return the engine's outcome. */
-export async function postReply(req, res) {
+/**
+ * POST /ask/reply (ask.reply): verify the ticket, identify who decides, forward the resume and return the engine's
+ * outcome. The request body arrives parsed by its content type (the AsyncHttpRequest map); anything but a JSON map
+ * is refused.
+ */
+export async function postReply(_headers, requestBody) {
+  const request = new AsyncHttpRequest(requestBody);
   const config = currentSettings();
-  let body;
-  try {
-    body = JSON.parse(await readBody(req));
-  } catch {
-    body = null;
-  }
-  if (!isMap(body)) return sendJson(res, 400, { type: 'error', message: 'the reply must be a JSON map with ticket and decisions' });
+  const body = request.body;
+  if (!isMap(body)) return jsonReply(400, { type: 'error', message: 'the reply must be a JSON map with ticket and decisions' });
   const ticket = body.ticket;
-  if (!isText(ticket) || !ticket) return sendJson(res, 400, { type: 'error', message: 'ticket is required' });
+  if (!isText(ticket) || !ticket) return jsonReply(400, { type: 'error', message: 'ticket is required' });
   let payload;
   try {
     payload = verifyTicket(ticket, config.keys, Date.now() / 1000);
   } catch (error) {
     if (!(error instanceof TicketError)) throw error;
-    return sendJson(res, error.status, { type: error.status === 410 ? 'expired' : 'error', message: error.message });
+    return jsonReply(error.status, { type: error.status === 410 ? 'expired' : 'error', message: error.message });
   }
   const decidedBy = body.decided_by;
   if (decidedBy !== undefined && decidedBy !== null && !isText(decidedBy)) {
-    return sendJson(res, 400, { type: 'error', message: 'decided_by must be text' });
+    return jsonReply(400, { type: 'error', message: 'decided_by must be text' });
   }
   const at = isoUtc();
   let identity;
   let resume;
   try {
-    identity = await identify(req, config, decidedBy || null, true);
+    identity = await identify(request.headers, config, decidedBy || null, true);
     resume = buildResume(payload, body.decisions, identity.who, at, config.graphs);
   } catch (error) {
     if (!(error instanceof ReplyError)) throw error;
-    return sendJson(res, error.status, { type: 'error', message: error.message });
+    return jsonReply(error.status, { type: 'error', message: error.message });
   }
   const [status, outcome] = await engine(resume, config.engineTimeoutMs);
   log.info(`reply for ${payload.g} turn ${payload.t} by ${identity.who} via ${identity.via} - the graph answered ${status} ${outcome.type}`);
@@ -1291,33 +1303,23 @@ export async function postReply(req, res) {
     graph_id: payload.g, correlation_id: payload.c, turn: payload.t, ticket, decisions: resume.body.decisions,
     who: identity.who, via: identity.via, at, status, body: outcome
   } }, config);
-  return sendJson(res, status, outcome);
+  return jsonReply(status, outcome);
 }
 
-/** The reply page and endpoint on the host (Platform.addRoutes): the configuration before the ticket paths. */
-export async function mount(req, res, url) {
-  if (req.method === 'GET' && url.pathname === CONFIG_PATH) {
-    await showConfig(req, res);
-    return true;
+/**
+ * The reply page and endpoint as REST automation entries (resources/rest.yaml, served with rest.automation: true):
+ * GET /ask/config, GET /ask/{ticket}, GET /ask/{ticket}/wait and POST /ask/reply, each a private function of this
+ * process - the engines' way, in place of routes mounted by hand on the host.
+ */
+export const REST_FUNCTIONS = [
+  [CONFIG_ROUTE, showConfig], [PAGE_ROUTE, showWait], [WAIT_ROUTE, readWait], [REPLY_ROUTE, postReply]
+];
+
+/** Register the reply page's functions on a registry that lacks them (a platform of its own, in a test). */
+export function registerRestFunctions(registry = defaultRegistry) {
+  for (const [route, handler] of REST_FUNCTIONS) {
+    if (!registry.exists(route)) registry.register(route, handler, { instances: 10, isPrivate: true });
   }
-  if (req.method === 'POST' && url.pathname === REPLY_PATH) {
-    await postReply(req, res);
-    return true;
-  }
-  if (req.method === 'GET' && url.pathname.startsWith(SHOW_PREFIX) && url.pathname !== REPLY_PATH) {
-    const rest = decodeURIComponent(url.pathname.slice(SHOW_PREFIX.length));
-    if (rest.endsWith(WAIT_SUFFIX)) {
-      const ticket = rest.slice(0, -WAIT_SUFFIX.length);
-      if (ticket && !ticket.includes('/')) {
-        await readWait(req, res, ticket);
-        return true;
-      }
-    } else if (rest && !rest.includes('/')) {
-      await showWait(req, res, rest);
-      return true;
-    }
-  }
-  return false;
 }
 
 // --- boot -------------------------------------------------------------------------------------
@@ -1407,7 +1409,8 @@ export function inspect(words) {
 export function attach(target = platform) {
   target.onStartup(boot);
   target.onCleanup(shutdown);
-  target.addRoutes(mount);
+  // the reply page and endpoint are rest.yaml entries served by this process's functions, not mounted routes
+  registerRestFunctions(target.registry ?? defaultRegistry);
 }
 
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href;

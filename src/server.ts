@@ -40,6 +40,7 @@ import {
   errorText,
   EXCEPTION,
   exceptionEnvelope,
+  CLIENT_GONE,
   keepAliveMs,
   nextSegment,
   STREAM_CALLER_REQUIRED,
@@ -492,6 +493,10 @@ async function streamSegments(res: http.ServerResponse, queue: Mailbox<EventEnve
       return 200;
     }
     const event = await nextSegment(res, queue, idleMs, pingMs);
+    if (event === CLIENT_GONE) {
+      log.debug('Client disconnected from event stream');
+      return 200;
+    }
     if (!event) {
       // idle expiry - fail in-band (the engines' housekeeper parity)
       const seconds = Math.trunc(idleMs / 1000);
@@ -566,10 +571,12 @@ export class Platform {
   }
 
   /**
-   * Mount an extension's own HTTP routes on the host - a page a person opens, a stream a browser
-   * holds - in the same process and port as `/api/event`, under the same logging and shutdown. The
-   * mounter is asked, in order, after the host's paths and before the catch-all that answers the
-   * engines' error shape, and answers true when it has taken the response.
+   * Mount an extension's own HTTP routes on the host, in the same process and port as `/api/event`,
+   * under the same logging and shutdown - the escape hatch for what a `rest.yaml` entry cannot express
+   * (a WebSocket, a protocol of its own). A page, a JSON endpoint or a Server-Sent Events stream is a
+   * `rest.yaml` entry and a function, as the extensions here are written. The mounter is asked, in
+   * order, after the host's paths and before the catch-all that answers the engines' error shape; a
+   * `rest.yaml` entry wins over a mounted route. It answers true when it has taken the response.
    */
   addRoutes(mount: RouteMounter): void {
     this.routes.push(mount);

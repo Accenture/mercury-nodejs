@@ -364,6 +364,10 @@ const REST_YAML = `rest:
     methods: ['POST']
     url: "/api/upload"
     upload: true
+  - service: "hold.stream"
+    methods: ['GET']
+    url: "/api/stream/hold"
+    stream: true
 cors:
   - id: cors_1
     options:
@@ -422,6 +426,9 @@ function configured(restYaml: string | undefined, settings: Record<string, unkno
 class Probe {
   trace: [string | undefined, string | undefined, string | undefined] | undefined;
   datasets: Json[] = [];
+  heldOpen: boolean | undefined;
+  disconnected = 0;
+  watchers: Promise<void>[] = [];
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
@@ -508,6 +515,19 @@ function buildRegistry(probe: Probe): FunctionRegistry {
     out.first(200, 'text/event-stream');
     out.write('partial');
     out.fail(new AppException(503, 'upstream down'));
+  }, { interceptor: true });
+  registry.register('hold.stream', async (_headers, event) => {
+    // a long-lived producer: the head alone, then it watches whether anyone still listens
+    const out = EventStreamWriter.fromRequest(event as EventEnvelope, registry);
+    out.first(200, 'text/event-stream', 600);
+    out.write(null);
+    probe.heldOpen = out.connected;
+    probe.watchers.push((async () => {
+      while (out.connected) {
+        await sleep(50);
+      }
+      probe.disconnected += 1;
+    })());
   }, { interceptor: true });
   registry.register('upload.probe', async (_headers, body) => {
     const request = new AsyncHttpRequest(body);
@@ -910,6 +930,37 @@ describe('the edge over HTTP', () => {
     assert.equal(info.status, 200);
     assert.ok('app' in json(info.body));
     assert.equal((await exchange(`${base}/livenessprobe`)).status, 200);
+  });
+
+  test('a client that leaves a stream is noticed at the next keep-alive', async () => {
+    // a device's feed is quiet for as long as nothing changes, so the idle allowance never tells the edge that the
+    // client is gone: the keep-alive comment does - a ping that cannot be written ends the stream and closes the
+    // sink, and the producer's `connected` turns false, so a long-lived producer stops
+    appConfig().set('event.stream.keep.alive', '200ms');
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const target = new URL(`${base}/api/stream/hold`);
+        const request = http.request({ host: target.hostname, port: target.port, path: target.pathname, method: 'GET' }, (response) => {
+          try {
+            assert.equal(response.statusCode, 200);
+            assert.equal(response.headers['content-type'], 'text/event-stream');
+          } catch (e) {
+            reject(e);
+            return;
+          }
+          response.destroy(); // the client leaves without reading
+          resolve();
+        });
+        request.on('error', reject);
+        request.end();
+      });
+      await sleep(1000);
+      assert.equal(probe.heldOpen, true, 'the stream was open when the head left');
+      assert.equal(probe.disconnected, 1, 'the producer learnt that nobody listens');
+      await Promise.all(probe.watchers);
+    } finally {
+      appConfig().set('event.stream.keep.alive', undefined);
+    }
   });
 
   // ---- upload: the bounded form of the engines' streaming upload ----

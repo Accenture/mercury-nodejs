@@ -9,9 +9,11 @@
  * - agent.question.inbox is the intake, a composable function reached over Event-over-HTTP like any peer function. It
  *   writes nothing: the record is the recorder's (question.audit in the ask-person process). It checks the event and
  *   wakes the feed, so a connected device sees the row the moment it is recorded.
- * - The browser side is a set of REST automation entries (resources/rest.yaml, the engines' grammar, served with
- *   rest.automation: true), each a private function of this process. GET /questions/config tells the UI how to sign
- *   in; GET /questions?since=<seq> is the replay a reconnecting device calls first - every row that changed since its
+ * - The person's side is a set of REST automation entries (resources/rest.yaml, the engines' grammar, served with
+ *   rest.automation: true), each a private function of this process; who is at the UI is resolved once by the
+ *   entries' authentication function, question.identity, and read from the request's session map.
+ *   GET /questions/config (question.config) tells the UI how to sign in; GET /questions?since=<seq> (question.list)
+ *   is the replay a reconnecting device calls first - every row that changed since its
  *   cursor, oldest change first; GET /questions?before=<seq>&limit=<n> the history's older page, newest first, for an
  *   infinite scroll; GET /questions/events the stream a connected device holds, each event a changed row, Last-Event-ID
  *   the same cursor. GET /transcripts and GET /transcripts/{conversation} browse the transcript audit store the LLM
@@ -55,19 +57,21 @@ export const LIST_PATH = '/questions';
 export const EVENTS_PATH = '/questions/events';
 export const CONFIG_PATH = '/questions/config';
 export const TRANSCRIPTS_PATH = '/transcripts';
-// the browser side's functions behind the entries of resources/rest.yaml (RFC-0018) - private, this process's own
-export const CONFIG_ROUTE = 'question.ui.config';
-export const ROWS_ROUTE = 'question.rows';
+// the person's side: the URLs of resources/rest.yaml (RFC-0018) and the private functions behind them
+export const LIST_ROUTE = 'question.list';
 export const EVENTS_ROUTE = 'question.events';
-export const TRANSCRIPTS_ROUTE = 'question.transcripts';
-export const TRANSCRIPT_ROUTE = 'question.transcript';
+export const CONFIG_ROUTE = 'question.config';
 export const DECIDE_ROUTE = 'question.decide';
-// a device's stream is one worker of question.events for as long as it is held: the instances bound the devices
-export const STREAM_INSTANCES = 200;
-// the idle allowance a stream declares to the REST edge (its head's x-ttl, seconds) and the heartbeat that renews it:
-// a segment with no body, which the edge writes nothing for - and whose drop tells a stream its device is gone
-export const STREAM_IDLE_SECONDS = 120;
-export const STREAM_HEARTBEAT_MS = 25_000;
+export const TRANSCRIPTS_ROUTE = 'transcript.list';
+export const TRANSCRIPT_ROUTE = 'transcript.show';
+// the entries' authentication function and the session keys it leaves on the request
+export const IDENTITY_ROUTE = 'question.identity';
+export const SESSION_WHO = 'who';
+export const SESSION_VIA = 'via';
+export const INSTANCES = 10;
+// a device's stream is quiet for as long as nothing changes: its idle allowance (the head's x-ttl) is a day, after
+// which the device reconnects from its cursor
+export const STREAM_IDLE_SECONDS = 86_400;
 export const AUTH_MODES = ['none', 'oauth2'];
 export const JWT_ALGORITHMS = ['RS256', 'RS384', 'RS512', 'ES256', 'ES384', 'ES512', 'PS256', 'PS384', 'PS512'];
 export const LIST_LIMIT = 200;
@@ -680,10 +684,9 @@ preload(HEALTH_ROUTE, { instances: 5, isPrivate: true }, questionHealth);
 
 // --- identity ---------------------------------------------------------------------------------
 
-/** The bearer token of a request's headers (the AsyncHttpRequest map's, matched case-insensitively), or null. */
-function bearerOf(headers) {
-  const name = Object.keys(headers).find((key) => key.toLowerCase() === 'authorization');
-  const value = name ? headers[name] : '';
+/** The bearer token of a request (the AsyncHttpRequest), or null. */
+function bearerOf(request) {
+  const value = request.header('authorization') ?? '';
   const at = value.indexOf(' ');
   if (at < 0) return null;
   const token = value.slice(at + 1).trim();
@@ -741,9 +744,9 @@ function oauth2(config) {
 }
 
 /** Who is at the UI: nobody is asked in development, or a validated access token (obtained by the UI through PKCE). */
-export async function identify(headers, config, claimed) {
-  if (config.auth === 'none') return { who: claimed || 'anonymous', via: 'none' };
-  const bearer = bearerOf(headers);
+export async function identify(request, config, claimedBy) {
+  if (config.auth === 'none') return { who: claimedBy || 'anonymous', via: 'none' };
+  const bearer = bearerOf(request);
   if (!bearer) throw new ReplyError(401, 'sign-in required - a bearer access token');
   const claims = await oauth2(config).verify(bearer);
   const who = claims.preferred_username || claims.email || claims.sub;
@@ -751,14 +754,45 @@ export async function identify(headers, config, claimed) {
   return { who: String(who), via: 'oauth2' };
 }
 
+/**
+ * `decided_by` from a JSON body when it is text - the name the page offers in development; anything else is left to
+ * the click's own check.
+ */
+function claimed(request) {
+  const body = request.body;
+  const value = isMap(body) ? body.decided_by : undefined;
+  return isText(value) && value ? value : null;
+}
+
+/**
+ * The authentication function of the feed, the history, the transcripts and the click (question.identity): `true`
+ * with who is at the UI in the headers, which the edge leaves on the request as its session map; a refusal is the
+ * error the UI sees.
+ */
+export async function questionIdentity(_headers, body) {
+  const request = new AsyncHttpRequest(body);
+  let identity;
+  try {
+    identity = await identify(request, currentSettings(), claimed(request));
+  } catch (error) {
+    if (!(error instanceof ReplyError)) throw error;
+    throw new AppException(error.status, error.message);
+  }
+  return new EventEnvelope().setBody(true).setHeader(SESSION_WHO, identity.who).setHeader(SESSION_VIA, identity.via);
+}
+
+/** Who the entry's authentication function found, from the request's session map. */
+const identityOf = (request) => ({
+  who: request.sessionInfo(SESSION_WHO) || 'anonymous', via: request.sessionInfo(SESSION_VIA) || 'none'
+});
+
 // --- the browser side -------------------------------------------------------------------------
 
 /**
- * A reply the REST edge renders as it is: the JSON compact with its nulls kept, the bytes the UI always read - where
- * a map body would be pretty-printed with its nulls omitted, the engines' serializer default.
+ * A JSON reply as the UI reads it: serialized here, so a null stays a null (an advice's `state`, a silent engine's
+ * `status` - the engines' renderer would omit them), under its content type.
  */
 const jsonReply = (status, body) => new EventEnvelope().setStatus(status).setHeader('content-type', 'application/json').setBody(JSON.stringify(body));
-const errorReply = (status, message) => jsonReply(status, { type: 'error', message });
 
 /** What the UI needs before it signs in: the auth mode, the title and, under oauth2, the issuer, the public client id, the scopes and the audience. */
 export function uiConfig(config) {
@@ -769,8 +803,8 @@ export function uiConfig(config) {
   return result;
 }
 
-/** GET /questions/config (question.ui.config): the UI's sign-in configuration - open, it holds no secret. */
-export async function showConfig() {
+/** GET /questions/config (question.config): the UI's sign-in configuration - open, it holds no secret. */
+export async function questionConfig() {
   return jsonReply(200, uiConfig(currentSettings()));
 }
 
@@ -785,35 +819,28 @@ function whole(value, defaultValue) {
  * continue from - the replay. GET /questions?before=<seq>&limit=<n>: the history's older page, newest change first, and
  * the cursor of the page before it - the infinite scroll.
  */
-export async function listRows(_headers, body) {
+export async function questionList(_headers, body) {
   const request = new AsyncHttpRequest(body);
-  const config = currentSettings();
-  try {
-    await identify(request.headers, config, null);
-  } catch (error) {
-    if (!(error instanceof ReplyError)) throw error;
-    return errorReply(error.status, error.message);
-  }
-  const query = request.queryParametersMap;
+  const paging = 'before' in request.queryParametersMap;
   const limitRaw = whole(request.queryParameter('limit'), LIST_LIMIT);
-  const history = 'before' in query;
-  const before = history ? whole(request.queryParameter('before'), null) : null;
-  const since = history ? 0 : whole(request.queryParameter('since'), 0);
-  if (limitRaw === null || since === null || (history && request.queryParameter('before') && before === null)) {
-    return errorReply(400, 'since, before and limit must be whole numbers');
+  const before = paging ? whole(request.queryParameter('before'), null) : null;
+  const since = paging ? 0 : whole(request.queryParameter('since'), 0);
+  if (limitRaw === null || since === null || (paging && request.queryParameter('before') && before === null)) {
+    throw new AppException(400, 'since, before and limit must be whole numbers');
   }
   const limit = Math.min(LIST_LIMIT_MAX, Math.max(1, limitRaw));
+  let page;
   try {
-    if (history) {
-      const older = await reader().before(before, limit);
-      return jsonReply(200, { ...pageBefore(older, null, limit), before });
+    if (paging) {
+      page = { ...pageBefore(await reader().before(before, limit), null, limit), before };
+    } else {
+      page = { ...pageSince(await reader().since(since, limit), since, limit), since };
     }
-    const rows = await reader().since(since, limit);
-    return jsonReply(200, { ...pageSince(rows, since, limit), since });
   } catch (error) {
     log.warn(`The record could not be read - ${failure(error)}`);
-    return errorReply(503, 'the question record is not available');
+    throw new AppException(503, 'the question record is not available');
   }
+  return jsonReply(200, page);
 }
 
 
@@ -827,104 +854,93 @@ export function keepAliveMs() {
   return Number.parseInt(match[1], 10) * (unit === 'ms' ? 1 : unit === 'm' ? 60_000 : 1000);
 }
 
+/** A changed row as the `question` event's data: serialized here, so a null stays a null. */
+const frame = (row) => JSON.stringify(publicRow(row));
+
 /**
- * GET /questions/events (question.events, an interceptor behind an entry with stream: true): rows since Last-Event-ID
- * (or since) first, then every change the feed finds, each a `question` event whose data is the row - the REST edge
- * renders the Server-Sent Events and the keep-alive comments. A refusal is the head of the stream: its status and a
- * JSON body, closed at once. The stream ends when the application stops (closeStreams) or its device is gone (a
- * heartbeat segment the edge no longer takes).
+ * One device's stream: the rows since its cursor first, then every change the feed finds, until the device leaves
+ * (the edge closes the reply sink and `connected` turns false) or the application stops (the wake-ups close); the
+ * edge sends the keep-alive comments while nothing changes.
  */
-export async function events(_headers, event) {
-  const request = new AsyncHttpRequest(event.body);
-  const out = EventStreamWriter.fromRequest(event);
-  const refuse = (status, message) => {
-    out.first(status, 'application/json');
-    out.write(JSON.stringify({ type: 'error', message }));
-    out.close();
-  };
-  const config = currentSettings();
-  try {
-    await identify(request.headers, config, null);
-  } catch (error) {
-    if (!(error instanceof ReplyError)) throw error;
-    return refuse(error.status, error.message);
-  }
-  let since = Number(request.header('last-event-id') || request.queryParameter('since') || '0');
-  if (!Number.isInteger(since)) return refuse(400, 'Last-Event-ID must be a whole number');
-  out.first(200, 'text/event-stream', STREAM_IDLE_SECONDS);
+async function follow(out, since) {
   const queue = wakeups.subscribe();
-  const send = (row) => {
-    out.writeNamed('question', JSON.stringify(publicRow(row)));
-    since = row.seq;
-  };
+  const pingMs = keepAliveMs();
+  const checkMs = pingMs > 0 ? pingMs : 30_000;
   try {
-    for (const row of await reader().since(since, LIST_LIMIT_MAX)) send(row);
-    while (!out.closed) {
-      const row = await Wakeups.next(queue, STREAM_HEARTBEAT_MS);
-      if (out.closed || row === CLOSED) break; // the application is stopping; the device reconnects
-      if (row === null) {
-        out.write(null); // the heartbeat: nothing on the wire, the edge's idle allowance renewed, a gone device found
-        continue;
+    for (const row of await reader().since(since, LIST_LIMIT_MAX)) {
+      out.writeNamed('question', frame(row));
+      since = row.seq;
+    }
+    while (out.connected) {
+      const row = await Wakeups.next(queue, checkMs);
+      if (row === null) continue;
+      if (row === CLOSED) {
+        out.close(); // the application is stopping; the device reconnects
+        break;
       }
-      if (row.seq > since) send(row);
+      if (row.seq > since && out.connected) {
+        out.writeNamed('question', frame(row));
+        since = row.seq;
+      }
     }
   } catch (error) {
-    log.warn(`The stream could not read the record - ${failure(error)}`); // the device reconnects
+    log.warn(`The stream could not read the record - ${failure(error)}`); // a store that cannot be read ends the stream; the device reconnects
+    out.fail(new AppException(503, 'the question record is not available'));
   } finally {
     wakeups.unsubscribe(queue);
-    out.close();
   }
 }
 
+/**
+ * GET /questions/events (question.events, a streaming entry): the stream a connected device holds. The head goes out
+ * at once, with a day's idle allowance; the rows since Last-Event-ID (or since) and every later change follow from a
+ * task of their own, so the function's workers are never held by the devices.
+ */
+export async function questionEvents(_headers, event) {
+  const request = new AsyncHttpRequest(event.body);
+  const since = Number(request.header('last-event-id') || request.queryParameter('since') || '0');
+  if (!Number.isInteger(since)) throw new AppException(400, 'Last-Event-ID must be a whole number');
+  const out = EventStreamWriter.fromRequest(event);
+  out.first(200, 'text/event-stream', STREAM_IDLE_SECONDS);
+  out.write(null); // the head alone: the stream is open before the first row
+  void follow(out, since);
+}
+
 /** GET /transcripts?before=<iso>&limit=<n>&correlation_id=&graph_id=: the audit store's conversations, newest first. */
-export async function listTranscripts(_headers, body) {
+export async function transcriptList(_headers, body) {
   const request = new AsyncHttpRequest(body);
-  const config = currentSettings();
-  try {
-    await identify(request.headers, config, null);
-  } catch (error) {
-    if (!(error instanceof ReplyError)) throw error;
-    return errorReply(error.status, error.message);
-  }
   let before = request.queryParameter('before') || null;
   if (before !== null) {
     const parsed = parseIso(before);
-    if (parsed === null) return errorReply(400, 'before must be an ISO-8601 time');
+    if (parsed === null) throw new AppException(400, 'before must be an ISO-8601 time');
     before = isoUtc(parsed);
   }
   const limitRaw = whole(request.queryParameter('limit'), TRANSCRIPTS_LIMIT);
-  if (limitRaw === null) return errorReply(400, 'limit must be a whole number');
+  if (limitRaw === null) throw new AppException(400, 'limit must be a whole number');
   const limit = Math.min(TRANSCRIPTS_LIMIT_MAX, Math.max(1, limitRaw));
   let rows;
   try {
     rows = await reader().conversations(before, limit, request.queryParameter('correlation_id') || null, request.queryParameter('graph_id') || null);
   } catch (error) {
     log.warn(`The transcripts could not be read - ${failure(error)}`);
-    return errorReply(503, 'the transcript audit store is not available');
+    throw new AppException(503, 'the transcript audit store is not available');
   }
   return jsonReply(200, { conversations: rows, next: rows.length > 0 ? rows.at(-1).started_at : null, more: rows.length >= limit });
 }
 
-/** GET /transcripts/{conversation} (question.transcript): one conversation of the audit store with its turns, as the model exchanged them. */
-export async function showTranscript(_headers, body) {
+/** GET /transcripts/{conversation} (transcript.show): one conversation of the audit store with its turns, as the model exchanged them. */
+export async function transcriptShow(_headers, body) {
   const request = new AsyncHttpRequest(body);
   const conversation = request.pathParameter('conversation') ?? '';
-  const config = currentSettings();
-  try {
-    await identify(request.headers, config, null);
-  } catch (error) {
-    if (!(error instanceof ReplyError)) throw error;
-    return errorReply(error.status, error.message);
-  }
-  if (!CONVERSATION_ID.test(conversation)) return errorReply(400, 'a conversation is 32 hexadecimal characters');
+  if (!CONVERSATION_ID.test(conversation)) throw new AppException(400, 'a conversation is 32 hexadecimal characters');
   let found;
   try {
     found = await reader().conversation(conversation);
   } catch (error) {
     log.warn(`The transcript could not be read - ${failure(error)}`);
-    return errorReply(503, 'the transcript audit store is not available');
+    throw new AppException(503, 'the transcript audit store is not available');
   }
-  if (!found) return errorReply(404, `conversation ${conversation} is not in the audit store`);
+  if (!found) throw new AppException(404, `conversation ${conversation} is not in the audit store`);
   return jsonReply(200, found);
 }
 
@@ -951,43 +967,37 @@ async function forward(url, body, config) {
  * reply endpoint under this app's bearer, the recorder behind that endpoint writes the answer on the row, and the
  * invoker gets the row as it then stands with the engine's outcome; the feed carries the change to every device.
  */
-export async function decide(_headers, requestBody) {
+export async function questionDecide(_headers, requestBody) {
   const request = new AsyncHttpRequest(requestBody);
-  const idText = request.pathParameter('id') ?? '';
-  if (!/^\d+$/.test(idText)) return errorReply(400, 'the row id must be a whole number');
-  const id = Number(idText);
   const config = currentSettings();
   const body = request.body;
-  if (!isMap(body)) return errorReply(400, 'the decision must be a JSON map with decisions');
-  const claimed = body.decided_by;
-  if (claimed !== undefined && claimed !== null && !isText(claimed)) return errorReply(400, 'decided_by must be text');
-  let identity;
-  try {
-    identity = await identify(request.headers, config, claimed || null);
-  } catch (error) {
-    if (!(error instanceof ReplyError)) throw error;
-    return errorReply(error.status, error.message);
-  }
+  if (!isMap(body)) throw new AppException(400, 'the decision must be a JSON map with decisions');
+  const claimedBy = body.decided_by;
+  if (claimedBy !== undefined && claimedBy !== null && !isText(claimedBy)) throw new AppException(400, 'decided_by must be text');
+  const identity = identityOf(request);
   const decisions = body.decisions;
   if (!Array.isArray(decisions) || decisions.length === 0 || !decisions.every(isMap)) {
-    return errorReply(400, 'decisions must be a non-empty list, one per waiting call');
+    throw new AppException(400, 'decisions must be a non-empty list, one per waiting call');
   }
+  const idText = request.pathParameter('id') ?? '';
+  if (!/^\d+$/.test(idText)) throw new AppException(400, 'the row id must be a whole number');
+  const id = Number(idText);
   let row;
   try {
     row = await reader().get(id);
   } catch (error) {
     log.warn(`The record could not be read - ${failure(error)}`);
-    return errorReply(503, 'the question record is not available');
+    throw new AppException(503, 'the question record is not available');
   }
-  if (!row) return errorReply(404, `row ${id} is not in the record`);
-  if (!WAIT_KINDS.includes(row.kind) || !row.ticket || !row.link) return errorReply(409, `row ${id} is an advice - nothing to decide`);
-  if (row.state !== 'open') return errorReply(409, `row ${id} is ${row.state} - decided by ${row.answered_by ?? 'nobody'}`);
+  if (!row) throw new AppException(404, `row ${id} is not in the record`);
+  if (!WAIT_KINDS.includes(row.kind) || !row.ticket || !row.link) throw new AppException(409, `row ${id} is an advice - nothing to decide`);
+  if (row.state !== 'open') throw new AppException(409, `row ${id} is ${row.state} - decided by ${row.answered_by ?? 'nobody'}`);
   let target;
   try {
     target = replyRequest(row.link, row.ticket, decisions, identity.who);
   } catch (error) {
     if (!(error instanceof ReplyError)) throw error;
-    return errorReply(error.status, error.message);
+    throw new AppException(error.status, error.message);
   }
   const [status, answer, error] = await forward(target[0], target[1], config);
   const outcome = error
@@ -1008,17 +1018,19 @@ export async function decide(_headers, requestBody) {
 }
 
 /**
- * The browser side as REST automation entries (resources/rest.yaml, served with rest.automation: true): each path a
- * private function of this process - the engines' way, in place of routes mounted by hand on the host. The stream is
- * an interceptor behind an entry with stream: true.
+ * The person's side as REST automation entries (resources/rest.yaml, served with rest.automation: true): each path a
+ * private function of this process, who is at the UI resolved once by the entries' authentication function - the
+ * engines' way, in place of routes mounted by hand on the host. The stream is an interceptor behind an entry with
+ * stream: true.
  */
 export const REST_FUNCTIONS = [
-  [CONFIG_ROUTE, showConfig, { instances: 10, isPrivate: true }],
-  [ROWS_ROUTE, listRows, { instances: 10, isPrivate: true }],
-  [EVENTS_ROUTE, events, { instances: STREAM_INSTANCES, isPrivate: true, interceptor: true }],
-  [TRANSCRIPTS_ROUTE, listTranscripts, { instances: 10, isPrivate: true }],
-  [TRANSCRIPT_ROUTE, showTranscript, { instances: 10, isPrivate: true }],
-  [DECIDE_ROUTE, decide, { instances: 10, isPrivate: true }]
+  [CONFIG_ROUTE, questionConfig, { instances: INSTANCES, isPrivate: true }],
+  [LIST_ROUTE, questionList, { instances: INSTANCES, isPrivate: true }],
+  [EVENTS_ROUTE, questionEvents, { instances: INSTANCES, isPrivate: true, interceptor: true }],
+  [TRANSCRIPTS_ROUTE, transcriptList, { instances: INSTANCES, isPrivate: true }],
+  [TRANSCRIPT_ROUTE, transcriptShow, { instances: INSTANCES, isPrivate: true }],
+  [DECIDE_ROUTE, questionDecide, { instances: INSTANCES, isPrivate: true }],
+  [IDENTITY_ROUTE, questionIdentity, { instances: INSTANCES, isPrivate: true }]
 ];
 
 /** Register the browser side's functions on a registry that lacks them (a platform of its own, in a test). */

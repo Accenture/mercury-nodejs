@@ -7,4 +7,4 @@
   gained `Platform.onShutdown` / `on_shutdown` ([[platform-on-shutdown-hook-node]]). Follow-up outside this thread: the
   reply page's own sign-in against an issuer. The narrative: logs 2026-11-19-094720 to 2026-11-20-094734.
   → serves: vision-mercury-nodejs
-  <!-- id: agent-question-react-ui | created: 2026-11-19 | last_used: 2026-11-20 | uses: 5 | tier: active | origin: 2026-11-19-094720 -->
+  <!-- id: agent-question-react-ui | created: 2026-11-19 | last_used: 2026-11-20 | uses: 5 | tier: archive-candidate | origin: 2026-11-19-094720 -->

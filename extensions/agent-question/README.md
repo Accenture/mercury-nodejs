@@ -12,7 +12,10 @@ application is one of those routes. It is a standalone application on the packag
   writes nothing - the record is the recorder's (`question.audit` in the ask-person process) - it checks the event and
   wakes the feed, so a connected device sees the row the moment it is recorded.
 - **The person's side**, REST automation entries of `resources/rest.yaml` (RFC-0018, `rest.automation: true`), each a
-  private function of this process: `GET /questions/config` tells the UI how to sign in (the auth mode,
+  private function of this process (`question.config`, `question.list`, `question.events`, `question.decide`,
+  `transcript.list`, `transcript.show`); who is at the UI is resolved once by the entries' authentication function,
+  `question.identity`, and read from the request's session map, a refusal being the engines' standard error body:
+  `GET /questions/config` tells the UI how to sign in (the auth mode,
   the title and, under `oauth2`, the issuer, the public client id, the scopes and the audience); `GET /questions?since=<seq>`
   is the **replay** a reconnecting device calls first - every row that changed since its cursor, oldest change first,
   with the cursor to continue from; `GET /questions?before=<seq>&limit=<n>` the **history's older page**, newest change
@@ -38,14 +41,15 @@ The engines' actuator endpoints (`/info`, `/info/routes`, `/health`, `/env`, `/l
 beside the bundle - a host path always wins over a file - so a container manager's probes work unchanged, and the UI
 offers them as a menu. The development page this app used to generate at `/questions/app` is retired.
 
-The stream is an interceptor (`question.events`) behind an entry with `stream: true`: the REST edge renders the
-`question` events and the keep-alive comments, the UI keeps its cursor from each row's `seq` and reconnects from it
-(`Last-Event-ID`), a stopping application closes every stream (`closeStreams`), and a heartbeat segment the edge no
-longer takes tells a stream its device is gone. A device holds one worker of `question.events` while connected; its
-instances (200) bound the connected devices.
+The stream is an interceptor (`question.events`) behind an entry with `stream: true`: it opens the head at once with
+a day's idle allowance and follows the feed from a task of its own, so a device never holds a worker; the REST edge
+renders the `question` events (no `id:` line - the UI keeps its cursor from each row's `seq` and reconnects from it
+with `Last-Event-ID`), the keep-alive comments and the entry's `X-Accel-Buffering: no` header; a stopping application
+closes every stream (`closeStreams`), and a device that left is noticed at the next keep-alive, when the edge closes
+the reply sink and the producer's `connected` turns false.
 
-The Python twin (mercury-python `extensions/agent-question`) serves the same routes, pinned by the same vector file;
-its routes are still mounted on its host and follow this pack onto `rest.yaml`.
+The Python twin (mercury-python `extensions/agent-question`) serves the same routes from the same `rest.yaml` shape,
+pinned by the same vector file.
 
 ## Run
 

@@ -290,8 +290,9 @@ static folder: the `no-cache-pages` (default `/` and `/index.html`) are served
 first — its headers ride the response, and a status other than 200 (a 302 to a sign-in page)
 passes through.
 
-Precedence: a `rest.yaml` entry, then an extension's mounted routes, then the static folder, then
-the engines' error shape. Refused by name at load, so the grammar shows the scope fence: a `flow`
+Precedence: a `rest.yaml` entry, then an extension's mounted routes (`Platform.addRoutes`, the
+escape hatch for what an entry cannot express - a WebSocket), then the static folder, then the
+engines' error shape. Refused by name at load, so the grammar shows the scope fence: a `flow`
 binding (`flow:` or `service: http.flow.adapter` — flows run in the engines), the HTTP relay (an
 `http(s)://` service) and the A/B dual service. `upload: true` on a `POST` entry is the pack's bounded
 form of the engines' streaming upload: the files of a `multipart/form-data` body arrive in the request
@@ -300,12 +301,12 @@ their bytes in `contents`, read with `AsyncHttpRequest.files()`, all together wi
 `rest.upload.max.bytes` (16 MiB; 413 beyond it); the form's text fields become query parameters. The
 edge is `node:http`, as the host is: no web framework and no new dependency.
 
-The pack's own applications are the first adopters: the ask-a-person main flow's reply page and endpoint
-and the agent-question app's browser side are `rest.yaml` entries of their applications
+The pack's own applications are written this way: the ask-a-person main flow's reply page and endpoint
+and the agent-question app's person's side are `rest.yaml` entries of their applications
 (`extensions/ask-person/resources/rest.yaml`, `extensions/agent-question/resources/rest.yaml`), each a
-private function of its process reading the `AsyncHttpRequest` map; the agent-question stream is an
-interceptor behind an entry with `stream: true`. `Platform.addRoutes` stays for a route `rest.yaml`
-cannot express.
+private function of its process reading the `AsyncHttpRequest` map, with an authentication function
+resolving who is asking into the session map; the agent-question device stream is an interceptor
+behind an entry with `stream: true`. The same shape as the Python pack's.
 
 ## Wire compatibility
 

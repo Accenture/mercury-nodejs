@@ -361,27 +361,37 @@
    not the runtime an action runs on. In lockstep with the Python pack. **Upgrade note:** none - CI only; nothing in the
    package changes.
 
-10. **The ask-a-person reply page and endpoint and the agent-question app's browser side are REST automation entries
-   (RFC-0018's first adopters), no longer routes mounted by hand on the host.** `extensions/ask-person/resources/rest.yaml`
-   maps `GET /ask/config`, `GET /ask/{ticket}`, `GET /ask/{ticket}/wait` and `POST /ask/reply` to the private functions
-   `ask.reply.config`, `ask.reply.page`, `ask.reply.wait` and `ask.reply`; `extensions/agent-question/resources/rest.yaml`
-   maps `GET /questions/config`, `GET /questions`, `GET /questions/events`, `GET /transcripts`,
-   `GET /transcripts/{conversation}` and `POST /questions/{id}/decide` to `question.ui.config`, `question.rows`,
-   `question.events`, `question.transcripts`, `question.transcript` and `question.decide`; both applications set
-   `rest.automation: true`. Each function reads the request as the engines' `AsyncHttpRequest` map and replies with
-   the bytes it always sent (the JSON compact with its nulls, the page as HTML), so the UI, the page's script and the
-   Python twin's vectors see the same wire. The stream is an interceptor behind an entry with `stream: true`: the
-   REST edge renders the `question` events and the keep-alive comments (the `id:` line is gone - the UI keeps its
-   cursor from each row's `seq`), a stopping application still closes every stream, and a heartbeat segment with no
-   body - which the edge writes nothing for - renews the edge's idle allowance and, when it is no longer taken,
-   tells a stream its device is gone; the stream's instances (200) bound the connected devices. A known path under
-   another method is now 405 and an unclaimed path the engines' 404 on these applications. `Platform.addRoutes`
-   stays in the host for a route `rest.yaml` cannot express. The Python twins still mount their routes and follow.
+10. **The ask-person and agent-question extensions serve their pages, endpoints and the device stream as `rest.yaml`
+    entries - the first adopters of REST automation in the pack (RFC-0018's open question on the hand-mounted routes;
+    Eric's direction of 2026-11-25), in the same shape as the Python pack (mercury-python #87).** Each extension gains a
+    `resources/rest.yaml` and turns `rest.automation` on in its `application.yml`; the handlers behind
+    `Platform.addRoutes` are gone, replaced by private functions of the process that read the engines'
+    `AsyncHttpRequest` map (`ask.page`, `ask.wait`, `ask.reply`, `ask.config`; `question.config`, `question.list`,
+    `question.events`, `question.decide`, `transcript.list`, `transcript.show`), and who is asking is resolved once by
+    the entries' authentication functions (`ask.identity`, `ask.reply.identity`, `question.identity` - the configured
+    mode, the channel app's bearer, `decided_by`) and read from the request's session map (`who`, `via`). The device
+    stream, `GET /questions/events`, is a streaming entry: an interceptor opens it at once with a day's idle allowance
+    (the head's `x-ttl`) and follows the feed from a task of its own, so the devices never hold the function's
+    workers; the entry's response header block adds `X-Accel-Buffering: no`; the stream ends at the application's
+    shutdown as before. Two host changes it needed: a keep-alive comment that cannot be written ends a stream and
+    closes its sink (a device that left was otherwise held until the idle allowance), and
+    `EventStreamWriter.connected` tells a long-lived producer that nobody listens - the pack's counterpart of a Java
+    producer's `po.exists(replyTo)` (`EventBus.hasSink` beneath it). `Platform.addRoutes` stays as the escape hatch for
+    what an entry cannot express (a WebSocket). **On the wire:** an error is the engines' standard body -
+    `{"status", "message", "type": "error"}` - where the handlers sent `{"type", "message"}` (the ticket's `expired`
+    and the engine's `nothing-waiting` bodies are unchanged), so a client reading `type` and `message` sees no
+    difference; the stream's frames carry the `question` event name and the row (whose `seq` is the cursor, as the
+    React UI already reads it) and no `id:` line, which the engines' SSE dialect has not; the JSON the UI reads keeps
+    its nulls (an advice's `state`, a silent engine's `status`), which the functions serialize themselves because the
+    engines' renderer omits a null; a known path under another method is 405 and an unclaimed path the engines' 404.
+    **Upgrade note:** an installation that reads these endpoints with its own client sees the error body gain
+    `status`; nothing else changes.
 
 11. **`EventStreamWriter` closes itself when its reply address no longer takes a segment** - the request completed,
-   timed out or the client disconnected - so a long-lived producer that checks `closed` between segments stops with
-   its consumer instead of writing into the void (the engines' object stream fails a write to a closed stream). A
-   write after that is dropped as any write after `close()`.
+    timed out or the client disconnected - so a long-lived producer that checks `closed` between segments stops with
+    its consumer instead of writing into the void (the engines' object stream fails a write to a closed stream). A
+    write after that is dropped as any write after `close()`. Beside it, `connected` (above) asks the question
+    before a write.
 
 ## 4.12.30 (2026-11-16)
 

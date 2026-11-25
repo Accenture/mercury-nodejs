@@ -140,10 +140,14 @@ engine; a malformed one or another version is a 400, one no key signs a 403.
 
 The page and the endpoint are **REST automation entries** of `resources/rest.yaml` (RFC-0018; `application.yml` sets
 `rest.automation: true`): `GET /ask/config`, `GET /ask/{ticket}`, `GET /ask/{ticket}/wait` and `POST /ask/reply` map to
-the private functions `ask.reply.config`, `ask.reply.page`, `ask.reply.wait` and `ask.reply` of this process, which
-read the request as the engines' `AsyncHttpRequest` map - the engines' way of serving an application's HTTP surface, in
-place of routes mounted by hand on the host. The entries' timeouts (90 s for the wait and the reply) must exceed
-`ask.engine.timeout`.
+the private functions `ask.config`, `ask.page`, `ask.wait` and `ask.reply` of this process, which read the request as
+the engines' `AsyncHttpRequest` map - the engines' way of serving an application's HTTP surface, in place of routes
+mounted by hand on the host. Who is asking is resolved by the entries' authentication functions - `ask.identity` for a
+person (the wait), `ask.reply.identity` for a person or a channel app under its bearer naming the person in
+`decided_by` (the reply) - and read from the request's session map (`who`, `via`); a refusal is the engines' standard
+error body `{status, message, type: "error"}`, the ticket's `expired` and the engine's `nothing-waiting` bodies
+unchanged. The entries' timeouts (2 minutes for the wait and the reply) must exceed `ask.engine.timeout`. The same
+shape as the Python twin's.
 
 ## The question record
 

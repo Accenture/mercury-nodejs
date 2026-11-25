@@ -380,6 +380,7 @@ class FakeEngine {
 
 let engine;
 let engineUrl;
+let hostApi;
 let hostServer;
 let host;
 
@@ -389,7 +390,8 @@ before(async () => {
   // the host serves the extension's rest.yaml entries with the functions the module preloaded
   appConfig().set('rest.automation', true);
   appConfig().set('yaml.rest.automation', `file:${REST_YAML}`);
-  hostServer = new EventApiServer(defaultRegistry).createServer();
+  hostApi = new EventApiServer(defaultRegistry);
+  hostServer = hostApi.createServer();
   host = await listen(hostServer);
 });
 
@@ -727,11 +729,30 @@ test("the rest.yaml entries serve the reply page and endpoint, and the host keep
     response = await fetch(`${host}/health`);
     assert.equal(response.status, 200, "the actuator stays the host's, a default entry");
     response = await fetch(`${host}/ask/reply`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+    const refused = await response.json();
     assert.equal(response.status, 400, 'the entry serves the endpoint');
-    response = await fetch(`${host}/ask/reply`, { method: 'PUT' });
+    assert.deepEqual([refused.status, refused.type], [400, 'error'], "the engines' error shape");
+    assert.equal(response.headers.get('content-type'), 'application/json');
+    response = await fetch(`${host}/ask/config`);
+    assert.equal(response.status, 200, 'the configuration is never read as a ticket');
+    response = await fetch(`${host}/ask/config`, { method: 'PUT' });
     assert.equal(response.status, 405, 'a known path under another method');
+    // the table: each entry's function and authentication function, and the ticket as a path parameter
+    const rest = hostApi.rest;
+    assert.ok(rest);
+    const expected = {
+      'GET /ask/config': ['ask.config', undefined], 'POST /ask/reply': ['ask.reply', 'ask.reply.identity'],
+      'GET /ask/v1.payload.mac/wait': ['ask.wait', 'ask.identity'], 'GET /ask/v1.payload.mac': ['ask.page', undefined]
+    };
+    for (const [key, [service, authentication]] of Object.entries(expected)) {
+      const [method, path] = key.split(' ');
+      const assigned = rest.table.find(method, path);
+      assert.equal(assigned?.info.service, service, key);
+      assert.equal(assigned?.info.authentication, authentication, key);
+    }
+    assert.deepEqual(rest.table.find('GET', '/ask/v1.payload.mac/wait')?.pathParams, { ticket: 'v1.payload.mac' });
     // the functions behind the entries are private: never reachable from another application over Event-over-HTTP
-    for (const route of [ask.CONFIG_ROUTE, ask.PAGE_ROUTE, ask.WAIT_ROUTE, ask.REPLY_ROUTE]) {
+    for (const route of ['ask.config', 'ask.reply', 'ask.wait', 'ask.page', 'ask.identity', 'ask.reply.identity']) {
       assert.equal(defaultRegistry.get(route)?.isPrivate, true, route);
     }
   } finally {

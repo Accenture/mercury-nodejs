@@ -571,7 +571,9 @@ test('a writer whose reply sink is gone closes itself', () => {
   out.first(200, SSE);
   out.write('alpha');
   assert.equal(out.closed, false, 'a taken segment leaves the writer open');
+  assert.equal(out.connected, true, 'the reply sink is still served');
   registry.bus.closeSink(sinkRoute); // the consumer completed, timed out or disconnected
+  assert.equal(out.connected, false, 'nobody listens any more - a long-lived producer stops here');
   out.write('beta');
   assert.equal(out.closed, true, 'a dropped segment closes the writer');
   out.write('gamma'); // dropped quietly, as any write after close

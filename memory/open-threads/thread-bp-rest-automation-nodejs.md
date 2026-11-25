@@ -68,4 +68,4 @@
     guide; the Python twins' first adopters.
   → proposal: RFC-0018 (mercury-composable)
   → serves: vision-mercury-nodejs
-  <!-- id: bp-rest-automation-nodejs | created: 2026-11-24 | last_used: 2026-11-25 | uses: 4 | tier: working | origin: 2026-11-24-235244 -->
+  <!-- id: bp-rest-automation-nodejs | created: 2026-11-24 | last_used: 2026-11-25 | uses: 6 | tier: working | origin: 2026-11-24-235244 -->

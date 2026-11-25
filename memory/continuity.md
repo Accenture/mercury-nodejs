@@ -22,7 +22,15 @@
   lockstep with the Python pack — the Node.js member of the Mercury Composable polyglot initiative: a lightweight
   Event-over-HTTP function host + thin client, repurposed August 2026.
 - **last_enabled:** 2026-08-22
-- **last_review:** 2026-11-25 | through 2026-11-25-001646.md (cadence — 10 sessions since 2026-11-19-075437; `refresh-metadata`
+- **last_review:** 2026-11-25 | through 2026-11-25-041747.md (on Eric's word, the lint's cadence counter at 10 - 6 logs since
+  2026-11-25-001646; `refresh-metadata` refreshed 4 footers, tier changes 2; archived 2 superseded facts - `mcp-binding-route-per-tool` (→
+  `mcp-binding-function-per-tool`, left in continuity by the previous reviews) and `stack-typescript-esm` (→
+  [[stack-typescript-esm-node22]]: step 6 found the floor raised to Node 22 by `3c9bc20` on 2026-11-17 without the fact being
+  edited, so its Node clause was false); the other faded candidate, [[examples-one-folder-per-app]], is a declaration gap
+  re-affirmed (the REST twin of 2026-11-25-022427 placed the demo's `rest.yaml` in the example's own `resources`); swept 4
+  completed threads (bp-transcript-audit-nodejs 22, mcp-binding 26, pack-catch-up-4-12-25 26, pack-catch-up-release 26) →
+  2026-Q4; invariants not due (37 of 40); stalled none; contradictions none; live facts 31 → 26. Smoke test not run.)
+  Prior: 2026-11-25 | through 2026-11-25-001646.md (cadence — 10 sessions since 2026-11-19-075437; `refresh-metadata`
   refreshed 16 footers, tier changes 12; archived no fact - the two the count called faded are declaration gaps of
   2026-11-24-235244, re-affirmed ([[trace-records-engine-parity]]: the REST automation proposal decided the edge's records
   from its rule; [[historical-releases-tags-and-pages-nodejs]]: the previous port read as prior art at its tag); swept 2
@@ -51,11 +59,11 @@
 > Canonical live home for the current stack — language version, dependencies, tool
 > versions. `instructions.md` keeps only a high-level descriptor and points here.
 
-- TypeScript ^5.6 (devDeps `typescript` + `@types/node` ^22), Node.js ≥ 20 (`engines`),
-  compiled to `dist/` (ESM); npm package `mercury-composable` v4.12.30 (2026-11-16; the first publication v4.12.1 was
-  2026-09-01; the Java release number it caught up to; build copies default-log-context.yaml
-  into dist/src); scripts: `build`, `test`, `prepack`
-  <!-- id: stack-typescript-esm | created: 2026-08-22 | last_used: 2026-11-16 | uses: 9 | tier: archive-candidate | origin: 2026-08-22-171916 -->
+- TypeScript ^5.6 (devDeps `typescript` + `@types/node` ^22), Node.js ≥ 22 (`engines` - the floor rose from 20 on
+  2026-11-17, Node 20 being end of life, commit `3c9bc20`; CI runs on the current LTS, Node 26), compiled to `dist/` (ESM);
+  npm package `mercury-composable` v4.12.30 (2026-11-16; the first publication v4.12.1 was 2026-09-01; the Java release
+  number it caught up to; the build copies default-log-context.yaml into dist/src); scripts: `build`, `test`, `prepack`
+  <!-- id: stack-typescript-esm-node22 | created: 2026-11-25 | last_used: 2026-11-25 | uses: 1 | tier: working | origin: 2026-11-25-042047 | supersedes: stack-typescript-esm -->
 - Runtime deps: `@msgpack/msgpack` (envelope codec), `yaml` (config) — deliberately minimal; dev dependency
   `@anthropic-ai/sdk` (the LLM helper app's SDK and the tests' error classes; the published package stays free of any
   LLM SDK — 2026-10-01, PR #106) `pg` >=8 is a dev dependency since 2026-11-17 (the transcript audit store, like `redis` for the
@@ -144,30 +152,6 @@
   shared 66 cases green on memory, a Redis fake and a live Redis.
   <!-- id: llm-helper-app | created: 2026-10-01 | last_used: 2026-11-25 | uses: 9 | tier: active | origin: 2026-10-02-001255 -->
 
-- **The MCP binding serves one composable route per allowlisted MCP tool, and the server cannot change a tool under the
-  graph (RFC-0011 / ADR-0033 step 4; the Node.js twin built 2026-11-14, the same day as the Python one).**
-  `extensions/mcp-binding/mcp-binding.mjs` on the official MCP SDK: servers by name in `resources/mcp-servers.yml` (`stdio`,
-  a subprocess of this process with the SDK's default environment plus the listed `env` references; or `http`, a streamable
-  HTTP URL with `headers`); `${VAR}` resolves at boot and is never logged; each allowlisted tool maps to a route and pins the
-  SHA-256 of its input schema in canonical JSON (keys sorted, no spaces, Unicode kept - `canonical()` writes it by hand, the
-  same bytes as the Python twin). Boot, before the host listens (`Platform.onStartup`), connects each server, lists its tools
-  and refuses to start by name when a tool is missing or its schema changed; `describe` prints the digests and a catalog row
-  the developer reviews, because the model reads the graph's descriptions, never the server's. A route's reply is the
-  structured content else the blocks' text; `isError` is a 400 carrying the text (the loop returns it to the model), a
-  timeout 408, a protocol failure 502, a lost connection 503. The pure half (digest, verification, result mapping) is pinned
-  by `test/vectors/mcp-binding-vectors.json`, shared byte-identical with mercury-python; the transports by the fixture
-  server `test/fixtures/mcp-test-server.mjs`. **The shape (2026-11-14, Eric's direction, the twin of mercury-python #52):**
-  every bound route is an alias of ONE `preload` function, `mcp.tool` - private, bound to no tool - registered at boot with
-  the server's `instances` through `registry.register`, the pack's counterpart of the engines' `Platform.register`; the
-  function reads the route it was called as from `getTrace().route`, the pack's counterpart of the engines' read-only
-  `my_route` header (the host strips `my_*` headers at ingress and adds none). A generic client - one route, the server and
-  the tool encoded in the call - was suggested and set aside the same day: ADR-0033 rejects it as alternative (c), since the
-  catalog cannot certify a target hidden in the call; the certifiable form is an optional `headers` map on the catalog row,
-  an engine change in both engines, not taken. **How to apply:** a new MCP tool for an agent is a server entry and an allowlist
-  row here plus a catalog row on the graph, never engine code; a schema change is a digest the developer re-reviews; a
-  credential is a reference in the server file, resolved from this process's environment.
-  <!-- id: mcp-binding-route-per-tool | created: 2026-11-14 | last_used: 2026-11-14 | uses: 1 | tier: superseded | superseded-by: mcp-binding-function-per-tool | origin: 2026-11-14-074701 -->
-
 - **A tool of an MCP server is a composable function of the binding, declared in code (Eric's review 2026-11-16; the
   engines' `draft-design-specs/agent-tool-use.md`; supersedes the allowlist-row shape of 2026-11-14; the twin of the
   Python pack's reshaping).** `extensions/mcp-binding/mcp-binding.mjs` is a library and a function host:
@@ -233,7 +217,7 @@
   full run and a resume of a Python-started conversation, the same rows from the same record; #129 added a server-side
   `statement_timeout` beside the client's `query_timeout`, because a paused database stalls a pooled statement where a
   stopped one fails it.
-  <!-- id: transcript-audit-store-nodejs | created: 2026-11-17 | last_used: 2026-11-24 | uses: 7 | tier: active | origin: 2026-11-17-082942 -->
+  <!-- id: transcript-audit-store-nodejs | created: 2026-11-17 | last_used: 2026-11-24 | uses: 7 | tier: archive-candidate | origin: 2026-11-17-082942 -->
 
 - **Ask a person, the main flow, is the Node twin of the Python pack's (RFC-0014 step 4; built here 2026-11-19 in lockstep
   with mercury-python #68).** `extensions/ask-person/ask-person.mjs` serves `person.ask`: the graph's hold path calls it before
@@ -383,7 +367,7 @@
   never a mounted route; a behaviour of the edge is first a vector case, then code, in both packs; the grammar's
   messages are the engines' and a pack never grows a dialect; what the engines defer stays deferred until a field
   request; the vector file changes in both packs or in neither.
-  <!-- id: rest-automation-nodejs | created: 2026-11-25 | last_used: 2026-11-25 | uses: 3 | tier: active | origin: 2026-11-25-022427 -->
+  <!-- id: rest-automation-nodejs | created: 2026-11-25 | last_used: 2026-11-25 | uses: 4 | tier: active | origin: 2026-11-25-022427 -->
 
 ## Conventions
 
@@ -399,7 +383,7 @@
   share the default port 8087, so give one of them another with `-Drest.server.port` to run both. The demo stays provider-free and
   credential-free: no LLM code goes into it. **2026-11-03 (Eric):** the LLM helper graduates from an example to an extension,
   `extensions/llm-helper/` (the same folder shape), so `examples/` holds the demo app - lockstep with mercury-python #46.
-  <!-- id: examples-one-folder-per-app | created: 2026-10-01 | last_used: 2026-11-17 | uses: 3 | tier: archive-candidate | origin: 2026-10-02-001255 -->
+  <!-- id: examples-one-folder-per-app | created: 2026-10-01 | last_used: 2026-11-25 | uses: 4 | tier: active | origin: 2026-10-02-001255 -->
 
 - **The `resources` folder is resolved next to the application file - the file `mercury-serve` is given, or the script Node ran
   - and the working directory is never searched (Eric's rule, 2026-10-14; PR #113 merge `f4132d4`).** The engines' classpath convention: the

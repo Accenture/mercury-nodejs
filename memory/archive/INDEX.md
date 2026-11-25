@@ -23,3 +23,9 @@
 - otel-forwarder-nodejs — The OpenTelemetry forwarder is a zero-dependency port of the Rust engine's hand-written OT… — faded — 2026-Q4.md
 - contradiction-transcript-store-stateless — Contradiction: the LLM helper's transcript store against `stateless-functions-contract` -… — completed thread past archive_window — 2026-Q4.md
 - reverify-invariants-20261103 — Re-verify invariants - the first, COMPLETE 2026-11-03 (Eric: "Confirm all"). `scope-wrappe… — completed thread past archive_window — 2026-Q4.md
+- mcp-binding-route-per-tool — The MCP binding serves one composable route per allowlisted MCP tool, and the server canno… — superseded by mcp-binding-function-per-tool — 2026-Q4.md
+- stack-typescript-esm — TypeScript ^5.6 (devDeps `typescript` + `@types/node` ^22), Node.js ≥ 20 (`engines`), — superseded by stack-typescript-esm-node22 — 2026-Q4.md
+- bp-transcript-audit-nodejs — (blueprint) The transcript audit store in the LLM helper: RFC-0012 build plan step 2, the… — faded — 2026-Q4.md
+- mcp-binding — The MCP binding (RFC-0011 / ADR-0033 build plan step 4) — CLOSED 2026-11-16: released in 4… — faded — 2026-Q4.md
+- pack-catch-up-4-12-25 — Next pack release: catch up to the Java number with the agent loop's pack half — CLOSED 20… — faded — 2026-Q4.md
+- pack-catch-up-release — Next pack release: catch up to the Java number and carry the LLM helper — CLOSED 2026-10-0… — faded — 2026-Q4.md

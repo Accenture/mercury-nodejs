@@ -60,8 +60,23 @@ console.log(reply.getStatus(), reply.body);
 | `hello.declarative`, `hello.world` | public | Echoes the body and headers it received. The target of the engines' declarative Event-over-HTTP demos. `hello.world` is an alias: the same function under a second route, declared as `preload('hello.declarative, hello.world', ...)`, the engines' comma-separated PreLoad route list. |
 | `hello.chain` | public | Local composition: calls the private `demo.suffix.helper` through the in-process bus and returns its reply. |
 | `hello.tokens` | public | Streaming: paced messages over the multi-shot reply contract. See below. |
+| `hello.rest` | public | A REST automation endpoint: `GET /api/hello/{name}?lang=fr`, declared in `resources/rest.yaml`. See below. |
 | `demo.suffix.helper` | private | Appends `!` to `text`. In-app only: the HTTP host answers 403 for a private route. |
 | `demo.health` | private | A health check speaking the engines' interface contract (`type=info` and `type=health`). `/health` includes it through `mandatory.health.dependencies`. |
+
+### REST automation
+
+`resources/rest.yaml` turns `hello.rest` into `GET /api/hello/{name}` with CORS and a response
+header, the engines' way (`rest.automation: true` in `application.yml`; the grammar is the
+engines' REST automation guide):
+
+```shell
+curl -s 'http://127.0.0.1:8087/api/hello/world?lang=fr'
+```
+
+The function receives the whole request as the engines' `AsyncHttpRequest` map and reads the path
+parameter and the query parameter with the engines' accessors; `POST /api/event` and the actuators
+stay served as the default entries.
 
 ### Streaming
 
@@ -84,6 +99,7 @@ it out its own HTTP edge, so this is the smallest engine-to-wrapper streaming de
 | `application.name` | `demo-app` | The identity in logs and on the actuator endpoints. |
 | `info.app.description` | `Mercury Composable polyglot demo` | The description `/info` reports. |
 | `rest.server.port` | `8087` | The Event API and actuator port. |
+| `rest.automation` | `true` | The engines' REST automation: `resources/rest.yaml` served in front of the functions. Off by default in the package. |
 | `log.format` | `text` | `text`, `json` (pretty-printed) or `compact` (single-line JSONL). |
 | `log.level` | `INFO` | The log level; the `LOG_LEVEL` environment variable wins. |
 | `mandatory.health.dependencies` | `demo.health` | The health-check routes `/health` requires. |

@@ -213,6 +213,27 @@ export class Actuator {
     }
   }
 
+  /**
+   * The actuator a REST automation entry names by the engines' service name; false when the name is
+   * not an actuator's.
+   */
+  async byService(service: string, res: http.ServerResponse): Promise<boolean> {
+    switch (service) {
+      case 'info.actuator.service':
+        return this.handle('/info', res);
+      case 'routes.actuator.service':
+        return this.handle('/info/routes', res);
+      case 'env.actuator.service':
+        return this.handle('/env', res);
+      case 'health.actuator.service':
+        return this.handle('/health', res);
+      case 'liveness.actuator.service':
+        return this.handle('/livenessprobe', res);
+      default:
+        return false;
+    }
+  }
+
   private appBlock(): Record<string, unknown> {
     return { name: this.appName, version: this.appVersion, description: this.description };
   }

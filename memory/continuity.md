@@ -142,7 +142,7 @@
   2026-11-03 on branch `feat/llm-chat-loop-contract` (`268dc7b`, PR #115): the same contract and messages, a `MemoryStore` and a
   `RedisStore` on the `redis` package with the Python twin's Lua script (a record one pack writes the other reads), the
   shared 66 cases green on memory, a Redis fake and a live Redis.
-  <!-- id: llm-helper-app | created: 2026-10-01 | last_used: 2026-11-24 | uses: 8 | tier: active | origin: 2026-10-02-001255 -->
+  <!-- id: llm-helper-app | created: 2026-10-01 | last_used: 2026-11-25 | uses: 9 | tier: active | origin: 2026-10-02-001255 -->
 
 - **The MCP binding serves one composable route per allowlisted MCP tool, and the server cannot change a tool under the
   graph (RFC-0011 / ADR-0033 step 4; the Node.js twin built 2026-11-14, the same day as the Python one).**
@@ -203,7 +203,7 @@
   exists - every traced execution leaves exactly one; before changing a host or client path, ask which side records it in
   the Java engine and mirror that side; a lineage check parses every record of the trace from every process and verifies
   each parent is a span some record owns.
-  <!-- id: trace-records-engine-parity | created: 2026-11-14 | last_used: 2026-11-25 | uses: 2 | tier: active | origin: 2026-11-14-115318 -->
+  <!-- id: trace-records-engine-parity | created: 2026-11-14 | last_used: 2026-11-25 | uses: 3 | tier: active | origin: 2026-11-14-115318 -->
 
 - **The transcript audit store: every model turn recorded by a composable function behind a local event, off the
   turn's path, into PostgreSQL beside the working store - the Node twin of the Python pack's build (RFC-0012 in
@@ -344,14 +344,40 @@
   static-content filter, its `no-cache-pages` list and its `mime.types` section. **How to apply:** a web bundle goes
   into `resources/public` next to the application file and nothing else is configured; a host path or an extension
   route always wins over a file of the same name; a relative folder is never the working directory's.
-  <!-- id: static-content-resources-public-node | created: 2026-11-20 | last_used: 2026-11-24 | uses: 3 | tier: active | origin: 2026-11-20-075630 -->
+  <!-- id: static-content-resources-public-node | created: 2026-11-20 | last_used: 2026-11-25 | uses: 4 | tier: active | origin: 2026-11-20-075630 -->
+
+- **REST automation in the pack: `rest.yaml` is the router in front of the functions, the engines' grammar and never a
+  dialect (RFC-0018 in mercury-composable; the Node twin built 2026-11-25 as build plan step 2, from the Python pack's
+  implementation and the shared vector file - the twin of `rest-automation-python`).** `rest.automation: true` (off by
+  default) reads one `yaml.rest.automation` location - `classpath:/rest.yaml` is `resources/rest.yaml` next to the
+  application file - and the edge (`src/rest-automation.ts`, on `node:http` in front of the host's paths, an extension's
+  routes and the static folder; no framework, no new dependency) serves the entries on the one server: `POST /api/event`
+  and the actuators are the engines' default entries a user entry may override (`Actuator.byService` dispatches by the
+  engines' service name); the function receives the engines' `AsyncHttpRequest` map (`src/async-http-request.ts`,
+  exported with `UploadedFile`) and replies with a value or an envelope; the pure half (`src/rest-routing.ts`: the
+  parser and its refusals, the matching with the engines' precedence, the header transforms with `keep` over `drop`,
+  the body dispatch by content type, the `Accept` negotiation, the rendering, the response mapping) is pinned by
+  `test/vectors/rest-automation-vectors.json`, byte for byte the Python pack's file (version 2, 129 cases, SHA-pinned).
+  Version 1 is the Rust port's subset; refused by name at load: a flow binding, the HTTP relay, the A/B dual service;
+  `upload: true` is the pack's bounded form - the files' bytes in the request map under `contents` beside the engines'
+  keys, within `rest.upload.max.bytes`, parsed by the runtime's own `Response.formData()` with the raw body capped at
+  the bound plus the parts' headroom; the LLM helper's `llm.upload` (`POST /api/llm/upload`, the files saved under
+  `uploads/` inside the attachments root) is the first intake. The edge records `http.request` and the function's round
+  trip as the engines do ([[trace-records-engine-parity]]); the `static-content` block brings the filter and the
+  no-cache pages the static service had left out ([[static-content-resources-public-node]]). A response with no
+  negotiated type carries no content-type header; an unclaimed path is the engines' bare `application/json` 404.
+  **How to apply:** a new endpoint is a `rest.yaml` entry and a `preload` function reading `new AsyncHttpRequest(body)`,
+  never a mounted route; a behaviour of the edge is first a vector case, then code, in both packs; the grammar's
+  messages are the engines' and a pack never grows a dialect; what the engines defer stays deferred until a field
+  request; the vector file changes in both packs or in neither.
+  <!-- id: rest-automation-nodejs | created: 2026-11-25 | last_used: 2026-11-25 | uses: 1 | tier: working | origin: 2026-11-25-022427 -->
 
 ## Conventions
 
 - Engine-mirrored configuration/logging/trace conventions (see the invariant above and
   `instructions.md`); GitHub flow with tests + a CHANGELOG entry per change
   (CONTRIBUTING.md).
-  <!-- id: conv-github-flow-changelog | created: 2026-08-22 | last_used: 2026-11-24 | uses: 8 | tier: active | origin: 2026-08-22-171916 -->
+  <!-- id: conv-github-flow-changelog | created: 2026-08-22 | last_used: 2026-11-25 | uses: 9 | tier: active | origin: 2026-08-22-171916 -->
 - **Each example app lives in a folder of its own, with a README and its own `resources/` (Eric, 2026-10-01; PR #106).**
   `examples/demo-app/` (the minimal polyglot app: `hello.node`, `hello.declarative`, `hello.chain`, `hello.tokens`, the private
   `demo.suffix.helper` and `demo.health`) and `examples/llm-helper/`; run one as
@@ -372,7 +398,7 @@
   unconfigured during the Bedrock drive ([[llm-helper-app]]); pinned by subprocess tests that run from a decoy working directory.
   Lock-step with the Python pack (`__main__.__file__`, mercury-python #45 merge `a3c5a26`). Upgrade: a layout that kept `resources/` in the
   working directory with the app elsewhere passes `--config` or moves the folder.
-  <!-- id: conv-resources-next-to-the-application-file | created: 2026-10-14 | last_used: 2026-11-20 | uses: 3 | tier: archive-candidate | origin: 2026-10-14-015422 -->
+  <!-- id: conv-resources-next-to-the-application-file | created: 2026-10-14 | last_used: 2026-11-25 | uses: 4 | tier: active | origin: 2026-10-14-015422 -->
 
 - **The previous Node.js port's releases v4.2.40 to v4.3.28 live here as tags and GitHub releases; their branches are gone
   (Eric, 2026-11-13).** Before the August 2026 repurposing this repository held the previous Node.js port, whose releases

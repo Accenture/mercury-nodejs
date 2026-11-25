@@ -223,6 +223,54 @@
     model by every caller that can reach the helper, and its files are sent to the provider. **Upgrade note:** none
     without `attachments`.
 
+12. **REST automation: `rest.yaml` as the router of a Node.js application (RFC-0018 in mercury-composable, build
+    plan step 2), the twin of the Python pack's (mercury-python #83) from the same vector file.** With
+    `rest.automation: true` the host reads one `yaml.rest.automation` location (default `classpath:/rest.yaml`, the
+    `resources/rest.yaml` next to the application file; `file:` an absolute path) in the engines' grammar and serves
+    its entries on the one server: a URL and its methods mapped to a function, which receives the whole request as
+    the engines' `AsyncHttpRequest` map (`src/async-http-request.ts`, exported, with the accessors `pathParameter`,
+    `queryParameter`, `queryParameters`, `header`, `cookie`, `sessionInfo`, `timeoutSeconds`); CORS blocks with the
+    preflight; request and response header transforms (`keep` over `drop`, the Java rule); an `authentication`
+    function whose `true` verdict lets the request through and whose headers ride as the session map; the entry's
+    `timeout` riding the request as `x-ttl` (an inbound one wins) and answering 408; `tracing` from a W3C
+    `traceparent`, the trace-id header or a fresh id with the per-entry header-name overrides, leaving the edge's
+    `http.request` record and the function's round-trip record as the engines leave them; the correlation id always
+    ensured, delivered as `my_correlation_id` and echoed on the response; the request body parsed by its declared
+    content type, repeated query parameters as a list, cookies as a map; the response content type the function's or
+    negotiated from `Accept`, a failure as the standard error body, a returned envelope setting the status and
+    headers; `stream: true` rendering an interceptor's segments as Server-Sent Events or chunked text;
+    `POST /api/event` and the actuators as the engines' default entries a user entry may override; the
+    `static-content` block's `no-cache-pages` and `filter` over the static folder. An entry whose function is not
+    registered at the end of the boot is skipped with the engines' warning, never a live URL. Refused by name at
+    load, so the grammar shows the scope fence: a flow binding, the HTTP relay and the A/B dual service; deferred as
+    in the Rust port: `custom.content.types`, `mime.types` and XML. Off by default: without the switch the host is
+    unchanged. The pure half is `src/rest-routing.ts` (the parser, the matching with the engines' precedence, the
+    transforms, the body dispatch, the negotiation, the rendering, the response mapping), the edge
+    `src/rest-automation.ts` on `node:http` in front of the host's paths, an extension's routes and the static
+    folder - no framework, no new dependency. Pinned by `test/vectors/rest-automation-vectors.json` (version 2,
+    129 cases, byte for byte the Python pack's file) and the 51 tests of `test/rest-automation.test.ts` over HTTP
+    (the Rust port's checklist, as in the Python pack); the demo app gains `hello.rest` at `GET /api/hello/{name}`
+    with its `resources/rest.yaml`. The host also gains `Actuator.byService` (an actuator by the engines' service
+    name) and `StaticContent.serve` takes extra headers; the segment wait of a streaming reply moved from
+    `server.ts` to `event-stream.ts` as `nextSegment`, shared by both edges.
+
+13. **Upload in REST automation, and the LLM helper's document intake (RFC-0018; the twin of mercury-python #84).**
+    `upload: true` on a `POST` entry is the pack's bounded form of the engines' streaming upload: the files of a
+    `multipart/form-data` body arrive in the request map under the engines' keys (`filename`, `file_type`,
+    `file_length`, the `upload` tags, `size`) with their bytes in `contents` - the stream routes the engines send
+    replaced by the bytes - all together within `rest.upload.max.bytes` (16 MiB; a 413 the moment they exceed it, and
+    a body past the bound plus the parts' overhead refused before it is parsed, so the memory a request takes stays
+    bounded), the form's text fields as query parameters, the body absent; a non-multipart body on such an entry
+    dispatches as usual, and a multipart body on an entry without the flag stays bytes. The parts are read by the
+    runtime's own `Response.formData()` - no library. `AsyncHttpRequest.files()` reads them as `UploadedFile` (name,
+    content type, size, tag, bytes), both exported. The LLM helper gains `llm.upload` behind `POST /api/llm/upload`
+    (`resources/rest.yaml`, `rest.automation: true` in its `application.yml`): each file is saved under `uploads/`
+    inside `llm.attachments.root` under a new name (`<id>-<the original name made safe>`, opened exclusively, never an
+    overwrite) and the references returned - the `path` a later `llm.chat` call names in `attachments`, the kind by
+    the first bytes else the declared type, the size, the SHA-256 the audit keeps and `attachable`, whether the model
+    takes the file as it is or a conversion comes first; no file is a 400 by name, no root a 503 by name. Pinned by
+    the shared vector file's upload cases, four tests over HTTP and `test/llm-upload.test.mjs`.
+
 ### Fixed
 
 1. **The agent-question app keeps the first accepted decision when two devices decide one card at the same moment**

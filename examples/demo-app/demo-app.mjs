@@ -14,7 +14,7 @@
  *       target: 'http://127.0.0.1:8087/api/event'
  */
 import {
-  AppException, annotateTrace, EventStreamWriter, getLogger, getTrace, PostOffice, preload
+  AppException, annotateTrace, AsyncHttpRequest, EventStreamWriter, getLogger, getTrace, PostOffice, preload
 } from 'mercury-composable';
 
 const log = getLogger('demo-app');
@@ -46,6 +46,17 @@ preload('demo.suffix.helper', { instances: 10, isPrivate: true }, async (_header
 preload('hello.chain', { instances: 10 }, async (_headers, body) => {
   const reply = await new PostOffice().request('demo.suffix.helper', body, { timeoutMs: 5000 });
   return reply.body;
+});
+
+// A REST automation endpoint - GET /api/hello/{name}?lang=fr, declared in resources/rest.yaml.
+// The function receives the whole request as the engines' AsyncHttpRequest map and reads it
+// with the engines' accessors; a returned EventEnvelope would set the status and headers.
+preload('hello.rest', { instances: 10 }, async (_headers, body) => {
+  const request = new AsyncHttpRequest(body);
+  const name = request.pathParameter('name') ?? 'world';
+  const greeting = request.queryParameter('lang') === 'fr' ? 'Bonjour' : 'Hello';
+  annotateTrace('language', 'node.js');
+  return { greeting: `${greeting}, ${name}`, method: request.method, language: 'node.js' };
 });
 
 // Streaming demo: paced test messages over the multi-shot reply contract.

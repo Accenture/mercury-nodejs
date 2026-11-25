@@ -31,15 +31,20 @@
     multipart body past the bound plus 1 MiB is a 413 before parsing; the `yaml` package reads `rest.yaml` as
     YAML 1.1 with duplicate keys tolerated, PyYAML's reading.
   - **First adopters BUILT 2026-11-25 (Eric: "please refactor the hand-mounted routes with rest.yaml"; branch
-    `feat/rest-first-adopters`, raised as PR #147):** the ask-person reply page and endpoint and the agent-question
+    `feat/rest-first-adopters`, raised as PR #147 and MERGED 2026-11-25, merge `387a15d`):** the ask-person reply page and endpoint and the agent-question
     browser side are `rest.yaml` entries of their applications, each a private function reading the `AsyncHttpRequest`
     map; `Platform.addRoutes` is no longer used by either. The stream is an interceptor behind `stream: true` with a
     no-body heartbeat segment (the edge writes nothing for it, renews its idle allowance, and its drop closes the
     writer - a core change in `EventStreamWriter`). Defaults set without a ruling: the functions reply with the exact
     bytes as text with a content type (a map body would be pretty-printed with its nulls omitted, and the React UI
     reads nulls); the SSE `id:` line is gone (the UI keeps its cursor from the row's `seq`); the stream's instances
-    200 bound the devices; the entries' timeouts exceed the apps' engine and reply timeouts. The Python twins still
-    mount their routes and follow from these entries.
+    200 bound the devices; the entries' timeouts exceed the apps' engine and reply timeouts. The Python twins' refactor
+    was in flight the same hour with a shape of its own - route names `ask.config`/`ask.page`/`ask.wait`/`ask.reply`
+    and `question.config`/`question.list`/`question.events`/`question.decide`/`transcript.list`/`transcript.show`,
+    `authentication` functions (`ask.identity`, `ask.reply.identity`, `question.identity`) leaving `who`/`via` in the
+    session map, `EventStreamWriter.connected` over `bus.has_sink` for a gone device, a day's idle allowance and an
+    `X-Accel-Buffering: no` header block - so the twins need one shape once it lands (a Node alignment PR, or the
+    Python one following these entries; Eric's call).
   - **Next:** a live drive of the Node edge through an engine with the trace lineage checked; the engines' polyglot
     guide; the Python twins' first adopters.
   → proposal: RFC-0018 (mercury-composable)

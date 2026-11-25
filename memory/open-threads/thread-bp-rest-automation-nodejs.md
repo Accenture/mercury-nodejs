@@ -31,7 +31,7 @@
     multipart body past the bound plus 1 MiB is a 413 before parsing; the `yaml` package reads `rest.yaml` as
     YAML 1.1 with duplicate keys tolerated, PyYAML's reading.
   - **First adopters BUILT 2026-11-25 (Eric: "please refactor the hand-mounted routes with rest.yaml"; branch
-    `feat/rest-first-adopters`, raised as PR #PRNUMBER2):** the ask-person reply page and endpoint and the agent-question
+    `feat/rest-first-adopters`, raised as PR #147):** the ask-person reply page and endpoint and the agent-question
     browser side are `rest.yaml` entries of their applications, each a private function reading the `AsyncHttpRequest`
     map; `Platform.addRoutes` is no longer used by either. The stream is an interceptor behind `stream: true` with a
     no-body heartbeat segment (the edge writes nothing for it, renews its idle allowance, and its drop closes the

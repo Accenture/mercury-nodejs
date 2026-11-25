@@ -14,7 +14,7 @@
   twin from the same vector file, the README and the engines' polyglot guide, a live drive. First adopters
   afterwards: the hand-mounted routes of the agent-question app and the ask-person flow.
   - **Step 2 BUILT 2026-11-25 (the Node twin, started by the maintainer after the Python pack's #83, #84 and #86
-    merged; branch `claude/rest-automation-b7c805`, raised as PR #146 against `main`):** `src/rest-routing.ts`
+    merged; branch `claude/rest-automation-b7c805`, raised as PR #146 and MERGED 2026-11-25, merge `109c506`):** `src/rest-routing.ts`
     (the parser with the engines' messages and the pack's refusals by name, the default entries, the matching with
     the engines' precedence, `keep` over `drop`, `parseTimeout`, the body dispatch, query and cookie parsing, the
     `Accept` negotiation, the rendering and the response mapping), `src/async-http-request.ts` (`AsyncHttpRequest`,

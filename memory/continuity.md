@@ -366,7 +366,8 @@
   trip as the engines do ([[trace-records-engine-parity]]); the `static-content` block brings the filter and the
   no-cache pages the static service had left out ([[static-content-resources-public-node]]). A response with no
   negotiated type carries no content-type header; an unclaimed path is the engines' bare `application/json` 404.
-  **How to apply:** a new endpoint is a `rest.yaml` entry and a `preload` function reading `new AsyncHttpRequest(body)`,
+  **MERGED 2026-11-25 as PR #146 (merge `109c506`)**, so both packs serve the engines' REST automation from one vector
+  file. **How to apply:** a new endpoint is a `rest.yaml` entry and a `preload` function reading `new AsyncHttpRequest(body)`,
   never a mounted route; a behaviour of the edge is first a vector case, then code, in both packs; the grammar's
   messages are the engines' and a pack never grows a dialect; what the engines defer stays deferred until a field
   request; the vector file changes in both packs or in neither.

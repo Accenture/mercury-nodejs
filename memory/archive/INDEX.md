@@ -21,3 +21,5 @@
 - otel-forwarder-lockstep — OpenTelemetry forwarder lock-step and the v4.12.15 milestone — CLOSED 2026-09-23: v4.12.15… — faded — 2026-Q4.md
 - vision-versioning-vs-java-number — Drift: the pack's version line against `vision-mercury-nodejs`'s versioning target - RESOL… — faded — 2026-Q4.md
 - otel-forwarder-nodejs — The OpenTelemetry forwarder is a zero-dependency port of the Rust engine's hand-written OT… — faded — 2026-Q4.md
+- contradiction-transcript-store-stateless — Contradiction: the LLM helper's transcript store against `stateless-functions-contract` -… — completed thread past archive_window — 2026-Q4.md
+- reverify-invariants-20261103 — Re-verify invariants - the first, COMPLETE 2026-11-03 (Eric: "Confirm all"). `scope-wrappe… — completed thread past archive_window — 2026-Q4.md

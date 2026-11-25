@@ -16,4 +16,4 @@
   bound belongs on both the connection and the statement. The engines' memory tracks the design
   under `transcript-audit-store` (RFC-0012, settled 2026-11-17; the schema page is mercury-composable #639).
   → serves: vision-mercury-nodejs
-  <!-- id: bp-transcript-audit-nodejs | created: 2026-11-17 | last_used: 2026-11-17 | uses: 2 | tier: active | origin: 2026-11-17-082942 -->
+  <!-- id: bp-transcript-audit-nodejs | created: 2026-11-17 | last_used: 2026-11-17 | uses: 2 | tier: archive-candidate | origin: 2026-11-17-082942 -->

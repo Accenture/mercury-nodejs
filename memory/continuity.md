@@ -22,7 +22,13 @@
   lockstep with the Python pack — the Node.js member of the Mercury Composable polyglot initiative: a lightweight
   Event-over-HTTP function host + thin client, repurposed August 2026.
 - **last_enabled:** 2026-08-22
-- **last_review:** 2026-11-19 | through 2026-11-19-075437.md (cadence — 16 sessions since 2026-11-13-030139; `refresh-metadata`
+- **last_review:** 2026-11-25 | through 2026-11-25-001646.md (cadence — 10 sessions since 2026-11-19-075437; `refresh-metadata`
+  refreshed 16 footers, tier changes 12; archived no fact - the two the count called faded are declaration gaps of
+  2026-11-24-235244, re-affirmed ([[trace-records-engine-parity]]: the REST automation proposal decided the edge's records
+  from its rule; [[historical-releases-tags-and-pages-nodejs]]: the previous port read as prior art at its tag); swept 2
+  completed threads (contradiction-transcript-store-stateless 31, reverify-invariants-20261103 30) → 2026-Q4; invariants
+  not due (30 of 40); stalled none; contradictions none; live facts 31 → 29. Smoke test not run.)
+  Prior: 2026-11-19 | through 2026-11-19-075437.md (cadence — 16 sessions since 2026-11-13-030139; `refresh-metadata`
   refreshed 17 footers, tier changes 13; archived 1 faded fact `otel-forwarder-nodejs` (33; step 6: the window's two commits on
   its paths were quality sweeps with no behaviour change, and no window log reasons from its rule) - the other candidate,
   [[conv-resources-next-to-the-application-file]], is a declaration gap re-affirmed (the twins of 2026-11-19-074617 placed and
@@ -56,7 +62,7 @@
   transcript store), and so are `neo4j-driver` >=6, `mammoth` and `pdfjs-dist` (the agent tools' knowledge-graph tools and
   `file.extract`, 2026-11-17), and `jose` >=6 (the ask-person reply page's and the agent-question app's `oauth2` mode,
   2026-11-19); the published package stays free of any database client and document library.
-  <!-- id: stack-deps-msgpack-yaml | created: 2026-08-22 | last_used: 2026-11-19 | uses: 6 | tier: active | origin: 2026-08-22-171916 -->
+  <!-- id: stack-deps-msgpack-yaml | created: 2026-08-22 | last_used: 2026-11-19 | uses: 6 | tier: archive-candidate | origin: 2026-08-22-171916 -->
 ## Architectural Invariants
 
 > Hard constraints that must never change. These never decay (treated as `core`).
@@ -136,7 +142,7 @@
   2026-11-03 on branch `feat/llm-chat-loop-contract` (`268dc7b`, PR #115): the same contract and messages, a `MemoryStore` and a
   `RedisStore` on the `redis` package with the Python twin's Lua script (a record one pack writes the other reads), the
   shared 66 cases green on memory, a Redis fake and a live Redis.
-  <!-- id: llm-helper-app | created: 2026-10-01 | last_used: 2026-11-17 | uses: 7 | tier: active | origin: 2026-10-02-001255 -->
+  <!-- id: llm-helper-app | created: 2026-10-01 | last_used: 2026-11-24 | uses: 8 | tier: active | origin: 2026-10-02-001255 -->
 
 - **The MCP binding serves one composable route per allowlisted MCP tool, and the server cannot change a tool under the
   graph (RFC-0011 / ADR-0033 step 4; the Node.js twin built 2026-11-14, the same day as the Python one).**
@@ -177,7 +183,7 @@
   tool is a `bind` line, a few-line `preload` function, a catalog row on the graph and an Event-over-HTTP entry; a schema
   change is a digest re-reviewed next to the function; a new server is a server-file entry; never a route in a YAML file
   and never engine code.
-  <!-- id: mcp-binding-function-per-tool | created: 2026-11-16 | last_used: 2026-11-19 | uses: 3 | tier: active | origin: 2026-11-16-044314 | supersedes: mcp-binding-route-per-tool -->
+  <!-- id: mcp-binding-function-per-tool | created: 2026-11-16 | last_used: 2026-11-19 | uses: 3 | tier: archive-candidate | origin: 2026-11-16-044314 | supersedes: mcp-binding-route-per-tool -->
 
 - **A traced call into the pack leaves the records a Java or Rust callee leaves, so a span lineage is continuous from an
   engine into the pack (2026-11-14, the twin of mercury-python #53; Eric's criterion: for OpenTelemetry to be certified,
@@ -197,7 +203,7 @@
   exists - every traced execution leaves exactly one; before changing a host or client path, ask which side records it in
   the Java engine and mirror that side; a lineage check parses every record of the trace from every process and verifies
   each parent is a span some record owns.
-  <!-- id: trace-records-engine-parity | created: 2026-11-14 | last_used: 2026-11-14 | uses: 1 | tier: archive-candidate | origin: 2026-11-14-115318 -->
+  <!-- id: trace-records-engine-parity | created: 2026-11-14 | last_used: 2026-11-25 | uses: 2 | tier: active | origin: 2026-11-14-115318 -->
 
 - **The transcript audit store: every model turn recorded by a composable function behind a local event, off the
   turn's path, into PostgreSQL beside the working store - the Node twin of the Python pack's build (RFC-0012 in
@@ -227,7 +233,7 @@
   full run and a resume of a Python-started conversation, the same rows from the same record; #129 added a server-side
   `statement_timeout` beside the client's `query_timeout`, because a paused database stalls a pooled statement where a
   stopped one fails it.
-  <!-- id: transcript-audit-store-nodejs | created: 2026-11-17 | last_used: 2026-11-17 | uses: 4 | tier: active | origin: 2026-11-17-082942 -->
+  <!-- id: transcript-audit-store-nodejs | created: 2026-11-17 | last_used: 2026-11-24 | uses: 7 | tier: active | origin: 2026-11-17-082942 -->
 
 - **Ask a person, the main flow, is the Node twin of the Python pack's (RFC-0014 step 4; built here 2026-11-19 in lockstep
   with mercury-python #68).** `extensions/ask-person/ask-person.mjs` serves `person.ask`: the graph's hold path calls it before
@@ -253,7 +259,7 @@
   Authorization Code with PKCE (a shell, `GET /ask/config`, the wait read from `GET /ask/{ticket}/wait`). **How to
   apply (amended):** "keeping no store" means no state of the wait - the record is an audit log, never consulted to
   render a wait; the agent-question app reads it.
-  <!-- id: ask-person-main-flow-node | created: 2026-11-19 | last_used: 2026-11-19 | uses: 1 | tier: working | origin: 2026-11-19-074617 -->
+  <!-- id: ask-person-main-flow-node | created: 2026-11-19 | last_used: 2026-11-20 | uses: 5 | tier: active | origin: 2026-11-19-074617 -->
 - **The agent-question app is the Node twin of the Python pack's first channel of RFC-0014 (step 4; built here 2026-11-19 in
   lockstep with mercury-python #70).** `extensions/agent-question/agent-question.mjs`, a standalone application on the package:
   `agent.question.inbox` upserts a wait on `(graph_id, correlation_id, turn)` and appends an advice, in memory or PostgreSQL
@@ -283,7 +289,7 @@
   ([[agent-question-ui]]) is served at `/` from `resources/public`, the engines' actuator endpoints beside it for
   Kubernetes probes (Eric).
   **The streams end when the application stops** (2026-11-20, [[platform-on-shutdown-hook-node]]).
-  <!-- id: agent-question-app-node | created: 2026-11-19 | last_used: 2026-11-19 | uses: 1 | tier: working | origin: 2026-11-19-074617 -->
+  <!-- id: agent-question-app-node | created: 2026-11-19 | last_used: 2026-11-20 | uses: 7 | tier: active | origin: 2026-11-19-074617 -->
 
 - **The React UI is one subproject here, `extensions/agent-question-ui/`, and one bundle committed in both packs
   (RFC-0014 round 4, section 21.4; built and MERGED 2026-11-20, PR #141 merge `344b34f07` / mercury-python #76).** Vite + React 19 + TypeScript on
@@ -308,7 +314,7 @@
   headless Chrome, PKCE against a Keycloak container, the decision recorded under the token's name; fixes from the
   drive - a case's cards ordered by the time recorded, *Mark all notices as seen*, the Keycloak script's stdin password;
   the graceful-stop finding became [[platform-on-shutdown-hook-node]].
-  <!-- id: agent-question-ui | created: 2026-11-20 | last_used: 2026-11-20 | uses: 1 | tier: working | origin: 2026-11-20-094734 -->
+  <!-- id: agent-question-ui | created: 2026-11-20 | last_used: 2026-11-20 | uses: 1 | tier: active | origin: 2026-11-20-094734 -->
 
 - **`Platform.onShutdown` runs the moment the application starts to stop - before the cleanup callbacks and before
   `server.close()` - and an extension that holds a stream or a socket ends it there (2026-11-20, PR #141 MERGED 2026-11-20; the
@@ -321,7 +327,7 @@
   callbacks in order, then the cleanup callbacks last registered first. **How to apply:** a stream or a socket ends in
   `onShutdown`, a store closes in `onCleanup`; never a shorter grace period as the remedy - only the extension knows
   a response is a stream.
-  <!-- id: platform-on-shutdown-hook-node | created: 2026-11-20 | last_used: 2026-11-20 | uses: 1 | tier: working | origin: 2026-11-20-094734 -->
+  <!-- id: platform-on-shutdown-hook-node | created: 2026-11-20 | last_used: 2026-11-20 | uses: 1 | tier: active | origin: 2026-11-20-094734 -->
 
 - **The host serves static web content from `resources/public` next to the application file - the engines' `public`
   folder (Eric, 2026-11-20; PR #138, in lockstep with mercury-python #73).** `static.html.folder` is honoured as the
@@ -338,14 +344,14 @@
   static-content filter, its `no-cache-pages` list and its `mime.types` section. **How to apply:** a web bundle goes
   into `resources/public` next to the application file and nothing else is configured; a host path or an extension
   route always wins over a file of the same name; a relative folder is never the working directory's.
-  <!-- id: static-content-resources-public-node | created: 2026-11-20 | last_used: 2026-11-20 | uses: 1 | tier: working | origin: 2026-11-20-075630 -->
+  <!-- id: static-content-resources-public-node | created: 2026-11-20 | last_used: 2026-11-24 | uses: 3 | tier: active | origin: 2026-11-20-075630 -->
 
 ## Conventions
 
 - Engine-mirrored configuration/logging/trace conventions (see the invariant above and
   `instructions.md`); GitHub flow with tests + a CHANGELOG entry per change
   (CONTRIBUTING.md).
-  <!-- id: conv-github-flow-changelog | created: 2026-08-22 | last_used: 2026-11-17 | uses: 7 | tier: active | origin: 2026-08-22-171916 -->
+  <!-- id: conv-github-flow-changelog | created: 2026-08-22 | last_used: 2026-11-24 | uses: 8 | tier: active | origin: 2026-08-22-171916 -->
 - **Each example app lives in a folder of its own, with a README and its own `resources/` (Eric, 2026-10-01; PR #106).**
   `examples/demo-app/` (the minimal polyglot app: `hello.node`, `hello.declarative`, `hello.chain`, `hello.tokens`, the private
   `demo.suffix.helper` and `demo.health`) and `examples/llm-helper/`; run one as
@@ -354,7 +360,7 @@
   share the default port 8087, so give one of them another with `-Drest.server.port` to run both. The demo stays provider-free and
   credential-free: no LLM code goes into it. **2026-11-03 (Eric):** the LLM helper graduates from an example to an extension,
   `extensions/llm-helper/` (the same folder shape), so `examples/` holds the demo app - lockstep with mercury-python #46.
-  <!-- id: examples-one-folder-per-app | created: 2026-10-01 | last_used: 2026-11-17 | uses: 3 | tier: active | origin: 2026-10-02-001255 -->
+  <!-- id: examples-one-folder-per-app | created: 2026-10-01 | last_used: 2026-11-17 | uses: 3 | tier: archive-candidate | origin: 2026-10-02-001255 -->
 
 - **The `resources` folder is resolved next to the application file - the file `mercury-serve` is given, or the script Node ran
   - and the working directory is never searched (Eric's rule, 2026-10-14; PR #113 merge `f4132d4`).** The engines' classpath convention: the
@@ -366,7 +372,7 @@
   unconfigured during the Bedrock drive ([[llm-helper-app]]); pinned by subprocess tests that run from a decoy working directory.
   Lock-step with the Python pack (`__main__.__file__`, mercury-python #45 merge `a3c5a26`). Upgrade: a layout that kept `resources/` in the
   working directory with the app elsewhere passes `--config` or moves the folder.
-  <!-- id: conv-resources-next-to-the-application-file | created: 2026-10-14 | last_used: 2026-11-19 | uses: 2 | tier: active | origin: 2026-10-14-015422 -->
+  <!-- id: conv-resources-next-to-the-application-file | created: 2026-10-14 | last_used: 2026-11-20 | uses: 3 | tier: active | origin: 2026-10-14-015422 -->
 
 - **The previous Node.js port's releases v4.2.40 to v4.3.28 live here as tags and GitHub releases; their branches are gone
   (Eric, 2026-11-13).** Before the August 2026 repurposing this repository held the previous Node.js port, whose releases
@@ -377,7 +383,7 @@
   GitHub keeps only `main` and `gh-pages`. Twins: mercury-composable `historical-releases-tags-and-pages`, mercury
   `historical-releases-tags-and-pages-rust`. **How to apply:** find a legacy release by its tag or release page, never a
   branch; a release published after the fact passes `--latest=false`.
-  <!-- id: historical-releases-tags-and-pages-nodejs | created: 2026-11-13 | last_used: 2026-11-13 | uses: 1 | tier: archive-candidate | origin: 2026-11-13-025101 -->
+  <!-- id: historical-releases-tags-and-pages-nodejs | created: 2026-11-13 | last_used: 2026-11-25 | uses: 2 | tier: active | origin: 2026-11-13-025101 -->
 
 ## Open Threads
 

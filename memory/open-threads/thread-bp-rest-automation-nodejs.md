@@ -41,7 +41,7 @@
     200 bound the devices; the entries' timeouts exceed the apps' engine and reply timeouts. The Python twins' refactor
     was in flight the same hour with a shape of its own; it merged as mercury-python #87.
   - **ALIGNED to the Python shape 2026-11-25 (Eric: "Python PR merged, please align the Node shape"; branch
-    `refactor/first-adopters-python-shape`, raised as PR #PRNUMBER3):** the route names `ask.config`/`ask.page`/
+    `refactor/first-adopters-python-shape`, raised as PR #148):** the route names `ask.config`/`ask.page`/
     `ask.wait`/`ask.reply` and `question.config`/`question.list`/`question.events`/`question.decide`/`transcript.list`/
     `transcript.show`; the entries' `authentication` functions `ask.identity`, `ask.reply.identity` and
     `question.identity` leaving `who`/`via` in the session map (a refusal the engines' standard error body; the

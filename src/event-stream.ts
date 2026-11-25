@@ -190,13 +190,18 @@ export function keepAliveMs(): number {
   return Number.isFinite(value) ? value : 30_000;
 }
 
+/** The outcome of `nextSegment` when the client left before the next keep-alive comment could be written. */
+export const CLIENT_GONE: unique symbol = Symbol('client-gone');
+
 /**
  * Wait for the next segment of a streaming reply within the idle allowance, emitting SSE
  * keep-alive comments while the producer is quiet (best-effort; pings never extend the idle
- * allowance); null at expiry. Shared by the Event API edge and the REST automation edge.
+ * allowance); null at expiry, `CLIENT_GONE` when a keep-alive cannot be written because the
+ * client is gone - the stream ends there and the caller closes the sink, instead of waiting out
+ * the idle allowance. Shared by the Event API edge and the REST automation edge.
  */
 export async function nextSegment(res: http.ServerResponse, queue: Mailbox<EventEnvelope>,
-                                  idleMs: number, pingMs: number): Promise<EventEnvelope | null> {
+                                  idleMs: number, pingMs: number): Promise<EventEnvelope | null | typeof CLIENT_GONE> {
   const deadline = Date.now() + idleMs;
   // ONE pending waiter reused across ping cycles (see raceMs)
   const pending = queue.next();
@@ -213,9 +218,10 @@ export async function nextSegment(res: http.ServerResponse, queue: Mailbox<Event
     if (Date.now() >= deadline) {
       return null;
     }
-    if (!res.writableEnded && !res.destroyed) {
-      res.write(': ping\n\n');
+    if (res.writableEnded || res.destroyed) {
+      return CLIENT_GONE;
     }
+    res.write(': ping\n\n');
   }
 }
 
@@ -368,6 +374,16 @@ export class EventStreamWriter {
   /** True when the stream has been closed or failed, or its reply address stopped taking segments. */
   get closed(): boolean {
     return this.isClosed;
+  }
+
+  /**
+   * True while the reply address is still served. A request's reply sink closes when the caller
+   * completes, times out or loses its client, so a long-lived producer - a device's feed - learns
+   * here that nobody listens and stops; the pack's counterpart of a Java producer's
+   * `po.exists(replyTo)` check.
+   */
+  get connected(): boolean {
+    return this.registry.bus.hasSink(this.replyTo) || this.registry.exists(this.replyTo);
   }
 
   private send(marker: string, body: unknown, eventName: string | undefined): void {

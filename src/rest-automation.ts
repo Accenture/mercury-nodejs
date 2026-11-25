@@ -44,6 +44,7 @@ import { DeliveryTimeout, EventBus, Mailbox, raceMs, roundTripRecord } from './b
 import { AppConfig } from './config.js';
 import { EventEnvelope, isoUtc } from './envelope.js';
 import {
+  CLIENT_GONE,
   DATA,
   EOF,
   EXCEPTION,
@@ -863,6 +864,12 @@ export class RestAutomation {
         pending = undefined;
       } else {
         const waited = await nextSegment(res, queue, idleMs, pingMs);
+        if (waited === CLIENT_GONE) {
+          // a keep-alive that cannot be written means the client is gone: the stream ends here and
+          // the caller closes the sink, instead of waiting out the idle allowance
+          log.debug('Client disconnected from event stream');
+          return [headStatus, undefined];
+        }
         if (!waited) {
           const seconds = Math.trunc(idleMs / 1000);
           const message = `Timeout for ${seconds} seconds`;

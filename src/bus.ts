@@ -278,6 +278,11 @@ export class EventBus {
     this.sinks.delete(route);
   }
 
+  /** True while a reply sink is open - the request it serves has not completed, timed out or lost its client. */
+  hasSink(route: string): boolean {
+    return this.sinks.has(route);
+  }
+
   /**
    * Deliver an envelope to a reply sink; false when the sink is gone (a
    * completed, timed-out or disconnected request) - late segments are no-op

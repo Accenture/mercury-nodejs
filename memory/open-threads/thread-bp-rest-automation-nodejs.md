@@ -39,14 +39,20 @@
     bytes as text with a content type (a map body would be pretty-printed with its nulls omitted, and the React UI
     reads nulls); the SSE `id:` line is gone (the UI keeps its cursor from the row's `seq`); the stream's instances
     200 bound the devices; the entries' timeouts exceed the apps' engine and reply timeouts. The Python twins' refactor
-    was in flight the same hour with a shape of its own - route names `ask.config`/`ask.page`/`ask.wait`/`ask.reply`
-    and `question.config`/`question.list`/`question.events`/`question.decide`/`transcript.list`/`transcript.show`,
-    `authentication` functions (`ask.identity`, `ask.reply.identity`, `question.identity`) leaving `who`/`via` in the
-    session map, `EventStreamWriter.connected` over `bus.has_sink` for a gone device, a day's idle allowance and an
-    `X-Accel-Buffering: no` header block - so the twins need one shape once it lands (a Node alignment PR, or the
-    Python one following these entries; Eric's call).
+    was in flight the same hour with a shape of its own; it merged as mercury-python #87.
+  - **ALIGNED to the Python shape 2026-11-25 (Eric: "Python PR merged, please align the Node shape"; branch
+    `refactor/first-adopters-python-shape`, raised as PR #148):** the route names `ask.config`/`ask.page`/
+    `ask.wait`/`ask.reply` and `question.config`/`question.list`/`question.events`/`question.decide`/`transcript.list`/
+    `transcript.show`; the entries' `authentication` functions `ask.identity`, `ask.reply.identity` and
+    `question.identity` leaving `who`/`via` in the session map (a refusal the engines' standard error body; the
+    ticket's `expired` and the engine's `nothing-waiting` bodies unchanged); the stream opening its head at once with
+    a day's idle allowance and following the feed off the worker (10 instances), the entry's `X-Accel-Buffering: no`
+    header block; the rest.yaml files copied from the Python pack. Two host changes mirrored: a keep-alive comment that
+    cannot be written ends a stream and closes its sink (`CLIENT_GONE` from `nextSegment`, both edges), and
+    `EventStreamWriter.connected` over `EventBus.hasSink`; the writer still closes on a dropped segment (Node only,
+    a superset). The exact-bytes replies and the dropped `id:` line were already the same decision in both packs.
   - **Next:** a live drive of the Node edge through an engine with the trace lineage checked; the engines' polyglot
     guide; the Python twins' first adopters.
   → proposal: RFC-0018 (mercury-composable)
   → serves: vision-mercury-nodejs
-  <!-- id: bp-rest-automation-nodejs | created: 2026-11-24 | last_used: 2026-11-25 | uses: 3 | tier: working | origin: 2026-11-24-235244 -->
+  <!-- id: bp-rest-automation-nodejs | created: 2026-11-24 | last_used: 2026-11-25 | uses: 4 | tier: working | origin: 2026-11-24-235244 -->

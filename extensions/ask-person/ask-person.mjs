@@ -56,12 +56,17 @@ export const SHOW_PREFIX = '/ask/';
 export const WAIT_SUFFIX = '/wait';
 export const REPLY_PATH = '/ask/reply';
 export const CONFIG_PATH = '/ask/config';
-// the reply page and endpoint are REST automation entries of resources/rest.yaml (RFC-0018), served by these
-// private functions of this process - never routes another application can call over Event-over-HTTP
-export const CONFIG_ROUTE = 'ask.reply.config';
-export const PAGE_ROUTE = 'ask.reply.page';
-export const WAIT_ROUTE = 'ask.reply.wait';
+// the reply page and endpoint: the URLs of resources/rest.yaml (RFC-0018) and the private functions behind them -
+// never routes another application can call over Event-over-HTTP
+export const PAGE_ROUTE = 'ask.page';
+export const WAIT_ROUTE = 'ask.wait';
 export const REPLY_ROUTE = 'ask.reply';
+export const CONFIG_ROUTE = 'ask.config';
+// the entries' authentication functions and the session keys they leave on the request
+export const IDENTITY_ROUTE = 'ask.identity';
+export const REPLY_IDENTITY_ROUTE = 'ask.reply.identity';
+export const SESSION_WHO = 'who';
+export const SESSION_VIA = 'via';
 export const AUTH_MODES = ['none', 'oauth2'];
 export const JWT_ALGORITHMS = ['RS256', 'RS384', 'RS512', 'ES256', 'ES384', 'ES512', 'PS256', 'PS384', 'PS512'];
 export const GRAPH_ID_HEADER = 'x-graph-id';
@@ -912,16 +917,14 @@ export async function askHealth(headers) {
 
 preload(ROUTE, { instances: INSTANCES }, personAsk);
 preload(HEALTH_ROUTE, { instances: 5, isPrivate: true }, askHealth);
-for (const [route, handler] of [[CONFIG_ROUTE, showConfig], [PAGE_ROUTE, showWait], [WAIT_ROUTE, readWait], [REPLY_ROUTE, postReply]]) {
-  preload(route, { instances: 10, isPrivate: true }, handler); // the reply page and endpoint (resources/rest.yaml)
-}
+// the reply page and endpoint and their authentication functions (resources/rest.yaml) are registered by attach(),
+// below their definitions
 
 // --- identity ---------------------------------------------------------------------------------
 
-/** The bearer token of a request's headers (the AsyncHttpRequest map's, matched case-insensitively), or null. */
-function bearerOf(headers) {
-  const name = Object.keys(headers).find((key) => key.toLowerCase() === 'authorization');
-  const value = name ? headers[name] : '';
+/** The bearer token of a request (the AsyncHttpRequest), or null. */
+function bearerOf(request) {
+  const value = request.header('authorization') ?? '';
   const at = value.indexOf(' ');
   if (at < 0) return null;
   const scheme = value.slice(0, at).toLowerCase();
@@ -993,8 +996,8 @@ function oauth2(config) {
  * configured mode - nobody in development, or a validated OAuth 2.0 access token (the page obtains one by
  * Authorization Code with PKCE, a channel app's device through its own UI).
  */
-export async function identify(headers, config, decidedBy, allowApp) {
-  const bearer = bearerOf(headers);
+export async function identify(request, config, decidedBy, allowApp) {
+  const bearer = bearerOf(request);
   if (allowApp && config.appToken && bearer && sameSecret(bearer, config.appToken)) {
     return { who: decidedBy || 'channel', via: 'app' };
   }
@@ -1005,6 +1008,50 @@ export async function identify(headers, config, decidedBy, allowApp) {
   if (!who) throw new ReplyError(401, 'the access token names nobody');
   return { who: String(who), via: 'oauth2' };
 }
+
+/**
+ * `decided_by` from a JSON body when it is text - the person a channel app acts for, or the name offered in
+ * development; anything else is left to the endpoint's own check.
+ */
+function claimed(request) {
+  const body = request.body;
+  const value = isMap(body) ? body.decided_by : undefined;
+  return isText(value) && value ? value : null;
+}
+
+/**
+ * The authentication function's reply: `true` with who decides in the headers, which the edge leaves on the request
+ * as its session map; a refusal is the error the invoker sees.
+ */
+async function verdict(body, allowApp) {
+  const request = new AsyncHttpRequest(body);
+  let identity;
+  try {
+    identity = await identify(request, currentSettings(), allowApp ? claimed(request) : null, allowApp);
+  } catch (error) {
+    if (!(error instanceof ReplyError)) throw error;
+    throw new AppException(error.status, error.message);
+  }
+  return new EventEnvelope().setBody(true).setHeader(SESSION_WHO, identity.who).setHeader(SESSION_VIA, identity.via);
+}
+
+/** The authentication function of GET /ask/{ticket}/wait (ask.identity): a person, by the configured mode. */
+export async function askIdentity(_headers, body) {
+  return verdict(body, false);
+}
+
+/**
+ * The authentication function of POST /ask/reply (ask.reply.identity): a channel app under its bearer, naming the
+ * person it acts for in `decided_by`, or a person by the configured mode.
+ */
+export async function askReplyIdentity(_headers, body) {
+  return verdict(body, true);
+}
+
+/** Who the entry's authentication function found, from the request's session map. */
+const identityOf = (request) => ({
+  who: request.sessionInfo(SESSION_WHO) || 'anonymous', via: request.sessionInfo(SESSION_VIA) || 'none'
+});
 
 // --- the reply page and endpoint --------------------------------------------------------------
 
@@ -1151,8 +1198,10 @@ function page(title, body, script = '') {
  * its nulls omitted, the engines' serializer default.
  */
 const textReply = (status, contentType, text) => new EventEnvelope().setStatus(status).setHeader('content-type', contentType).setBody(text);
-const htmlReply = (status, html) => textReply(status, 'text/html; charset=utf-8', html);
+const htmlReply = (status, html) => textReply(status, 'text/html', html);
 const jsonReply = (status, body) => textReply(status, 'application/json', JSON.stringify(body));
+/** A ticket that cannot be used, as the page's script reads it: `expired` for 410, else `error`. */
+const ticketRefusal = (error) => jsonReply(error.status, { type: error.status === 410 ? 'expired' : 'error', message: error.message });
 
 const notice = (status, title, message) => htmlReply(status, page(title, `<p>${escapeHtml(message)}</p>`));
 
@@ -1181,8 +1230,8 @@ export function pageConfig(config) {
   return result;
 }
 
-/** GET /ask/config (ask.reply.config): the sign-in configuration the page reads first - open, it holds no secret. */
-export async function showConfig() {
+/** GET /ask/config (ask.config): the sign-in configuration the page reads first - open, it holds no secret. */
+export async function askConfig() {
   return jsonReply(200, pageConfig(currentSettings()));
 }
 
@@ -1207,11 +1256,11 @@ async function engine(request, timeoutMs) {
 const ticketOf = (request) => request.pathParameter('ticket') ?? '';
 
 /**
- * GET /ask/{ticket} (ask.reply.page): the page for the wait - a shell whose script signs the person in when the
+ * GET /ask/{ticket} (ask.page): the page for the wait - a shell whose script signs the person in when the
  * installation asks for it and reads the wait from GET /ask/{ticket}/wait. A ticket that cannot be used is told so
  * here, before any sign-in; the graph is never resumed.
  */
-export async function showWait(_headers, body) {
+export async function askPage(_headers, body) {
   const ticket = ticketOf(new AsyncHttpRequest(body));
   const config = currentSettings();
   let payload;
@@ -1228,11 +1277,11 @@ export async function showWait(_headers, body) {
 }
 
 /**
- * GET /ask/{ticket}/wait: the current wait as the engine returns it on re-advice, for the page's script - the signed-in
- * person's request; never a resume. 410 nothing-waiting when the engine holds nothing; the engine's own status and body
- * when it refuses.
+ * GET /ask/{ticket}/wait (ask.wait): the current wait as the engine returns it on re-advice, for the page's script -
+ * the signed-in person's request (ask.identity); never a resume. 410 nothing-waiting when the engine holds nothing;
+ * the engine's own status and body when it refuses.
  */
-export async function readWait(_headers, body) {
+export async function askWait(_headers, body) {
   const request = new AsyncHttpRequest(body);
   const ticket = ticketOf(request);
   const config = currentSettings();
@@ -1241,15 +1290,14 @@ export async function readWait(_headers, body) {
     payload = verifyTicket(ticket, config.keys, Date.now() / 1000);
   } catch (error) {
     if (!(error instanceof TicketError)) throw error;
-    return jsonReply(error.status, { type: error.status === 410 ? 'expired' : 'error', message: error.message });
+    return ticketRefusal(error);
   }
   let readvice;
   try {
-    await identify(request.headers, config, null, false);
     readvice = readviceRequest(payload, config.graphs);
   } catch (error) {
     if (!(error instanceof ReplyError)) throw error;
-    return jsonReply(error.status, { type: 'error', message: error.message });
+    throw new AppException(error.status, error.message);
   }
   const [status, advice] = await engine(readvice, config.engineTimeoutMs);
   if (status === 410 || advice.type === 'nothing-waiting') {
@@ -1263,37 +1311,36 @@ export async function readWait(_headers, body) {
 }
 
 /**
- * POST /ask/reply (ask.reply): verify the ticket, identify who decides, forward the resume and return the engine's
- * outcome. The request body arrives parsed by its content type (the AsyncHttpRequest map); anything but a JSON map
- * is refused.
+ * POST /ask/reply (ask.reply): verify the ticket, take who decides from the entry's authentication function
+ * (ask.reply.identity), forward the resume and return the engine's outcome. The request body arrives parsed by its
+ * content type (the AsyncHttpRequest map); anything but a JSON map is refused.
  */
-export async function postReply(_headers, requestBody) {
+export async function askReply(_headers, requestBody) {
   const request = new AsyncHttpRequest(requestBody);
   const config = currentSettings();
   const body = request.body;
-  if (!isMap(body)) return jsonReply(400, { type: 'error', message: 'the reply must be a JSON map with ticket and decisions' });
+  if (!isMap(body)) throw new AppException(400, 'the reply must be a JSON map with ticket and decisions');
   const ticket = body.ticket;
-  if (!isText(ticket) || !ticket) return jsonReply(400, { type: 'error', message: 'ticket is required' });
+  if (!isText(ticket) || !ticket) throw new AppException(400, 'ticket is required');
   let payload;
   try {
     payload = verifyTicket(ticket, config.keys, Date.now() / 1000);
   } catch (error) {
     if (!(error instanceof TicketError)) throw error;
-    return jsonReply(error.status, { type: error.status === 410 ? 'expired' : 'error', message: error.message });
+    return ticketRefusal(error);
   }
   const decidedBy = body.decided_by;
   if (decidedBy !== undefined && decidedBy !== null && !isText(decidedBy)) {
-    return jsonReply(400, { type: 'error', message: 'decided_by must be text' });
+    throw new AppException(400, 'decided_by must be text');
   }
   const at = isoUtc();
-  let identity;
+  const identity = identityOf(request);
   let resume;
   try {
-    identity = await identify(request.headers, config, decidedBy || null, true);
     resume = buildResume(payload, body.decisions, identity.who, at, config.graphs);
   } catch (error) {
     if (!(error instanceof ReplyError)) throw error;
-    return jsonReply(error.status, { type: 'error', message: error.message });
+    throw new AppException(error.status, error.message);
   }
   const [status, outcome] = await engine(resume, config.engineTimeoutMs);
   log.info(`reply for ${payload.g} turn ${payload.t} by ${identity.who} via ${identity.via} - the graph answered ${status} ${outcome.type}`);
@@ -1309,16 +1356,18 @@ export async function postReply(_headers, requestBody) {
 /**
  * The reply page and endpoint as REST automation entries (resources/rest.yaml, served with rest.automation: true):
  * GET /ask/config, GET /ask/{ticket}, GET /ask/{ticket}/wait and POST /ask/reply, each a private function of this
- * process - the engines' way, in place of routes mounted by hand on the host.
+ * process, and the entries' authentication functions - the engines' way, in place of routes mounted by hand on the
+ * host.
  */
 export const REST_FUNCTIONS = [
-  [CONFIG_ROUTE, showConfig], [PAGE_ROUTE, showWait], [WAIT_ROUTE, readWait], [REPLY_ROUTE, postReply]
+  [CONFIG_ROUTE, askConfig], [PAGE_ROUTE, askPage], [WAIT_ROUTE, askWait], [REPLY_ROUTE, askReply],
+  [IDENTITY_ROUTE, askIdentity], [REPLY_IDENTITY_ROUTE, askReplyIdentity]
 ];
 
 /** Register the reply page's functions on a registry that lacks them (a platform of its own, in a test). */
 export function registerRestFunctions(registry = defaultRegistry) {
   for (const [route, handler] of REST_FUNCTIONS) {
-    if (!registry.exists(route)) registry.register(route, handler, { instances: 10, isPrivate: true });
+    if (!registry.exists(route)) registry.register(route, handler, { instances: INSTANCES, isPrivate: true });
   }
 }
 

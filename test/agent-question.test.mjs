@@ -245,6 +245,7 @@ class FakeReply {
 
 let reply;
 let replyUrl;
+let hostApi;
 let hostServer;
 let host;
 
@@ -254,7 +255,8 @@ before(async () => {
   // the host serves the extension's rest.yaml entries with the functions the module registered
   appConfig().set('rest.automation', true);
   appConfig().set('yaml.rest.automation', `file:${REST_YAML}`);
-  hostServer = new EventApiServer(defaultRegistry).createServer();
+  hostApi = new EventApiServer(defaultRegistry);
+  hostServer = hostApi.createServer();
   host = await listen(hostServer);
 });
 
@@ -337,6 +339,8 @@ test('the stream replays, then follows the feed with keep-alives', async () => {
     const response = await fetch(`${host}/questions/events`, { headers: { accept: 'text/event-stream' }, signal: controller.signal });
     assert.equal(response.status, 200);
     assert.match(response.headers.get('content-type'), /text\/event-stream/);
+    assert.equal(response.headers.get('cache-control'), 'no-cache');
+    assert.equal(response.headers.get('x-accel-buffering'), 'no', "the entry's response header: a reverse proxy must not buffer");
     const next = frames(response);
     // the edge renders the frames: the event name and the row, whose seq is the cursor the UI keeps
     const replayed = await next();
@@ -353,10 +357,14 @@ test('the stream replays, then follows the feed with keep-alives', async () => {
     const liveRow = JSON.parse(live[1].slice('data: '.length));
     assert.equal(liveRow.seq, 2);
     assert.equal(liveRow.kind, 'advice');
+    assert.ok('state' in liveRow && liveRow.state === null, 'a null stays on the wire - the UI reads it');
     controller.abort();
     const resumed = await fetch(`${host}/questions/events`, { headers: { 'last-event-id': '1' }, signal: AbortSignal.timeout(3000) });
     const first = await frames(resumed)();
     assert.equal(JSON.parse(first[1].slice('data: '.length)).seq, 2, 'the reconnect resumes after the cursor the browser kept');
+    const bad = await fetch(`${host}/questions/events`, { headers: { 'last-event-id': 'x' } });
+    assert.equal(bad.status, 400);
+    assert.ok((await bad.json()).message.includes('whole number'));
   } finally {
     controller.abort();
     clear();
@@ -679,12 +687,29 @@ test('attach registers the boot, the stream closer on shutdown and the cleanup, 
   };
   aq.attach(target);
   assert.deepEqual(calls.map(([phase]) => phase), ['startup', 'shutdown', 'cleanup']);
-  // the browser side's functions are registered on the platform's registry, where the rest.yaml entries find them
+  // the person's side's functions and their authentication function are registered on the platform's registry,
+  // where the rest.yaml entries find them
   for (const [route, , options] of aq.REST_FUNCTIONS) {
     const service = target.registry.get(route);
     assert.ok(service?.isPrivate, route);
     assert.equal(service.interceptor, Boolean(options.interceptor), route);
   }
+  const rest = hostApi.rest;
+  assert.ok(rest);
+  const expected = {
+    'GET /questions/config': 'question.config', 'GET /questions': 'question.list', 'GET /questions/events': 'question.events',
+    'POST /questions/7/decide': 'question.decide', 'GET /transcripts': 'transcript.list', [`GET /transcripts/${CONVERSATION_A}`]: 'transcript.show'
+  };
+  for (const [key, service] of Object.entries(expected)) {
+    const [method, path] = key.split(' ');
+    const assigned = rest.table.find(method, path);
+    assert.equal(assigned?.info.service, service, key);
+    assert.equal(assigned?.info.authentication === 'question.identity', service !== 'question.config', key);
+  }
+  const events = rest.table.find('GET', '/questions/events');
+  assert.ok(events?.info.stream && events.info.headers, 'a streaming entry with its response header block');
+  assert.deepEqual(rest.table.find('POST', '/questions/7/decide')?.pathParams, { id: '7' });
+  assert.equal(rest.table.find('POST', '/questions/7/seen'), undefined, 'the seen endpoint is gone with the state');
   assert.equal(calls[1][1], aq.closeStreams);
   // the platform's shutdown: the shutdown callbacks first (the streams end), then the cleanup, last registered first
   const order = [];

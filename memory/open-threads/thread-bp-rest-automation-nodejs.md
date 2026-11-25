@@ -53,7 +53,7 @@
     a superset). The exact-bytes replies and the dropped `id:` line were already the same decision in both packs. Both
     packs now serve their first adopters from one shape; what remains of the thread is the live drive and the guide.
   - **DOCUMENTED 2026-11-25 (Eric: "REST automation documentation for python and node"; branch
-    `docs/rest-automation-guide`, raised as PR #149):** the documentation site gains the REST Automation guide
+    `docs/rest-automation-guide`, raised as PR #149 and MERGED 2026-11-25, `08b6a18`):** the documentation site gains the REST Automation guide
     (`docs/guides/rest-automation.md`: turning it on, the file as the router, the function behind an entry with the
     `AsyncHttpRequest` accessors and the reply rules, what the edge does, authentication and the session map, streaming
     entries, the bounded upload, the `static-content` block, the default entries and the precedence, what a pack

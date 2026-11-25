@@ -13,6 +13,25 @@
   and the Rust port's 33 tests as the checklist. Build order when the shape is ruled: the Python pack first, this
   twin from the same vector file, the README and the engines' polyglot guide, a live drive. First adopters
   afterwards: the hand-mounted routes of the agent-question app and the ask-person flow.
+  - **Step 2 BUILT 2026-11-25 (the Node twin, started by the maintainer after the Python pack's #83, #84 and #86
+    merged; branch `claude/rest-automation-b7c805`, raised as PR #PRNUMBER against `main`):** `src/rest-routing.ts`
+    (the parser with the engines' messages and the pack's refusals by name, the default entries, the matching with
+    the engines' precedence, `keep` over `drop`, `parseTimeout`, the body dispatch, query and cookie parsing, the
+    `Accept` negotiation, the rendering and the response mapping), `src/async-http-request.ts` (`AsyncHttpRequest`,
+    `UploadedFile`, exported), `src/rest-automation.ts` (the edge on `node:http` in front of the host's paths, an
+    extension's routes and the static folder: the match, the `/` fallback, 405, the preflight, the built-in services
+    through `Actuator.byService`, the request preparation, authentication, the RPC and the interceptor sink, SSE and
+    chunked streams, upload through the runtime's `Response.formData()` with the raw body capped at the bound plus
+    the parts' headroom, the static-content filter and no-cache pages, the bare 404). The vector file copied byte for
+    byte (version 2, 129 cases, SHA-pinned), 51 tests mirroring the Python checklist, the demo's `hello.rest`, the
+    helper's `llm.upload` with `test/llm-upload.test.mjs`, README, CHANGELOG Added 12 and 13; `npm test` green.
+  - **Defaults set without a ruling (mirrored from the Python pack, plus the Node twin's own):** the edge decodes the
+    path and keeps the query string as the Python edge receives it (`&`, `=`, `+` escapes kept); the built-in
+    `event.api.service` is not raced against the entry's timeout (its own `x-ttl` bounds it), the actuators are; a
+    multipart body past the bound plus 1 MiB is a 413 before parsing; the `yaml` package reads `rest.yaml` as
+    YAML 1.1 with duplicate keys tolerated, PyYAML's reading.
+  - **Next:** a live drive of the Node edge through an engine with the trace lineage checked; the engines' polyglot
+    guide; the first adopters (the agent-question app's and the ask-person flow's hand-mounted routes).
   → proposal: RFC-0018 (mercury-composable)
   → serves: vision-mercury-nodejs
-  <!-- id: bp-rest-automation-nodejs | created: 2026-11-24 | last_used: 2026-11-24 | uses: 1 | tier: working | origin: 2026-11-24-235244 -->
+  <!-- id: bp-rest-automation-nodejs | created: 2026-11-24 | last_used: 2026-11-25 | uses: 2 | tier: working | origin: 2026-11-24-235244 -->

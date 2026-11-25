@@ -21,6 +21,9 @@
  * round-trip record with the responder's span (the caller side's record in
  * the engines); a drop-n-forget or streaming function emits its own record,
  * parented onto the service. An untraced call records nothing.
+ * With rest.automation=true the host also serves the entries of rest.yaml
+ * (rest-automation.ts) in front of its own paths, an extension's routes and
+ * the static folder.
  */
 import { randomBytes } from 'node:crypto';
 import * as http from 'node:http';
@@ -38,6 +41,7 @@ import {
   EXCEPTION,
   exceptionEnvelope,
   keepAliveMs,
+  nextSegment,
   STREAM_CALLER_REQUIRED,
   streamSignal,
   TEXT_EVENT_STREAM,
@@ -46,6 +50,7 @@ import {
 import { getLogger } from './log.js';
 import { activate as activateOtelForwarder } from './otel/index.js';
 import { defaultRegistry, FunctionRegistry, ServiceDef } from './registry.js';
+import { RestAutomation, restError } from './rest-automation.js';
 import { MY_CID_TAG, MY_CORRELATION_ID } from './trace.js';
 
 const OCTET_STREAM = 'application/octet-stream';
@@ -181,8 +186,10 @@ function refuse(res: http.ServerResponse, edge: Edge | undefined, status: number
 }
 
 export class EventApiServer {
-  private readonly actuator: Actuator;
-  private readonly files: StaticContent;
+  readonly actuator: Actuator;
+  readonly files: StaticContent;
+  /** The REST automation edge (`rest.automation=true`), or undefined when the host is as it was. */
+  readonly rest: RestAutomation | undefined;
 
   /** Thin ingress: protocol guards + header hygiene, then the registry's bus. */
   constructor(readonly registry: FunctionRegistry = defaultRegistry) {
@@ -190,10 +197,17 @@ export class EventApiServer {
     // the static content folder is resolved from the configuration at construction, as the
     // Actuator's settings are
     this.files = new StaticContent(resolveFolder(appConfig()));
+    // REST automation (rest.automation=true): the routing table of rest.yaml, loaded at
+    // construction so a misconfigured entry fails the start, never a request
+    this.rest = RestAutomation.load(appConfig(), this);
   }
 
-  private async handleEvent(req: http.IncomingMessage, res: http.ServerResponse,
-                            raw: Buffer): Promise<void> {
+  /**
+   * The Event API service for one request whose body was read: the host's own `POST /api/event`
+   * handler, also the built-in `event.api.service` of a REST automation entry.
+   */
+  async handleEvent(req: http.IncomingMessage, res: http.ServerResponse,
+                    raw: Buffer): Promise<void> {
     const ttl = Math.max(1000, Number.parseInt(String(req.headers['x-ttl'] ?? '0'), 10) || 0);
     const isAsync = req.headers['x-async'] === 'true';
     const event = decodeEvent(res, raw);
@@ -359,9 +373,12 @@ export class EventApiServer {
    * The Event API host: `POST /api/event`, the actuator paths, then the routes of the extensions given
    * (`Platform.addRoutes`), then the static content folder for a GET or HEAD and, last, the engines'
    * error shape - so the host's paths always win, an extension's path wins over a file and a file wins
-   * over the catch-all. A folder's `index.html` replaces the engines' landing page at `/`.
+   * over the catch-all. A folder's `index.html` replaces the engines' landing page at `/`. With REST
+   * automation on, the entries of `rest.yaml` come first - the host's paths among them as the engines'
+   * default entries - and the table's service check runs here, after the extensions' boot work.
    */
   createServer(routes: RouteMounter[] = []): http.Server {
+    this.rest?.startup();
     const extension = async (req: http.IncomingMessage, res: http.ServerResponse, url: URL): Promise<boolean> => {
       for (const mount of routes) {
         if (await mount(req, res, url)) {
@@ -370,26 +387,34 @@ export class EventApiServer {
       }
       return false;
     };
+    const readBody = (req: http.IncomingMessage): Promise<Buffer> => new Promise((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      req.on('data', (chunk: Buffer) => chunks.push(chunk));
+      req.on('end', () => resolve(Buffer.concat(chunks)));
+      req.on('error', reject);
+    });
+    // a static file for a GET or HEAD that names one - under the static-content rules of rest.yaml
+    // when REST automation is on
+    const staticFile = (req: http.IncomingMessage, res: http.ServerResponse, url: URL): Promise<boolean> =>
+      this.rest ? this.rest.serveStatic(req, res, url) : this.files.serve(req, res, url.pathname);
     return http.createServer((req, res) => {
       const url = new URL(req.url ?? '/', 'http://localhost');
-      if (req.method === 'POST' && url.pathname === '/api/event') {
-        const chunks: Buffer[] = [];
-        req.on('data', (chunk: Buffer) => chunks.push(chunk));
-        req.on('end', () => {
-          this.handleEvent(req, res, Buffer.concat(chunks)).catch((e) => {
-            transportError(res, 500, (e as Error).message ?? String(e));
-          });
-        });
-        req.on('error', () => res.destroy());
-        return;
-      }
-      // the actuator's paths stay the host's (a static folder's index.html replaces the landing page
-      // at /); an extension's path is asked next, then the static folder for a GET or HEAD; anything
-      // else is the engines' error shape, not Node's default
       const method = req.method ?? '';
       const fileRequest = method === 'GET' || method === 'HEAD';
       const own = async (): Promise<boolean> => {
-        if (fileRequest && url.pathname === '/' && await this.files.serve(req, res, '/')) {
+        // the rest.yaml entries win over the host's paths, an extension's routes and a file; a path
+        // nothing claims falls through to the static folder under the static-content rules
+        if (this.rest && await this.rest.handle(req, res, url)) {
+          return true;
+        }
+        if (method === 'POST' && url.pathname === '/api/event') {
+          await this.handleEvent(req, res, await readBody(req));
+          return true;
+        }
+        // the actuator's paths stay the host's (a static folder's index.html replaces the landing page
+        // at /); an extension's path is asked next, then the static folder for a GET or HEAD; anything
+        // else is the engines' error shape, not Node's default
+        if (fileRequest && url.pathname === '/' && await staticFile(req, res, url)) {
           return true;
         }
         if (method === 'GET' && await this.actuator.handle(url.pathname, res)) {
@@ -398,11 +423,16 @@ export class EventApiServer {
         if (await extension(req, res, url)) {
           return true;
         }
-        return fileRequest && await this.files.serve(req, res, url.pathname);
+        return fileRequest && await staticFile(req, res, url);
       };
       own().then((handled) => {
         if (!handled) {
-          sendError(res, 404, 'Resource not found');
+          if (this.rest) {
+            // nothing claims the path: the engines' 404, in their header shape
+            restError(res, 404, 'Resource not found');
+          } else {
+            sendError(res, 404, 'Resource not found');
+          }
         }
       }).catch((e) => {
         if (!res.headersSent) {
@@ -501,35 +531,6 @@ function classifySegment(event: EventEnvelope): { frame?: Buffer; end: boolean; 
     return { frame, end: true, status: event.getStatus() };
   }
   return { end: false, warn: true };
-}
-
-/**
- * Wait for the next segment within the idle allowance, emitting SSE
- * keep-alive comments while the producer is quiet (best-effort; pings never
- * extend the idle allowance).
- */
-async function nextSegment(res: http.ServerResponse, queue: Mailbox<EventEnvelope>,
-                           idleMs: number, pingMs: number): Promise<EventEnvelope | null> {
-  const deadline = Date.now() + idleMs;
-  // ONE pending waiter reused across ping cycles (see raceMs)
-  const pending = queue.next();
-  for (;;) {
-    const remaining = deadline - Date.now();
-    if (remaining <= 0) {
-      return null;
-    }
-    const wait = pingMs > 0 ? Math.min(remaining, pingMs) : remaining;
-    const event = await raceMs(pending, wait);
-    if (event) {
-      return event;
-    }
-    if (Date.now() >= deadline) {
-      return null;
-    }
-    if (!res.writableEnded && !res.destroyed) {
-      res.write(': ping\n\n');
-    }
-  }
 }
 
 export class Platform {

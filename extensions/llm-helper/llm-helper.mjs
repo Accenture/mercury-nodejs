@@ -34,14 +34,16 @@
  *       - route: 'llm.stream'
  *         target: 'http://127.0.0.1:8087/api/event'
  */
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import {
-  AppException, annotateTrace, appConfig, defaultRegistry, EventStreamWriter, getLogger, getTrace, isoUtc,
-  platform, PostOffice, preload
+  AppException, annotateTrace, appConfig, AsyncHttpRequest, defaultRegistry, EventStreamWriter, getLogger, getTrace,
+  isoUtc, platform, PostOffice, preload
 } from 'mercury-composable';
 import {
-  ATTACHMENTS_MAX_BYTES, ATTACHMENTS_ROOT, AttachmentError, loadInWorker, PDF_LIBRARY, resolveRoot
+  ATTACHMENTS_MAX_BYTES, ATTACHMENTS_ROOT, AttachmentError, loadInWorker, mediaType, PDF_LIBRARY, resolveRoot
 } from './attachments.mjs';
 
 const defaultLog = getLogger('llm-helper');
@@ -124,6 +126,11 @@ const PAGES = /^\d+(-\d+)?(,\d+(-\d+)?)*$/;
 // an image's limit as the provider counts it, base64-encoded: by the route to the models
 export const IMAGE_MAX_ENCODED = 10 * 1024 * 1024;
 export const BEDROCK_IMAGE_MAX_ENCODED = 5 * 1024 * 1024;
+// --- the document intake: llm.upload behind a REST automation entry with upload: true -----------
+// the files of a multipart upload saved under this folder of the root, each under a new name
+export const UPLOAD_FOLDER = 'uploads';
+export const UPLOAD_NO_FILES = 'upload: no file in the request - send multipart/form-data to an entry with upload: true';
+const SAFE_NAME = /[^A-Za-z0-9._-]/g;
 const STREAM_ATTACHMENTS = 'attachments are not part of the streaming contract - use llm.chat';
 const LOOP_ATTACHMENTS = 'attachments are not part of the loop contract - a loop turn carries text';
 const ATTACHMENTS_SHAPE = 'attachments must be a non-empty list of paths or {path, pages}';
@@ -967,6 +974,16 @@ const resultText = (value) => (typeof value === 'string' ? value : JSON.stringif
  * files a call names (in a worker thread) and pdfLibrary names the library that cuts a PDF. Tests
  * inject fakes.
  */
+/**
+ * The uploaded name as a safe suffix of the saved name: the base name only, hidden-entry dots
+ * stripped (the attachments rules would refuse them), every other character an underscore, at most
+ * 80 characters.
+ */
+export function safeName(filename) {
+  const base = filename ? path.posix.basename(filename) : '';
+  return base.replace(SAFE_NAME, '_').replace(/^\.+/, '').slice(0, 80);
+}
+
 export function createLlmHelper({
   prop = (key, fallback) => appConfig().getProperty(key, fallback),
   backend = defaultBackend((key, fallback) => appConfig().getProperty(key, fallback)),
@@ -1875,6 +1892,51 @@ export function createLlmHelper({
   }
 
   /**
+   * The document intake for the attachments folder (RFC-0016): behind a REST automation entry with
+   * `upload: true` (`POST /api/llm/upload` in resources/rest.yaml), the files of a multipart upload
+   * are saved under `uploads/` inside `llm.attachments.root`, each under a new name, and their
+   * references returned - the `path` a later `llm.chat` call names in `attachments`, the kind by the
+   * first bytes, the size and the SHA-256 the audit keeps, and `attachable`: whether the model takes
+   * the file as it is (a PDF or an image) or a conversion comes first (a word-processor file, a
+   * spreadsheet). The folder is readable through the model: put an authentication function or the
+   * gateway in front of the entry.
+   */
+  async function upload(_headers, body) {
+    const request = new AsyncHttpRequest(body);
+    const files = request.files();
+    if (!files.length) {
+      throw new AppException(400, UPLOAD_NO_FILES);
+    }
+    let root;
+    try {
+      root = await rootOf();
+    } catch (error) {
+      throw refusal(error);
+    }
+    const folder = path.join(root, UPLOAD_FOLDER);
+    await mkdir(folder, { recursive: true });
+    const saved = [];
+    for (const uploaded of files) {
+      const suffix = safeName(uploaded.name);
+      const id = randomUUID().replaceAll('-', '');
+      const name = suffix ? `${id}-${suffix}` : id;
+      await writeFile(path.join(folder, name), uploaded.content, { flag: 'wx' }); // a new name - never an overwrite
+      const detected = mediaType(uploaded.content.subarray(0, 16));
+      saved.push({
+        path: `${UPLOAD_FOLDER}/${name}`,
+        filename: uploaded.name,
+        media_type: detected ?? uploaded.contentType,
+        bytes: uploaded.content.length,
+        sha256: createHash('sha256').update(uploaded.content).digest('hex'),
+        attachable: detected !== undefined
+      });
+    }
+    trace('llm_uploads', String(saved.length));
+    log.info(`Uploaded ${saved.length} file(s), ${saved.reduce((sum, item) => sum + item.bytes, 0)} bytes`);
+    return { files: saved };
+  }
+
+  /**
    * Single-shot completion - the AI node a graph's graph.task or a flow's task calls.
    *
    * Input (map):
@@ -2218,7 +2280,7 @@ export function createLlmHelper({
   }
 
   return {
-    prepare, plan, chat, stream, health, transcriptAudit, auditSweep, auditBoot, auditShutdown,
+    prepare, plan, chat, stream, health, upload, transcriptAudit, auditSweep, auditBoot, auditShutdown,
     auditSingleIdle, singleSaves: () => singleSaves.size, attachmentsBoot,
     sweeping: () => sweepTimer !== undefined
   };
@@ -2228,6 +2290,7 @@ const helper = createLlmHelper();
 preload('llm.chat', { instances: 50 }, helper.chat);
 preload('llm.stream', { instances: 50, interceptor: true }, helper.stream);
 preload('llm.health', { instances: 5, isPrivate: true }, helper.health);
+preload('llm.upload', { instances: 10 }, helper.upload);
 // the audit starts inside the serving loop, before the host listens, when it is configured
 platform.onStartup(helper.auditBoot);
 platform.onStartup(helper.attachmentsBoot); // a configured root that is not a folder stops the start

@@ -173,8 +173,12 @@ export class StaticContent {
     }
   }
 
-  /** Answer a GET or HEAD that names a file; false when the path is not ours. */
-  async serve(req: http.IncomingMessage, res: http.ServerResponse, pathname: string): Promise<boolean> {
+  /**
+   * Answer a GET or HEAD that names a file; false when the path is not ours. `extra` headers ride the
+   * response after the file's own (the REST automation edge's filter headers and no-cache headers).
+   */
+  async serve(req: http.IncomingMessage, res: http.ServerResponse, pathname: string,
+              extra: Record<string, string> = {}): Promise<boolean> {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       return false;
     }
@@ -192,6 +196,9 @@ export class StaticContent {
     };
     if (type.startsWith('text/html')) {
       headers['cache-control'] = 'no-cache';
+    }
+    for (const [name, value] of Object.entries(extra)) {
+      headers[name.toLowerCase()] = value;
     }
     if (etagMatches(req.headers['if-none-match'], etag)) {
       res.writeHead(304, headers);

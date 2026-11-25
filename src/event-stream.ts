@@ -24,6 +24,8 @@
  * in-band failure body carries the standard error key-values
  * '{"type": "error", "status": n, "message": text}'.
  */
+import type * as http from 'node:http';
+import { Mailbox, raceMs } from './bus.js';
 import { appConfig } from './config.js';
 import { EventEnvelope } from './envelope.js';
 import { AppException } from './exceptions.js';
@@ -184,6 +186,35 @@ export function keepAliveMs(): number {
     value = parse(raw) * 1000;
   }
   return Number.isFinite(value) ? value : 30_000;
+}
+
+/**
+ * Wait for the next segment of a streaming reply within the idle allowance, emitting SSE
+ * keep-alive comments while the producer is quiet (best-effort; pings never extend the idle
+ * allowance); null at expiry. Shared by the Event API edge and the REST automation edge.
+ */
+export async function nextSegment(res: http.ServerResponse, queue: Mailbox<EventEnvelope>,
+                                  idleMs: number, pingMs: number): Promise<EventEnvelope | null> {
+  const deadline = Date.now() + idleMs;
+  // ONE pending waiter reused across ping cycles (see raceMs)
+  const pending = queue.next();
+  for (;;) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      return null;
+    }
+    const wait = pingMs > 0 ? Math.min(remaining, pingMs) : remaining;
+    const event = await raceMs(pending, wait);
+    if (event) {
+      return event;
+    }
+    if (Date.now() >= deadline) {
+      return null;
+    }
+    if (!res.writableEnded && !res.destroyed) {
+      res.write(': ping\n\n');
+    }
+  }
 }
 
 /**

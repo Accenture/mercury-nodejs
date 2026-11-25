@@ -9,6 +9,8 @@
  * plus the minimalist utilities (configuration, logging, telemetry) shared
  * with the engine style.
  */
+export { AsyncHttpRequest } from './async-http-request.js';
+export type { UploadedFile } from './async-http-request.js';
 export { PostOffice } from './client.js';
 export type { CallOptions } from './client.js';
 export { AppConfig, appConfig, loadConfig } from './config.js';
@@ -29,6 +31,9 @@ export { AppException, CompactFormatError } from './exceptions.js';
 export { getLogger, Logger } from './log.js';
 export { defaultRegistry, FunctionRegistry, preload, splitRoutes, validateRoute } from './registry.js';
 export type { Handler, ServiceDef } from './registry.js';
+export { RestAutomation } from './rest-automation.js';
+export { RouteInfo, RoutingTable } from './rest-routing.js';
+export type { AssignedRoute } from './rest-routing.js';
 export { EventApiServer, Platform, platform } from './server.js';
 export type { RouteMounter } from './server.js';
 export * as otel from './otel/index.js';

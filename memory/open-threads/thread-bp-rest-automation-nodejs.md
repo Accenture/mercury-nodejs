@@ -30,8 +30,18 @@
     `event.api.service` is not raced against the entry's timeout (its own `x-ttl` bounds it), the actuators are; a
     multipart body past the bound plus 1 MiB is a 413 before parsing; the `yaml` package reads `rest.yaml` as
     YAML 1.1 with duplicate keys tolerated, PyYAML's reading.
+  - **First adopters BUILT 2026-11-25 (Eric: "please refactor the hand-mounted routes with rest.yaml"; branch
+    `feat/rest-first-adopters`, raised as PR #147):** the ask-person reply page and endpoint and the agent-question
+    browser side are `rest.yaml` entries of their applications, each a private function reading the `AsyncHttpRequest`
+    map; `Platform.addRoutes` is no longer used by either. The stream is an interceptor behind `stream: true` with a
+    no-body heartbeat segment (the edge writes nothing for it, renews its idle allowance, and its drop closes the
+    writer - a core change in `EventStreamWriter`). Defaults set without a ruling: the functions reply with the exact
+    bytes as text with a content type (a map body would be pretty-printed with its nulls omitted, and the React UI
+    reads nulls); the SSE `id:` line is gone (the UI keeps its cursor from the row's `seq`); the stream's instances
+    200 bound the devices; the entries' timeouts exceed the apps' engine and reply timeouts. The Python twins still
+    mount their routes and follow from these entries.
   - **Next:** a live drive of the Node edge through an engine with the trace lineage checked; the engines' polyglot
-    guide; the first adopters (the agent-question app's and the ask-person flow's hand-mounted routes).
+    guide; the Python twins' first adopters.
   → proposal: RFC-0018 (mercury-composable)
   → serves: vision-mercury-nodejs
-  <!-- id: bp-rest-automation-nodejs | created: 2026-11-24 | last_used: 2026-11-25 | uses: 2 | tier: working | origin: 2026-11-24-235244 -->
+  <!-- id: bp-rest-automation-nodejs | created: 2026-11-24 | last_used: 2026-11-25 | uses: 3 | tier: working | origin: 2026-11-24-235244 -->

@@ -16,7 +16,7 @@ import { readFileSync } from 'node:fs';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { after, before, test } from 'node:test';
-import { AppException, appConfig, EventApiServer, FunctionRegistry, isoUtc, Platform, PostOffice } from 'mercury-composable';
+import { AppException, appConfig, defaultRegistry, EventApiServer, FunctionRegistry, isoUtc, Platform, PostOffice } from 'mercury-composable';
 import * as aq from '../extensions/agent-question/agent-question.mjs';
 
 const VECTORS_FILE = new URL('./vectors/agent-question-vectors.json', import.meta.url);
@@ -25,6 +25,8 @@ const VECTORS_SHA256 = 'ec5f3490cb2993feaf40e9ac91c8fc1748d5e2c6fa1c8cd55122ad9f
 const VECTORS = JSON.parse(readFileSync(VECTORS_FILE, 'utf8'));
 const RECORD_SCHEMA = new URL('../extensions/ask-person/schema/postgres.sql', import.meta.url);
 const PUBLIC = fileURLToPath(new URL('../extensions/agent-question/resources/public', import.meta.url));
+// the browser side is rest.yaml entries: the host reads the extension's file (RFC-0018)
+const REST_YAML = fileURLToPath(new URL('../extensions/agent-question/resources/rest.yaml', import.meta.url));
 const TRANSCRIPT_SCHEMA = new URL('../extensions/llm-helper/schema/postgres.sql', import.meta.url);
 
 const ISSUER = 'https://issuer.example.test';
@@ -249,7 +251,10 @@ let host;
 before(async () => {
   reply = new FakeReply();
   replyUrl = await listen(reply.server);
-  hostServer = new EventApiServer(new FunctionRegistry()).createServer([aq.mount]);
+  // the host serves the extension's rest.yaml entries with the functions the module registered
+  appConfig().set('rest.automation', true);
+  appConfig().set('yaml.rest.automation', `file:${REST_YAML}`);
+  hostServer = new EventApiServer(defaultRegistry).createServer();
   host = await listen(hostServer);
 });
 
@@ -333,21 +338,25 @@ test('the stream replays, then follows the feed with keep-alives', async () => {
     assert.equal(response.status, 200);
     assert.match(response.headers.get('content-type'), /text\/event-stream/);
     const next = frames(response);
+    // the edge renders the frames: the event name and the row, whose seq is the cursor the UI keeps
     const replayed = await next();
-    assert.equal(replayed[0], 'id: 1');
-    assert.equal(replayed[1], 'event: question');
-    assert.equal(JSON.parse(replayed[2].slice('data: '.length)).ticket, 't-answer');
+    assert.equal(replayed[0], 'event: question');
+    const replayedRow = JSON.parse(replayed[1].slice('data: '.length));
+    assert.equal(replayedRow.seq, 1);
+    assert.equal(replayedRow.ticket, 't-answer');
     const ping = await next();
-    assert.deepEqual(ping, [': ping'], 'a keep-alive while nothing changes');
+    assert.deepEqual(ping, [': ping'], "a keep-alive while nothing changes - the edge's");
     put(adviceEvent(), 2, 2);
     await aq.feed.pollOnce();
     const live = await next();
-    assert.equal(live[0], 'id: 2');
-    assert.equal(JSON.parse(live[2].slice('data: '.length)).kind, 'advice');
+    assert.equal(live[0], 'event: question');
+    const liveRow = JSON.parse(live[1].slice('data: '.length));
+    assert.equal(liveRow.seq, 2);
+    assert.equal(liveRow.kind, 'advice');
     controller.abort();
     const resumed = await fetch(`${host}/questions/events`, { headers: { 'last-event-id': '1' }, signal: AbortSignal.timeout(3000) });
     const first = await frames(resumed)();
-    assert.equal(first[0], 'id: 2', 'the reconnect resumes after the cursor the browser kept');
+    assert.equal(JSON.parse(first[1].slice('data: '.length)).seq, 2, 'the reconnect resumes after the cursor the browser kept');
   } finally {
     controller.abort();
     clear();
@@ -666,10 +675,16 @@ test('attach registers the boot, the stream closer on shutdown and the cleanup, 
   const calls = [];
   const target = {
     onStartup: (cb) => calls.push(['startup', cb]), onShutdown: (cb) => calls.push(['shutdown', cb]),
-    onCleanup: (cb) => calls.push(['cleanup', cb]), addRoutes: (m) => calls.push(['routes', m])
+    onCleanup: (cb) => calls.push(['cleanup', cb]), registry: new FunctionRegistry()
   };
   aq.attach(target);
-  assert.deepEqual(calls.map(([phase]) => phase), ['startup', 'shutdown', 'cleanup', 'routes']);
+  assert.deepEqual(calls.map(([phase]) => phase), ['startup', 'shutdown', 'cleanup']);
+  // the browser side's functions are registered on the platform's registry, where the rest.yaml entries find them
+  for (const [route, , options] of aq.REST_FUNCTIONS) {
+    const service = target.registry.get(route);
+    assert.ok(service?.isPrivate, route);
+    assert.equal(service.interceptor, Boolean(options.interceptor), route);
+  }
   assert.equal(calls[1][1], aq.closeStreams);
   // the platform's shutdown: the shutdown callbacks first (the streams end), then the cleanup, last registered first
   const order = [];
@@ -681,7 +696,7 @@ test('attach registers the boot, the stream closer on shutdown and the cleanup, 
   assert.deepEqual(order, ['shutdown', 'cleanup-2', 'cleanup-1']);
 });
 
-test('the platform hooks mount the routes and run the boot, and the host serves the committed UI bundle at the root', async () => {
+test('the platform hooks register the entries\' functions and run the boot, and the host serves the committed UI bundle at the root', async () => {
   // the React UI is built in extensions/agent-question-ui and its bundle committed in resources/public next to the
   // application file; the host's static content service serves it at the root - the app generates no page
   const clear = configure({ ...BASE, 'static.html.folder': `file:${PUBLIC}` });

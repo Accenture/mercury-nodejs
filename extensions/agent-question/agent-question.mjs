@@ -9,7 +9,8 @@
  * - agent.question.inbox is the intake, a composable function reached over Event-over-HTTP like any peer function. It
  *   writes nothing: the record is the recorder's (question.audit in the ask-person process). It checks the event and
  *   wakes the feed, so a connected device sees the row the moment it is recorded.
- * - The browser side runs under the pack's host (Platform.addRoutes). GET /questions/config tells the UI how to sign
+ * - The browser side is a set of REST automation entries (resources/rest.yaml, the engines' grammar, served with
+ *   rest.automation: true), each a private function of this process. GET /questions/config tells the UI how to sign
  *   in; GET /questions?since=<seq> is the replay a reconnecting device calls first - every row that changed since its
  *   cursor, oldest change first; GET /questions?before=<seq>&limit=<n> the history's older page, newest first, for an
  *   infinite scroll; GET /questions/events the stream a connected device holds, each event a changed row, Last-Event-ID
@@ -34,7 +35,10 @@
  */
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { AppException, appConfig, getLogger, isoUtc, loadConfig, platform, preload } from 'mercury-composable';
+import {
+  AppException, appConfig, AsyncHttpRequest, defaultRegistry, EventEnvelope, EventStreamWriter, getLogger, isoUtc, loadConfig,
+  platform, preload
+} from 'mercury-composable';
 
 const log = getLogger('agent-question');
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -51,6 +55,19 @@ export const LIST_PATH = '/questions';
 export const EVENTS_PATH = '/questions/events';
 export const CONFIG_PATH = '/questions/config';
 export const TRANSCRIPTS_PATH = '/transcripts';
+// the browser side's functions behind the entries of resources/rest.yaml (RFC-0018) - private, this process's own
+export const CONFIG_ROUTE = 'question.ui.config';
+export const ROWS_ROUTE = 'question.rows';
+export const EVENTS_ROUTE = 'question.events';
+export const TRANSCRIPTS_ROUTE = 'question.transcripts';
+export const TRANSCRIPT_ROUTE = 'question.transcript';
+export const DECIDE_ROUTE = 'question.decide';
+// a device's stream is one worker of question.events for as long as it is held: the instances bound the devices
+export const STREAM_INSTANCES = 200;
+// the idle allowance a stream declares to the REST edge (its head's x-ttl, seconds) and the heartbeat that renews it:
+// a segment with no body, which the edge writes nothing for - and whose drop tells a stream its device is gone
+export const STREAM_IDLE_SECONDS = 120;
+export const STREAM_HEARTBEAT_MS = 25_000;
 export const AUTH_MODES = ['none', 'oauth2'];
 export const JWT_ALGORITHMS = ['RS256', 'RS384', 'RS512', 'ES256', 'ES384', 'ES512', 'PS256', 'PS384', 'PS512'];
 export const LIST_LIMIT = 200;
@@ -659,11 +676,14 @@ export async function questionHealth(headers) {
 
 preload(INTAKE_ROUTE, { instances: 5 }, intake);
 preload(HEALTH_ROUTE, { instances: 5, isPrivate: true }, questionHealth);
+// the browser side's functions (resources/rest.yaml) are registered by attach(), below their definitions
 
 // --- identity ---------------------------------------------------------------------------------
 
-function bearerOf(req) {
-  const value = req.headers.authorization ?? '';
+/** The bearer token of a request's headers (the AsyncHttpRequest map's, matched case-insensitively), or null. */
+function bearerOf(headers) {
+  const name = Object.keys(headers).find((key) => key.toLowerCase() === 'authorization');
+  const value = name ? headers[name] : '';
   const at = value.indexOf(' ');
   if (at < 0) return null;
   const token = value.slice(at + 1).trim();
@@ -721,9 +741,9 @@ function oauth2(config) {
 }
 
 /** Who is at the UI: nobody is asked in development, or a validated access token (obtained by the UI through PKCE). */
-export async function identify(req, config, claimed) {
+export async function identify(headers, config, claimed) {
   if (config.auth === 'none') return { who: claimed || 'anonymous', via: 'none' };
-  const bearer = bearerOf(req);
+  const bearer = bearerOf(headers);
   if (!bearer) throw new ReplyError(401, 'sign-in required - a bearer access token');
   const claims = await oauth2(config).verify(bearer);
   const who = claims.preferred_username || claims.email || claims.sub;
@@ -733,18 +753,12 @@ export async function identify(req, config, claimed) {
 
 // --- the browser side -------------------------------------------------------------------------
 
-function sendJson(res, status, body) {
-  res.writeHead(status, { 'content-type': 'application/json' });
-  res.end(JSON.stringify(body));
-}
-
-const sendError = (res, status, message) => sendJson(res, status, { type: 'error', message });
-
-async function readBody(req) {
-  const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
-  return Buffer.concat(chunks).toString('utf8');
-}
+/**
+ * A reply the REST edge renders as it is: the JSON compact with its nulls kept, the bytes the UI always read - where
+ * a map body would be pretty-printed with its nulls omitted, the engines' serializer default.
+ */
+const jsonReply = (status, body) => new EventEnvelope().setStatus(status).setHeader('content-type', 'application/json').setBody(JSON.stringify(body));
+const errorReply = (status, message) => jsonReply(status, { type: 'error', message });
 
 /** What the UI needs before it signs in: the auth mode, the title and, under oauth2, the issuer, the public client id, the scopes and the audience. */
 export function uiConfig(config) {
@@ -755,9 +769,9 @@ export function uiConfig(config) {
   return result;
 }
 
-/** GET /questions/config: the UI's sign-in configuration - open, it holds no secret. */
-export async function showConfig(_req, res) {
-  sendJson(res, 200, uiConfig(currentSettings()));
+/** GET /questions/config (question.ui.config): the UI's sign-in configuration - open, it holds no secret. */
+export async function showConfig() {
+  return jsonReply(200, uiConfig(currentSettings()));
 }
 
 /** A whole number from a query value, the default when absent; null when not a number. */
@@ -771,36 +785,37 @@ function whole(value, defaultValue) {
  * continue from - the replay. GET /questions?before=<seq>&limit=<n>: the history's older page, newest change first, and
  * the cursor of the page before it - the infinite scroll.
  */
-export async function listRows(req, res, url) {
+export async function listRows(_headers, body) {
+  const request = new AsyncHttpRequest(body);
   const config = currentSettings();
   try {
-    await identify(req, config, null);
+    await identify(request.headers, config, null);
   } catch (error) {
     if (!(error instanceof ReplyError)) throw error;
-    return sendError(res, error.status, error.message);
+    return errorReply(error.status, error.message);
   }
-  const limitRaw = whole(url.searchParams.get('limit'), LIST_LIMIT);
-  const history = url.searchParams.has('before');
-  const before = history ? whole(url.searchParams.get('before'), null) : null;
-  const since = history ? 0 : whole(url.searchParams.get('since'), 0);
-  if (limitRaw === null || since === null || (history && url.searchParams.get('before') && before === null)) {
-    return sendError(res, 400, 'since, before and limit must be whole numbers');
+  const query = request.queryParametersMap;
+  const limitRaw = whole(request.queryParameter('limit'), LIST_LIMIT);
+  const history = 'before' in query;
+  const before = history ? whole(request.queryParameter('before'), null) : null;
+  const since = history ? 0 : whole(request.queryParameter('since'), 0);
+  if (limitRaw === null || since === null || (history && request.queryParameter('before') && before === null)) {
+    return errorReply(400, 'since, before and limit must be whole numbers');
   }
   const limit = Math.min(LIST_LIMIT_MAX, Math.max(1, limitRaw));
   try {
     if (history) {
       const older = await reader().before(before, limit);
-      return sendJson(res, 200, { ...pageBefore(older, null, limit), before });
+      return jsonReply(200, { ...pageBefore(older, null, limit), before });
     }
     const rows = await reader().since(since, limit);
-    return sendJson(res, 200, { ...pageSince(rows, since, limit), since });
+    return jsonReply(200, { ...pageSince(rows, since, limit), since });
   } catch (error) {
     log.warn(`The record could not be read - ${failure(error)}`);
-    return sendError(res, 503, 'the question record is not available');
+    return errorReply(503, 'the question record is not available');
   }
 }
 
-const frame = (row) => `id: ${row.seq}\nevent: question\ndata: ${JSON.stringify(publicRow(row))}\n\n`;
 
 /** The host's SSE keep-alive interval (event.stream.keep.alive, the engines' key; default 30s, 0 disables). */
 export function keepAliveMs() {
@@ -812,93 +827,105 @@ export function keepAliveMs() {
   return Number.parseInt(match[1], 10) * (unit === 'ms' ? 1 : unit === 'm' ? 60_000 : 1000);
 }
 
-/** GET /questions/events: rows since Last-Event-ID (or since) first, then every change the feed finds; keep-alive comments. */
-export async function events(req, res, url) {
+/**
+ * GET /questions/events (question.events, an interceptor behind an entry with stream: true): rows since Last-Event-ID
+ * (or since) first, then every change the feed finds, each a `question` event whose data is the row - the REST edge
+ * renders the Server-Sent Events and the keep-alive comments. A refusal is the head of the stream: its status and a
+ * JSON body, closed at once. The stream ends when the application stops (closeStreams) or its device is gone (a
+ * heartbeat segment the edge no longer takes).
+ */
+export async function events(_headers, event) {
+  const request = new AsyncHttpRequest(event.body);
+  const out = EventStreamWriter.fromRequest(event);
+  const refuse = (status, message) => {
+    out.first(status, 'application/json');
+    out.write(JSON.stringify({ type: 'error', message }));
+    out.close();
+  };
   const config = currentSettings();
   try {
-    await identify(req, config, null);
+    await identify(request.headers, config, null);
   } catch (error) {
     if (!(error instanceof ReplyError)) throw error;
-    return sendError(res, error.status, error.message);
+    return refuse(error.status, error.message);
   }
-  let since = Number(req.headers['last-event-id'] || url.searchParams.get('since') || '0');
-  if (!Number.isInteger(since)) return sendError(res, 400, 'Last-Event-ID must be a whole number');
-  res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', 'x-accel-buffering': 'no' });
+  let since = Number(request.header('last-event-id') || request.queryParameter('since') || '0');
+  if (!Number.isInteger(since)) return refuse(400, 'Last-Event-ID must be a whole number');
+  out.first(200, 'text/event-stream', STREAM_IDLE_SECONDS);
   const queue = wakeups.subscribe();
-  const pingMs = keepAliveMs();
+  const send = (row) => {
+    out.writeNamed('question', JSON.stringify(publicRow(row)));
+    since = row.seq;
+  };
   try {
-    for (const row of await reader().since(since, LIST_LIMIT_MAX)) {
-      res.write(frame(row));
-      since = row.seq;
-    }
-    while (!res.writableEnded && !res.destroyed) {
-      const row = await Wakeups.next(queue, pingMs > 0 ? pingMs : 3_600_000);
-      if (res.writableEnded || res.destroyed) break;
-      if (row === CLOSED) break; // the application is stopping; the device reconnects
+    for (const row of await reader().since(since, LIST_LIMIT_MAX)) send(row);
+    while (!out.closed) {
+      const row = await Wakeups.next(queue, STREAM_HEARTBEAT_MS);
+      if (out.closed || row === CLOSED) break; // the application is stopping; the device reconnects
       if (row === null) {
-        res.write(': ping\n\n');
+        out.write(null); // the heartbeat: nothing on the wire, the edge's idle allowance renewed, a gone device found
         continue;
       }
-      if (row.seq > since) {
-        res.write(frame(row));
-        since = row.seq;
-      }
+      if (row.seq > since) send(row);
     }
   } catch (error) {
     log.warn(`The stream could not read the record - ${failure(error)}`); // the device reconnects
   } finally {
     wakeups.unsubscribe(queue);
+    out.close();
   }
-  if (!res.writableEnded) res.end();
 }
 
 /** GET /transcripts?before=<iso>&limit=<n>&correlation_id=&graph_id=: the audit store's conversations, newest first. */
-export async function listTranscripts(req, res, url) {
+export async function listTranscripts(_headers, body) {
+  const request = new AsyncHttpRequest(body);
   const config = currentSettings();
   try {
-    await identify(req, config, null);
+    await identify(request.headers, config, null);
   } catch (error) {
     if (!(error instanceof ReplyError)) throw error;
-    return sendError(res, error.status, error.message);
+    return errorReply(error.status, error.message);
   }
-  let before = url.searchParams.get('before') || null;
+  let before = request.queryParameter('before') || null;
   if (before !== null) {
     const parsed = parseIso(before);
-    if (parsed === null) return sendError(res, 400, 'before must be an ISO-8601 time');
+    if (parsed === null) return errorReply(400, 'before must be an ISO-8601 time');
     before = isoUtc(parsed);
   }
-  const limitRaw = whole(url.searchParams.get('limit'), TRANSCRIPTS_LIMIT);
-  if (limitRaw === null) return sendError(res, 400, 'limit must be a whole number');
+  const limitRaw = whole(request.queryParameter('limit'), TRANSCRIPTS_LIMIT);
+  if (limitRaw === null) return errorReply(400, 'limit must be a whole number');
   const limit = Math.min(TRANSCRIPTS_LIMIT_MAX, Math.max(1, limitRaw));
   let rows;
   try {
-    rows = await reader().conversations(before, limit, url.searchParams.get('correlation_id') || null, url.searchParams.get('graph_id') || null);
+    rows = await reader().conversations(before, limit, request.queryParameter('correlation_id') || null, request.queryParameter('graph_id') || null);
   } catch (error) {
     log.warn(`The transcripts could not be read - ${failure(error)}`);
-    return sendError(res, 503, 'the transcript audit store is not available');
+    return errorReply(503, 'the transcript audit store is not available');
   }
-  return sendJson(res, 200, { conversations: rows, next: rows.length > 0 ? rows.at(-1).started_at : null, more: rows.length >= limit });
+  return jsonReply(200, { conversations: rows, next: rows.length > 0 ? rows.at(-1).started_at : null, more: rows.length >= limit });
 }
 
-/** GET /transcripts/{conversation}: one conversation of the audit store with its turns, as the model exchanged them. */
-export async function showTranscript(req, res, conversation) {
+/** GET /transcripts/{conversation} (question.transcript): one conversation of the audit store with its turns, as the model exchanged them. */
+export async function showTranscript(_headers, body) {
+  const request = new AsyncHttpRequest(body);
+  const conversation = request.pathParameter('conversation') ?? '';
   const config = currentSettings();
   try {
-    await identify(req, config, null);
+    await identify(request.headers, config, null);
   } catch (error) {
     if (!(error instanceof ReplyError)) throw error;
-    return sendError(res, error.status, error.message);
+    return errorReply(error.status, error.message);
   }
-  if (!CONVERSATION_ID.test(conversation)) return sendError(res, 400, 'a conversation is 32 hexadecimal characters');
+  if (!CONVERSATION_ID.test(conversation)) return errorReply(400, 'a conversation is 32 hexadecimal characters');
   let found;
   try {
     found = await reader().conversation(conversation);
   } catch (error) {
     log.warn(`The transcript could not be read - ${failure(error)}`);
-    return sendError(res, 503, 'the transcript audit store is not available');
+    return errorReply(503, 'the transcript audit store is not available');
   }
-  if (!found) return sendError(res, 404, `conversation ${conversation} is not in the audit store`);
-  return sendJson(res, 200, found);
+  if (!found) return errorReply(404, `conversation ${conversation} is not in the audit store`);
+  return jsonReply(200, found);
 }
 
 async function forward(url, body, config) {
@@ -924,44 +951,43 @@ async function forward(url, body, config) {
  * reply endpoint under this app's bearer, the recorder behind that endpoint writes the answer on the row, and the
  * invoker gets the row as it then stands with the engine's outcome; the feed carries the change to every device.
  */
-export async function decide(req, res, id) {
+export async function decide(_headers, requestBody) {
+  const request = new AsyncHttpRequest(requestBody);
+  const idText = request.pathParameter('id') ?? '';
+  if (!/^\d+$/.test(idText)) return errorReply(400, 'the row id must be a whole number');
+  const id = Number(idText);
   const config = currentSettings();
-  let body;
-  try {
-    body = JSON.parse(await readBody(req));
-  } catch {
-    body = null;
-  }
-  if (!isMap(body)) return sendError(res, 400, 'the decision must be a JSON map with decisions');
+  const body = request.body;
+  if (!isMap(body)) return errorReply(400, 'the decision must be a JSON map with decisions');
   const claimed = body.decided_by;
-  if (claimed !== undefined && claimed !== null && !isText(claimed)) return sendError(res, 400, 'decided_by must be text');
+  if (claimed !== undefined && claimed !== null && !isText(claimed)) return errorReply(400, 'decided_by must be text');
   let identity;
   try {
-    identity = await identify(req, config, claimed || null);
+    identity = await identify(request.headers, config, claimed || null);
   } catch (error) {
     if (!(error instanceof ReplyError)) throw error;
-    return sendError(res, error.status, error.message);
+    return errorReply(error.status, error.message);
   }
   const decisions = body.decisions;
   if (!Array.isArray(decisions) || decisions.length === 0 || !decisions.every(isMap)) {
-    return sendError(res, 400, 'decisions must be a non-empty list, one per waiting call');
+    return errorReply(400, 'decisions must be a non-empty list, one per waiting call');
   }
   let row;
   try {
     row = await reader().get(id);
   } catch (error) {
     log.warn(`The record could not be read - ${failure(error)}`);
-    return sendError(res, 503, 'the question record is not available');
+    return errorReply(503, 'the question record is not available');
   }
-  if (!row) return sendError(res, 404, `row ${id} is not in the record`);
-  if (!WAIT_KINDS.includes(row.kind) || !row.ticket || !row.link) return sendError(res, 409, `row ${id} is an advice - nothing to decide`);
-  if (row.state !== 'open') return sendError(res, 409, `row ${id} is ${row.state} - decided by ${row.answered_by ?? 'nobody'}`);
+  if (!row) return errorReply(404, `row ${id} is not in the record`);
+  if (!WAIT_KINDS.includes(row.kind) || !row.ticket || !row.link) return errorReply(409, `row ${id} is an advice - nothing to decide`);
+  if (row.state !== 'open') return errorReply(409, `row ${id} is ${row.state} - decided by ${row.answered_by ?? 'nobody'}`);
   let target;
   try {
     target = replyRequest(row.link, row.ticket, decisions, identity.who);
   } catch (error) {
     if (!(error instanceof ReplyError)) throw error;
-    return sendError(res, error.status, error.message);
+    return errorReply(error.status, error.message);
   }
   const [status, answer, error] = await forward(target[0], target[1], config);
   const outcome = error
@@ -978,46 +1004,28 @@ export async function decide(req, res, id) {
   }
   const shown = updated ?? row;
   log.info(`Row ${id} decided by ${identity.who} via ${identity.via} - ${outcome.status} -> ${shown.state}`);
-  return sendJson(res, 200, { row: publicRow(shown), outcome });
+  return jsonReply(200, { row: publicRow(shown), outcome });
 }
 
-/** The browser side on the host (Platform.addRoutes). */
-export async function mount(req, res, url) {
-  const path = url.pathname;
-  if (req.method === 'GET') {
-    if (path === CONFIG_PATH) {
-      await showConfig(req, res);
-      return true;
-    }
-    if (path === EVENTS_PATH) {
-      await events(req, res, url);
-      return true;
-    }
-    if (path === LIST_PATH) {
-      await listRows(req, res, url);
-      return true;
-    }
-    if (path === TRANSCRIPTS_PATH) {
-      await listTranscripts(req, res, url);
-      return true;
-    }
-    const transcript = /^\/transcripts\/([^/]+)$/.exec(path);
-    if (transcript) {
-      await showTranscript(req, res, decodeURIComponent(transcript[1]));
-      return true;
-    }
+/**
+ * The browser side as REST automation entries (resources/rest.yaml, served with rest.automation: true): each path a
+ * private function of this process - the engines' way, in place of routes mounted by hand on the host. The stream is
+ * an interceptor behind an entry with stream: true.
+ */
+export const REST_FUNCTIONS = [
+  [CONFIG_ROUTE, showConfig, { instances: 10, isPrivate: true }],
+  [ROWS_ROUTE, listRows, { instances: 10, isPrivate: true }],
+  [EVENTS_ROUTE, events, { instances: STREAM_INSTANCES, isPrivate: true, interceptor: true }],
+  [TRANSCRIPTS_ROUTE, listTranscripts, { instances: 10, isPrivate: true }],
+  [TRANSCRIPT_ROUTE, showTranscript, { instances: 10, isPrivate: true }],
+  [DECIDE_ROUTE, decide, { instances: 10, isPrivate: true }]
+];
+
+/** Register the browser side's functions on a registry that lacks them (a platform of its own, in a test). */
+export function registerRestFunctions(registry = defaultRegistry) {
+  for (const [route, handler, options] of REST_FUNCTIONS) {
+    if (!registry.exists(route)) registry.register(route, handler, options);
   }
-  const action = /^\/questions\/([^/]+)\/decide$/.exec(path);
-  if (req.method === 'POST' && action) {
-    const id = Number(action[1]);
-    if (!Number.isInteger(id)) {
-      sendError(res, 400, 'the row id must be a whole number');
-      return true;
-    }
-    await decide(req, res, id);
-    return true;
-  }
-  return false;
 }
 
 // --- boot -------------------------------------------------------------------------------------
@@ -1065,7 +1073,8 @@ export function attach(target = platform) {
   target.onStartup(boot);
   target.onShutdown(closeStreams);
   target.onCleanup(shutdown);
-  target.addRoutes(mount);
+  // the browser side is rest.yaml entries served by this process's functions, not mounted routes
+  registerRestFunctions(target.registry ?? defaultRegistry);
 }
 
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href;

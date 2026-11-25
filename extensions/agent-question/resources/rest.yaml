@@ -1,0 +1,40 @@
+#
+# REST automation (the engines' rest.yaml) for the agent-question app: the browser side of the
+# React UI (RFC-0014), served because application.yml sets rest.automation: true. Each entry
+# maps a URL to a private function of this process, which receives the whole request as the
+# AsyncHttpRequest map (see agent-question.mjs); the stream is an interceptor behind an entry
+# with stream: true, rendered as Server-Sent Events by the edge. The UI's bundle is served from
+# resources/public by the host's static content service; POST /api/event and the actuators stay
+# served as the engines' default entries.
+#
+# The timeout of the click must exceed question.reply.timeout (10s by default): the function
+# waits for the main flow's reply endpoint that long before it gives up on its own.
+#
+rest:
+  - service: "question.ui.config"
+    methods: ['GET']
+    url: "/questions/config"
+    timeout: 10s
+  - service: "question.rows"
+    methods: ['GET']
+    url: "/questions"
+    timeout: 10s
+    tracing: true
+  - service: "question.events"
+    methods: ['GET']
+    url: "/questions/events"
+    timeout: 30s
+    stream: true
+  - service: "question.transcripts"
+    methods: ['GET']
+    url: "/transcripts"
+    timeout: 10s
+  - service: "question.transcript"
+    methods: ['GET']
+    url: "/transcripts/{conversation}"
+    timeout: 10s
+  - service: "question.decide"
+    methods: ['POST']
+    url: "/questions/{id}/decide"
+    timeout: 30s
+    tracing: true

@@ -562,3 +562,18 @@ test('the client idle guard fails in-band', async () => {
   assert.equal(error.getStatus(), 408);
   assert.equal((error.body as Record<string, unknown>)['message'], 'Timeout for 2 seconds');
 });
+
+test('a writer whose reply sink is gone closes itself', () => {
+  const registry = new FunctionRegistry();
+  const [sinkRoute] = registry.bus.openSink();
+  const event = new EventEnvelope('unit.tokens').setReplyTo(sinkRoute);
+  const out = EventStreamWriter.fromRequest(event, registry);
+  out.first(200, SSE);
+  out.write('alpha');
+  assert.equal(out.closed, false, 'a taken segment leaves the writer open');
+  registry.bus.closeSink(sinkRoute); // the consumer completed, timed out or disconnected
+  out.write('beta');
+  assert.equal(out.closed, true, 'a dropped segment closes the writer');
+  out.write('gamma'); // dropped quietly, as any write after close
+  assert.equal(out.closed, true);
+});

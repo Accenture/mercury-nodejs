@@ -258,8 +258,11 @@
   the field's installations use 3-legged SSO and OAuth 2.0 access tokens - and the reply page signs the person in by
   Authorization Code with PKCE (a shell, `GET /ask/config`, the wait read from `GET /ask/{ticket}/wait`). **How to
   apply (amended):** "keeping no store" means no state of the wait - the record is an audit log, never consulted to
-  render a wait; the agent-question app reads it.
-  <!-- id: ask-person-main-flow-node | created: 2026-11-19 | last_used: 2026-11-20 | uses: 5 | tier: active | origin: 2026-11-19-074617 -->
+  render a wait; the agent-question app reads it. **2026-11-25 (RFC-0018's first adopter):** the reply page and endpoint
+  are REST automation entries of `resources/rest.yaml` - `ask.reply.config`, `ask.reply.page`, `ask.reply.wait` and
+  `ask.reply`, private functions reading the `AsyncHttpRequest` map and replying with the exact bytes as text with a
+  content type; `Platform.addRoutes` is no longer used here.
+  <!-- id: ask-person-main-flow-node | created: 2026-11-19 | last_used: 2026-11-25 | uses: 6 | tier: active | origin: 2026-11-19-074617 -->
 - **The agent-question app is the Node twin of the Python pack's first channel of RFC-0014 (step 4; built here 2026-11-19 in
   lockstep with mercury-python #70).** `extensions/agent-question/agent-question.mjs`, a standalone application on the package:
   `agent.question.inbox` upserts a wait on `(graph_id, correlation_id, turn)` and appends an advice, in memory or PostgreSQL
@@ -289,7 +292,12 @@
   ([[agent-question-ui]]) is served at `/` from `resources/public`, the engines' actuator endpoints beside it for
   Kubernetes probes (Eric).
   **The streams end when the application stops** (2026-11-20, [[platform-on-shutdown-hook-node]]).
-  <!-- id: agent-question-app-node | created: 2026-11-19 | last_used: 2026-11-20 | uses: 7 | tier: active | origin: 2026-11-19-074617 -->
+  **2026-11-25 (RFC-0018's first adopter):** the browser side is REST automation entries of `resources/rest.yaml` -
+  `question.ui.config`, `question.rows`, `question.events` (an interceptor behind `stream: true`, 200 instances bounding
+  the devices, a no-body heartbeat whose drop ends a stream whose device is gone), `question.transcripts`,
+  `question.transcript`, `question.decide` - private functions replying with the exact bytes; the `question` events
+  carry no `id:` line, the UI keeping its cursor from the row's `seq` ([[agent-question-ui]]).
+  <!-- id: agent-question-app-node | created: 2026-11-19 | last_used: 2026-11-25 | uses: 8 | tier: active | origin: 2026-11-19-074617 -->
 
 - **The React UI is one subproject here, `extensions/agent-question-ui/`, and one bundle committed in both packs
   (RFC-0014 round 4, section 21.4; built and MERGED 2026-11-20, PR #141 merge `344b34f07` / mercury-python #76).** Vite + React 19 + TypeScript on
@@ -314,7 +322,7 @@
   headless Chrome, PKCE against a Keycloak container, the decision recorded under the token's name; fixes from the
   drive - a case's cards ordered by the time recorded, *Mark all notices as seen*, the Keycloak script's stdin password;
   the graceful-stop finding became [[platform-on-shutdown-hook-node]].
-  <!-- id: agent-question-ui | created: 2026-11-20 | last_used: 2026-11-20 | uses: 1 | tier: active | origin: 2026-11-20-094734 -->
+  <!-- id: agent-question-ui | created: 2026-11-20 | last_used: 2026-11-25 | uses: 2 | tier: active | origin: 2026-11-20-094734 -->
 
 - **`Platform.onShutdown` runs the moment the application starts to stop - before the cleanup callbacks and before
   `server.close()` - and an extension that holds a stream or a socket ends it there (2026-11-20, PR #141 MERGED 2026-11-20; the
@@ -327,7 +335,7 @@
   callbacks in order, then the cleanup callbacks last registered first. **How to apply:** a stream or a socket ends in
   `onShutdown`, a store closes in `onCleanup`; never a shorter grace period as the remedy - only the extension knows
   a response is a stream.
-  <!-- id: platform-on-shutdown-hook-node | created: 2026-11-20 | last_used: 2026-11-20 | uses: 1 | tier: active | origin: 2026-11-20-094734 -->
+  <!-- id: platform-on-shutdown-hook-node | created: 2026-11-20 | last_used: 2026-11-25 | uses: 2 | tier: active | origin: 2026-11-20-094734 -->
 
 - **The host serves static web content from `resources/public` next to the application file - the engines' `public`
   folder (Eric, 2026-11-20; PR #138, in lockstep with mercury-python #73).** `static.html.folder` is honoured as the
@@ -371,7 +379,7 @@
   never a mounted route; a behaviour of the edge is first a vector case, then code, in both packs; the grammar's
   messages are the engines' and a pack never grows a dialect; what the engines defer stays deferred until a field
   request; the vector file changes in both packs or in neither.
-  <!-- id: rest-automation-nodejs | created: 2026-11-25 | last_used: 2026-11-25 | uses: 1 | tier: working | origin: 2026-11-25-022427 -->
+  <!-- id: rest-automation-nodejs | created: 2026-11-25 | last_used: 2026-11-25 | uses: 2 | tier: active | origin: 2026-11-25-022427 -->
 
 ## Conventions
 

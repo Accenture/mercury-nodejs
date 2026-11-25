@@ -138,6 +138,13 @@ engine; a malformed one or another version is a 400, one no key signs a 403.
 - **The allowlist** `ask.graphs` maps a graph id to the engine entry the resume is sent to; a ticket for a graph that is
   not listed is a 404, and the endpoint never posts to an address a message told it.
 
+The page and the endpoint are **REST automation entries** of `resources/rest.yaml` (RFC-0018; `application.yml` sets
+`rest.automation: true`): `GET /ask/config`, `GET /ask/{ticket}`, `GET /ask/{ticket}/wait` and `POST /ask/reply` map to
+the private functions `ask.reply.config`, `ask.reply.page`, `ask.reply.wait` and `ask.reply` of this process, which
+read the request as the engines' `AsyncHttpRequest` map - the engines' way of serving an application's HTTP surface, in
+place of routes mounted by hand on the host. The entries' timeouts (90 s for the wait and the reply) must exceed
+`ask.engine.timeout`.
+
 ## The question record
 
 The row (`schema/postgres.sql`; the Node.js twin's is byte-identical):
@@ -197,5 +204,5 @@ outcomes; the row a message becomes, the state an answer leaves and the record's
 and the page in-process: channels that take, refuse and miss the event, the record written before they are told; the
 reply endpoint against a fake engine, the answer recorded with who decided; the two auth modes with a signed token and
 the page's configuration; the PostgreSQL store's statements on a recording fake of the pool, and - gated on
-`ASK_AUDIT_TEST_URL` - the schema and the rows on a live PostgreSQL; the host hook that mounts the routes before the
-catch-all.
+`ASK_AUDIT_TEST_URL` - the schema and the rows on a live PostgreSQL; the `rest.yaml` entries that serve the page and
+the endpoint beside the host's own paths.

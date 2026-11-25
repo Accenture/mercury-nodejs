@@ -361,6 +361,28 @@
    not the runtime an action runs on. In lockstep with the Python pack. **Upgrade note:** none - CI only; nothing in the
    package changes.
 
+10. **The ask-a-person reply page and endpoint and the agent-question app's browser side are REST automation entries
+   (RFC-0018's first adopters), no longer routes mounted by hand on the host.** `extensions/ask-person/resources/rest.yaml`
+   maps `GET /ask/config`, `GET /ask/{ticket}`, `GET /ask/{ticket}/wait` and `POST /ask/reply` to the private functions
+   `ask.reply.config`, `ask.reply.page`, `ask.reply.wait` and `ask.reply`; `extensions/agent-question/resources/rest.yaml`
+   maps `GET /questions/config`, `GET /questions`, `GET /questions/events`, `GET /transcripts`,
+   `GET /transcripts/{conversation}` and `POST /questions/{id}/decide` to `question.ui.config`, `question.rows`,
+   `question.events`, `question.transcripts`, `question.transcript` and `question.decide`; both applications set
+   `rest.automation: true`. Each function reads the request as the engines' `AsyncHttpRequest` map and replies with
+   the bytes it always sent (the JSON compact with its nulls, the page as HTML), so the UI, the page's script and the
+   Python twin's vectors see the same wire. The stream is an interceptor behind an entry with `stream: true`: the
+   REST edge renders the `question` events and the keep-alive comments (the `id:` line is gone - the UI keeps its
+   cursor from each row's `seq`), a stopping application still closes every stream, and a heartbeat segment with no
+   body - which the edge writes nothing for - renews the edge's idle allowance and, when it is no longer taken,
+   tells a stream its device is gone; the stream's instances (200) bound the connected devices. A known path under
+   another method is now 405 and an unclaimed path the engines' 404 on these applications. `Platform.addRoutes`
+   stays in the host for a route `rest.yaml` cannot express. The Python twins still mount their routes and follow.
+
+11. **`EventStreamWriter` closes itself when its reply address no longer takes a segment** - the request completed,
+   timed out or the client disconnected - so a long-lived producer that checks `closed` between segments stops with
+   its consumer instead of writing into the void (the engines' object stream fails a write to a closed stream). A
+   write after that is dropped as any write after `close()`.
+
 ## 4.12.30 (2026-11-16)
 
 The catch-up round with the engines: the pack moves from 4.12.21 to 4.12.30, the number the Java engine released on

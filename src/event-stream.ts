@@ -22,7 +22,9 @@
  *
  * Writes after close/fail are dropped (debug log), mirroring the engines. An
  * in-band failure body carries the standard error key-values
- * '{"type": "error", "status": n, "message": text}'.
+ * '{"type": "error", "status": n, "message": text}'. A segment the reply
+ * address no longer takes (the consumer is gone) closes the writer, so a
+ * long-lived producer stops with its consumer.
  */
 import type * as http from 'node:http';
 import { Mailbox, raceMs } from './bus.js';
@@ -363,7 +365,7 @@ export class EventStreamWriter {
     this.emit(event);
   }
 
-  /** True when the stream has been closed or failed. */
+  /** True when the stream has been closed or failed, or its reply address stopped taking segments. */
   get closed(): boolean {
     return this.isClosed;
   }
@@ -410,9 +412,15 @@ export class EventStreamWriter {
     return event;
   }
 
+  /**
+   * Route one segment to the reply address. A reply sink that is gone - the request completed, timed out or the
+   * client disconnected - closes this writer (the engines' object stream fails a write to a closed stream), so a
+   * producer that checks `closed` between segments stops with its consumer instead of writing into the void.
+   */
   private emit(event: EventEnvelope): void {
     if (!this.registry.sendEvent(event)) {
       log.warn(`Event dropped - route ${this.replyTo} not found`);
+      this.isClosed = true;
     }
   }
 }

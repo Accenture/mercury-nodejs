@@ -10,6 +10,10 @@
 > number it caught up to. **Subprocesses allowed for stdio MCP 2026-11-03 (Eric).**
 > **Wording refreshed 2026-11-13 (Eric):** the previous port lives in tagged releases.
 > **Current-state line refreshed 2026-11-16:** 4.12.30 published.
+> **REST automation added 2026-11-24 (Eric):** the pack becomes a full-service application
+> development server - the engines' `rest.yaml` edge in front of its functions - for the field's
+> utility apps, inspired by the AI SDLC work where utility functions run in the language packs
+> (RFC-0018 in mercury-composable); the scope fence is unchanged.
 > Treated as `core` (never decays) but re-confirmed on the
 > invariant-verification cadence — a vision can go stale. The **Blueprint** (Open Threads
 > tagged `(blueprint)` in `continuity.md`) tracks the gap from Current State to here;
@@ -19,9 +23,11 @@
 
 ## Elevator statement
 
-The **Node.js doorway into Mercury Composable**: a deliberately tiny Event-over-HTTP
-wrapper that lets developers write functions in the language that genuinely earns its
-place — while the engines own all orchestration.
+The **Node.js doorway into Mercury Composable**: a lightweight Event-over-HTTP wrapper
+that lets developers write functions in the language that genuinely earns its place, and
+— with REST automation — a full-service application development server, so a utility app
+in Node.js is built and deployed as an engine application is, while the engines own all
+orchestration.
 
 ## Current-state context
 
@@ -47,6 +53,14 @@ tagged releases only — it never occupied this name on the public registry.
   which catches up closely after each Java release (Eric, 2026-11-03).
 - The **rapid-prototyping path**: `npm install` plus the `mercury-serve` one-liner; the
   TS/JS ecosystem loads once in a long-lived service.
+- A **full-service application development server for utility apps (Eric, 2026-11-24):**
+  the engines' REST automation in the pack — `rest.yaml` is the router, mapping a URL and
+  its methods to a function with CORS, header transforms, an authentication function, a
+  timeout, tracing and static content, in the engines' grammar and never a dialect of it —
+  so the field's Node utility scripts become applications designed, configured and
+  deployed in one consistent manner with the engines' applications, beside the AI SDLC's
+  utility functions that already run here. Ingress, not orchestration: a `flow` binding is
+  refused by name (RFC-0018 in mercury-composable).
 - **Bidirectional and invisible in the architecture**: functions addressed from Event
   Script flows and MiniGraph tasks as if local (declarative map, zero caller code); the
   thin client calls engine or peer functions over the same protocol.
@@ -69,6 +83,9 @@ architecture; and the engine teams, who gain polyglot reach with zero engine cou
   live interop gate against both engines on every release.
 - The dev loop stays one-liner simple; cross-language trace continuity gives one log
   aggregation.
+- A `rest.yaml` written for an engine loads in the pack unchanged (a flow binding apart),
+  and a utility app ships as REST endpoints, functions and a web bundle with no web
+  framework of its own.
 
 ## Non-goals (what it must never become)
 
@@ -78,7 +95,10 @@ architecture; and the engine teams, who gain polyglot reach with zero engine cou
   **primitive in-process event bus** (route mailboxes + workers — dispatch, not
   orchestration) is in scope and shipped; it must never grow spill, queue caps, or
   engine-style orchestration. In particular, **never a re-port of the full framework** —
-  light by design is the point of the reboot.
+  light by design is the point of the reboot. REST automation (2026-11-24) is the one part
+  of the previous port that returns, as the HTTP edge in front of the pack's functions:
+  ingress configuration rewritten on `node:http` with no framework dependency, never a flow
+  or a graph — a `flow` binding is refused by name.
 - **Never subprocess or embedded-interpreter execution of a function** (Option A shelved;
   helper-style embedding explicitly not planned): a function runs in the pack's own process.
   **A subprocess is allowed for stdio MCP (Eric, 2026-11-03):** the pack may run an MCP server
@@ -92,5 +112,5 @@ architecture; and the engine teams, who gain polyglot reach with zero engine cou
 
 ## Mental model
 
-> Functions in your language; orchestration in the engines — one wire format keeps
-> everyone honest.
+> Functions in your language; orchestration in the engines — one wire format and one
+> `rest.yaml` grammar keep everyone honest.

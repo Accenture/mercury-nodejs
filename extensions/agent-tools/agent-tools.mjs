@@ -119,6 +119,11 @@ export const DEFAULT_GRAPH_TIMEOUT_MS = 10000;
 export const DEFAULT_INGEST_MAX_NODES = 500;
 // a call may carry this many relationships per allowed node - the tool's own bound
 export const INGEST_RELATIONSHIPS_PER_NODE = 4;
+// every node graph.ingest writes carries this label beside its own, and one uniqueness constraint on
+// its key gives the index that finds a node by key; a caller's label starts with a letter
+// (IDENTIFIER), so it can never be this one
+export const INGEST_LABEL = '_Ingested';
+export const INGEST_CONSTRAINT = 'mercury_ingested_key';
 const IDENTIFIER = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
 const PROPERTY_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
 // the clauses a read-only query may not carry, and the ones the delete gate guards
@@ -412,7 +417,7 @@ export const GRAPH_SCHEMA_ROW = {
 
 export const GRAPH_QUERY_ROW = {
   "name": "graph_query",
-  "description": "Run a read-only openCypher query against the agent's knowledge graph and return its rows. Pass values as parameters ($name in the query, the value under that name in parameters) instead of writing them into the query. A node comes back as {id, labels, properties}, a relationship as {id, type, start, end, properties}, a path as a list of them. Rows are capped: narrow the query with WHERE and LIMIT when the result was cut. A query that writes (CREATE, MERGE, SET, DELETE, REMOVE, DROP, LOAD CSV) is refused - use graph_write or graph_ingest.",
+  "description": "Run a read-only openCypher query against the agent's knowledge graph and return its rows. Pass values as parameters ($name in the query, the value under that name in parameters) instead of writing them into the query. A node comes back as {id, labels, properties}, a relationship as {id, type, start, end, properties}, a path as a list of them. Rows are capped: narrow the query with WHERE and LIMIT when the result was cut. A query that writes (CREATE, MERGE, SET, DELETE, REMOVE, DROP, LOAD CSV) is refused - use graph_write or graph_ingest. To find a node by its key, match it through the label every ingested node carries, which holds the index: MATCH (n:_Ingested {key: $key}).",
   "input_schema": {
     "type": "object",
     "properties": {
@@ -459,7 +464,7 @@ export const GRAPH_WRITE_ROW = {
 
 export const GRAPH_INGEST_ROW = {
   "name": "graph_ingest",
-  "description": "Load what you extracted from a document into the agent's knowledge graph, idempotently. Each node is merged on its key - unique across the graph, the label in lower case as its prefix (clause:12, party:supplier-a) - with its label and properties; each relationship is merged between two keys that exist (in this call or already in the graph) with its type and properties. Labels and types are identifiers (letters, digits and underscore, starting with a letter); property values are scalars or lists of scalars. Give source (the document's path or URL) so an answer can cite it. Running the same ingest twice changes nothing.",
+  "description": "Load what you extracted from a document into the agent's knowledge graph, idempotently. Each node is merged on its key - unique across the graph, the label in lower case as its prefix (clause:12, party:supplier-a) - with its label and properties; each relationship is merged between two keys that exist (in this call or already in the graph) with its type and properties. Labels and types are identifiers (letters, digits and underscore, starting with a letter); property values are scalars or lists of scalars. Give source (the document's path or URL) so an answer can cite it. Running the same ingest twice changes nothing. A key names one node: the same key under another label is refused.",
   "input_schema": {
     "type": "object",
     "properties": {
@@ -2367,24 +2372,47 @@ export function planIngest(args, { maxNodes }) {
   return { nodes: byLabel, relationships: byType, source: source ?? undefined, nodeCount: nodes.length, relationshipCount: relationships.length, endpointKeys };
 }
 
-/** The parameterized statements of an ingest, nodes first, then the relationships - one UNWIND ... MERGE per label and per type, every value a parameter, source stamped. */
+/**
+ * The parameterized statements of an ingest, nodes first, then the relationships - one UNWIND ... MERGE
+ * per label and per type, every value a parameter, source stamped. Every node is matched through the
+ * ingest label, so the database finds it by the index on its key: a match on key without a label reads
+ * every node of the database.
+ */
 export function ingestStatements(plan) {
   const statements = [];
   let stamp = plan.source !== undefined ? ', n.source = $source' : '';
   for (const [label, rows] of plan.nodes) {
-    statements.push([`UNWIND $rows AS row MERGE (n:\`${label}\` {key: row.key}) SET n += row.properties${stamp}`, { rows, source: plan.source ?? null }]);
+    statements.push([
+      `UNWIND $rows AS row MERGE (n:\`${INGEST_LABEL}\`:\`${label}\` {key: row.key}) SET n += row.properties${stamp}`,
+      { rows, source: plan.source ?? null }
+    ]);
   }
   stamp = plan.source !== undefined ? ', r.source = $source' : '';
   for (const [type, rows] of plan.relationships) {
     statements.push([
-      `UNWIND $rows AS row MATCH (a {key: row.from}) MATCH (b {key: row.to}) MERGE (a)-[r:\`${type}\`]->(b) SET r += row.properties${stamp}`,
+      `UNWIND $rows AS row MATCH (a:\`${INGEST_LABEL}\` {key: row.from}) MATCH (b:\`${INGEST_LABEL}\` {key: row.to}) `
+        + `MERGE (a)-[r:\`${type}\`]->(b) SET r += row.properties${stamp}`,
       { rows, source: plan.source ?? null }
     ]);
   }
   return statements;
 }
 
-export const ENDPOINTS_QUERY = 'UNWIND $keys AS key OPTIONAL MATCH (n {key: key}) WITH key, n WHERE n IS NULL RETURN key';
+export const ENDPOINTS_QUERY = `UNWIND $keys AS key OPTIONAL MATCH (n:\`${INGEST_LABEL}\` {key: key}) WITH key, n WHERE n IS NULL RETURN key`;
+
+// what prepares a graph for the ingest, once: is the constraint there; if not, the nodes written
+// before the label existed take it, then the constraint is made. Neo4j's commands; a database that
+// does not take them is matched by the label and left to its own index.
+export const INGEST_CONSTRAINT_QUERY = `SHOW CONSTRAINTS YIELD name WHERE name = '${INGEST_CONSTRAINT}' RETURN name`;
+export const INGEST_LABEL_STATEMENT = `MATCH (n) WHERE n.key IS NOT NULL AND NOT n:\`${INGEST_LABEL}\` SET n:\`${INGEST_LABEL}\``;
+export const INGEST_CONSTRAINT_STATEMENT = `CREATE CONSTRAINT \`${INGEST_CONSTRAINT}\` IF NOT EXISTS FOR (n:\`${INGEST_LABEL}\`) REQUIRE n.key IS UNIQUE`;
+export const INGEST_DUPLICATES_QUERY = `MATCH (n:\`${INGEST_LABEL}\`) WITH n.key AS key, count(*) AS nodes WHERE nodes > 1 RETURN key, nodes`;
+
+/** A database that speaks Bolt and refuses a Neo4j command as unknown: its error code is not one of Neo4j's, or it is Neo4j's syntax error (an older server). */
+function otherDialect(error) {
+  const code = String(error?.code ?? '');
+  return code.includes('.ClientError.') && (!code.startsWith('Neo.') || code.includes('SyntaxError'));
+}
 
 // the schema procedures: Neo4j's, then Memgraph's under the same column names
 export const NODE_PROPERTIES_QUERIES = [
@@ -2427,16 +2455,69 @@ async function firstAvailable(tx, queries) {
 export function createGraphTools(sandbox, { backend = undefined, log = defaultLog } = {}) {
   const live = backend ?? createBolt(sandbox);
 
+  function failed(e) {
+    const error = graphError(e, { timeoutMs: sandbox.timeoutMs });
+    if (error.status >= 500 || error.status === 408) {
+      log.warn(`graph tool failed - ${e?.name ?? 'Error'} (${error.status})`);
+    }
+    return error;
+  }
+
   async function run(work, { write }) {
     try {
       return await live.execute(work, { write });
     } catch (e) {
-      const error = graphError(e, { timeoutMs: sandbox.timeoutMs });
-      if (error.status >= 500 || error.status === 408) {
-        log.warn(`graph tool failed - ${e?.name ?? 'Error'} (${error.status})`);
-      }
-      throw error;
+      throw failed(e);
     }
+  }
+
+  let ingestPrepared = false;
+  let preparing = null;
+
+  /** Before the first ingest of this process: the graph has the constraint, or gets it. A failure leaves the graph unprepared, so the next ingest tries again. */
+  async function prepareIngest() {
+    if (ingestPrepared) return;
+    preparing ??= ensureIngestConstraint().then(() => { ingestPrepared = true; }).finally(() => { preparing = null; });
+    await preparing;
+  }
+
+  async function ensureIngestConstraint() {
+    let constraint;
+    try {
+      constraint = await live.execute(async (tx) => (await tx.run(INGEST_CONSTRAINT_QUERY, {}, { limit: 1 })).values.length > 0, { write: false });
+    } catch (e) {
+      if (!otherDialect(e)) throw failed(e);
+      constraint = null;
+    }
+    if (constraint) return;
+    // the nodes of a graph written before the label existed: without it a merge would not find
+    // them and would write each a second time
+    let labelled;
+    try {
+      labelled = await run(async (tx) => Number((await tx.run(INGEST_LABEL_STATEMENT)).counters?.labels_added ?? 0), { write: true });
+    } catch (e) {
+      if (e.status !== 408) throw e;
+      throw new AppException(408, `labelling the nodes written before the label ${INGEST_LABEL} existed did not finish within ${sandbox.timeoutMs} ms and nothing was ingested - `
+        + `an administrator runs it once, in batches on a large graph: ${INGEST_LABEL_STATEMENT}`);
+    }
+    if (constraint === null) {
+      log.warn(`graph.ingest - this database does not take Neo4j's constraint commands: nodes are matched by the label ${INGEST_LABEL}, and the index on its key is the installation's to create`);
+      return;
+    }
+    try {
+      await live.execute(async (tx) => { await tx.run(INGEST_CONSTRAINT_STATEMENT); }, { write: true });
+    } catch (e) {
+      const code = String(e?.code ?? '');
+      if (code.includes('ConstraintCreationFailed')) {
+        throw new AppException(409, `the graph holds a key on more than one node, so the uniqueness constraint on (:${INGEST_LABEL} {key}) cannot be created and nothing was ingested - `
+          + `list them with: ${INGEST_DUPLICATES_QUERY}`);
+      }
+      if (code.includes('.Security.')) {
+        throw new AppException(503, `this process may not create the constraint the ingest needs - an administrator runs it once: ${INGEST_CONSTRAINT_STATEMENT}`);
+      }
+      throw failed(e);
+    }
+    log.info(`graph.ingest prepared the graph - ${labelled} node(s) took the label ${INGEST_LABEL}, constraint ${INGEST_CONSTRAINT} created`);
   }
 
   function parametersOf(args) {
@@ -2454,11 +2535,14 @@ export function createGraphTools(sandbox, { backend = undefined, log = defaultLo
     argumentsOf(body, GRAPH_SCHEMA_ROW);
     const result = await run(async (tx) => {
       const labels = new Map();
+      // the schema is the domain's: the ingest label is on every node and says nothing about it
       for (const [label, count] of (await tx.run(LABEL_COUNTS_QUERY)).values) {
+        if (label === INGEST_LABEL) continue;
         labels.set(String(label), { label: String(label), count: Number(renderValue(count)), properties: [] });
       }
       for (const [nodeLabels, name, types] of (await firstAvailable(tx, NODE_PROPERTIES_QUERIES)).values) {
         for (const label of nodeLabels ?? []) {
+          if (label === INGEST_LABEL) continue;
           if (!labels.has(String(label))) labels.set(String(label), { label: String(label), count: 0, properties: [] });
           if (name !== null && name !== undefined) {
             labels.get(String(label)).properties.push({ name: String(name), types: (types ?? []).map(String) });
@@ -2473,8 +2557,8 @@ export function createGraphTools(sandbox, { backend = undefined, log = defaultLo
       for (const [type, fromLabels, toLabels, count] of (await tx.run(RELATIONSHIP_COUNTS_QUERY)).values) {
         const entry = kindOf(String(type));
         entry.count += Number(renderValue(count));
-        for (const label of fromLabels ?? []) if (!entry.from.includes(String(label))) entry.from.push(String(label));
-        for (const label of toLabels ?? []) if (!entry.to.includes(String(label))) entry.to.push(String(label));
+        for (const label of fromLabels ?? []) if (label !== INGEST_LABEL && !entry.from.includes(String(label))) entry.from.push(String(label));
+        for (const label of toLabels ?? []) if (label !== INGEST_LABEL && !entry.to.includes(String(label))) entry.to.push(String(label));
       }
       for (const [type, name, types] of (await firstAvailable(tx, RELATIONSHIP_PROPERTIES_QUERIES)).values) {
         const entry = kindOf(relationshipTypeName(type));
@@ -2538,6 +2622,7 @@ export function createGraphTools(sandbox, { backend = undefined, log = defaultLo
     const plan = planIngest(args, { maxNodes: sandbox.ingestMaxNodes });
     const statements = ingestStatements(plan);
     const nodeStatements = plan.nodes.size;
+    await prepareIngest();
     const result = await run(async (tx) => {
       for (const [statement, parameters] of statements.slice(0, nodeStatements)) await tx.run(statement, parameters);
       if (plan.endpointKeys.length) {

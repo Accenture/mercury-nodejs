@@ -369,6 +369,26 @@
   request; the vector file changes in both packs or in neither.
   <!-- id: rest-automation-nodejs | created: 2026-11-25 | last_used: 2026-11-25 | uses: 4 | tier: active | origin: 2026-11-25-022427 -->
 
+- **`graph.ingest` reaches a node through the label `_Ingested` and its uniqueness constraint; a match on `key`
+  without a label is never written (2026-11-27, PR #150, merge `851896e`, MERGED; the twin of mercury-python #89,
+  the engines' page mercury-composable #684).** A field report: a write slowed with the size of the graph. The ingest
+  matched a relationship's ends, and checked them, by `key` alone; a database index belongs to a label, so the
+  database read every node (the Python twin's measurement of the same statements on Neo4j 5: 180,000 nodes, 150
+  relationships, 9.6 s, at the edge of the default 10 s deadline; 67 ms at 300 nodes). Now every ingested node
+  carries `_Ingested` (`INGEST_LABEL`; a caller's label starts with a letter, so the name is reserved by the grammar)
+  and `mercury_ingested_key` makes `(:_Ingested {key})` unique: 22 to 45 ms here whatever the size; a key names one
+  node (a second label is a 400, where it was a silent second node); a concurrent `MERGE` of one key is safe. The
+  first ingest of a process prepares the graph, each step its own transaction: is the constraint there, else label
+  every node with a `key`, then create it - label first, since a merge through the label would not find an
+  unlabelled node and would write it a second time. A 409 for a key on several nodes, a 503 without the privilege,
+  a 408 for a labelling over the deadline, each naming its repair, each before anything is merged. `graph.schema`
+  leaves the label out; two rows changed with their catalog files, byte-identical across the packs. A database that
+  refuses Neo4j's constraint commands (Memgraph, inside a transaction) is labelled and matched, with one warning;
+  its index is the installation's. **How to apply:** a statement that finds an ingested node names the label; a new
+  graph tool that writes nodes with a `key` adds it; a schema change never shares a transaction with a write; a
+  refusal names its repair; a change to the statements, the messages or the rows is made in both packs the same day.
+  <!-- id: graph-ingest-label-and-constraint | created: 2026-11-27 | last_used: 2026-11-27 | uses: 1 | tier: working | origin: 2026-11-27-205900 -->
+
 ## Conventions
 
 - Engine-mirrored configuration/logging/trace conventions (see the invariant above and

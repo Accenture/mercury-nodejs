@@ -687,10 +687,14 @@ test('planIngest groups and validates', () => {
   assert.deepEqual([plan.nodeCount, plan.relationshipCount, plan.source, plan.endpointKeys], [3, 1, 'docs/a.md', ['clause:1', 'party:a']]);
   const statements = tools.ingestStatements(plan);
   assert.deepEqual(statements.map(([q]) => q), [
-    'UNWIND $rows AS row MERGE (n:`Clause` {key: row.key}) SET n += row.properties, n.source = $source',
-    'UNWIND $rows AS row MERGE (n:`Party` {key: row.key}) SET n += row.properties, n.source = $source',
-    'UNWIND $rows AS row MATCH (a {key: row.from}) MATCH (b {key: row.to}) MERGE (a)-[r:`BINDS`]->(b) SET r += row.properties, r.source = $source'
+    'UNWIND $rows AS row MERGE (n:`_Ingested`:`Clause` {key: row.key}) SET n += row.properties, n.source = $source',
+    'UNWIND $rows AS row MERGE (n:`_Ingested`:`Party` {key: row.key}) SET n += row.properties, n.source = $source',
+    'UNWIND $rows AS row MATCH (a:`_Ingested` {key: row.from}) MATCH (b:`_Ingested` {key: row.to}) MERGE (a)-[r:`BINDS`]->(b) SET r += row.properties, r.source = $source'
   ]);
+  // a match on key without a label reads every node of the database: no statement has one
+  const every = [...statements.map(([q]) => q), tools.ENDPOINTS_QUERY];
+  assert.deepEqual(every.filter((q) => q.includes('(n {') || q.includes('(a {') || q.includes('(b {')), []);
+  assert.equal(tools.ENDPOINTS_QUERY, 'UNWIND $keys AS key OPTIONAL MATCH (n:`_Ingested` {key: key}) WITH key, n WHERE n IS NULL RETURN key');
   assert.deepEqual(statements[0][1], { rows: plan.nodes.get('Clause'), source: 'docs/a.md' });
   const bare = tools.ingestStatements(tools.planIngest({ nodes: [{ key: 'k', label: 'L' }] }, { maxNodes: 10 }));
   assert.ok(bare[0][0].endsWith('SET n += row.properties'));
@@ -749,11 +753,13 @@ function graphTools(script, settings = {}) {
 
 function schemaScript({ memgraph = false } = {}) {
   return (query) => {
-    if (query === tools.LABEL_COUNTS_QUERY) return rows(['label', 'count'], [['Clause', 12], ['Party', 3]]);
-    if (query === tools.RELATIONSHIP_COUNTS_QUERY) return rows(['type', 'from', 'to', 'count'], [['BINDS', ['Clause'], ['Party'], 7], ['BINDS', ['Rule'], ['Party'], 1]]);
+    if (query === tools.LABEL_COUNTS_QUERY) return rows(['label', 'count'], [['Clause', 12], ['Party', 3], ['_Ingested', 15]]);
+    if (query === tools.RELATIONSHIP_COUNTS_QUERY) {
+      return rows(['type', 'from', 'to', 'count'], [['BINDS', ['Clause', '_Ingested'], ['_Ingested', 'Party'], 7], ['BINDS', ['Rule'], ['Party'], 1]]);
+    }
     if (query === tools.NODE_PROPERTIES_QUERIES[0]) {
       if (memgraph) throw new Error("There is no procedure named 'db.schema.nodeTypeProperties'.");
-      return rows(['nodeLabels', 'propertyName', 'propertyTypes'], [[['Clause'], 'text', ['String']], [['Clause'], 'key', ['String']], [['Party'], 'key', ['String']], [['Orphan'], null, null]]);
+      return rows(['nodeLabels', 'propertyName', 'propertyTypes'], [[['Clause', '_Ingested'], 'text', ['String']], [['_Ingested', 'Clause'], 'key', ['String']], [['Party'], 'key', ['String']], [['Orphan'], null, null]]);
     }
     if (query === tools.NODE_PROPERTIES_QUERIES[1]) {
       assert.ok(memgraph, 'the fallback runs only when the first procedure is missing');
@@ -780,6 +786,7 @@ test('graph.schema merges counts and properties', async () => {
     { type: 'BINDS', count: 8, from: ['Clause', 'Rule'], to: ['Party'], properties: [{ name: 'source', types: ['String'] }] },
     { type: 'CITES', count: 0, from: [], to: [], properties: [] }
   ]);
+  assert.ok(!JSON.stringify(schema).includes('_Ingested'), 'the ingest label is on every node and is left out');
   assert.deepEqual(backend.modes, [false], 'one read transaction');
 });
 
@@ -835,6 +842,7 @@ test('graph.write returns counters and guards deletion', async () => {
 
 test('graph.ingest merges nodes, checks endpoints, then merges relationships', async () => {
   const { graph, backend } = graphTools((query, parameters) => {
+    if (query === tools.INGEST_CONSTRAINT_QUERY) return rows(['name'], [[tools.INGEST_CONSTRAINT]]);
     if (query === tools.ENDPOINTS_QUERY) {
       assert.deepEqual(parameters, { keys: ['clause:1', 'party:a'] });
       return rows(['key'], []);
@@ -848,20 +856,113 @@ test('graph.ingest merges nodes, checks endpoints, then merges relationships', a
   };
   assert.deepEqual(await graph.ingest({}, body), { nodes: 2, relationships: 1 });
   const queries = backend.calls.map((c) => c[0]);
-  assert.deepEqual(queries.map((q) => (q === tools.ENDPOINTS_QUERY ? 'CHECK' : q.split(' ')[0])), ['UNWIND', 'UNWIND', 'CHECK', 'UNWIND']);
-  assert.ok(queries[0].includes('MERGE (n:`Clause`') && queries[1].includes('MERGE (n:`Party`') && queries[3].includes('MERGE (a)-[r:`BINDS`]->(b)'));
-  assert.deepEqual(backend.calls[0][1], { rows: [{ key: 'clause:1', properties: { text: 'pay within 30 days' } }], source: 'contracts/a.md' });
-  assert.deepEqual(backend.modes, [true], 'one write transaction');
+  assert.equal(queries[0], tools.INGEST_CONSTRAINT_QUERY, 'the constraint is there: nothing to prepare');
+  assert.deepEqual(queries.slice(1).map((q) => (q === tools.ENDPOINTS_QUERY ? 'CHECK' : q.split(' ')[0])), ['UNWIND', 'UNWIND', 'CHECK', 'UNWIND']);
+  assert.ok(queries[1].includes('MERGE (n:`_Ingested`:`Clause`') && queries[2].includes('MERGE (n:`_Ingested`:`Party`') && queries[4].includes('MERGE (a)-[r:`BINDS`]->(b)'));
+  assert.deepEqual(backend.calls[1][1], { rows: [{ key: 'clause:1', properties: { text: 'pay within 30 days' } }], source: 'contracts/a.md' });
+  assert.deepEqual(backend.modes, [false, true], 'a read for the constraint, then one write transaction');
   assert.deepEqual(await graph.ingest({}, body), { nodes: 2, relationships: 1 }, 'the same ingest again runs the same statements');
+  assert.deepEqual(backend.modes, [false, true, true]);
+  assert.equal(backend.calls.filter((c) => c[0] === tools.INGEST_CONSTRAINT_QUERY).length, 1, 'the constraint is not asked for again in this process');
+});
+
+const neo4jError = (code, message = 'refused') => Object.assign(new Error(message), { name: 'Neo4jError', code });
+const INGEST_ONE_NODE = { nodes: [{ key: 'clause:1', label: 'Clause' }] };
+
+test('the first ingest prepares a graph written before the label', async () => {
+  const { graph, backend, log } = graphTools((query) => {
+    if (query === tools.INGEST_CONSTRAINT_QUERY) return rows(['name'], []);
+    if (query === tools.INGEST_LABEL_STATEMENT) return rows([], [], { counters: { labels_added: 42 } });
+    return rows([], []);
+  }, { write: true });
+  assert.deepEqual(await graph.ingest({}, INGEST_ONE_NODE), { nodes: 1, relationships: 0 });
+  const queries = backend.calls.map((c) => c[0]);
+  // the nodes take the label before the constraint is made, and both before anything is merged:
+  // a merge through the label would not find an unlabelled node and would write it a second time
+  assert.deepEqual(queries.slice(0, 3), [tools.INGEST_CONSTRAINT_QUERY, tools.INGEST_LABEL_STATEMENT, tools.INGEST_CONSTRAINT_STATEMENT]);
+  assert.ok(queries[3].startsWith('UNWIND $rows AS row MERGE (n:`_Ingested`:`Clause`'));
+  assert.deepEqual(backend.modes, [false, true, true, true], 'a schema change has its own transaction');
+  includes(log.text(), 'graph.ingest prepared the graph - 42 node(s) took the label _Ingested, constraint mercury_ingested_key created');
+  assert.deepEqual(await graph.ingest({}, INGEST_ONE_NODE), { nodes: 1, relationships: 0 });
+  assert.equal(backend.modes.length, 5, 'prepared once in this process');
+});
+
+test('a key on two nodes refuses the ingest and names the query that lists them', async () => {
+  const { graph, backend } = graphTools((query) => {
+    if (query === tools.INGEST_CONSTRAINT_QUERY) return rows(['name'], []);
+    if (query === tools.INGEST_CONSTRAINT_STATEMENT) throw neo4jError('Neo.DatabaseError.Schema.ConstraintCreationFailed');
+    return rows([], []);
+  }, { write: true });
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const got = await refusal(graph.ingest({}, INGEST_ONE_NODE));
+    assert.equal(got.status, 409);
+    assert.ok(got.message.endsWith(tools.INGEST_DUPLICATES_QUERY));
+    includes(got.message, 'nothing was ingested');
+  }
+  const queries = backend.calls.map((c) => c[0]);
+  assert.deepEqual(queries.filter((q) => q.startsWith('UNWIND')), [], 'nothing was merged');
+  assert.equal(queries.filter((q) => q === tools.INGEST_CONSTRAINT_STATEMENT).length, 2, 'the next ingest tries again');
+});
+
+test('a process that may not create the constraint names the statement', async () => {
+  const { graph, backend } = graphTools((query) => {
+    if (query === tools.INGEST_CONSTRAINT_QUERY) return rows(['name'], []);
+    if (query === tools.INGEST_CONSTRAINT_STATEMENT) throw neo4jError('Neo.ClientError.Security.Forbidden');
+    return rows([], []);
+  }, { write: true });
+  const got = await refusal(graph.ingest({}, INGEST_ONE_NODE));
+  assert.equal(got.status, 503);
+  assert.ok(got.message.endsWith(tools.INGEST_CONSTRAINT_STATEMENT));
+  assert.deepEqual(backend.calls.filter((c) => c[0].startsWith('UNWIND')), []);
+});
+
+test("a database without Neo4j's constraint commands is matched by the label", async () => {
+  const { graph, backend, log } = graphTools((query) => {
+    if (query === tools.INGEST_CONSTRAINT_QUERY) throw neo4jError('Memgraph.ClientError.MemgraphError.MemgraphError', "mismatched input 'YIELD'");
+    return rows([], []);
+  }, { write: true });
+  assert.deepEqual(await graph.ingest({}, INGEST_ONE_NODE), { nodes: 1, relationships: 0 });
+  const queries = backend.calls.map((c) => c[0]);
+  assert.deepEqual(queries.slice(0, 2), [tools.INGEST_CONSTRAINT_QUERY, tools.INGEST_LABEL_STATEMENT]);
+  assert.ok(!queries.includes(tools.INGEST_CONSTRAINT_STATEMENT));
+  assert.ok(queries[2].startsWith('UNWIND $rows AS row MERGE (n:`_Ingested`:`Clause`'));
+  includes(log.text(), "the index on its key is the installation's to create");
+});
+
+test('a failure while preparing keeps its status and is tried again', async () => {
+  const outcomes = [neo4jError('Neo.TransientError.General.DatabaseUnavailable'), null];
+  const { graph } = graphTools((query) => {
+    if (query === tools.INGEST_CONSTRAINT_QUERY) {
+      const failure = outcomes.shift();
+      if (failure) throw failure;
+      return rows(['name'], [[tools.INGEST_CONSTRAINT]]);
+    }
+    return rows([], []);
+  }, { write: true });
+  assert.equal((await refusal(graph.ingest({}, INGEST_ONE_NODE))).status, 503, 'an unreachable database is not another dialect');
+  assert.deepEqual(await graph.ingest({}, INGEST_ONE_NODE), { nodes: 1, relationships: 0 });
+  const { graph: slow, backend } = graphTools((query) => {
+    if (query === tools.INGEST_CONSTRAINT_QUERY) return rows(['name'], []);
+    if (query === tools.INGEST_LABEL_STATEMENT) throw Object.assign(new Error('aborted'), { name: 'AbortError' });
+    return rows([], []);
+  }, { write: true, timeoutMs: 1500 });
+  const got = await refusal(slow.ingest({}, INGEST_ONE_NODE));
+  assert.equal(got.status, 408);
+  includes(got.message, 'did not finish within 1500 ms');
+  assert.ok(got.message.endsWith(tools.INGEST_LABEL_STATEMENT));
+  assert.deepEqual(backend.calls.filter((c) => c[0].startsWith('UNWIND')), []);
 });
 
 test('graph.ingest refuses a missing endpoint before any relationship is written', async () => {
-  const { graph, backend } = graphTools((query) => (query === tools.ENDPOINTS_QUERY ? rows(['key'], [['ghost:1']]) : rows([], [])), { write: true });
+  const { graph, backend } = graphTools((query) => {
+    if (query === tools.INGEST_CONSTRAINT_QUERY) return rows(['name'], [[tools.INGEST_CONSTRAINT]]);
+    return query === tools.ENDPOINTS_QUERY ? rows(['key'], [['ghost:1']]) : rows([], []);
+  }, { write: true });
   const got = await refusal(graph.ingest({}, { nodes: [{ key: 'clause:1', label: 'Clause' }], relationships: [{ from: 'clause:1', to: 'ghost:1', type: 'BINDS' }] }));
   assert.deepEqual(got, { status: 400, message: 'relationship endpoints not found in the graph or in this call: ghost:1' });
   assert.deepEqual(backend.calls.map((c) => c[0]).filter((q) => q.includes('MERGE (a)')), [], 'no relationship statement ran');
   includes((await refusal(graph.ingest({}, { nodes: [{ key: 'k', label: 'Bad Label' }] }))).message, 'identifier');
-  assert.equal(backend.modes.length, 1, 'a refused ingest never reaches the database');
+  assert.equal(backend.modes.length, 2, 'a refused ingest never reaches the database');
   assert.equal(tools.graphAddress('neo4j+s://user:secret@graph.example:7687/x?y=1'), 'neo4j+s://graph.example:7687');
 });
 
@@ -1169,12 +1270,13 @@ test('live graph round trip', { skip: process.env.TOOLS_GRAPH_TEST_URI ? false :
     assert.deepEqual((await graph.query({}, { query: 'MATCH (n:T_Clause) RETURN count(n) AS c' })).rows, [[1]]);
     const result = await graph.query({}, { query: 'MATCH (a:T_Clause)-[r:T_BINDS]->(b) RETURN a, r, b, a.days + $x AS sum', parameters: { x: 1 } });
     const [node, relationship, party, total] = result.rows[0];
-    assert.ok(node.labels[0] === 'T_Clause' && node.properties.key === 't_clause:1' && node.properties.source === 'contracts/a.md');
+    assert.deepEqual([...node.labels].sort(), ['T_Clause', '_Ingested']);
+    assert.ok(node.properties.key === 't_clause:1' && node.properties.source === 'contracts/a.md');
     assert.ok(relationship.type === 'T_BINDS' && relationship.start === node.id && relationship.end === party.id);
     assert.deepEqual(relationship.properties, { since: 2026, source: 'contracts/a.md' });
     assert.equal(total, 31);
     const path = await graph.query({}, { query: 'MATCH p = (:T_Clause)-[:T_BINDS]->(:T_Party) RETURN p' });
-    assert.deepEqual(path.rows[0][0].map((item) => item.labels ?? item.type), [['T_Clause'], 'T_BINDS', ['T_Party']]);
+    assert.deepEqual(path.rows[0][0].map((item) => (item.labels ? [...item.labels].sort() : item.type)), [['T_Clause', '_Ingested'], 'T_BINDS', ['T_Party', '_Ingested']]);
     const schema = await graph.schema({}, undefined);
     const clause = schema.labels.find((l) => l.label === 'T_Clause');
     assert.ok(clause.count === 1 && ['key', 'text', 'days', 'source'].every((n) => clause.properties.some((p) => p.name === n)));
@@ -1189,8 +1291,24 @@ test('live graph round trip', { skip: process.env.TOOLS_GRAPH_TEST_URI ? false :
     } finally {
       await guarded.close();
     }
+    // a key names one node: the constraint refuses it under another label
+    const second = await refusal(graph.ingest({}, { nodes: [{ key: 't_clause:1', label: 'T_Party' }] }));
+    assert.equal(second.status, 400);
+    includes(second.message, 'ConstraintValidationFailed');
+    // a node written before the label existed: a new process prepares the graph, and the same key
+    // is merged into that node, not written a second time
+    await graph.write({}, { query: "CREATE (:T_Clause {key: 't_clause:old', text: 'old'})" });
+    await graph.write({}, { query: `DROP CONSTRAINT \`${tools.INGEST_CONSTRAINT}\` IF EXISTS` });
+    const later = tools.createGraphTools(sandbox, { log });
+    try {
+      assert.deepEqual(await later.ingest({}, { nodes: [{ key: 't_clause:old', label: 'T_Clause', properties: { days: 7 } }] }), { nodes: 1, relationships: 0 });
+      const found = await later.query({}, { query: "MATCH (n:_Ingested {key: 't_clause:old'}) RETURN n.text, n.days" });
+      assert.deepEqual(found.rows, [['old', 7]], 'one node, with the old and the new property');
+    } finally {
+      await later.close();
+    }
     const deleted = await graph.write({}, { query: cleanup });
-    assert.ok(deleted.counters.nodes_deleted === 2 && deleted.counters.relationships_deleted === 1);
+    assert.ok(deleted.counters.nodes_deleted === 3 && deleted.counters.relationships_deleted === 1);
   } finally {
     await graph.close();
   }
